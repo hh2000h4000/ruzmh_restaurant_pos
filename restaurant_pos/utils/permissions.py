@@ -141,15 +141,25 @@ def assert_within_discount_limit(ceiling_field: str, percentage: float, user: st
 def validate_branch_access(branch: str, user: str | None = None) -> None:
 	"""Raise unless ``user`` may act in ``branch``.
 
-	Branch scoping uses Frappe's own ``User Permission`` mechanism, so an
-	administrator restricts a cashier to a branch the standard ERPNext way
-	instead of through a parallel RPOS-only concept.
+	Branch scoping is a ``User Permission`` question, not a DocType-permission
+	one: "which branches is this cashier restricted to", not "may this cashier
+	open the Branch list in the desk".
+
+	Reading it through ``frappe.has_permission("Branch")`` conflated the two and
+	refused everyone, because no POS role has read access to ``Branch`` — a wall
+	every cashier would have hit on every call. Here the rule is stated
+	directly: no User Permission rows means unrestricted, which is the right
+	default for a single-branch restaurant.
 	"""
 	user = user or frappe.session.user
 	if is_superuser(user):
 		return
 
-	if not frappe.has_permission("Branch", doc=branch, user=user):
+	restricted_to = frappe.permissions.get_user_permissions(user).get("Branch") or []
+	if not restricted_to:
+		return
+
+	if branch not in {row.get("doc") for row in restricted_to}:
 		frappe.throw(
 			_("You do not have access to branch {0}.").format(branch),
 			frappe.PermissionError,

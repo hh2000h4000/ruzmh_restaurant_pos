@@ -66,9 +66,7 @@ class TestDiscountOverride(PaymentTestBase):
 
 		self.assertLess(preview["total_amount"], before)
 		# Nothing was saved: the stored order is unchanged.
-		self.assertEqual(
-			flt(frappe.db.get_value("Restaurant Order", order.name, "total_amount")), before
-		)
+		self.assertEqual(flt(frappe.db.get_value("Restaurant Order", order.name, "total_amount")), before)
 
 	def test_preview_flags_a_discount_the_cashier_cannot_apply(self):
 		order = self._payable_order(qty=4)

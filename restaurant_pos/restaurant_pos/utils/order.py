@@ -19,7 +19,7 @@ import frappe
 from frappe import _
 from frappe.utils import cint, flt, now_datetime
 
-from restaurant_pos.restaurant_pos.utils import routing, totals
+from restaurant_pos.restaurant_pos.utils import kitchen, routing, totals
 from restaurant_pos.restaurant_pos.utils.audit import log_audit
 from restaurant_pos.restaurant_pos.utils.permissions import (
 	assert_permission,
@@ -473,9 +473,10 @@ def void_item(order, *, item_idx: int, reason: str, override_token: str | None =
 		},
 	)
 
-	# BR-013: a line the kitchen already has needs a Void KOT. Emitting it is
-	# the kitchen module's job; this flag is what tells it there is work to do.
-	return {"voided": row.idx, "needs_void_kot": was_sent}
+	# BR-013 — a line the kitchen already has must be withdrawn on paper too.
+	void_kots = kitchen.create_void_kot(order, [row]) if was_sent else []
+
+	return {"voided": row.idx, "void_kots": void_kots}
 
 
 # --------------------------------------------------------------------------- #
@@ -496,7 +497,9 @@ def cancel_order(order, *, reason: str, override_token: str | None = None) -> di
 
 	approved_by = authorise("can_cancel_order", override_token)
 
-	sent_items = [row.idx for row in order.items if row.status == "sent"]
+	# Captured before the status change, so the kitchen still knows what it was
+	# given (FR-2.8).
+	sent_rows = [row for row in order.items if row.status == "sent"]
 
 	assert_transition(order, "cancelled")
 	order.status = "cancelled"
@@ -508,6 +511,8 @@ def cancel_order(order, *, reason: str, override_token: str | None = None) -> di
 	if order.table:
 		_set_table_status(order.table, "available", None)
 
+	void_kots = kitchen.create_void_kot(order, sent_rows)
+
 	log_audit(
 		"cancel_order",
 		branch=order.branch,
@@ -515,10 +520,10 @@ def cancel_order(order, *, reason: str, override_token: str | None = None) -> di
 		restaurant_order=order.name,
 		approved_by=approved_by,
 		reason=reason,
-		details={"sent_items": len(sent_items), "total_amount": flt(order.total_amount)},
+		details={"sent_items": len(sent_rows), "total_amount": flt(order.total_amount)},
 	)
 
-	return {"cancelled": order.name, "needs_void_kot": bool(sent_items)}
+	return {"cancelled": order.name, "void_kots": void_kots}
 
 
 # --------------------------------------------------------------------------- #

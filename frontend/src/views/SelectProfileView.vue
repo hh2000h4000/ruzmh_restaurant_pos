@@ -55,11 +55,18 @@ async function start(): Promise<void> {
 <template>
   <main class="flex min-h-screen items-center justify-center p-4">
     <div class="w-full max-w-sm rounded-rpos bg-surface p-6 shadow-sm">
-      <h1 class="mb-1 text-lg font-semibold">تهيئة الجهاز</h1>
-      <p class="mb-5 text-sm text-muted">اختر ملف نقطة البيع لهذا الجهاز.</p>
+      <h1 class="mb-1 text-lg font-semibold">
+        تهيئة الجهاز
+      </h1>
+      <p class="mb-5 text-sm text-muted">
+        اختر ملف نقطة البيع لهذا الجهاز.
+      </p>
 
       <form @submit.prevent="start">
-        <label for="pos-profile" class="mb-1.5 block text-sm font-medium">
+        <label
+          for="pos-profile"
+          class="mb-1.5 block text-sm font-medium"
+        >
           ملف نقطة البيع
         </label>
         <input
@@ -69,7 +76,7 @@ async function start(): Promise<void> {
           autocomplete="off"
           class="mb-4 min-h-tap w-full rounded-rpos border border-line bg-background px-3 text-base focus:outline-none focus:ring-2 focus:ring-primary"
           :aria-describedby="message ? 'pos-profile-error' : undefined"
-        />
+        >
 
         <button
           type="submit"

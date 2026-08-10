@@ -140,7 +140,7 @@ class TestOrderCreation(OrderTestBase):
 			self._order(order_type=self.dine_in, cover_count=2)
 
 	def test_dine_in_requires_a_cover_count(self):
-		table = frappe.db.get_value("Restaurant Table", {"section": self.section}, "name")
+		table = frappe.db.get_value("Restaurant Table", {"section": self.section, "is_active": 1}, "name")
 		frappe.db.set_value("Restaurant Table", table, "status", "available")
 
 		with self.assertRaises(frappe.ValidationError):
@@ -148,7 +148,7 @@ class TestOrderCreation(OrderTestBase):
 
 	def test_seating_a_table_marks_it_occupied(self):
 		"""BR-061."""
-		table = frappe.db.get_value("Restaurant Table", {"section": self.section}, "name")
+		table = frappe.db.get_value("Restaurant Table", {"section": self.section, "is_active": 1}, "name")
 		frappe.db.set_value("Restaurant Table", table, {"status": "available", "current_order": None})
 
 		order = self._order(order_type=self.dine_in, table=table, cover_count=4)
@@ -157,7 +157,7 @@ class TestOrderCreation(OrderTestBase):
 		self.assertEqual(frappe.db.get_value("Restaurant Table", table, "current_order"), order.name)
 
 	def test_an_occupied_table_cannot_be_seated_again(self):
-		table = frappe.db.get_value("Restaurant Table", {"section": self.section}, "name")
+		table = frappe.db.get_value("Restaurant Table", {"section": self.section, "is_active": 1}, "name")
 		frappe.db.set_value("Restaurant Table", table, "status", "occupied")
 
 		with self.assertRaises(frappe.ValidationError):
@@ -301,7 +301,7 @@ class TestVoidAndCancel(OrderTestBase):
 
 	def test_cancelling_frees_the_table(self):
 		"""BR-062."""
-		table = frappe.db.get_value("Restaurant Table", {"section": self.section}, "name")
+		table = frappe.db.get_value("Restaurant Table", {"section": self.section, "is_active": 1}, "name")
 		frappe.db.set_value("Restaurant Table", table, {"status": "available", "current_order": None})
 		order = self._order(order_type=self.dine_in, table=table, cover_count=2)
 

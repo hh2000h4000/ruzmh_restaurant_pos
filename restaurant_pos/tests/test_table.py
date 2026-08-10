@@ -23,7 +23,7 @@ class TestFloorPlan(OrderTestBase):
 
 	def test_an_occupied_table_carries_its_order(self):
 		"""FR-5.1 — the plan shows order number, elapsed time and item count."""
-		table = frappe.db.get_value("Restaurant Table", {"section": self.section}, "name")
+		table = frappe.db.get_value("Restaurant Table", {"section": self.section, "is_active": 1}, "name")
 		frappe.db.set_value("Restaurant Table", table, {"status": "available", "current_order": None})
 
 		order = self._order(order_type=self.dine_in, table=table, cover_count=2)
@@ -39,7 +39,9 @@ class TestFloorPlan(OrderTestBase):
 
 	def test_an_available_table_carries_no_order_fields(self):
 		table = frappe.db.get_value(
-			"Restaurant Table", {"section": self.section, "status": "available"}, "name"
+			"Restaurant Table",
+			{"section": self.section, "status": "available", "is_active": 1},
+			"name",
 		)
 		if not table:
 			self.skipTest("no free table in this section")
@@ -90,7 +92,7 @@ class TestFloorPlan(OrderTestBase):
 
 	def test_a_table_with_an_open_order_cannot_be_freed_by_hand(self):
 		"""BR-061 — closing or cancelling the order is what frees a table."""
-		table = frappe.db.get_value("Restaurant Table", {"section": self.section}, "name")
+		table = frappe.db.get_value("Restaurant Table", {"section": self.section, "is_active": 1}, "name")
 		frappe.db.set_value("Restaurant Table", table, {"status": "available", "current_order": None})
 		self._order(order_type=self.dine_in, table=table, cover_count=2)
 
@@ -99,7 +101,7 @@ class TestFloorPlan(OrderTestBase):
 
 	def test_a_status_that_is_not_a_manual_one_is_refused(self):
 		"""'occupied' follows from an order, never from a button."""
-		table = frappe.db.get_value("Restaurant Table", {"section": self.section}, "name")
+		table = frappe.db.get_value("Restaurant Table", {"section": self.section, "is_active": 1}, "name")
 
 		with self.assertRaises(frappe.ValidationError):
 			api.update_status(table, "occupied")

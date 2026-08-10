@@ -223,7 +223,7 @@ class TestPaymentSideEffects(PaymentTestBase):
 
 	def test_the_table_goes_to_cleaning(self):
 		"""FR-2.7g."""
-		table = frappe.db.get_value("Restaurant Table", {"section": self.section}, "name")
+		table = frappe.db.get_value("Restaurant Table", {"section": self.section, "is_active": 1}, "name")
 		frappe.db.set_value("Restaurant Table", table, {"status": "available", "current_order": None})
 
 		order = self._order(order_type=self.dine_in, table=table, cover_count=2)

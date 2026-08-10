@@ -14,6 +14,7 @@ from restaurant_pos.restaurant_pos.utils.audit import log_audit, redact
 from restaurant_pos.setup.defaults import create_default_data
 
 CASHIER = "rpos_test_cashier@example.com"
+SENIOR = "rpos_test_senior@example.com"
 MANAGER = "rpos_test_manager@example.com"
 
 
@@ -111,6 +112,7 @@ class TestPrivilegeEscalationGuard(FrappeTestCase):
 		create_default_data()
 		_make_user(CASHIER, "POS Cashier")
 		_make_user(MANAGER, "POS Manager")
+		_make_user(SENIOR, "POS Senior Cashier")
 		frappe.db.commit()
 
 	def setUp(self):
@@ -121,11 +123,22 @@ class TestPrivilegeEscalationGuard(FrappeTestCase):
 		frappe.local.rpos_permission_cache = {}
 
 	def test_cannot_grant_a_permission_you_lack(self):
-		frappe.set_user(MANAGER)
+		"""Rule 1. A senior cashier cannot void orders, so cannot grant that right.
+
+		The actor must genuinely lack the permission, otherwise the rejection
+		would come from the rank check and this would test rule 3 twice.
+		"""
+		self.assertEqual(perms.get_pos_permission_set(SENIOR).can_void_order, 0)
+
+		frappe.set_user(SENIOR)
 		with self.assertRaises(frappe.PermissionError):
-			# A POS Manager has no can_access_reports beyond its own set? It does,
-			# so use a right the manager genuinely lacks by editing upward instead.
-			perms.assert_may_edit_permission_set("Restaurant Manager", {"can_void_order": 1})
+			perms.assert_may_edit_permission_set("POS Cashier", {"can_void_order": 1})
+
+	def test_may_grant_a_permission_you_do_hold(self):
+		"""The mirror of rule 1 — the guard must not block legitimate edits."""
+		frappe.set_user(SENIOR)
+		changes = perms.assert_may_edit_permission_set("POS Cashier", {"can_create_return": 1})
+		self.assertEqual(changes["can_create_return"]["after"], 1)
 
 	def test_cannot_edit_a_role_at_or_above_your_rank(self):
 		frappe.set_user(MANAGER)

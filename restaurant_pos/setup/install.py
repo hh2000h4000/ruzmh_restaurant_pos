@@ -13,6 +13,8 @@ modified - every extension is a ``Custom Field``.
 import frappe
 from frappe.custom.doctype.custom_field.custom_field import create_custom_fields
 
+from restaurant_pos.setup.defaults import create_default_data
+
 # ``Restaurant Branch`` in the database design is the ERPNext ``Branch`` DocType
 # extended with restaurant configuration (see 10_Implementation_Plan.md, Phase 1).
 CUSTOM_FIELDS = {
@@ -236,6 +238,10 @@ CUSTOM_FIELDS = {
 def after_install():
 	create_custom_fields(CUSTOM_FIELDS, ignore_validate=True)
 	frappe.db.commit()
+
+	# Shipped defaults run on install only. See setup/defaults.py for why they
+	# must never be re-applied on migrate.
+	create_default_data()
 
 
 def after_migrate():

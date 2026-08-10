@@ -191,7 +191,10 @@ async function confirm(): Promise<void> {
       <p class="rpos-numeric mb-1 text-3xl font-bold">
         {{ money(done.total_amount) }}
       </p>
-      <p v-if="done.change_amount > 0" class="rpos-numeric mb-4 text-lg text-status-reserved">
+      <p
+        v-if="done.change_amount > 0"
+        class="rpos-numeric mb-4 text-lg text-status-reserved"
+      >
         الباقي للعميل: {{ money(done.change_amount) }}
       </p>
       <p class="rpos-numeric mb-6 text-sm text-muted">
@@ -206,18 +209,28 @@ async function confirm(): Promise<void> {
       </button>
     </section>
 
-    <p v-else-if="failure" role="alert" class="m-4 rounded-rpos bg-danger/10 p-4 text-danger">
+    <p
+      v-else-if="failure"
+      role="alert"
+      class="m-4 rounded-rpos bg-danger/10 p-4 text-danger"
+    >
       {{ failure }}
     </p>
 
-    <div v-else-if="summary" class="grid flex-1 gap-3 overflow-y-auto p-3 lg:grid-cols-3">
+    <div
+      v-else-if="summary"
+      class="grid flex-1 gap-3 overflow-y-auto p-3 lg:grid-cols-3"
+    >
       <!-- 1 — methods -->
       <section class="rounded-rpos bg-surface p-4">
         <h2 class="mb-3 text-sm font-medium text-muted">
           طرق الدفع
         </h2>
 
-        <p v-if="forcedMethod" class="mb-3 rounded-rpos bg-status-reserved/10 p-2 text-xs text-status-reserved">
+        <p
+          v-if="forcedMethod"
+          class="mb-3 rounded-rpos bg-status-reserved/10 p-2 text-xs text-status-reserved"
+        >
           هذا النوع يُدفع بـ{{ forcedMethod }} فقط.
         </p>
 
@@ -234,10 +247,21 @@ async function confirm(): Promise<void> {
           </button>
         </div>
 
-        <div v-for="(line, index) in lines" :key="line.method" class="mb-3">
+        <div
+          v-for="(line, index) in lines"
+          :key="line.method"
+          class="mb-3"
+        >
           <div class="mb-1 flex items-center justify-between">
-            <label :for="`amount-${index}`" class="text-sm font-medium">{{ line.method }}</label>
-            <button type="button" class="text-xs text-danger" @click="removeMethod(index)">
+            <label
+              :for="`amount-${index}`"
+              class="text-sm font-medium"
+            >{{ line.method }}</label>
+            <button
+              type="button"
+              class="text-xs text-danger"
+              @click="removeMethod(index)"
+            >
               إزالة
             </button>
           </div>
@@ -249,7 +273,10 @@ async function confirm(): Promise<void> {
             min="0"
             class="rpos-numeric min-h-tap w-full rounded-rpos border border-line bg-background px-3"
           >
-          <label :for="`tendered-${index}`" class="mt-1 block text-xs text-muted">
+          <label
+            :for="`tendered-${index}`"
+            class="mt-1 block text-xs text-muted"
+          >
             المبلغ المستلم (للباقي)
           </label>
           <input
@@ -286,7 +313,10 @@ async function confirm(): Promise<void> {
           </button>
         </div>
 
-        <label for="manual-discount" class="mb-1 block text-sm font-medium">خصم يدوي</label>
+        <label
+          for="manual-discount"
+          class="mb-1 block text-sm font-medium"
+        >خصم يدوي</label>
         <div class="flex gap-2">
           <input
             id="manual-discount"
@@ -313,9 +343,15 @@ async function confirm(): Promise<void> {
           </select>
         </div>
 
-        <p v-if="needsApproval" class="mt-3 rounded-rpos bg-status-reserved/10 p-2 text-xs text-status-reserved">
+        <p
+          v-if="needsApproval"
+          class="mt-3 rounded-rpos bg-status-reserved/10 p-2 text-xs text-status-reserved"
+        >
           يتجاوز حدّك ({{ preview?.max_discount_percentage }}%) — يحتاج تفويض مدير.
-          <span v-if="overrideToken" class="font-medium text-status-available">تم التفويض ✓</span>
+          <span
+            v-if="overrideToken"
+            class="font-medium text-status-available"
+          >تم التفويض ✓</span>
         </p>
 
         <p class="mt-4 text-xs text-muted">
@@ -360,11 +396,17 @@ async function confirm(): Promise<void> {
         </dl>
 
         <div class="mt-4 space-y-1 text-sm">
-          <div v-if="remaining > 0" class="flex justify-between text-status-reserved">
+          <div
+            v-if="remaining > 0"
+            class="flex justify-between text-status-reserved"
+          >
             <span>المتبقي</span>
             <span class="rpos-numeric">{{ money(remaining) }}</span>
           </div>
-          <div v-if="change > 0" class="flex justify-between text-lg font-semibold">
+          <div
+            v-if="change > 0"
+            class="flex justify-between text-lg font-semibold"
+          >
             <span>الباقي للعميل</span>
             <span class="rpos-numeric">{{ money(change) }}</span>
           </div>
@@ -382,11 +424,18 @@ async function confirm(): Promise<void> {
     </div>
 
     <!-- Screen 9 — manager authorisation -->
-    <BaseDialog :open="askingPin" title="🔐 يتطلب تفويض المدير" @close="askingPin = false">
+    <BaseDialog
+      :open="askingPin"
+      title="🔐 يتطلب تفويض المدير"
+      @close="askingPin = false"
+    >
       <p class="mb-3 text-sm text-muted">
         خصم {{ preview?.discount_percentage }}% يتجاوز حدّك.
       </p>
-      <label for="pin" class="mb-1 block text-sm font-medium">رمز المدير</label>
+      <label
+        for="pin"
+        class="mb-1 block text-sm font-medium"
+      >رمز المدير</label>
       <input
         id="pin"
         v-model="pin"
@@ -396,18 +445,29 @@ async function confirm(): Promise<void> {
         autocomplete="off"
         class="rpos-numeric mb-3 min-h-tap w-full rounded-rpos border border-line bg-background px-3 text-center text-2xl tracking-widest"
       >
-      <label for="pin-reason" class="mb-1 block text-sm font-medium">السبب (مطلوب)</label>
+      <label
+        for="pin-reason"
+        class="mb-1 block text-sm font-medium"
+      >السبب (مطلوب)</label>
       <input
         id="pin-reason"
         v-model="pinReason"
         type="text"
         class="mb-4 min-h-tap w-full rounded-rpos border border-line bg-background px-3"
       >
-      <p v-if="pinError" role="alert" class="mb-3 text-sm text-danger">
+      <p
+        v-if="pinError"
+        role="alert"
+        class="mb-3 text-sm text-danger"
+      >
         {{ pinError }}
       </p>
       <div class="flex gap-2">
-        <button type="button" class="min-h-tap flex-1 rounded-rpos border border-line" @click="askingPin = false">
+        <button
+          type="button"
+          class="min-h-tap flex-1 rounded-rpos border border-line"
+          @click="askingPin = false"
+        >
           إلغاء
         </button>
         <button

@@ -34,6 +34,11 @@ const router = createRouter({
       component: () => import("@/views/OrderView.vue"),
     },
     {
+      path: "/payment/:orderName",
+      name: "payment",
+      component: () => import("@/views/PaymentView.vue"),
+    },
+    {
       path: "/:pathMatch(.*)*",
       redirect: { name: "home" },
     },

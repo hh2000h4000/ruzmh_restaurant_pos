@@ -211,14 +211,11 @@ async function send(): Promise<void> {
         🍳 إرسال للمطبخ
       </button>
 
-      <!-- The payment screen (FR-10.1) is the next slice. The endpoint exists
-           and is tested; only the three-column UI is missing, so the button is
-           visibly disabled rather than silently absent. -->
       <button
         type="button"
         class="min-h-tap flex-1 rounded-rpos bg-primary px-4 font-medium text-primary-contrast disabled:opacity-50"
-        disabled
-        title="شاشة الدفع قيد التنفيذ"
+        :disabled="locked || orders.isEmpty"
+        @click="router.push({ name: 'payment', params: { orderName: orders.order.order_name } })"
       >
         💳 دفع
       </button>

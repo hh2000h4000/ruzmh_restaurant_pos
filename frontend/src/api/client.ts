@@ -128,6 +128,17 @@ export function query<T>(path: string, params: Record<string, unknown> = {}): Pr
 }
 
 /**
+ * A POST that is not a business write: no `queue_id`, nothing to replay.
+ *
+ * Used for anything that must not travel in a URL — a manager PIN in a query
+ * string would be copied into the web server's access log and the browser's
+ * history, where it outlives the sixty-second approval it bought.
+ */
+export function command<T>(path: string, payload: Record<string, unknown> = {}): Promise<T> {
+  return request<T>("POST", path, payload);
+}
+
+/**
  * A write. Always carries a `queue_id`, so replaying it is safe (09 §8).
  *
  * Pass an existing `queueId` when re-sending something the offline queue held:

@@ -22,7 +22,7 @@ import frappe
 from frappe import _
 from frappe.utils import flt, now_datetime
 
-from restaurant_pos.restaurant_pos.utils.audit import log_audit
+from restaurant_pos.utils.audit import log_audit
 
 #: Lines that still have to reach the kitchen.
 PENDING = "pending"

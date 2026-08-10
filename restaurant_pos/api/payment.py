@@ -13,9 +13,9 @@ import frappe
 from frappe import _
 from frappe.utils import flt
 
-from restaurant_pos.restaurant_pos.utils import idempotency
-from restaurant_pos.restaurant_pos.utils import payment as service
-from restaurant_pos.restaurant_pos.utils.permissions import validate_branch_access
+from restaurant_pos.utils import idempotency
+from restaurant_pos.utils import payment as service
+from restaurant_pos.utils.permissions import validate_branch_access
 
 
 @frappe.whitelist()

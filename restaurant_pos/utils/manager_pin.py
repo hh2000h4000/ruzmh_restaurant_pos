@@ -125,7 +125,7 @@ def find_approver_for_pin(action: str, pin: str) -> str | None:
 	A valid PIN is not a master key. Returns ``None`` on any failure with no
 	detail about which part failed, so a caller cannot probe for valid PINs.
 	"""
-	from restaurant_pos.restaurant_pos.utils.permissions import get_pos_permission_set
+	from restaurant_pos.utils.permissions import get_pos_permission_set
 
 	user = find_user_by_pin(pin)
 	if not user:

@@ -12,9 +12,9 @@ import frappe
 from frappe.tests.utils import FrappeTestCase
 from frappe.utils import now_datetime
 
-from restaurant_pos.restaurant_pos.api import order as api
-from restaurant_pos.restaurant_pos.utils import order as service
-from restaurant_pos.restaurant_pos.utils import totals
+from restaurant_pos.api import order as api
+from restaurant_pos.utils import order as service
+from restaurant_pos.utils import totals
 
 BRANCH = "Riyadh"
 ITEM = "RPOS-TEST-BURGER"

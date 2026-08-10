@@ -12,9 +12,9 @@ Refs: 07_API_Design.md §7, 08_Security.md §4, FR-12.3, FR-12.4, FR-12.8
 import frappe
 from frappe import _
 
-from restaurant_pos.restaurant_pos.utils import manager_pin as pins
-from restaurant_pos.restaurant_pos.utils import permissions as perms
-from restaurant_pos.restaurant_pos.utils.audit import log_audit, log_permission_change
+from restaurant_pos.utils import manager_pin as pins
+from restaurant_pos.utils import permissions as perms
+from restaurant_pos.utils.audit import log_audit, log_permission_change
 
 
 @frappe.whitelist()

@@ -9,7 +9,7 @@
 import frappe
 from frappe.tests.utils import FrappeTestCase
 
-from restaurant_pos.restaurant_pos.utils import routing
+from restaurant_pos.utils import routing
 
 BRANCH = "Riyadh"
 COMPANY = "Ruzmh Test Co"

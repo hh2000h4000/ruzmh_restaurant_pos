@@ -19,9 +19,9 @@ import frappe
 from frappe import _
 from frappe.utils import cint, flt, now_datetime
 
-from restaurant_pos.restaurant_pos.utils import kitchen, routing, totals
-from restaurant_pos.restaurant_pos.utils.audit import log_audit
-from restaurant_pos.restaurant_pos.utils.permissions import (
+from restaurant_pos.utils import kitchen, routing, totals
+from restaurant_pos.utils.audit import log_audit
+from restaurant_pos.utils.permissions import (
 	assert_permission,
 	consume_override_token,
 	get_pos_permission_set,
@@ -166,11 +166,15 @@ def _load_order_type(order_type: str):
 	return config
 
 
-def _assert_order_type_allowed(config, profile) -> None:
-	"""BR-003 — an order type can be restricted to branches, sections, profiles, roles.
+def is_order_type_allowed(config, profile, user: str | None = None) -> bool:
+	"""BR-003 / FR-1.3 — may this order type be used on this terminal, by this user?
 
-	An empty table means "no restriction", so a fresh install works before any
-	branch exists.
+	An empty visibility table means "no restriction", so a fresh install works
+	before any branch exists.
+
+	The same rule decides which buttons the home screen shows and whether an
+	order may actually be created, so both go through here. If they diverged, a
+	cashier would tap a button and be refused.
 	"""
 	checks = (
 		("allowed_branches", "branch", profile.branch),
@@ -180,15 +184,19 @@ def _assert_order_type_allowed(config, profile) -> None:
 	for table_field, row_field, value in checks:
 		allowed = [row.get(row_field) for row in config.get(table_field) or []]
 		if allowed and value not in allowed:
-			frappe.throw(
-				_("Order type {0} is not available here.").format(config.title),
-				frappe.PermissionError,
-			)
+			return False
 
 	allowed_roles = [row.role for row in config.allowed_roles or []]
-	if allowed_roles and not set(allowed_roles) & set(frappe.get_roles()):
+	if allowed_roles and not set(allowed_roles) & set(frappe.get_roles(user or frappe.session.user)):
+		return False
+
+	return True
+
+
+def _assert_order_type_allowed(config, profile) -> None:
+	if not is_order_type_allowed(config, profile):
 		frappe.throw(
-			_("Order type {0} is not available to you.").format(config.title),
+			_("Order type {0} is not available here.").format(config.title),
 			frappe.PermissionError,
 		)
 

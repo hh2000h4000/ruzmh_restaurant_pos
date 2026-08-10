@@ -10,10 +10,10 @@ import uuid
 
 import frappe
 
-from restaurant_pos.restaurant_pos.api import kitchen as api
-from restaurant_pos.restaurant_pos.tests.test_order import ITEM, OrderTestBase
-from restaurant_pos.restaurant_pos.utils import kitchen as service
-from restaurant_pos.restaurant_pos.utils import order as orders
+from restaurant_pos.api import kitchen as api
+from restaurant_pos.tests.test_order import ITEM, OrderTestBase
+from restaurant_pos.utils import kitchen as service
+from restaurant_pos.utils import order as orders
 
 ITEM_DRINK = "RPOS-TEST-FRIES"
 

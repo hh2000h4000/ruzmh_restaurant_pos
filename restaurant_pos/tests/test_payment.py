@@ -11,11 +11,11 @@ import uuid
 import frappe
 from frappe.utils import flt, getdate
 
-from restaurant_pos.restaurant_pos.api import payment as api
-from restaurant_pos.restaurant_pos.tests.test_order import ITEM, OrderTestBase
-from restaurant_pos.restaurant_pos.utils import order as orders
-from restaurant_pos.restaurant_pos.utils import payment as service
-from restaurant_pos.restaurant_pos.utils import totals
+from restaurant_pos.api import payment as api
+from restaurant_pos.tests.test_order import ITEM, OrderTestBase
+from restaurant_pos.utils import order as orders
+from restaurant_pos.utils import payment as service
+from restaurant_pos.utils import totals
 
 CASH = "Cash"
 

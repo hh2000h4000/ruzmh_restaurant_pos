@@ -9,10 +9,10 @@ Refs: 07_API_Design.md §3, FR-2.3, FR-2.4, FR-6.3, FR-6.4
 import frappe
 from frappe import _
 
-from restaurant_pos.restaurant_pos.utils import idempotency
-from restaurant_pos.restaurant_pos.utils import kitchen as service
-from restaurant_pos.restaurant_pos.utils.order import assert_mutable
-from restaurant_pos.restaurant_pos.utils.permissions import (
+from restaurant_pos.utils import idempotency
+from restaurant_pos.utils import kitchen as service
+from restaurant_pos.utils.order import assert_mutable
+from restaurant_pos.utils.permissions import (
 	assert_permission,
 	validate_branch_access,
 )

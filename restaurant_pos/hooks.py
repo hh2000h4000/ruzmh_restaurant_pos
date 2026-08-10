@@ -24,8 +24,8 @@ after_migrate = "restaurant_pos.setup.install.after_migrate"
 # stored as a one-way hash instead (DECISIONS.md D-015, D-016).
 doc_events = {
 	"User": {
-		"validate": "restaurant_pos.restaurant_pos.utils.manager_pin.hold_pin_aside",
-		"on_update": "restaurant_pos.restaurant_pos.utils.manager_pin.store_pin_hashed",
+		"validate": "restaurant_pos.utils.manager_pin.hold_pin_aside",
+		"on_update": "restaurant_pos.utils.manager_pin.store_pin_hashed",
 	}
 }
 

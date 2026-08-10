@@ -12,9 +12,9 @@ Refs: 07_API_Design.md §3, FR-2.1..FR-2.8
 
 import frappe
 
-from restaurant_pos.restaurant_pos.utils import idempotency
-from restaurant_pos.restaurant_pos.utils import order as service
-from restaurant_pos.restaurant_pos.utils.permissions import validate_branch_access
+from restaurant_pos.utils import idempotency
+from restaurant_pos.utils import order as service
+from restaurant_pos.utils.permissions import validate_branch_access
 
 
 def _load(order_name: str):

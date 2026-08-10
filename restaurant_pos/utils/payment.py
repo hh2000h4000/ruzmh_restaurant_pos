@@ -22,15 +22,15 @@ import frappe
 from frappe import _
 from frappe.utils import flt, now_datetime
 
-from restaurant_pos.restaurant_pos.utils import kitchen, totals
-from restaurant_pos.restaurant_pos.utils.audit import log_audit
-from restaurant_pos.restaurant_pos.utils.order import (
+from restaurant_pos.utils import kitchen, totals
+from restaurant_pos.utils.audit import log_audit
+from restaurant_pos.utils.order import (
 	assert_mutable,
 	assert_transition,
 	authorise,
 	set_table_status,
 )
-from restaurant_pos.restaurant_pos.utils.permissions import assert_within_discount_limit
+from restaurant_pos.utils.permissions import assert_within_discount_limit
 
 #: Anything below this is float noise, not a shortfall (BR-022).
 TOLERANCE = 0.005
@@ -184,7 +184,7 @@ def _apply_discount(order, discount_type, discount_value, override_token) -> Non
 		else 0
 	)
 
-	from restaurant_pos.restaurant_pos.utils.permissions import get_pos_permission_set
+	from restaurant_pos.utils.permissions import get_pos_permission_set
 
 	if percentage > flt(get_pos_permission_set().get("max_order_discount_pct")):
 		approver = authorise("can_manual_promotion", override_token) if override_token else None

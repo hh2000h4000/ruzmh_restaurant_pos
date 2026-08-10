@@ -175,6 +175,14 @@ def _screen_layout(layout: str | None) -> dict | None:
 
 def _order_types(profile) -> list[dict]:
 	"""FR-1.3 — filtered by role, terminal and branch, in display order."""
+	active = frappe.get_all(
+		"Restaurant Order Type", filters={"is_active": 1}, order_by="sort_order asc", pluck="name"
+	)
+
+	# A row pointing at an order type that no longer exists is not a
+	# restriction, it is debris — from a force-delete, a partial import or a
+	# restore. Counting it would leave the terminal showing nothing at all,
+	# with no clue why, which is the worst possible failure for a till.
 	permitted = {
 		row.order_type
 		for row in frappe.get_all(
@@ -182,12 +190,10 @@ def _order_types(profile) -> list[dict]:
 			filters={"parent": profile.name, "parenttype": "POS Profile"},
 			fields=["order_type"],
 		)
-	}
+	} & set(active)
 
 	rows = []
-	for name in frappe.get_all(
-		"Restaurant Order Type", filters={"is_active": 1}, order_by="sort_order asc", pluck="name"
-	):
+	for name in active:
 		if permitted and name not in permitted:
 			continue
 

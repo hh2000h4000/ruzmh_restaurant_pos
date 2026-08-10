@@ -114,6 +114,30 @@ class TestLoadPosSession(OrderTestBase):
 		finally:
 			frappe.delete_doc("Restaurant Order Type", other.name, force=True, ignore_permissions=True)
 
+	def test_a_restriction_pointing_at_nothing_does_not_blank_the_terminal(self):
+		"""Debris in allowed_order_types must not leave a till with no buttons.
+
+		A force-deleted order type leaves the link behind. Counting it as a live
+		restriction hides every order type and gives the manager nothing to go
+		on — the worst failure a till can have.
+		"""
+		profile = frappe.get_doc("POS Profile", self.profile)
+		original = list(profile.allowed_order_types)
+
+		profile.allowed_order_types = []
+		profile.append("allowed_order_types", {"order_type": "OT-DOES-NOT-EXIST"})
+		profile.flags.ignore_links = True
+		profile.save(ignore_permissions=True, ignore_links=True)
+
+		try:
+			offered = self._load()["order_types"]
+			self.assertTrue(offered, "a dangling restriction emptied the terminal")
+		finally:
+			profile.allowed_order_types = []
+			for row in original:
+				profile.append("allowed_order_types", {"order_type": row.order_type})
+			profile.save(ignore_permissions=True)
+
 	def test_the_screen_layout_comes_with_its_buttons(self):
 		"""FR-3.5."""
 		payload = self._load()

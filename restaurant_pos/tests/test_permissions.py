@@ -9,10 +9,10 @@ Refs: 08_Security.md §§3-5, FR-12.3, FR-12.6, FR-12.7, FR-12.8
 import frappe
 from frappe.tests.utils import FrappeTestCase
 
+from restaurant_pos.setup.defaults import PERMISSION_SETS, create_default_data
 from restaurant_pos.utils import manager_pin as pins
 from restaurant_pos.utils import permissions as perms
 from restaurant_pos.utils.audit import log_audit, redact
-from restaurant_pos.setup.defaults import PERMISSION_SETS, create_default_data
 
 CASHIER = "rpos_test_cashier@example.com"
 SENIOR = "rpos_test_senior@example.com"

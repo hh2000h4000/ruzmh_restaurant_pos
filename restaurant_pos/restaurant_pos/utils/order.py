@@ -29,9 +29,16 @@ from restaurant_pos.restaurant_pos.utils.permissions import (
 )
 
 #: BR-010. A status not listed as a target cannot be reached from that state.
+#:
+#: BR-010 draws the happy path ``draft -> active -> in_kitchen ->
+#: pending_payment -> closed``, but it is not a chain every order walks.
+#: ``FR-2.6`` makes ``pending_payment`` optional — it is set only when the bill
+#: preview is printed — and ``FR-2.7`` lets the cashier press Pay straight from
+#: the order screen. A takeaway paid at the counter therefore goes
+#: ``active -> closed`` without ever touching the two middle states.
 TRANSITIONS = {
 	"draft": {"active", "in_kitchen", "pending_payment", "cancelled"},
-	"active": {"in_kitchen", "pending_payment", "cancelled"},
+	"active": {"in_kitchen", "pending_payment", "closed", "cancelled"},
 	"in_kitchen": {"pending_payment", "closed", "cancelled"},
 	"pending_payment": {"in_kitchen", "closed", "cancelled"},
 	"closed": set(),

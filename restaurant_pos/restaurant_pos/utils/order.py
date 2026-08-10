@@ -334,17 +334,28 @@ def _resolve_rate(order, item: str, requested_rate: float | None) -> float:
 
 	A caller may override only with ``can_change_item_price``, and the override
 	is audited (``price_change``, 08 §5).
+
+	A *missing* price is refused rather than treated as zero. Silently selling
+	at zero because nobody configured a price is a hole that only shows up in
+	the day's takings. A price list row that says ``0`` is a deliberate free
+	item and is honoured.
 	"""
 	price_list = frappe.db.get_value("POS Profile", order.pos_profile, "selling_price_list")
-	listed = 0.0
-	if price_list:
-		listed = flt(
-			frappe.db.get_value(
-				"Item Price",
-				{"item_code": item, "price_list": price_list, "selling": 1},
-				"price_list_rate",
-			)
-		)
+	if not price_list:
+		frappe.throw(_("POS Profile {0} has no selling price list.").format(order.pos_profile))
+
+	listed = frappe.db.get_value(
+		"Item Price",
+		{"item_code": item, "price_list": price_list, "selling": 1},
+		"price_list_rate",
+	)
+
+	if listed is None:
+		if requested_rate is None:
+			frappe.throw(_("No price is configured for {0} in price list {1}.").format(item, price_list))
+		listed = 0.0
+
+	listed = flt(listed)
 
 	if requested_rate is None or flt(requested_rate) == listed:
 		return totals.money(listed)

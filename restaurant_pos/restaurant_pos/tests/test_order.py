@@ -60,7 +60,25 @@ class OrderTestBase(FrappeTestCase):
 		price_list = frappe.db.get_value("POS Profile", cls.profile, "selling_price_list")
 		if not price_list:
 			price_list = frappe.db.get_value("Price List", {"selling": 1, "enabled": 1}, "name")
-			frappe.db.set_value("POS Profile", cls.profile, "selling_price_list", price_list)
+
+		if not price_list:
+			# install_fixtures() creates masters but not price lists; those come
+			# from the setup wizard, which this test site never ran (D-012).
+			price_list = (
+				frappe.get_doc(
+					{
+						"doctype": "Price List",
+						"price_list_name": "RPOS Test Selling",
+						"currency": "SAR",
+						"selling": 1,
+						"enabled": 1,
+					}
+				)
+				.insert(ignore_permissions=True)
+				.name
+			)
+
+		frappe.db.set_value("POS Profile", cls.profile, "selling_price_list", price_list)
 
 		cls.price_list = price_list
 		if not frappe.db.exists("Item Price", {"item_code": ITEM, "price_list": price_list}):

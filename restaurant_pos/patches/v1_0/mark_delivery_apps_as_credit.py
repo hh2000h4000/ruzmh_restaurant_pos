@@ -23,9 +23,7 @@ APPS = ("HungerStation", "Jahez", "Talabat")
 
 def execute():
 	for name in APPS:
-		current = frappe.db.get_value(
-			"Mode of Payment", name, ["type", "rpos_is_credit"], as_dict=True
-		)
+		current = frappe.db.get_value("Mode of Payment", name, ["type", "rpos_is_credit"], as_dict=True)
 		if not current:
 			continue
 

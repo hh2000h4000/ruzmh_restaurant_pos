@@ -24,6 +24,14 @@ class TestAppOrderTypes(PaymentTestBase):
 		cls.customer = frappe.db.get_value("POS Profile", cls.profile, "customer")
 		cls.company = frappe.db.get_value("POS Profile", cls.profile, "company")
 
+		# Strip any account rows a bank-typed ancestor of this method left behind,
+		# so the credit path is proved without one rather than merely observed.
+		for app in DELIVERY_APPS:
+			method = frappe.get_doc("Mode of Payment", app["title"])
+			if method.accounts:
+				method.accounts = []
+				method.save(ignore_permissions=True)
+
 		frappe.db.commit()
 
 	def tearDown(self):
@@ -153,13 +161,17 @@ class TestAppOrderTypes(PaymentTestBase):
 		self.assertEqual(len(invoice.payments), 0)
 		self.assertAlmostEqual(flt(invoice.outstanding_amount), total, places=2)
 
-	def test_a_credit_method_needs_no_bank_account(self):
-		"""The original mistake: shipping these as Bank and demanding an account."""
+	def test_a_credit_method_is_not_a_bank_transfer(self):
+		"""The original mistake: shipping these as Bank and demanding an account.
+
+		That a credit sale posts with no account configured is proved by
+		:meth:`test_the_platform_owes_the_money_it_already_took`, which runs
+		against these same account-free methods.
+		"""
 		for app in DELIVERY_APPS:
 			method = frappe.get_doc("Mode of Payment", app["title"])
 			self.assertEqual(method.rpos_is_credit, 1)
 			self.assertEqual(method.type, "General")
-			self.assertFalse(method.accounts)
 
 	def test_till_and_credit_cannot_be_mixed(self):
 		order, _customer = self._activated_app_order()

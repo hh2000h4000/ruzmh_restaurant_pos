@@ -1,0 +1,108 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "hash",
+ "creation": "2026-08-10 00:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "queue_id",
+  "action",
+  "cb_1",
+  "reference_doctype",
+  "reference_name",
+  "sec_1",
+  "response"
+ ],
+ "fields": [
+  {
+   "description": "Client-generated UUID from the offline queue.",
+   "fieldname": "queue_id",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Queue ID",
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "fieldname": "action",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Action",
+   "reqd": 1
+  },
+  {
+   "fieldname": "cb_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "reference_doctype",
+   "fieldtype": "Link",
+   "label": "Reference DocType",
+   "options": "DocType"
+  },
+  {
+   "fieldname": "reference_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Reference Name"
+  },
+  {
+   "fieldname": "sec_1",
+   "fieldtype": "Section Break",
+   "label": "Response"
+  },
+  {
+   "description": "Replayed verbatim when the same queue_id arrives again.",
+   "fieldname": "response",
+   "fieldtype": "JSON",
+   "label": "Response"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "istable": 0,
+ "links": [],
+ "modified": "2026-08-10 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Restaurant POS",
+ "name": "POS Sync Entry",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "amend": 0,
+   "cancel": 0,
+   "create": 0,
+   "delete": 1,
+   "email": 0,
+   "export": 1,
+   "print": 0,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 0,
+   "submit": 0,
+   "write": 0
+  },
+  {
+   "amend": 0,
+   "cancel": 0,
+   "create": 0,
+   "delete": 0,
+   "email": 0,
+   "export": 1,
+   "print": 0,
+   "read": 1,
+   "report": 1,
+   "role": "Restaurant Admin",
+   "share": 0,
+   "submit": 0,
+   "write": 0
+  }
+ ],
+ "search_fields": "queue_id,action,reference_name",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

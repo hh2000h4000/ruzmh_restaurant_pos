@@ -346,13 +346,20 @@ class TestTotals(FrappeTestCase):
 	"""FR-10.4 and BR-024."""
 
 	def test_rounding_is_to_the_nearest_five_halalas(self):
+		"""BR-024, using exactly the algorithm ERPNext applies to rounded_total.
+
+		An exact half rounds *down* — that is what
+		``round_based_on_smallest_currency_fraction`` does, and matching the
+		invoice matters more than which way the half goes (D-023).
+		"""
 		cases = {
 			10.00: 10.00,
 			10.01: 10.00,
 			10.02: 10.00,
 			10.03: 10.05,
 			10.024: 10.00,
-			10.025: 10.05,  # half rounds up, not to even
+			10.025: 10.00,
+			10.026: 10.05,
 			47.13: 47.15,
 			47.17: 47.15,
 		}

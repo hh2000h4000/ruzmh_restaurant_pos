@@ -224,9 +224,12 @@ def _create_sales_invoice(order, payments, promotion_applied):
 			"set_posting_time": 1,
 			"posting_date": now_datetime().date(),
 			"posting_time": now_datetime().time(),
-			"update_stock": profile.update_stock,
+			# 04 §6 — stock leaves through the Sales Invoice. ERPNext skips
+			# non-stock items, so a menu of prepared dishes is unaffected.
+			"update_stock": 1,
+			"set_warehouse": profile.warehouse,
 			"taxes_and_charges": profile.taxes_and_charges,
-			"cost_center": profile.cost_center,
+			"cost_center": profile.get("cost_center"),
 			"remarks": _("Restaurant Order {0}").format(order.name),
 		}
 	)
@@ -253,7 +256,7 @@ def _create_sales_invoice(order, payments, promotion_applied):
 				"qty": flt(row.qty),
 				"rate": flt(row.amount) / flt(row.qty) if flt(row.qty) else flt(row.rate),
 				"warehouse": profile.warehouse,
-				"cost_center": profile.cost_center,
+				"cost_center": profile.get("cost_center"),
 			},
 		)
 

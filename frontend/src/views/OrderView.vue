@@ -56,13 +56,14 @@ onMounted(async () => {
     return;
   }
 
-  // Table selection and the additional-fields popup are their own flows
-  // (FR-2.1); until they exist this screen only opens order types that need
-  // neither, rather than creating an order the backend will refuse.
+  // A table-service order arrives here already created by the table picker, so
+  // reaching this branch means the cashier deep-linked past it.
   if (type.requires_table) {
-    startupError.value = "طلبات الصالة تحتاج اختيار طاولة — شاشة الطاولات قيد التنفيذ.";
+    startupError.value = "اختر طاولة أولاً.";
     return;
   }
+
+  // The customer picker is its own flow (FR-2.1 step 4) and does not exist yet.
   if (type.customer_mode === "required") {
     startupError.value = "هذا النوع يتطلب اختيار عميل — شاشة العملاء قيد التنفيذ.";
     return;

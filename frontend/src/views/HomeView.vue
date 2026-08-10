@@ -20,7 +20,10 @@ const sectionTitle = computed(
 const orderTypes = computed(() => session.orderTypes);
 
 function open(orderType: OrderType): void {
-  void router.push({ name: "new-order", params: { orderType: orderType.name } });
+  // FR-2.1 step 3 — a table-service order picks its table before it exists,
+  // so the order is never created and then refused.
+  const target = orderType.requires_table ? "tables" : "new-order";
+  void router.push({ name: target, params: { orderType: orderType.name } });
 }
 </script>
 

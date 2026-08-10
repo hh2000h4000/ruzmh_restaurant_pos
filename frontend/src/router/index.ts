@@ -24,6 +24,11 @@ const router = createRouter({
       component: () => import("@/views/HomeView.vue"),
     },
     {
+      path: "/tables/:orderType",
+      name: "tables",
+      component: () => import("@/views/TablesView.vue"),
+    },
+    {
       path: "/order/new/:orderType",
       name: "new-order",
       component: () => import("@/views/OrderView.vue"),

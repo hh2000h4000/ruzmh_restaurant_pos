@@ -16,6 +16,7 @@ Refs: 10_Implementation_Plan.md Phase 1 task 3, BR-001, BR-031, 08 §3
 """
 
 import frappe
+from frappe.utils import flt
 
 # --------------------------------------------------------------------------- #
 # POS Permission Sets — 08_Security.md §3
@@ -156,6 +157,7 @@ SAMPLE_PROMOTION = {
 
 def create_default_data():
 	"""Create the shipped defaults. Safe to call twice: existing records are kept."""
+	_configure_cash_rounding()
 	created = {
 		"permission_sets": _create_permission_sets(),
 		"order_types": _create_order_types(),
@@ -163,6 +165,26 @@ def create_default_data():
 	}
 	frappe.db.commit()
 	return created
+
+
+def _configure_cash_rounding():
+	"""Teach ERPNext the Saudi 0.05 cash rounding step (BR-024).
+
+	``Currency.smallest_currency_fraction_value`` ships as 0 for SAR, which makes
+	ERPNext round invoice totals to whole riyals. Setting it here means the order
+	screen and the Sales Invoice round identically, and the difference posts to
+	the company's Round Off account like any other rounding adjustment.
+
+	Only set when unconfigured — a site that deliberately chose another step
+	keeps it (``DECISIONS.md`` D-023).
+	"""
+	if not frappe.db.exists("Currency", "SAR"):
+		return
+
+	if flt(frappe.db.get_value("Currency", "SAR", "smallest_currency_fraction_value")):
+		return
+
+	frappe.db.set_value("Currency", "SAR", "smallest_currency_fraction_value", 0.05)
 
 
 def _create_permission_sets():

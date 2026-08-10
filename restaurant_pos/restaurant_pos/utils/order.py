@@ -129,7 +129,7 @@ def create_order(
 	order.insert(ignore_permissions=True)
 
 	if order.table:
-		_set_table_status(order.table, "occupied", order.name)
+		set_table_status(order.table, "occupied", order.name)
 
 	return order
 
@@ -509,7 +509,7 @@ def cancel_order(order, *, reason: str, override_token: str | None = None) -> di
 	order.save(ignore_permissions=True)
 
 	if order.table:
-		_set_table_status(order.table, "available", None)
+		set_table_status(order.table, "available", None)
 
 	void_kots = kitchen.create_void_kot(order, sent_rows)
 
@@ -531,7 +531,7 @@ def cancel_order(order, *, reason: str, override_token: str | None = None) -> di
 # --------------------------------------------------------------------------- #
 
 
-def _set_table_status(table: str, status: str, order_name: str | None) -> None:
+def set_table_status(table: str, status: str, order_name: str | None) -> None:
 	"""Update a table and tell every terminal in the branch (BR-061, note 4)."""
 	frappe.db.set_value(
 		"Restaurant Table", table, {"status": status, "current_order": order_name}, update_modified=False

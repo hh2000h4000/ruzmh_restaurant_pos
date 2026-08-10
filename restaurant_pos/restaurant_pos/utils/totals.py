@@ -16,28 +16,30 @@ whose taxes ERPNext computes at payment time (``DECISIONS.md`` D-018).
 Refs: FR-10.4, BR-024, CLAUDE.md §5.1
 """
 
-from decimal import ROUND_HALF_UP, Decimal
-
 import frappe
 from frappe import _
-from frappe.utils import flt
-
-#: Saudi cash rounding step (BR-024). Applied once, at the very end.
-ROUNDING_STEP = Decimal("0.05")
+from frappe.utils import flt, round_based_on_smallest_currency_fraction
 
 CURRENCY_PRECISION = 2
 
+#: BR-024. Stored on the ERPNext ``Currency`` record, not here, so the order
+#: screen and the Sales Invoice can never disagree — see :func:`round_to_step`.
+DEFAULT_CURRENCY = "SAR"
+SAUDI_ROUNDING_STEP = 0.05
 
-def round_to_step(amount) -> float:
-	"""Round to the nearest 0.05 SAR (BR-024).
 
-	The only place this happens. ``ROUND_HALF_UP`` rather than Python's default
-	banker's rounding, because a till that rounds 0.025 down half the time will
-	not reconcile against what the customer was told.
+def round_to_step(amount, currency: str = DEFAULT_CURRENCY) -> float:
+	"""Apply the currency's cash rounding step (BR-024).
+
+	Delegates to the same Frappe helper ERPNext uses for ``rounded_total``, and
+	reads the same ``Currency.smallest_currency_fraction_value``. Rolling our own
+	0.05 rounding here would have quietly disagreed with the invoice: the field
+	ships as ``0`` for SAR, which makes ERPNext round to whole riyals. The
+	restaurant would have shown one figure and charged another.
+
+	``setup/defaults.py`` sets the field to 0.05 on install.
 	"""
-	value = Decimal(str(flt(amount)))
-	steps = (value / ROUNDING_STEP).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
-	return float(steps * ROUNDING_STEP)
+	return round_based_on_smallest_currency_fraction(flt(amount), currency, CURRENCY_PRECISION)
 
 
 def money(amount) -> float:
@@ -99,4 +101,6 @@ def calculate(order) -> None:
 	rate = tax_rate_for(order.pos_profile)
 
 	order.tax_amount = money(net * rate / 100)
-	order.total_amount = round_to_step(net + order.tax_amount)
+
+	currency = frappe.db.get_value("POS Profile", order.pos_profile, "currency") or DEFAULT_CURRENCY
+	order.total_amount = round_to_step(net + order.tax_amount, currency)

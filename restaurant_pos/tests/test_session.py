@@ -126,8 +126,10 @@ class TestLoadPosSession(OrderTestBase):
 
 		profile.allowed_order_types = []
 		profile.append("allowed_order_types", {"order_type": "OT-DOES-NOT-EXIST"})
+		# `ignore_links` is a flag, not a save() argument — and it is what lets
+		# the test create the debris a force-delete would leave behind.
 		profile.flags.ignore_links = True
-		profile.save(ignore_permissions=True, ignore_links=True)
+		profile.save(ignore_permissions=True)
 
 		try:
 			offered = self._load()["order_types"]

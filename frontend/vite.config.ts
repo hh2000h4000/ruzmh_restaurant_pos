@@ -24,7 +24,12 @@ const WWW_PAGE = resolve(__dirname, "../restaurant_pos/www/restaurant-pos.html")
  * broken while every GET keeps working — which is exactly how this surfaced.
  * Vite's index.html is static, so there is nothing here Jinja could misread.
  */
-const CSRF_SCRIPT = `  <script>window.csrf_token = "{{ frappe.session.csrf_token }}";</script>\n  `;
+// `or ""` matters: an anonymous session has no token and Jinja would otherwise
+// render the literal string "None", which looks like a valid token to any check.
+const CSRF_SCRIPT = [
+  '  <script>window.csrf_token = "{{ frappe.session.csrf_token or "" }}";</script>',
+  "  ",
+].join("\n");
 
 function publishToFrappe(): Plugin {
   return {

@@ -55,9 +55,15 @@ class OrderTestBase(FrappeTestCase):
 		cls.item = ITEM
 		_ensure_shift(cls.profile)
 
-		# A known price, so the assertions are about our arithmetic.
+		# A known price, so the assertions are about our arithmetic and not
+		# about whether the site happens to have a price list configured.
 		price_list = frappe.db.get_value("POS Profile", cls.profile, "selling_price_list")
-		if price_list and not frappe.db.exists("Item Price", {"item_code": ITEM, "price_list": price_list}):
+		if not price_list:
+			price_list = frappe.db.get_value("Price List", {"selling": 1, "enabled": 1}, "name")
+			frappe.db.set_value("POS Profile", cls.profile, "selling_price_list", price_list)
+
+		cls.price_list = price_list
+		if not frappe.db.exists("Item Price", {"item_code": ITEM, "price_list": price_list}):
 			frappe.get_doc(
 				{
 					"doctype": "Item Price",
@@ -253,6 +259,21 @@ class TestVoidAndCancel(OrderTestBase):
 			service.assert_transition(order, "active")
 
 
+class _StubOrder:
+	"""A stand-in for a Restaurant Order document.
+
+	Deliberately not ``frappe._dict``: that is a dict subclass, so ``.items``
+	resolves to the dict method rather than the order lines and ``calculate``
+	silently iterates nothing.
+	"""
+
+	def __init__(self, items, discount_type=None, discount_value=0):
+		self.items = items
+		self.discount_type = discount_type
+		self.discount_value = discount_value
+		self.pos_profile = None
+
+
 class TestTotals(FrappeTestCase):
 	"""FR-10.4 and BR-024."""
 
@@ -282,18 +303,14 @@ class TestTotals(FrappeTestCase):
 
 	def test_discount_applies_before_tax(self):
 		"""FR-10.4 — taxing before discounting over-collects VAT."""
-		order = frappe._dict(
-			items=[frappe._dict(amount=100, status="pending")],
+		order = _StubOrder(
+			[frappe._dict(amount=100, status="pending")],
 			discount_type="percentage",
 			discount_value=10,
-			pos_profile=None,
 		)
 
-		def fake_rate(_profile):
-			return 15.0
-
 		original = totals.tax_rate_for
-		totals.tax_rate_for = fake_rate
+		totals.tax_rate_for = lambda _profile: 15.0
 		try:
 			totals.calculate(order)
 		finally:
@@ -305,14 +322,11 @@ class TestTotals(FrappeTestCase):
 		self.assertEqual(order.total_amount, 103.5)
 
 	def test_voided_lines_are_excluded(self):
-		order = frappe._dict(
-			items=[
+		order = _StubOrder(
+			[
 				frappe._dict(amount=25, status="pending"),
 				frappe._dict(amount=25, status="void"),
-			],
-			discount_type=None,
-			discount_value=0,
-			pos_profile=None,
+			]
 		)
 		original = totals.tax_rate_for
 		totals.tax_rate_for = lambda _p: 0.0

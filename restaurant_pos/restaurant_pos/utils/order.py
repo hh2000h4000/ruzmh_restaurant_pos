@@ -299,7 +299,8 @@ def add_item(
 			"qty": flt(qty),
 			"rate": unit_rate,
 			"amount": totals.line_amount(unit_rate, qty, modifier_delta),
-			"modifiers": resolved_modifiers,
+			# Frappe's JSON fieldtype rejects a Python list; it stores text.
+			"modifiers": frappe.as_json(resolved_modifiers) if resolved_modifiers else None,
 			"notes": notes,
 			"course": cint(course),
 			"production_center": route.production_center,

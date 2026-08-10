@@ -1,0 +1,516 @@
+# Copyright (c) 2026, RPOS and contributors
+# For license information, please see license.txt
+
+"""A realistic restaurant, for demonstrating and exercising the system.
+
+**Not shipped defaults.** `setup/defaults.py` runs on install and creates only
+what every restaurant needs. Nothing here runs automatically: a real customer
+must never find شيش طاووق on their menu because they installed the app.
+
+Run it deliberately::
+
+    bench --site your-site execute restaurant_pos.setup.demo.create_demo_data
+
+Idempotent — anything already present is left alone, so it can be re-run after
+adding to the menu.
+
+What it builds: a five-station kitchen with printers and routing rules, a menu
+of thirty dishes in six groups with Arabic names and real prices, modifier
+groups wired to the dishes that need them, twelve tables, and a screen layout
+the cashier actually uses.
+"""
+
+import frappe
+from frappe import _
+
+PREFIX = "RPOS"
+
+# --------------------------------------------------------------------------- #
+# Kitchen
+# --------------------------------------------------------------------------- #
+
+PRINTERS = [
+	{"title": "طابعة الكاشير", "ip_address": "192.168.1.50"},
+	{"title": "طابعة المشاوي", "ip_address": "192.168.1.51"},
+	{"title": "طابعة المقالي", "ip_address": "192.168.1.52"},
+	{"title": "طابعة البار", "ip_address": "192.168.1.53"},
+]
+
+PRODUCTION_CENTERS = [
+	{"title": "Grill", "title_ar": "المشاوي", "printer": "طابعة المشاوي"},
+	{"title": "Fryer", "title_ar": "المقالي", "printer": "طابعة المقالي"},
+	{"title": "Bar", "title_ar": "البار", "printer": "طابعة البار"},
+	{"title": "Cold Station", "title_ar": "القسم البارد", "printer": "طابعة المقالي"},
+]
+
+# --------------------------------------------------------------------------- #
+# Menu — group -> production center, then the dishes
+# --------------------------------------------------------------------------- #
+
+MENU = [
+	{
+		"group": "Grills",
+		"group_ar": "مشاوي",
+		"centre": "Grill",
+		"colour": "#B91C1C",
+		"items": [
+			("شيش طاووق", 32.00),
+			("كباب لحم", 38.00),
+			("عرايس لحم", 28.00),
+			("ريش غنم", 75.00),
+			("مشاوي مشكل", 95.00),
+		],
+	},
+	{
+		"group": "Burgers",
+		"group_ar": "برغر",
+		"centre": "Fryer",
+		"colour": "#C2410C",
+		"items": [
+			("برغر كلاسيك", 25.00),
+			("برغر دجاج مقرمش", 23.00),
+			("برغر لحم مزدوج", 35.00),
+			("برغر بالجبن", 28.00),
+		],
+	},
+	{
+		"group": "Starters",
+		"group_ar": "مقبلات",
+		"centre": "Fryer",
+		"colour": "#A16207",
+		"items": [
+			("بطاطس مقلية", 12.00),
+			("أصابع موزاريلا", 18.00),
+			("حمص بالطحينة", 10.00),
+			("متبل", 10.00),
+			("سمبوسة لحم", 14.00),
+		],
+	},
+	{
+		"group": "Salads",
+		"group_ar": "سلطات",
+		"centre": "Cold Station",
+		"colour": "#15803D",
+		"items": [
+			("فتوش", 16.00),
+			("تبولة", 14.00),
+			("سيزر بالدجاج", 26.00),
+			("سلطة خضراء", 12.00),
+		],
+	},
+	{
+		"group": "Drinks",
+		"group_ar": "مشروبات",
+		"centre": "Bar",
+		"colour": "#1D4ED8",
+		"items": [
+			("بيبسي", 8.00),
+			("ماء", 3.00),
+			("عصير برتقال طازج", 14.00),
+			("ليمون بالنعناع", 15.00),
+			("شاي أحمر", 6.00),
+			("قهوة عربية", 10.00),
+		],
+	},
+	{
+		"group": "Desserts",
+		"group_ar": "حلويات",
+		"centre": "Cold Station",
+		"colour": "#7E22CE",
+		"items": [
+			("كنافة بالجبن", 22.00),
+			("تشيز كيك", 24.00),
+			("آيس كريم", 12.00),
+			("أم علي", 20.00),
+		],
+	},
+]
+
+# --------------------------------------------------------------------------- #
+# Modifiers — FR-4.1
+# --------------------------------------------------------------------------- #
+
+MODIFIER_GROUPS = [
+	{
+		"name": "Drink Size",
+		"title": "Size",
+		"title_ar": "الحجم",
+		"selection_type": "single",
+		"is_required": 1,
+		"options": [
+			("Small", "صغير", "none", 0, 1),
+			("Medium", "وسط", "add", 3, 0),
+			("Large", "كبير", "add", 6, 0),
+		],
+		"applies_to": ["Drinks"],
+	},
+	{
+		"name": "Burger Extras",
+		"title": "Extras",
+		"title_ar": "إضافات",
+		"selection_type": "multiple",
+		"is_required": 0,
+		"max_selections": 4,
+		"options": [
+			("Extra Cheese", "جبنة إضافية", "add", 4, 0),
+			("Fried Egg", "بيض مقلي", "add", 3, 0),
+			("Hot Sauce", "صوص حار", "none", 0, 0),
+			("No Onion", "بدون بصل", "none", 0, 0),
+			("Extra Patty", "قطعة لحم إضافية", "add", 12, 0),
+		],
+		"applies_to": ["Burgers"],
+	},
+	{
+		"name": "Doneness",
+		"title": "Doneness",
+		"title_ar": "درجة الاستواء",
+		"selection_type": "single",
+		"is_required": 1,
+		"options": [
+			("Medium", "وسط", "none", 0, 1),
+			("Well Done", "مستوي جيداً", "none", 0, 0),
+			("Medium Rare", "نصف استواء", "none", 0, 0),
+		],
+		"applies_to": ["Grills"],
+	},
+]
+
+#: Twelve tables: eight fours, two twos, two large.
+TABLES = (
+	[(str(number), 4) for number in range(1, 9)]
+	+ [(str(number), 2) for number in (9, 10)]
+	+ [(str(number), 8) for number in (11, 12)]
+)
+
+
+# --------------------------------------------------------------------------- #
+# Entry point
+# --------------------------------------------------------------------------- #
+
+
+def create_demo_data(pos_profile: str | None = None) -> dict:
+	"""Build the demo restaurant on top of an existing POS Profile."""
+	profile = _profile(pos_profile)
+	branch = frappe.db.get_value("Restaurant Section", profile.restaurant_section, "branch")
+
+	created = {
+		"printers": _printers(branch),
+		"production_centers": _production_centers(branch),
+		"item_groups": _item_groups(),
+		"items": _items(profile),
+		"routing_rules": _routing_rules(branch),
+		"modifier_groups": _modifier_groups(),
+		"tables": _tables(profile.restaurant_section),
+		"screen_layout": _screen_layout(profile),
+	}
+
+	frappe.db.commit()
+	return created
+
+
+def _profile(pos_profile: str | None) -> frappe._dict:
+	name = pos_profile or frappe.db.get_value("POS Profile", {}, "name")
+	if not name:
+		frappe.throw(_("Create a POS Profile before loading demo data."))
+
+	profile = frappe.db.get_value(
+		"POS Profile",
+		name,
+		["name", "restaurant_section", "selling_price_list", "company"],
+		as_dict=True,
+	)
+	if not profile.restaurant_section:
+		frappe.throw(_("POS Profile {0} has no Restaurant Section.").format(name))
+
+	if not profile.selling_price_list:
+		frappe.throw(_("POS Profile {0} has no selling price list.").format(name))
+
+	return profile
+
+
+# --------------------------------------------------------------------------- #
+# Builders
+# --------------------------------------------------------------------------- #
+
+
+def _printers(branch: str) -> list[str]:
+	created = []
+	for spec in PRINTERS:
+		if frappe.db.exists("POS Printer", {"title": spec["title"], "branch": branch}):
+			continue
+
+		doc = frappe.get_doc(
+			{
+				"doctype": "POS Printer",
+				"title": spec["title"],
+				"branch": branch,
+				"connection_type": "network",
+				"ip_address": spec["ip_address"],
+				"port": 9100,
+				"printer_model": "epson",
+				"paper_width": "80mm",
+				"print_mode": "image",
+				"cut_after_print": 1,
+			}
+		).insert(ignore_permissions=True)
+		created.append(doc.name)
+
+	return created
+
+
+def _production_centers(branch: str) -> list[str]:
+	created = []
+	cashier_printer = frappe.db.get_value("POS Printer", {"title": "طابعة الكاشير", "branch": branch}, "name")
+
+	for spec in PRODUCTION_CENTERS:
+		if frappe.db.exists("Production Center", {"title": spec["title"], "branch": branch}):
+			continue
+
+		printer = frappe.db.get_value("POS Printer", {"title": spec["printer"], "branch": branch}, "name")
+		doc = frappe.get_doc(
+			{
+				"doctype": "Production Center",
+				"title": spec["title"],
+				"title_ar": spec["title_ar"],
+				"branch": branch,
+				"printer": printer,
+				# BR-072 — the cashier printer is the last resort.
+				"fallback_printer": cashier_printer if cashier_printer != printer else None,
+				"auto_print_on_send": 1,
+			}
+		).insert(ignore_permissions=True)
+		created.append(doc.name)
+
+	return created
+
+
+def _item_groups() -> list[str]:
+	root = frappe.db.get_value("Item Group", {"is_group": 1, "parent_item_group": ""}, "name")
+	created = []
+
+	for section in MENU:
+		if frappe.db.exists("Item Group", section["group"]):
+			continue
+
+		doc = frappe.get_doc(
+			{
+				"doctype": "Item Group",
+				"item_group_name": section["group"],
+				"parent_item_group": root,
+				"is_group": 0,
+			}
+		).insert(ignore_permissions=True)
+		created.append(doc.name)
+
+	return created
+
+
+def _items(profile) -> list[str]:
+	"""Dishes with Arabic names and prices.
+
+	``is_stock_item = 0``: a prepared dish is not stock. Recipe-level depletion
+	is the food-cost feature in `01_Project_Vision.md`, not something to fake
+	with a stock item per dish.
+	"""
+	created = []
+
+	for section in MENU:
+		for arabic_name, price in section["items"]:
+			code = _item_code(section["group"], arabic_name)
+
+			if not frappe.db.exists("Item", code):
+				frappe.get_doc(
+					{
+						"doctype": "Item",
+						"item_code": code,
+						"item_name": arabic_name,
+						"pos_display_name_ar": arabic_name,
+						"item_group": section["group"],
+						"stock_uom": "Nos",
+						"is_stock_item": 0,
+						"is_sales_item": 1,
+					}
+				).insert(ignore_permissions=True)
+				created.append(code)
+
+			if not frappe.db.exists(
+				"Item Price", {"item_code": code, "price_list": profile.selling_price_list}
+			):
+				frappe.get_doc(
+					{
+						"doctype": "Item Price",
+						"item_code": code,
+						"price_list": profile.selling_price_list,
+						"selling": 1,
+						"price_list_rate": price,
+					}
+				).insert(ignore_permissions=True)
+
+	return created
+
+
+def _item_code(group: str, arabic_name: str) -> str:
+	"""A stable ASCII code, because an item code is a key not a label."""
+	slug = str(abs(hash(arabic_name)) % 10_000).zfill(4)
+	return f"{PREFIX}-{group[:3].upper()}-{slug}"
+
+
+def _routing_rules(branch: str) -> list[str]:
+	"""One rule per menu group — BR-070 level 2 territory.
+
+	Set on the group rather than on each dish so a new dish is routed the moment
+	it is added to the menu.
+	"""
+	created = []
+
+	for section in MENU:
+		centre = frappe.db.get_value(
+			"Production Center", {"title": section["centre"], "branch": branch}, "name"
+		)
+		if not centre:
+			continue
+
+		if frappe.db.exists(
+			"POS Printer Routing Rule",
+			{"branch": branch, "item_group": section["group"], "production_center": centre},
+		):
+			continue
+
+		doc = frappe.get_doc(
+			{
+				"doctype": "POS Printer Routing Rule",
+				"branch": branch,
+				"item_group": section["group"],
+				"production_center": centre,
+				"priority": 10,
+				"is_active": 1,
+			}
+		).insert(ignore_permissions=True)
+		created.append(doc.name)
+
+	return created
+
+
+def _modifier_groups() -> list[str]:
+	created = []
+
+	for spec in MODIFIER_GROUPS:
+		if not frappe.db.exists("POS Modifier Group", spec["name"]):
+			doc = frappe.get_doc(
+				{
+					"doctype": "POS Modifier Group",
+					"__newname": spec["name"],
+					"title": spec["title"],
+					"title_ar": spec["title_ar"],
+					"selection_type": spec["selection_type"],
+					"is_required": spec["is_required"],
+					"max_selections": spec.get("max_selections", 0),
+					"modifier_options": [
+						{
+							"title": title,
+							"title_ar": title_ar,
+							"price_effect": effect,
+							"price_amount": amount,
+							"is_default": is_default,
+							"is_active": 1,
+						}
+						for title, title_ar, effect, amount, is_default in spec["options"]
+					],
+				}
+			).insert(ignore_permissions=True)
+			created.append(doc.name)
+
+		_attach_modifiers(spec)
+
+	return created
+
+
+def _attach_modifiers(spec) -> None:
+	"""FR-4.3 — link the group to every dish in the groups it applies to."""
+	for group in spec["applies_to"]:
+		for code in frappe.get_all("Item", filters={"item_group": group}, pluck="name"):
+			if frappe.db.exists(
+				"Modifier Group Assignment",
+				{"parent": code, "parenttype": "Item", "modifier_group": spec["name"]},
+			):
+				continue
+
+			item = frappe.get_doc("Item", code)
+			item.append("pos_modifier_groups", {"modifier_group": spec["name"]})
+			item.save(ignore_permissions=True)
+
+
+def _tables(section: str) -> list[str]:
+	"""Twelve tables laid out on a grid, ready for the Phase 4 canvas."""
+	created = []
+
+	for index, (number, capacity) in enumerate(TABLES):
+		if frappe.db.exists("Restaurant Table", {"table_number": number, "section": section}):
+			continue
+
+		column, row = index % 4, index // 4
+		doc = frappe.get_doc(
+			{
+				"doctype": "Restaurant Table",
+				"table_number": number,
+				"section": section,
+				"capacity": capacity,
+				"shape": "round" if capacity == 2 else "square",
+				"status": "available",
+				"pos_x": 80 + column * 220,
+				"pos_y": 80 + row * 200,
+				"width": 140 if capacity <= 4 else 220,
+				"height": 140,
+			}
+		).insert(ignore_permissions=True)
+		created.append(doc.name)
+
+	return created
+
+
+def _screen_layout(profile) -> str | None:
+	"""A 4x3 grid of menu groups, assigned to the terminal (FR-3.1, FR-3.5)."""
+	title = "قائمة المطعم"
+	existing = frappe.db.get_value("POS Screen Layout", {"title": title}, "name")
+
+	if not existing:
+		buttons = []
+		for index, section in enumerate(MENU):
+			buttons.append(
+				{
+					"button_type": "item_group",
+					"item_group": section["group"],
+					"col_start": (index % 3) * 2 + 1,
+					"col_span": 2,
+					"row_start": (index // 3) * 2 + 1,
+					"row_span": 2,
+					"display_text": section["group"],
+					"display_text_ar": section["group_ar"],
+					"bg_color": section["colour"],
+					"text_color": "#FFFFFF",
+					"font_size": 20,
+				}
+			)
+
+		existing = (
+			frappe.get_doc(
+				{
+					"doctype": "POS Screen Layout",
+					"title": title,
+					"grid_columns": 6,
+					"grid_rows": 4,
+					"is_active": 1,
+					"buttons": buttons,
+				}
+			)
+			.insert(ignore_permissions=True)
+			.name
+		)
+
+	frappe.db.set_value("POS Profile", profile.name, "screen_layout", existing)
+
+	cashier_printer = frappe.db.get_value("POS Printer", {"title": "طابعة الكاشير"}, "name")
+	if cashier_printer:
+		frappe.db.set_value("POS Profile", profile.name, "default_printer", cashier_printer)
+
+	return existing

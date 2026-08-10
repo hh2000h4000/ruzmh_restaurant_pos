@@ -277,15 +277,9 @@ class TestVoidAndCancel(OrderTestBase):
 		self.assertEqual(order.items[0].status, "void")
 		self.assertEqual(order.items[0].voided_by, frappe.session.user)
 
-	def test_voiding_a_sent_line_flags_a_void_kot(self):
-		"""BR-013 — the kitchen must be told."""
-		order = self._order()
-		service.add_item(order, item=self.item, qty=1)
-		order.items[0].status = "sent"
-		order.save(ignore_permissions=True)
-
-		outcome = service.void_item(order, item_idx=1, reason="Dropped")
-		self.assertTrue(outcome["needs_void_kot"])
+	# BR-013 — voiding a line the kitchen already has raises a Void KOT. Tested
+	# end to end against real tickets in test_kitchen.TestVoidKot, rather than
+	# with a hand-forged "sent" status here.
 
 	def test_voiding_is_audited(self):
 		order = self._order()

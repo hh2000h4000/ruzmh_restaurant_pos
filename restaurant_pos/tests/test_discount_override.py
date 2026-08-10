@@ -62,12 +62,12 @@ class TestDiscountOverride(PaymentTestBase):
 		order = self._payable_order(qty=4)
 		before = flt(order.total_amount)
 
-		preview = payment_api.preview_totals(order.order_name, "percentage", 10)
+		preview = payment_api.preview_totals(order.name, "percentage", 10)
 
 		self.assertLess(preview["total_amount"], before)
 		# Nothing was saved: the stored order is unchanged.
 		self.assertEqual(
-			flt(frappe.db.get_value("Restaurant Order", order.order_name, "total_amount")), before
+			flt(frappe.db.get_value("Restaurant Order", order.name, "total_amount")), before
 		)
 
 	def test_preview_flags_a_discount_the_cashier_cannot_apply(self):
@@ -76,8 +76,8 @@ class TestDiscountOverride(PaymentTestBase):
 		frappe.set_user(self.senior)
 		frappe.local.rpos_permission_cache = {}
 		try:
-			within = payment_api.preview_totals(order.order_name, "percentage", 5)
-			beyond = payment_api.preview_totals(order.order_name, "percentage", 40)
+			within = payment_api.preview_totals(order.name, "percentage", 5)
+			beyond = payment_api.preview_totals(order.name, "percentage", 40)
 		finally:
 			frappe.set_user("Administrator")
 
@@ -136,13 +136,13 @@ class TestDiscountOverride(PaymentTestBase):
 				reason="Regular customer",
 				branch=order.branch,
 				pos_profile=order.pos_profile,
-				order_name=order.order_name,
+				order_name=order.name,
 			)
 
 		self.assertTrue(
 			frappe.get_all(
 				"POS Audit Log",
-				filters={"restaurant_order": order.order_name, "action_type": "discount_override"},
+				filters={"restaurant_order": order.name, "action_type": "discount_override"},
 			)
 		)
 
@@ -158,11 +158,11 @@ class TestDiscountOverride(PaymentTestBase):
 				reason="Complaint about the wait",
 				branch=order.branch,
 				pos_profile=order.pos_profile,
-				order_name=order.order_name,
+				order_name=order.name,
 			)
 			self.assertEqual(approval["approved_by"], self.manager)
 
-			preview = payment_api.preview_totals(order.order_name, "percentage", 40)
+			preview = payment_api.preview_totals(order.name, "percentage", 40)
 			service.process_payment(
 				order,
 				payments=[{"method": CASH, "amount": preview["total_amount"]}],

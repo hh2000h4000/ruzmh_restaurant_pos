@@ -17,7 +17,6 @@ Refs: 08_Security.md §§3-4, FR-12.1, FR-12.3, FR-12.6, BR-031
 import frappe
 from frappe import _
 from frappe.utils import flt
-from frappe.utils.password import check_password
 
 # Rank decides who may edit whose permissions (FR-12.6 rule 3).
 ROLE_RANK = {
@@ -29,9 +28,6 @@ ROLE_RANK = {
 }
 
 RPOS_ROLES = tuple(ROLE_RANK)
-
-# Never leave this module in a response, a log, or an error message.
-SECRET_FIELDS = ("manager_pin",)
 
 _OVERRIDE_CACHE_PREFIX = "rpos:override:"
 _OVERRIDE_TTL_SECONDS = 60
@@ -57,7 +53,7 @@ def permission_fields() -> tuple[list[str], list[str]]:
 def get_pos_permission_set(user: str | None = None) -> frappe._dict:
 	"""Effective permissions for ``user``, merged across their RPOS roles.
 
-	Never contains ``manager_pin``. Cached for the duration of the request.
+	Cached for the duration of the request.
 	"""
 	user = user or frappe.session.user
 	cached = frappe.local.rpos_permission_cache = getattr(frappe.local, "rpos_permission_cache", {})
@@ -87,9 +83,6 @@ def get_pos_permission_set(user: str | None = None) -> frappe._dict:
 			effective[field] = 1
 		for field in ceilings:
 			effective[field] = 100.0
-
-	for secret in SECRET_FIELDS:
-		effective.pop(secret, None)
 
 	cached[user] = effective
 	return effective
@@ -199,10 +192,6 @@ def assert_may_edit_permission_set(role: str, new_values: dict, user: str | None
 
 	changes = {}
 	for field, value in new_values.items():
-		if field in SECRET_FIELDS:
-			# The PIN is set through its own endpoint; it is never diffed or logged.
-			continue
-
 		if field not in booleans and field not in ceilings:
 			continue
 
@@ -250,54 +239,22 @@ def assert_may_assign_role(role: str, target_user: str, user: str | None = None)
 # --------------------------------------------------------------------------- #
 
 
-def find_approver_for_pin(action: str, pin: str) -> str | None:
-	"""Return the role whose PIN matches and which grants ``action``.
+# The PIN itself lives on the User, not on a role — see utils/manager_pin.py
+# and DECISIONS.md D-016.
 
-	The PIN is compared through Frappe's hashed-password check; the stored value
-	is never read. Returns ``None`` on any failure, with no detail about which
-	part failed — a caller must not be able to probe for valid PINs.
+
+def assert_may_manage_pin_of(target_user: str, user: str | None = None) -> None:
+	"""Raise unless ``user`` may set or clear ``target_user``'s PIN.
+
+	Anyone may manage their own. Otherwise the actor must outrank the target,
+	so a cashier cannot overwrite a manager's PIN and approve their own actions.
 	"""
-	booleans, _ceilings = permission_fields()
-	if action not in booleans:
-		return None
+	user = user or frappe.session.user
+	if target_user == user or is_superuser(user):
+		return
 
-	candidates = frappe.get_all("POS Permission Set", filters={action: 1}, pluck="name")
-
-	for role in candidates:
-		try:
-			check_password(role, pin, doctype="POS Permission Set", fieldname="manager_pin")
-		except frappe.AuthenticationError:
-			continue
-		except Exception:
-			# No PIN configured for this role.
-			continue
-		return role
-
-	return None
-
-
-def has_manager_pin(role: str) -> bool:
-	"""Whether ``role`` has a PIN set, without reading it (FR-12.8).
-
-	The PIN lives in ``__Auth``, which is not a DocType, so it is read through
-	the query builder the same way Frappe's own password utilities do.
-	``encrypted = 0`` is the hashed form written by
-	``POS Permission Set.store_pin_hashed``.
-	"""
-	auth = frappe.qb.Table("__Auth")
-	row = (
-		frappe.qb.from_(auth)
-		.select(auth.name)
-		.where(
-			(auth.doctype == "POS Permission Set")
-			& (auth.name == role)
-			& (auth.fieldname == "manager_pin")
-			& (auth.encrypted == 0)
-		)
-		.limit(1)
-		.run()
-	)
-	return bool(row)
+	if user_rank(target_user) >= user_rank(user):
+		frappe.throw(_("You cannot manage the PIN of {0}.").format(target_user), frappe.PermissionError)
 
 
 def issue_override_token(action: str, approved_by: str) -> str:

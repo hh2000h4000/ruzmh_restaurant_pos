@@ -33,9 +33,7 @@
   "shift_cb",
   "can_close_others_shift",
   "can_view_all_orders",
-  "can_access_reports",
-  "override_section",
-  "manager_pin"
+  "can_access_reports"
  ],
  "fields": [
   {
@@ -177,17 +175,6 @@
    "fieldname": "can_access_reports",
    "fieldtype": "Check",
    "label": "Can Access Reports"
-  },
-  {
-   "fieldname": "override_section",
-   "fieldtype": "Section Break",
-   "label": "Manager Override"
-  },
-  {
-   "description": "4-digit PIN used to approve overrides.",
-   "fieldname": "manager_pin",
-   "fieldtype": "Password",
-   "label": "Manager PIN"
   }
  ],
  "index_web_pages_for_search": 1,

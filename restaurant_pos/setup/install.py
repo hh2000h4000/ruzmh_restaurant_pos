@@ -155,6 +155,26 @@ CUSTOM_FIELDS = {
 			"insert_after": "rpos_modifier_section",
 		},
 	],
+	# The manager PIN belongs to a person, not a role (DECISIONS.md D-016).
+	# Its value never reaches this column: restaurant_pos.utils.manager_pin
+	# strips it on validate and stores a one-way hash instead (D-015).
+	"User": [
+		{
+			"fieldname": "rpos_section",
+			"fieldtype": "Section Break",
+			"label": "Restaurant POS",
+			"collapsible": 1,
+			"insert_after": "role_profile_name",
+		},
+		{
+			"fieldname": "pos_manager_pin",
+			"fieldtype": "Password",
+			"label": "POS Manager PIN",
+			"description": "4 digits, used to approve overrides. Write-only — never displayed.",
+			"no_copy": 1,
+			"insert_after": "rpos_section",
+		},
+	],
 	"Item Group": [
 		{
 			"fieldname": "rpos_section",

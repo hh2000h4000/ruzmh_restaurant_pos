@@ -12,6 +12,7 @@ Refs: 07_API_Design.md §7, 08_Security.md §4, FR-12.3, FR-12.4, FR-12.8
 import frappe
 from frappe import _
 
+from restaurant_pos.restaurant_pos.utils import manager_pin as pins
 from restaurant_pos.restaurant_pos.utils import permissions as perms
 from restaurant_pos.restaurant_pos.utils.audit import log_audit, log_permission_change
 
@@ -48,7 +49,7 @@ def validate_manager_override(
 
 	perms.validate_branch_access(branch)
 
-	approver = perms.find_approver_for_pin(action_type, pin)
+	approver = pins.find_approver_for_pin(action_type, pin)
 
 	if not approver:
 		# Logged without the attempted PIN (CLAUDE.md §5.4).
@@ -67,9 +68,9 @@ def validate_manager_override(
 		branch=branch,
 		pos_profile=pos_profile,
 		restaurant_order=order_name,
-		approved_by=None,
+		approved_by=approver,
 		reason=reason,
-		details={"action_type": action_type, "result": "approved", "approver_role": approver},
+		details={"action_type": action_type, "result": "approved"},
 	)
 
 	return {
@@ -91,13 +92,11 @@ def list_permission_sets() -> list[dict]:
 			continue
 
 		values = frappe.db.get_value("POS Permission Set", role, booleans + ceilings, as_dict=True)
-		values.pop("manager_pin", None)
 		rows.append(
 			{
 				"role": role,
 				"rank": perms.ROLE_RANK[role],
 				"editable": perms.ROLE_RANK[role] < perms.user_rank(),
-				"has_pin": perms.has_manager_pin(role),
 				"permissions": values,
 			}
 		)
@@ -126,27 +125,69 @@ def update_permission_set(role: str, values: dict, branch: str, pos_profile: str
 
 
 @frappe.whitelist()
-def set_manager_pin(role: str, pin: str, branch: str, pos_profile: str) -> dict:
-	"""Set or reset a role's manager PIN (FR-12.8). Write-only.
+def list_pin_holders() -> list[dict]:
+	"""Users who can approve overrides, and whether each has a PIN (FR-12.8).
+
+	Reports only *whether* a PIN exists. The value itself is never readable.
+	"""
+	perms.assert_permission("can_access_reports")
+
+	holders = set(pins.pin_holders())
+	rows = []
+	for user in frappe.get_all("User", filters={"enabled": 1}, pluck="name"):
+		roles = perms.user_rpos_roles(user)
+		if not roles:
+			continue
+
+		rows.append(
+			{
+				"user": user,
+				"roles": roles,
+				"has_pin": user in holders,
+				"editable": perms.user_rank(user) < perms.user_rank() or user == frappe.session.user,
+			}
+		)
+
+	return rows
+
+
+@frappe.whitelist()
+def set_manager_pin(user: str, pin: str, branch: str, pos_profile: str) -> dict:
+	"""Set or replace a user's manager PIN (FR-12.8). Write-only.
 
 	The PIN is never returned, never rendered, never logged — the audit entry
-	records only that it changed.
+	records only that it changed, and for whom.
 	"""
 	perms.validate_branch_access(branch)
-	perms.assert_may_edit_permission_set(role, {})
+	perms.assert_may_manage_pin_of(user)
 
-	# Format is validated once, in the controller, so the desk form and this
-	# endpoint cannot diverge.
-	doc = frappe.get_doc("POS Permission Set", role)
-	doc.manager_pin = pin
-	doc.save(ignore_permissions=True)
+	pins.set_pin(user, pin)
 
 	log_permission_change(
-		target=role,
-		changes={"manager_pin": {"before": "***", "after": "***"}},
+		target=user,
+		changes={"pos_manager_pin": {"before": "***", "after": "***"}},
 		branch=branch,
 		pos_profile=pos_profile,
 		reason="PIN changed",
+	)
+
+	return {"success": True}
+
+
+@frappe.whitelist()
+def clear_manager_pin(user: str, branch: str, pos_profile: str) -> dict:
+	"""Remove a user's PIN, revoking their ability to approve overrides."""
+	perms.validate_branch_access(branch)
+	perms.assert_may_manage_pin_of(user)
+
+	pins.clear_pin(user)
+
+	log_permission_change(
+		target=user,
+		changes={"pos_manager_pin": {"before": "***", "after": None}},
+		branch=branch,
+		pos_profile=pos_profile,
+		reason="PIN cleared",
 	)
 
 	return {"success": True}

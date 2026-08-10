@@ -17,6 +17,19 @@ after_install = "restaurant_pos.setup.install.after_install"
 after_migrate = "restaurant_pos.setup.install.after_migrate"
 
 # ---------------------------------------------------------------------------
+# Document events
+# ---------------------------------------------------------------------------
+# The manager PIN is a Password custom field on User. Frappe would persist it
+# reversibly and check_password() would never see it, so it is intercepted and
+# stored as a one-way hash instead (DECISIONS.md D-015, D-016).
+doc_events = {
+	"User": {
+		"validate": "restaurant_pos.restaurant_pos.utils.manager_pin.hold_pin_aside",
+		"on_update": "restaurant_pos.restaurant_pos.utils.manager_pin.store_pin_hashed",
+	}
+}
+
+# ---------------------------------------------------------------------------
 # Phase 2+ hooks are intentionally left unregistered until the corresponding
 # phase is implemented (see docs/10_Implementation_Plan.md).
 #

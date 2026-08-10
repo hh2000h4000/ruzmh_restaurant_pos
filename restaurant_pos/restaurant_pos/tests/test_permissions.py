@@ -9,6 +9,7 @@ Refs: 08_Security.md §§3-5, FR-12.3, FR-12.6, FR-12.7, FR-12.8
 import frappe
 from frappe.tests.utils import FrappeTestCase
 
+from restaurant_pos.restaurant_pos.utils import manager_pin as pins
 from restaurant_pos.restaurant_pos.utils import permissions as perms
 from restaurant_pos.restaurant_pos.utils.audit import log_audit, redact
 from restaurant_pos.setup.defaults import PERMISSION_SETS, create_default_data
@@ -187,49 +188,106 @@ class TestPrivilegeEscalationGuard(FrappeTestCase):
 			perms.assert_may_assign_role("Restaurant Admin", CASHIER)
 
 
-class TestManagerOverride(FrappeTestCase):
-	"""08 §4 and 07 §7."""
+class TestManagerPin(FrappeTestCase):
+	"""The PIN identifies a person, not a role (D-016)."""
 
 	@classmethod
 	def setUpClass(cls):
 		super().setUpClass()
 		create_default_data()
-		doc = frappe.get_doc("POS Permission Set", "POS Manager")
-		doc.manager_pin = "4271"
-		doc.save(ignore_permissions=True)
+		_make_user(CASHIER, "POS Cashier")
+		_make_user(MANAGER, "POS Manager")
+		pins.set_pin(MANAGER, "4271")
 		frappe.db.commit()
 
-	def test_correct_pin_finds_an_approver(self):
-		self.assertEqual(perms.find_approver_for_pin("can_void_order", "4271"), "POS Manager")
+	def test_correct_pin_identifies_the_person_who_approved(self):
+		"""The whole point of the move: approved_by names a human."""
+		self.assertEqual(pins.find_approver_for_pin("can_void_order", "4271"), MANAGER)
 
 	def test_wrong_pin_finds_nothing(self):
-		self.assertIsNone(perms.find_approver_for_pin("can_void_order", "0000"))
+		self.assertIsNone(pins.find_approver_for_pin("can_void_order", "0000"))
 
-	def test_pin_does_not_authorise_an_action_the_role_lacks(self):
-		"""A valid PIN is not a master key — the role must hold the right."""
-		frappe.db.set_value("POS Permission Set", "POS Manager", "can_reopen_closed_order", 0)
-		frappe.db.commit()
+	def test_pin_does_not_authorise_an_action_its_holder_lacks(self):
+		"""A valid PIN is not a master key."""
+		pins.set_pin(CASHIER, "1357")
+		frappe.local.rpos_permission_cache = {}
+
+		self.assertEqual(pins.find_approver_for_pin("can_void_item", "1357"), CASHIER)
+		self.assertIsNone(pins.find_approver_for_pin("can_void_order", "1357"))
+
+	def test_pin_is_never_stored_reversibly(self):
+		"""D-015: a Password DocField would be readable with the site key."""
+		auth = frappe.qb.Table("__Auth")
+		rows = (
+			frappe.qb.from_(auth)
+			.select(auth.encrypted, auth.password)
+			.where((auth.doctype == "User") & (auth.name == MANAGER) & (auth.fieldname == pins.FIELDNAME))
+			.run()
+		)
+		self.assertTrue(rows)
+		for encrypted, stored in rows:
+			self.assertEqual(encrypted, 0)
+			self.assertNotIn("4271", str(stored))
+
+	def test_has_pin_reports_without_reading(self):
+		self.assertTrue(pins.has_pin(MANAGER))
+		self.assertFalse(pins.has_pin("Administrator"))
+
+	def test_two_users_cannot_share_a_pin(self):
+		"""A shared PIN would make approved_by name the wrong person."""
+		with self.assertRaises(frappe.ValidationError):
+			pins.set_pin(CASHIER, "4271")
+
+	def test_pin_must_be_four_digits(self):
+		for bad in ("123", "12345", "abcd", "12a4", ""):
+			with self.assertRaises(frappe.ValidationError):
+				pins.set_pin(CASHIER, bad)
+
+	def test_clearing_a_pin_revokes_approval(self):
+		pins.set_pin(CASHIER, "2468")
+		self.assertTrue(pins.has_pin(CASHIER))
+
+		pins.clear_pin(CASHIER)
+		self.assertFalse(pins.has_pin(CASHIER))
+		self.assertIsNone(pins.find_approver_for_pin("can_void_item", "2468"))
+
+	def test_a_cashier_cannot_overwrite_a_managers_pin(self):
+		frappe.set_user(CASHIER)
 		try:
-			self.assertIsNone(perms.find_approver_for_pin("can_reopen_closed_order", "4271"))
+			with self.assertRaises(frappe.PermissionError):
+				perms.assert_may_manage_pin_of(MANAGER)
+			perms.assert_may_manage_pin_of(CASHIER)  # own PIN is fine
 		finally:
-			frappe.db.set_value("POS Permission Set", "POS Manager", "can_reopen_closed_order", 1)
-			frappe.db.commit()
+			frappe.set_user("Administrator")
+
+
+class TestOverrideToken(FrappeTestCase):
+	"""07 §7 — single use, bound to one action and one user."""
 
 	def test_token_round_trip(self):
-		token = perms.issue_override_token("can_void_order", "POS Manager")
-		self.assertEqual(perms.consume_override_token(token, "can_void_order"), "POS Manager")
+		token = perms.issue_override_token("can_void_order", MANAGER)
+		self.assertEqual(perms.consume_override_token(token, "can_void_order"), MANAGER)
 
 	def test_token_is_single_use(self):
-		token = perms.issue_override_token("can_void_order", "POS Manager")
+		token = perms.issue_override_token("can_void_order", MANAGER)
 		perms.consume_override_token(token, "can_void_order")
 
 		with self.assertRaises(frappe.PermissionError):
 			perms.consume_override_token(token, "can_void_order")
 
 	def test_token_is_bound_to_its_action(self):
-		token = perms.issue_override_token("can_void_order", "POS Manager")
+		token = perms.issue_override_token("can_void_order", MANAGER)
 		with self.assertRaises(frappe.PermissionError):
 			perms.consume_override_token(token, "can_cancel_order")
+
+	def test_token_is_bound_to_the_user_who_requested_it(self):
+		token = perms.issue_override_token("can_void_order", MANAGER)
+		frappe.set_user(CASHIER)
+		try:
+			with self.assertRaises(frappe.PermissionError):
+				perms.consume_override_token(token, "can_void_order")
+		finally:
+			frappe.set_user("Administrator")
 
 	def test_missing_token_is_rejected(self):
 		with self.assertRaises(frappe.PermissionError):

@@ -265,39 +265,58 @@ INVOICING_ROLES = (
 )
 
 
-def grant_account_select() -> None:
-	"""Let cashiers reference accounts without being able to browse them.
+#: What a POS role needs on ERPNext's own DocTypes, and nothing more.
+#:
+#: `08_Security.md` §2 already specifies "Read: Item, Customer" for a cashier;
+#: it was never granted, so the first non-Administrator to take a payment hit
+#: ERPNext's own permission checks. Those checks call
+#: ``frappe.has_permission()`` directly and ignore the document-level
+#: ``ignore_permissions`` our code passes, so a role permission is the only
+#: thing that satisfies them.
+#:
+#: ``Account`` gets ``select`` rather than ``read``: enough to be attached to an
+#: invoice, not enough to open the chart of accounts or read a balance.
+#: ERPNext's own answer here is the broad ``Accounts User`` role, which would
+#: hand a cashier the whole accounting module.
+ERPNEXT_PERMISSIONS = {
+	"Item": {"read": 1},
+	"Customer": {"read": 1},
+	"Account": {"select": 1},
+}
 
-	Submitting a Sales Invoice runs ERPNext's ``get_party_account``, which calls
-	``frappe.has_permission("Account", ...)`` directly. That check ignores the
-	document-level ``ignore_permissions`` our code passes, so without a
-	permission of some kind every cashier is refused at payment — the last step
-	of the shift, on a customer standing at the till.
 
-	ERPNext's own answer is to give cashiers the broad ``Accounts User`` role.
-	``select`` is the narrower right that satisfies the same check: a cashier can
-	be attached to an account but cannot open the chart of accounts or read a
-	balance (`08_Security.md` §2 keeps POS roles minimal).
+def grant_erpnext_permissions() -> None:
+	"""Give the POS roles the ERPNext rights their work requires.
 
-	Idempotent: existing permissions are left alone.
+	Idempotent: a DocType a role already has a Custom DocPerm for is left alone,
+	so an administrator who tightened or widened something keeps their change.
 	"""
 	from frappe.permissions import add_permission, update_permission_property
 
-	for role in INVOICING_ROLES:
-		if not frappe.db.exists("Role", role):
+	for doctype, rights in ERPNEXT_PERMISSIONS.items():
+		if not frappe.db.exists("DocType", doctype):
 			continue
 
-		if frappe.db.exists("Custom DocPerm", {"parent": "Account", "role": role}):
-			continue
+		for role in INVOICING_ROLES:
+			if not frappe.db.exists("Role", role):
+				continue
 
-		add_permission("Account", role, 0)
-		update_permission_property("Account", role, 0, "select", 1)
-		update_permission_property("Account", role, 0, "read", 0)
+			if frappe.db.exists("Custom DocPerm", {"parent": doctype, "role": role}):
+				continue
+
+			add_permission(doctype, role, 0)
+			for ptype, value in rights.items():
+				update_permission_property(doctype, role, 0, ptype, value)
+
+			# add_permission() grants read by default; drop it where the map
+			# asks for something narrower.
+			if "read" not in rights:
+				update_permission_property(doctype, role, 0, "read", 0)
 
 
 def after_install():
 	create_custom_fields(CUSTOM_FIELDS, ignore_validate=True)
-	grant_account_select()
+	grant_erpnext_permissions()
 	frappe.db.commit()
 
 	# Shipped defaults run on install only. See setup/defaults.py for why they
@@ -307,4 +326,4 @@ def after_install():
 
 def after_migrate():
 	create_custom_fields(CUSTOM_FIELDS, ignore_validate=True)
-	grant_account_select()
+	grant_erpnext_permissions()

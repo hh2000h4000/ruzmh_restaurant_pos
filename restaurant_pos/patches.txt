@@ -4,3 +4,4 @@
 [post_model_sync]
 # Patches added in this section will be executed after doctypes are migrated
 restaurant_pos.patches.v1_0.move_manager_pin_to_user
+restaurant_pos.patches.v1_0.mark_delivery_apps_as_credit

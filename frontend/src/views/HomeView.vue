@@ -56,15 +56,14 @@ function open(orderType: OrderType): void {
       v-if="!session.hasOpenShift"
       class="rounded-rpos bg-surface p-6 text-center"
     >
-      <p class="mb-4">
+      <p class="mb-2">
         افتح وردية قبل استقبال الطلبات.
       </p>
-      <RouterLink
-        :to="{ name: 'open-shift' }"
-        class="inline-flex min-h-tap items-center rounded-rpos bg-primary px-6 text-primary-contrast"
-      >
-        فتح وردية
-      </RouterLink>
+      <!-- Shift management is Phase 4 in the plan; until it exists the shift is
+           opened from the desk, and saying so beats a button that goes nowhere. -->
+      <p class="text-sm text-muted">
+        تُفتح الوردية حالياً من شاشة <span class="font-medium">Restaurant Shift</span> في النظام.
+      </p>
     </section>
 
     <section v-else>

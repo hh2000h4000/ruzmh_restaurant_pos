@@ -5,9 +5,9 @@ import { useSessionStore } from "@/stores/session";
 /**
  * Routes follow the screen map in 06_UI_UX_Flow.md.
  *
- * Views are lazy so the first paint does not carry the payment screen. The
- * routes for screens not yet built are deliberately absent rather than stubbed
- * — a route to an empty page is worse than a 404 during development.
+ * Views are lazy so the first paint does not carry the order screen. Screens
+ * that do not exist yet are absent rather than stubbed — a route to an empty
+ * page hides what is missing.
  */
 const router = createRouter({
   history: createWebHistory("/restaurant-pos/"),
@@ -26,12 +26,12 @@ const router = createRouter({
     {
       path: "/order/new/:orderType",
       name: "new-order",
-      component: () => import("@/views/HomeView.vue"),
+      component: () => import("@/views/OrderView.vue"),
     },
     {
-      path: "/shift/open",
-      name: "open-shift",
-      component: () => import("@/views/HomeView.vue"),
+      path: "/order/:orderName",
+      name: "order",
+      component: () => import("@/views/OrderView.vue"),
     },
     {
       path: "/:pathMatch(.*)*",

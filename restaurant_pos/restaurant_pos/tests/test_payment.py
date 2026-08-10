@@ -9,7 +9,7 @@ Refs: BR-016, BR-020..BR-024, FR-2.7, FR-10.2, FR-10.3, FR-10.4
 import uuid
 
 import frappe
-from frappe.utils import flt
+from frappe.utils import flt, getdate
 
 from restaurant_pos.restaurant_pos.api import payment as api
 from restaurant_pos.restaurant_pos.tests.test_order import ITEM, OrderTestBase
@@ -18,6 +18,29 @@ from restaurant_pos.restaurant_pos.utils import payment as service
 from restaurant_pos.restaurant_pos.utils import totals
 
 CASH = "Cash"
+
+
+def _ensure_fiscal_year() -> None:
+	"""A Sales Invoice cannot post without one.
+
+	Like the price list and the warehouse types, Fiscal Year comes from the
+	ERPNext setup wizard, which this site never ran (D-012).
+	"""
+	today = getdate()
+	if frappe.db.exists(
+		"Fiscal Year",
+		{"year_start_date": ("<=", today), "year_end_date": (">=", today), "disabled": 0},
+	):
+		return
+
+	frappe.get_doc(
+		{
+			"doctype": "Fiscal Year",
+			"year": str(today.year),
+			"year_start_date": f"{today.year}-01-01",
+			"year_end_date": f"{today.year}-12-31",
+		}
+	).insert(ignore_permissions=True)
 
 
 class PaymentTestBase(OrderTestBase):
@@ -48,6 +71,8 @@ class PaymentTestBase(OrderTestBase):
 				"warehouse",
 				frappe.db.get_value("Warehouse", {"company": profile.company, "is_group": 0}, "name"),
 			)
+
+		_ensure_fiscal_year()
 
 		# BR-024 — the Saudi 0.05 step, the same one ERPNext will use.
 		frappe.db.set_value("Currency", "SAR", "smallest_currency_fraction_value", 0.05)

@@ -17,9 +17,15 @@ const WWW_PAGE = resolve(__dirname, "../restaurant_pos/www/restaurant-pos.html")
  * Publish the built index.html as a Frappe website page.
  *
  * Vite hashes asset filenames, so the page that loads them has to be generated
- * from the build rather than written by hand. Frappe renders www/*.html through
- * Jinja, so the braces Vue may emit are escaped with `raw`.
+ * from the build rather than written by hand.
+ *
+ * The page **must** go through Jinja, because that is what injects the CSRF
+ * token. Without it every POST is rejected with a bare 400 and the app looks
+ * broken while every GET keeps working — which is exactly how this surfaced.
+ * Vite's index.html is static, so there is nothing here Jinja could misread.
  */
+const CSRF_SCRIPT = `  <script>window.csrf_token = "{{ frappe.session.csrf_token }}";</script>\n  `;
+
 function publishToFrappe(): Plugin {
   return {
     name: "rpos-publish-to-frappe",
@@ -27,17 +33,12 @@ function publishToFrappe(): Plugin {
     closeBundle() {
       const html = readFileSync(resolve(OUT_DIR, "index.html"), "utf-8");
 
+      if (!html.includes("</head>")) {
+        throw new Error("Built index.html has no </head>; the CSRF token cannot be injected.");
+      }
+
       mkdirSync(resolve(WWW_PAGE, ".."), { recursive: true });
-      writeFileSync(
-        WWW_PAGE,
-        [
-          "{% raw %}",
-          html,
-          "{% endraw %}",
-          "",
-        ].join("\n"),
-        "utf-8",
-      );
+      writeFileSync(WWW_PAGE, html.replace("</head>", `${CSRF_SCRIPT}</head>`), "utf-8");
 
       // The service worker must be served from the app root, not /assets,
       // or its scope cannot cover the whole SPA.

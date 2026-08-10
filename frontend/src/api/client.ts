@@ -51,6 +51,24 @@ function csrfToken(): string {
   return (window as unknown as { csrf_token?: string }).csrf_token ?? "";
 }
 
+/**
+ * Frappe rejects a write without a CSRF token with a bare 400, which looks
+ * identical to a malformed request while every GET keeps working — the app
+ * appears half-broken with nothing in the console to explain it.
+ *
+ * The token is injected into the page by Jinja at build time
+ * (`frontend/vite.config.ts`). If it is missing, say so.
+ */
+function assertCsrfToken(): void {
+  if (csrfToken()) return;
+
+  throw new ApiError(
+    "الصفحة حُمّلت بدون رمز الحماية — سجّل الخروج وأعد تحميل الصفحة.",
+    0,
+    "CSRFTokenMissing",
+  );
+}
+
 /** Frappe returns `{"message": ...}` on success and messages in a few shapes on failure. */
 function readError(payload: unknown, status: number): ApiError {
   const body = payload as {
@@ -87,6 +105,8 @@ function stripHtml(value: string): string {
 }
 
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
+  if (method !== "GET") assertCsrfToken();
+
   let response: Response;
 
   try {

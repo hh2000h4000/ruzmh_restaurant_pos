@@ -144,10 +144,11 @@
   },
   {
    "depends_on": "eval:doc.customer_mode=='pre_set'",
+   "description": "Required before the order type can be activated.",
    "fieldname": "pre_set_customer",
    "fieldtype": "Link",
    "label": "Pre-set Customer",
-   "mandatory_depends_on": "eval:doc.customer_mode=='pre_set'",
+   "mandatory_depends_on": "eval:doc.customer_mode=='pre_set' && doc.is_active",
    "options": "Customer"
   },
   {

@@ -14,11 +14,20 @@ class RestaurantOrderType(Document):
 		self.validate_additional_fields()
 
 	def validate_customer_mode(self):
-		if self.customer_mode == "pre_set":
-			if not self.pre_set_customer:
-				frappe.throw(_("Pre-set Customer is required when Customer Mode is 'pre_set'."))
-		else:
+		"""BR-002 — a pre-set type dictates its own customer.
+
+		The customer is required to *use* the type, not to define it: an app
+		order type ships as an inactive template and the restaurant links its
+		own aggregator customer before activating. Demanding it up front would
+		mean shipping no template at all, since only the restaurant knows which
+		receivable the money lands in.
+		"""
+		if self.customer_mode != "pre_set":
 			self.pre_set_customer = None
+			return
+
+		if self.is_active and not self.pre_set_customer:
+			frappe.throw(_("Set the Pre-set Customer before activating {0}.").format(self.title))
 
 	def validate_unique_rows(self):
 		duplicate_checks = (

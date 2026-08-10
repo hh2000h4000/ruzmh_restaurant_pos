@@ -125,6 +125,53 @@ ORDER_TYPES = [
 	},
 ]
 
+# --------------------------------------------------------------------------- #
+# Delivery-app order types — 02_Business_Requirements.md §3
+# --------------------------------------------------------------------------- #
+# Shipped **inactive**. Everything the platform dictates is preset: the forced
+# payment method (BR-002), the app's order number as a required field (BR-004),
+# and `customer_mode = pre_set`. What is missing is the one thing only the
+# restaurant knows — which Customer the platform's money is receivable from.
+# Creating that Customer here would invent an accounting entity the accountant
+# never approved, so the manager links it and activates the type.
+#
+# `corporate` from §3 is deliberately absent: it is billed on credit, and
+# BR-022 forbids anything but payment in full in v1. Shipping a type that
+# cannot complete a sale is worse than not shipping it (`DECISIONS.md` D-028).
+
+APP_ORDER_NUMBER_FIELD = {
+	"field_label": "App Order No",
+	"field_label_ar": "رقم الطلب في التطبيق",
+	"field_type": "text",
+	"is_required": 1,
+	"show_at": "on_open",
+	"placeholder": "HS-29541",
+}
+
+DELIVERY_APPS = [
+	{"title": "HungerStation", "title_ar": "هنقرستيشن", "icon": "🛵", "color": "#F59E0B", "sort_order": 4},
+	{"title": "Jahez", "title_ar": "جاهز", "icon": "📱", "color": "#EF4444", "sort_order": 5},
+	{"title": "Talabat", "title_ar": "طلبات", "icon": "📱", "color": "#22C55E", "sort_order": 6},
+]
+
+APP_ORDER_TYPES = [
+	{
+		"title": app["title"],
+		"title_ar": app["title_ar"],
+		"icon": app["icon"],
+		"color": app["color"],
+		"requires_table": 0,
+		"requires_cover_count": 0,
+		"customer_mode": "pre_set",
+		"send_to_kitchen_on": "save",
+		"sort_order": app["sort_order"],
+		"is_active": 0,
+		"allowed_payment_methods": [{"payment_method": app["title"], "is_forced": 1, "is_default": 1}],
+		"additional_fields": [dict(APP_ORDER_NUMBER_FIELD)],
+	}
+	for app in DELIVERY_APPS
+]
+
 
 # --------------------------------------------------------------------------- #
 # Sample promotion — inactive, meant to be copied
@@ -159,6 +206,7 @@ def create_default_data():
 	"""Create the shipped defaults. Safe to call twice: existing records are kept."""
 	_configure_cash_rounding()
 	created = {
+		"payment_methods": _create_app_payment_methods(),
 		"permission_sets": _create_permission_sets(),
 		"order_types": _create_order_types(),
 		"promotions": _create_sample_promotion(),
@@ -200,9 +248,28 @@ def _create_permission_sets():
 	return created
 
 
+def _create_app_payment_methods():
+	"""One Mode of Payment per delivery app (BR-002).
+
+	The platform settles by transfer, so these are bank-type methods rather than
+	cash. Keeping them separate is what lets the shift report show what each
+	platform owes.
+	"""
+	created = []
+	for app in DELIVERY_APPS:
+		if frappe.db.exists("Mode of Payment", app["title"]):
+			continue
+
+		doc = frappe.get_doc({"doctype": "Mode of Payment", "mode_of_payment": app["title"], "type": "Bank"})
+		doc.insert(ignore_permissions=True)
+		created.append(doc.name)
+
+	return created
+
+
 def _create_order_types():
 	created = []
-	for values in ORDER_TYPES:
+	for values in ORDER_TYPES + APP_ORDER_TYPES:
 		if frappe.db.exists("Restaurant Order Type", {"title": values["title"]}):
 			continue
 

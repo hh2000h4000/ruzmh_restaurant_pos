@@ -20,6 +20,30 @@ BRANCH = "Riyadh"
 ITEM = "RPOS-TEST-BURGER"
 
 
+CASHIER = "rpos_order_cashier@example.com"
+
+
+def _make_cashier() -> str:
+	"""A user with the shipped POS Cashier defaults — no price-change right."""
+	from restaurant_pos.setup.defaults import create_default_data
+
+	create_default_data()
+
+	if not frappe.db.exists("User", CASHIER):
+		frappe.get_doc(
+			{
+				"doctype": "User",
+				"email": CASHIER,
+				"first_name": "RPOS Order Cashier",
+				"send_welcome_email": 0,
+				"roles": [{"role": "POS Cashier"}],
+			}
+		).insert(ignore_permissions=True)
+
+	frappe.db.set_value("POS Permission Set", "POS Cashier", "can_change_item_price", 0)
+	return CASHIER
+
+
 def _ensure_shift(profile: str) -> str:
 	shift = frappe.db.get_value("Restaurant Shift", {"branch": BRANCH, "status": "open"}, "name")
 	if not shift:
@@ -172,12 +196,44 @@ class TestOrderItems(OrderTestBase):
 		service.add_item(order, item=self.item, qty=1)
 		self.assertEqual(order.status, "active")
 
-	def test_the_price_comes_from_the_price_list_not_the_client(self):
-		"""D-020 — the whole point. A client-set price must be ignored."""
+	def test_the_price_comes_from_the_price_list(self):
 		order = self._order()
-		row = service.add_item(order, item=self.item, qty=1, rate=1)
-
+		row = service.add_item(order, item=self.item, qty=1)
 		self.assertEqual(row.rate, 25)
+
+	def test_a_cashier_cannot_set_their_own_price(self):
+		"""D-020 — the point of resolving the rate server-side.
+
+		Runs as a cashier on purpose. As Administrator the override is
+		legitimate, so asserting against the default test user would prove
+		nothing.
+		"""
+		order = self._order()
+		cashier = _make_cashier()
+
+		frappe.set_user(cashier)
+		frappe.local.rpos_permission_cache = {}
+		try:
+			with self.assertRaises(frappe.PermissionError):
+				service.add_item(order, item=self.item, qty=1, rate=1)
+		finally:
+			frappe.set_user("Administrator")
+			frappe.local.rpos_permission_cache = {}
+
+	def test_a_permitted_price_override_is_audited(self):
+		"""08 §5 — price_change leaves a trail naming who changed it."""
+		order = self._order()
+		service.add_item(order, item=self.item, qty=1, rate=30)
+
+		entries = frappe.get_all(
+			"POS Audit Log",
+			filters={"restaurant_order": order.name, "action_type": "price_change"},
+			fields=["details"],
+		)
+		self.assertTrue(entries)
+		details = frappe.parse_json(entries[0].details)
+		self.assertEqual(details["listed_rate"], 25)
+		self.assertEqual(details["charged_rate"], 30)
 
 	def test_quantity_must_be_positive(self):
 		order = self._order()

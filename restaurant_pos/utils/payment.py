@@ -65,9 +65,10 @@ def process_payment(
 	order.save(ignore_permissions=True)
 
 	_validate_methods(order, payments)
-	change = _validate_amounts(order, payments)
+	settlement = _settlement_of(payments)
+	change = _validate_amounts(order, payments) if settlement == "till" else 0.0
 
-	invoice = _create_sales_invoice(order, payments, promotion_applied)
+	invoice = _create_sales_invoice(order, payments, promotion_applied, settlement)
 
 	# BR-016 — closed only once the invoice is submitted.
 	assert_transition(order, "closed")
@@ -104,6 +105,10 @@ def process_payment(
 		# The invoice is authoritative (D-018), so this is the invoice's figure.
 		"total_amount": flt(invoice.rounded_total or invoice.grand_total),
 		"change_amount": change,
+		"settlement": settlement,
+		# What the customer still owes: zero at the till, the full amount on
+		# account until the monthly statement is settled.
+		"outstanding_amount": flt(invoice.outstanding_amount),
 		"status": order.status,
 		"kots_created": kots,
 	}
@@ -137,6 +142,32 @@ def _normalise(payments) -> list[dict]:
 		)
 
 	return rows
+
+
+def is_credit_method(method: str) -> bool:
+	"""Whether this method leaves the money owed rather than collected.
+
+	A delivery platform has already taken the customer's money; a corporate
+	account will pay on a statement. Either way nothing enters the till
+	(``DECISIONS.md`` D-029).
+	"""
+	return bool(frappe.db.get_value("Mode of Payment", method, "rpos_is_credit"))
+
+
+def _settlement_of(payments) -> str:
+	"""``"credit"`` or ``"till"`` — an order is one or the other, never both.
+
+	Splitting a bill half to a delivery platform and half in cash is not a
+	thing that happens, and allowing it would put a partly-outstanding invoice
+	in a cash drawer reconciliation. If a real case appears, it needs its own
+	design rather than falling out of a loop.
+	"""
+	kinds = {"credit" if is_credit_method(row["method"]) else "till" for row in payments}
+
+	if len(kinds) > 1:
+		frappe.throw(_("An order is either settled at the till or billed to an account, not both."))
+
+	return kinds.pop()
 
 
 def _validate_methods(order, payments) -> None:
@@ -221,7 +252,7 @@ def discount_percentage(order, discount_type: str | None, discount_value: float)
 # --------------------------------------------------------------------------- #
 
 
-def _create_sales_invoice(order, payments, promotion_applied):
+def _create_sales_invoice(order, payments, promotion_applied, settlement: str = "till"):
 	"""Build and submit the invoice through ERPNext's own controller.
 
 	Never bypassed (`10` critical note 9): the controller is what computes tax,
@@ -238,7 +269,11 @@ def _create_sales_invoice(order, payments, promotion_applied):
 			"customer": customer,
 			"company": profile.company,
 			"pos_profile": profile.name,
-			"is_pos": 1,
+			# A till sale settles itself through the `payments` table. A credit
+			# sale must stay outstanding against the customer, so it is an
+			# ordinary invoice and a Payment Entry clears it at month end
+			# (D-022, D-029).
+			"is_pos": 1 if settlement == "till" else 0,
 			"currency": profile.currency,
 			"selling_price_list": profile.selling_price_list,
 			"set_posting_time": 1,

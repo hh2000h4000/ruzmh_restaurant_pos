@@ -15,23 +15,6 @@ from restaurant_pos.utils import order as orders
 from restaurant_pos.utils import payment as payment_service
 
 
-def _link_payment_account(mode: str, company: str) -> None:
-	doc = frappe.get_doc("Mode of Payment", mode)
-	if any(row.company == company for row in doc.accounts):
-		return
-
-	account = frappe.db.get_value(
-		"Account",
-		{"company": company, "account_type": ("in", ["Bank", "Cash"]), "is_group": 0},
-		"name",
-	)
-	if not account:
-		return
-
-	doc.append("accounts", {"company": company, "default_account": account})
-	doc.save(ignore_permissions=True)
-
-
 class TestAppOrderTypes(PaymentTestBase):
 	@classmethod
 	def setUpClass(cls):
@@ -41,9 +24,6 @@ class TestAppOrderTypes(PaymentTestBase):
 		cls.customer = frappe.db.get_value("POS Profile", cls.profile, "customer")
 		cls.company = frappe.db.get_value("POS Profile", cls.profile, "company")
 
-		# The restaurant's job, not the app's: tell ERPNext where the platform's
-		# money lands. Without it the invoice cannot post (D-028).
-		_link_payment_account("HungerStation", cls.company)
 		frappe.db.commit()
 
 	def tearDown(self):
@@ -149,13 +129,54 @@ class TestAppOrderTypes(PaymentTestBase):
 				order, payments=[{"method": CASH, "amount": flt(order.total_amount)}]
 			)
 
-	def test_the_forced_method_settles_it(self):
-		order, _customer = self._activated_app_order()
+	def test_the_platform_owes_the_money_it_already_took(self):
+		"""D-029 — an app order is credit: nothing enters the till.
+
+		The customer paid HungerStation, not the restaurant. The invoice stays
+		outstanding against the platform until the monthly statement settles.
+		"""
+		order, customer = self._activated_app_order()
+		total = flt(order.total_amount)
 
 		result = payment_service.process_payment(
-			order,
-			payments=[{"method": "HungerStation", "amount": flt(order.total_amount)}],
+			order, payments=[{"method": "HungerStation", "amount": total}]
 		)
 
-		self.assertTrue(result["sales_invoice"])
+		self.assertEqual(result["settlement"], "credit")
 		self.assertEqual(order.status, "closed")
+
+		invoice = frappe.get_doc("Sales Invoice", result["sales_invoice"])
+		self.assertEqual(invoice.docstatus, 1)
+		self.assertEqual(invoice.customer, customer)
+		# Not a till sale: no POS settlement rows, and the money is still owed.
+		self.assertEqual(invoice.is_pos, 0)
+		self.assertEqual(len(invoice.payments), 0)
+		self.assertAlmostEqual(flt(invoice.outstanding_amount), total, places=2)
+
+	def test_a_credit_method_needs_no_bank_account(self):
+		"""The original mistake: shipping these as Bank and demanding an account."""
+		for app in DELIVERY_APPS:
+			method = frappe.get_doc("Mode of Payment", app["title"])
+			self.assertEqual(method.rpos_is_credit, 1)
+			self.assertEqual(method.type, "General")
+			self.assertFalse(method.accounts)
+
+	def test_till_and_credit_cannot_be_mixed(self):
+		order, _customer = self._activated_app_order()
+		half = flt(order.total_amount) / 2
+
+		with self.assertRaises(frappe.ValidationError):
+			payment_service.process_payment(
+				order,
+				payments=[
+					{"method": "HungerStation", "amount": half},
+					{"method": CASH, "amount": half},
+				],
+			)
+
+	def test_corporate_ships_and_is_credit(self):
+		"""02 §3 — restored: BR-022 never forbade credit, only partial payment."""
+		config = frappe.get_doc("Restaurant Order Type", {"title": "Corporate"})
+		self.assertEqual(config.customer_mode, "required")
+		self.assertEqual(config.allowed_payment_methods[0].payment_method, "Credit")
+		self.assertEqual(config.allowed_payment_methods[0].is_forced, 1)

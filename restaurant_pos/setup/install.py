@@ -175,6 +175,22 @@ CUSTOM_FIELDS = {
 			"insert_after": "rpos_section",
 		},
 	],
+	# A delivery platform or a corporate account is settled on a statement, not
+	# at the till: the customer owes the restaurant and pays monthly. ERPNext
+	# has no "credit" mode of payment type, so the distinction is a flag
+	# (DECISIONS.md D-029).
+	"Mode of Payment": [
+		{
+			"fieldname": "rpos_is_credit",
+			"fieldtype": "Check",
+			"label": "Settled on Account (Credit)",
+			"description": (
+				"No money changes hands at the till. The invoice stays outstanding "
+				"against the customer and is settled later by a Payment Entry."
+			),
+			"insert_after": "type",
+		},
+	],
 	"Item Group": [
 		{
 			"fieldname": "rpos_section",

@@ -128,16 +128,14 @@ ORDER_TYPES = [
 # --------------------------------------------------------------------------- #
 # Delivery-app order types — 02_Business_Requirements.md §3
 # --------------------------------------------------------------------------- #
-# Shipped **inactive**. Everything the platform dictates is preset: the forced
-# payment method (BR-002), the app's order number as a required field (BR-004),
-# and `customer_mode = pre_set`. What is missing is the one thing only the
-# restaurant knows — which Customer the platform's money is receivable from.
-# Creating that Customer here would invent an accounting entity the accountant
-# never approved, so the manager links it and activates the type.
+# An app order is already paid — to the platform, not to the restaurant. The
+# cashier keys it in and closes it on the platform's own payment method, which
+# is **credit**: nothing enters the till, the invoice stays outstanding against
+# the platform, and the two settle monthly on a statement (D-029).
 #
-# `corporate` from §3 is deliberately absent: it is billed on credit, and
-# BR-022 forbids anything but payment in full in v1. Shipping a type that
-# cannot complete a sale is worse than not shipping it (`DECISIONS.md` D-028).
+# Shipped **inactive**, because the one thing only the restaurant knows is
+# missing: which Customer the platform's money is receivable from. Creating that
+# record here would invent an accounting entity the accountant never approved.
 
 APP_ORDER_NUMBER_FIELD = {
 	"field_label": "App Order No",
@@ -153,6 +151,9 @@ DELIVERY_APPS = [
 	{"title": "Jahez", "title_ar": "جاهز", "icon": "📱", "color": "#EF4444", "sort_order": 5},
 	{"title": "Talabat", "title_ar": "طلبات", "icon": "📱", "color": "#22C55E", "sort_order": 6},
 ]
+
+#: A general credit method for corporate accounts (02 §3, "Invoice/Credit").
+CREDIT_METHOD = "Credit"
 
 APP_ORDER_TYPES = [
 	{
@@ -171,6 +172,21 @@ APP_ORDER_TYPES = [
 	}
 	for app in DELIVERY_APPS
 ]
+
+#: 02 §3 — billed to the company, settled on a statement like the apps.
+CORPORATE_ORDER_TYPE = {
+	"title": "Corporate",
+	"title_ar": "شركات",
+	"icon": "🏢",
+	"color": "#6B7280",
+	"requires_table": 0,
+	"requires_cover_count": 0,
+	"customer_mode": "required",
+	"send_to_kitchen_on": "manual",
+	"sort_order": 7,
+	"is_active": 0,
+	"allowed_payment_methods": [{"payment_method": CREDIT_METHOD, "is_forced": 1, "is_default": 1}],
+}
 
 
 # --------------------------------------------------------------------------- #
@@ -206,7 +222,7 @@ def create_default_data():
 	"""Create the shipped defaults. Safe to call twice: existing records are kept."""
 	_configure_cash_rounding()
 	created = {
-		"payment_methods": _create_app_payment_methods(),
+		"payment_methods": _create_credit_payment_methods(),
 		"permission_sets": _create_permission_sets(),
 		"order_types": _create_order_types(),
 		"promotions": _create_sample_promotion(),
@@ -248,19 +264,27 @@ def _create_permission_sets():
 	return created
 
 
-def _create_app_payment_methods():
-	"""One Mode of Payment per delivery app (BR-002).
+def _create_credit_payment_methods():
+	"""One credit method per platform, plus a general one for corporate accounts.
 
-	The platform settles by transfer, so these are bank-type methods rather than
-	cash. Keeping them separate is what lets the shift report show what each
-	platform owes.
+	``type = General`` with ``rpos_is_credit = 1``: no till, no bank account,
+	nothing to reconcile at close of shift. One method per platform rather than
+	a single shared "Credit" is what lets a statement be pulled per platform —
+	HungerStation and Jahez owe separately (``DECISIONS.md`` D-029).
 	"""
 	created = []
-	for app in DELIVERY_APPS:
-		if frappe.db.exists("Mode of Payment", app["title"]):
+	for title in [app["title"] for app in DELIVERY_APPS] + [CREDIT_METHOD]:
+		if frappe.db.exists("Mode of Payment", title):
 			continue
 
-		doc = frappe.get_doc({"doctype": "Mode of Payment", "mode_of_payment": app["title"], "type": "Bank"})
+		doc = frappe.get_doc(
+			{
+				"doctype": "Mode of Payment",
+				"mode_of_payment": title,
+				"type": "General",
+				"rpos_is_credit": 1,
+			}
+		)
 		doc.insert(ignore_permissions=True)
 		created.append(doc.name)
 
@@ -269,7 +293,7 @@ def _create_app_payment_methods():
 
 def _create_order_types():
 	created = []
-	for values in ORDER_TYPES + APP_ORDER_TYPES:
+	for values in ORDER_TYPES + APP_ORDER_TYPES + [CORPORATE_ORDER_TYPE]:
 		if frappe.db.exists("Restaurant Order Type", {"title": values["title"]}):
 			continue
 

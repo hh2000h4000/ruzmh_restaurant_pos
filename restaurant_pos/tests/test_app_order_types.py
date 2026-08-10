@@ -15,12 +15,50 @@ from restaurant_pos.utils import order as orders
 from restaurant_pos.utils import payment as payment_service
 
 
+def _link_payment_account(mode: str, company: str) -> None:
+	doc = frappe.get_doc("Mode of Payment", mode)
+	if any(row.company == company for row in doc.accounts):
+		return
+
+	account = frappe.db.get_value(
+		"Account",
+		{"company": company, "account_type": ("in", ["Bank", "Cash"]), "is_group": 0},
+		"name",
+	)
+	if not account:
+		return
+
+	doc.append("accounts", {"company": company, "default_account": account})
+	doc.save(ignore_permissions=True)
+
+
 class TestAppOrderTypes(PaymentTestBase):
 	@classmethod
 	def setUpClass(cls):
 		super().setUpClass()
 		create_default_data()
 		cls.hunger = frappe.db.get_value("Restaurant Order Type", {"title": "HungerStation"}, "name")
+		cls.customer = frappe.db.get_value("POS Profile", cls.profile, "customer")
+		cls.company = frappe.db.get_value("POS Profile", cls.profile, "company")
+
+		# The restaurant's job, not the app's: tell ERPNext where the platform's
+		# money lands. Without it the invoice cannot post (D-028).
+		_link_payment_account("HungerStation", cls.company)
+		frappe.db.commit()
+
+	def tearDown(self):
+		"""Leave the shipped state as found.
+
+		Several tests here activate HungerStation, and one asserts that it ships
+		inactive. Without this the suite would pass or fail on alphabetical
+		ordering.
+		"""
+		super().tearDown()
+		for app in DELIVERY_APPS:
+			name = frappe.db.get_value("Restaurant Order Type", {"title": app["title"]}, "name")
+			if name:
+				frappe.db.set_value("Restaurant Order Type", name, {"is_active": 0, "pre_set_customer": None})
+		frappe.clear_cache(doctype="Restaurant Order Type")
 		frappe.db.commit()
 
 	def test_every_app_from_the_spec_is_shipped(self):
@@ -66,9 +104,16 @@ class TestAppOrderTypes(PaymentTestBase):
 
 	# ------------------------------------------------------------ behaviour
 
+	def _activate(self):
+		config = frappe.get_doc("Restaurant Order Type", self.hunger)
+		config.pre_set_customer = self.customer
+		config.is_active = 1
+		config.save(ignore_permissions=True)
+		frappe.clear_cache(doctype="Restaurant Order Type")
+
 	def _activated_app_order(self):
 		"""Activate HungerStation the way a restaurant would, then open an order."""
-		customer = frappe.db.get_value("POS Profile", self.profile, "customer")
+		customer = self.customer
 		config = frappe.get_doc("Restaurant Order Type", self.hunger)
 		config.pre_set_customer = customer
 		config.is_active = 1
@@ -90,12 +135,7 @@ class TestAppOrderTypes(PaymentTestBase):
 		self.assertEqual(order.customer, customer)
 
 	def test_the_app_order_number_must_be_supplied(self):
-		customer = frappe.db.get_value("POS Profile", self.profile, "customer")
-		config = frappe.get_doc("Restaurant Order Type", self.hunger)
-		config.pre_set_customer = customer
-		config.is_active = 1
-		config.save(ignore_permissions=True)
-		frappe.clear_cache(doctype="Restaurant Order Type")
+		self._activate()
 
 		with self.assertRaises(frappe.ValidationError):
 			orders.create_order(order_type=self.hunger, pos_profile=self.profile)

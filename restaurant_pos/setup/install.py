@@ -255,8 +255,49 @@ CUSTOM_FIELDS = {
 # kot_template, shift_report_template) once the POS Print Template DocType exists.
 
 
+#: Roles that settle an order and therefore create a Sales Invoice.
+INVOICING_ROLES = (
+	"POS Cashier",
+	"POS Senior Cashier",
+	"POS Manager",
+	"Restaurant Manager",
+	"Restaurant Admin",
+)
+
+
+def grant_account_select() -> None:
+	"""Let cashiers reference accounts without being able to browse them.
+
+	Submitting a Sales Invoice runs ERPNext's ``get_party_account``, which calls
+	``frappe.has_permission("Account", ...)`` directly. That check ignores the
+	document-level ``ignore_permissions`` our code passes, so without a
+	permission of some kind every cashier is refused at payment — the last step
+	of the shift, on a customer standing at the till.
+
+	ERPNext's own answer is to give cashiers the broad ``Accounts User`` role.
+	``select`` is the narrower right that satisfies the same check: a cashier can
+	be attached to an account but cannot open the chart of accounts or read a
+	balance (`08_Security.md` §2 keeps POS roles minimal).
+
+	Idempotent: existing permissions are left alone.
+	"""
+	from frappe.permissions import add_permission, update_permission_property
+
+	for role in INVOICING_ROLES:
+		if not frappe.db.exists("Role", role):
+			continue
+
+		if frappe.db.exists("Custom DocPerm", {"parent": "Account", "role": role}):
+			continue
+
+		add_permission("Account", role, 0)
+		update_permission_property("Account", role, 0, "select", 1)
+		update_permission_property("Account", role, 0, "read", 0)
+
+
 def after_install():
 	create_custom_fields(CUSTOM_FIELDS, ignore_validate=True)
+	grant_account_select()
 	frappe.db.commit()
 
 	# Shipped defaults run on install only. See setup/defaults.py for why they
@@ -266,3 +307,4 @@ def after_install():
 
 def after_migrate():
 	create_custom_fields(CUSTOM_FIELDS, ignore_validate=True)
+	grant_account_select()

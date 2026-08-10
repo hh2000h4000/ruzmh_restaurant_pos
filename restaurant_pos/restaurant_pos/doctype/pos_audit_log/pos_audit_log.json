@@ -1,0 +1,188 @@
+{
+ "actions": [],
+ "allow_copy": 1,
+ "allow_import": 0,
+ "allow_rename": 0,
+ "autoname": "hash",
+ "creation": "2026-08-09 00:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "action_section",
+  "timestamp",
+  "action_type",
+  "action_cb",
+  "restaurant_order",
+  "reason",
+  "actor_section",
+  "cashier",
+  "actor_cb",
+  "approved_by",
+  "context_section",
+  "branch",
+  "context_cb",
+  "pos_profile",
+  "details_section",
+  "details"
+ ],
+ "fields": [
+  {
+   "fieldname": "action_section",
+   "fieldtype": "Section Break",
+   "label": "Action"
+  },
+  {
+   "fieldname": "timestamp",
+   "fieldtype": "Datetime",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Timestamp",
+   "reqd": 1
+  },
+  {
+   "fieldname": "action_type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Action Type",
+   "options": "void_item\nvoid_order\ncancel_order\ndiscount_applied\ndiscount_override\nprice_change\nmanager_override\npayment_method_override\nreturn_created\norder_reopened\nreprint_receipt\nshift_opened\nshift_closed",
+   "reqd": 1
+  },
+  {
+   "fieldname": "action_cb",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "restaurant_order",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Restaurant Order",
+   "options": "Restaurant Order"
+  },
+  {
+   "fieldname": "reason",
+   "fieldtype": "Text",
+   "label": "Reason"
+  },
+  {
+   "fieldname": "actor_section",
+   "fieldtype": "Section Break",
+   "label": "Actors"
+  },
+  {
+   "fieldname": "cashier",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Cashier",
+   "options": "User",
+   "reqd": 1
+  },
+  {
+   "fieldname": "actor_cb",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "Set when a manager override was used.",
+   "fieldname": "approved_by",
+   "fieldtype": "Link",
+   "label": "Approved By",
+   "options": "User"
+  },
+  {
+   "fieldname": "context_section",
+   "fieldtype": "Section Break",
+   "label": "Context"
+  },
+  {
+   "fieldname": "branch",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "Branch",
+   "options": "Branch",
+   "reqd": 1
+  },
+  {
+   "fieldname": "context_cb",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "pos_profile",
+   "fieldtype": "Link",
+   "label": "POS Profile",
+   "options": "POS Profile",
+   "reqd": 1
+  },
+  {
+   "fieldname": "details_section",
+   "fieldtype": "Section Break",
+   "label": "Details"
+  },
+  {
+   "fieldname": "details",
+   "fieldtype": "JSON",
+   "label": "Details"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "istable": 0,
+ "links": [],
+ "modified": "2026-08-09 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Restaurant POS",
+ "name": "POS Audit Log",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "amend": 0,
+   "cancel": 0,
+   "create": 0,
+   "delete": 0,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "submit": 0,
+   "write": 0
+  },
+  {
+   "amend": 0,
+   "cancel": 0,
+   "create": 0,
+   "delete": 0,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Restaurant Admin",
+   "share": 1,
+   "submit": 0,
+   "write": 0
+  },
+  {
+   "amend": 0,
+   "cancel": 0,
+   "create": 0,
+   "delete": 0,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Restaurant Manager",
+   "share": 1,
+   "submit": 0,
+   "write": 0
+  }
+ ],
+ "search_fields": "action_type,cashier,restaurant_order",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 0
+}

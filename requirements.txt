@@ -1,0 +1,4 @@
+# Runtime dependencies are declared in pyproject.toml.
+# Phase 3 (printing) will add: python-escpos, Pillow
+frappe
+erpnext

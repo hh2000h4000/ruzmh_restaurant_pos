@@ -1,0 +1,302 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "naming_series:",
+ "creation": "2026-08-09 00:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "naming_series",
+  "identity_section",
+  "title",
+  "branch",
+  "identity_cb",
+  "shift_date",
+  "shift_type",
+  "status",
+  "open_section",
+  "opened_by",
+  "opened_at",
+  "open_cb",
+  "closed_by",
+  "closed_at",
+  "totals_section",
+  "total_sales",
+  "total_returns",
+  "totals_cb",
+  "total_orders",
+  "total_voids",
+  "settlement_section",
+  "settlement_data",
+  "variance_reason",
+  "notes_section",
+  "notes"
+ ],
+ "fields": [
+  {
+   "default": "SHF-.YYYY.-.MM.-.#####.",
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "label": "Naming Series",
+   "no_copy": 1,
+   "options": "SHF-.YYYY.-.MM.-.#####.",
+   "print_hide": 1,
+   "reqd": 1,
+   "set_only_once": 1
+  },
+  {
+   "fieldname": "identity_section",
+   "fieldtype": "Section Break",
+   "label": "Identity"
+  },
+  {
+   "fieldname": "title",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Title",
+   "reqd": 1
+  },
+  {
+   "fieldname": "branch",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Branch",
+   "options": "Branch",
+   "reqd": 1
+  },
+  {
+   "fieldname": "identity_cb",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "shift_date",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Shift Date",
+   "reqd": 1
+  },
+  {
+   "fieldname": "shift_type",
+   "fieldtype": "Select",
+   "in_standard_filter": 1,
+   "label": "Shift Type",
+   "options": "morning\nevening\nnight\nfull_day",
+   "reqd": 1
+  },
+  {
+   "default": "open",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Status",
+   "options": "open\nclosed",
+   "reqd": 1
+  },
+  {
+   "fieldname": "open_section",
+   "fieldtype": "Section Break",
+   "label": "Opening"
+  },
+  {
+   "fieldname": "opened_by",
+   "fieldtype": "Link",
+   "label": "Opened By",
+   "options": "User",
+   "reqd": 1
+  },
+  {
+   "fieldname": "opened_at",
+   "fieldtype": "Datetime",
+   "label": "Opened At",
+   "reqd": 1
+  },
+  {
+   "fieldname": "open_cb",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "closed_by",
+   "fieldtype": "Link",
+   "label": "Closed By",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "closed_at",
+   "fieldtype": "Datetime",
+   "label": "Closed At",
+   "read_only": 1
+  },
+  {
+   "fieldname": "totals_section",
+   "fieldtype": "Section Break",
+   "label": "Totals"
+  },
+  {
+   "fieldname": "total_sales",
+   "fieldtype": "Currency",
+   "label": "Total Sales",
+   "precision": "2",
+   "read_only": 1
+  },
+  {
+   "fieldname": "total_returns",
+   "fieldtype": "Currency",
+   "label": "Total Returns",
+   "precision": "2",
+   "read_only": 1
+  },
+  {
+   "fieldname": "totals_cb",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "total_orders",
+   "fieldtype": "Int",
+   "label": "Total Orders",
+   "read_only": 1
+  },
+  {
+   "fieldname": "total_voids",
+   "fieldtype": "Int",
+   "label": "Total Voids",
+   "read_only": 1
+  },
+  {
+   "fieldname": "settlement_section",
+   "fieldtype": "Section Break",
+   "label": "Settlement"
+  },
+  {
+   "description": "Expected vs. actual amount per payment method.",
+   "fieldname": "settlement_data",
+   "fieldtype": "JSON",
+   "label": "Settlement Data"
+  },
+  {
+   "fieldname": "variance_reason",
+   "fieldtype": "Text",
+   "label": "Variance Reason"
+  },
+  {
+   "fieldname": "notes_section",
+   "fieldtype": "Section Break",
+   "label": "Notes"
+  },
+  {
+   "fieldname": "notes",
+   "fieldtype": "Text",
+   "label": "Notes"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "istable": 0,
+ "links": [],
+ "modified": "2026-08-09 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Restaurant POS",
+ "name": "Restaurant Shift",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "amend": 0,
+   "cancel": 0,
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "submit": 0,
+   "write": 1
+  },
+  {
+   "amend": 0,
+   "cancel": 0,
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Restaurant Admin",
+   "share": 1,
+   "submit": 0,
+   "write": 1
+  },
+  {
+   "amend": 0,
+   "cancel": 0,
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Restaurant Manager",
+   "share": 1,
+   "submit": 0,
+   "write": 1
+  },
+  {
+   "amend": 0,
+   "cancel": 0,
+   "create": 1,
+   "delete": 0,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "POS Manager",
+   "share": 1,
+   "submit": 0,
+   "write": 1
+  },
+  {
+   "amend": 0,
+   "cancel": 0,
+   "create": 1,
+   "delete": 0,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "POS Senior Cashier",
+   "share": 1,
+   "submit": 0,
+   "write": 1
+  },
+  {
+   "amend": 0,
+   "cancel": 0,
+   "create": 1,
+   "delete": 0,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "POS Cashier",
+   "share": 1,
+   "submit": 0,
+   "write": 1
+  }
+ ],
+ "search_fields": "title,branch,shift_date",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "title",
+ "track_changes": 1
+}

@@ -1,0 +1,248 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "naming_series:",
+ "creation": "2026-08-09 00:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "naming_series",
+  "context_section",
+  "restaurant_order",
+  "kot_type",
+  "production_center",
+  "context_cb",
+  "table",
+  "order_type_title",
+  "cashier_name",
+  "items_section",
+  "items",
+  "print_section",
+  "sent_at",
+  "printed_at",
+  "print_cb",
+  "print_status",
+  "printer_used"
+ ],
+ "fields": [
+  {
+   "default": "KOT-.YYYY.-.MM.-.#####.",
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "label": "Naming Series",
+   "no_copy": 1,
+   "options": "KOT-.YYYY.-.MM.-.#####.",
+   "print_hide": 1,
+   "reqd": 1,
+   "set_only_once": 1
+  },
+  {
+   "fieldname": "context_section",
+   "fieldtype": "Section Break",
+   "label": "Context"
+  },
+  {
+   "fieldname": "restaurant_order",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Restaurant Order",
+   "options": "Restaurant Order",
+   "reqd": 1
+  },
+  {
+   "default": "initial",
+   "fieldname": "kot_type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "KOT Type",
+   "options": "initial\naddition\nvoid\nreprint",
+   "reqd": 1
+  },
+  {
+   "fieldname": "production_center",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Production Center",
+   "options": "Production Center",
+   "reqd": 1
+  },
+  {
+   "fieldname": "context_cb",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "table",
+   "fieldtype": "Link",
+   "label": "Table",
+   "options": "Restaurant Table"
+  },
+  {
+   "fieldname": "order_type_title",
+   "fieldtype": "Data",
+   "label": "Order Type",
+   "read_only": 1
+  },
+  {
+   "fieldname": "cashier_name",
+   "fieldtype": "Data",
+   "label": "Cashier",
+   "read_only": 1
+  },
+  {
+   "fieldname": "items_section",
+   "fieldtype": "Section Break",
+   "label": "Items"
+  },
+  {
+   "fieldname": "items",
+   "fieldtype": "Table",
+   "label": "Items",
+   "options": "KOT Item"
+  },
+  {
+   "fieldname": "print_section",
+   "fieldtype": "Section Break",
+   "label": "Printing"
+  },
+  {
+   "fieldname": "sent_at",
+   "fieldtype": "Datetime",
+   "label": "Sent At",
+   "reqd": 1
+  },
+  {
+   "fieldname": "printed_at",
+   "fieldtype": "Datetime",
+   "label": "Printed At",
+   "read_only": 1
+  },
+  {
+   "fieldname": "print_cb",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "pending",
+   "fieldname": "print_status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Print Status",
+   "options": "pending\nprinted\nfailed"
+  },
+  {
+   "fieldname": "printer_used",
+   "fieldtype": "Link",
+   "label": "Printer Used",
+   "options": "POS Printer",
+   "read_only": 1
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "istable": 0,
+ "links": [],
+ "modified": "2026-08-09 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Restaurant POS",
+ "name": "Kitchen Order Ticket",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "amend": 0,
+   "cancel": 0,
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "submit": 0,
+   "write": 1
+  },
+  {
+   "amend": 0,
+   "cancel": 0,
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Restaurant Admin",
+   "share": 1,
+   "submit": 0,
+   "write": 1
+  },
+  {
+   "amend": 0,
+   "cancel": 0,
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Restaurant Manager",
+   "share": 1,
+   "submit": 0,
+   "write": 1
+  },
+  {
+   "amend": 0,
+   "cancel": 0,
+   "create": 1,
+   "delete": 0,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "POS Manager",
+   "share": 1,
+   "submit": 0,
+   "write": 1
+  },
+  {
+   "amend": 0,
+   "cancel": 0,
+   "create": 1,
+   "delete": 0,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "POS Senior Cashier",
+   "share": 1,
+   "submit": 0,
+   "write": 1
+  },
+  {
+   "amend": 0,
+   "cancel": 0,
+   "create": 1,
+   "delete": 0,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "POS Cashier",
+   "share": 1,
+   "submit": 0,
+   "write": 1
+  }
+ ],
+ "search_fields": "restaurant_order,production_center,kot_type",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

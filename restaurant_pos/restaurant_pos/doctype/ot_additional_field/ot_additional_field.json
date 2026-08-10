@@ -1,0 +1,87 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "creation": "2026-08-09 00:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "field_label",
+  "field_label_ar",
+  "field_type",
+  "field_options",
+  "show_at",
+  "is_required",
+  "placeholder"
+ ],
+ "fields": [
+  {
+   "columns": 2,
+   "fieldname": "field_label",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Label (English)",
+   "reqd": 1
+  },
+  {
+   "columns": 2,
+   "fieldname": "field_label_ar",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Label (Arabic)",
+   "reqd": 1
+  },
+  {
+   "columns": 1,
+   "default": "text",
+   "fieldname": "field_type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Type",
+   "options": "text\nnumber\nselect",
+   "reqd": 1
+  },
+  {
+   "depends_on": "eval:doc.field_type=='select'",
+   "description": "One option per line.",
+   "fieldname": "field_options",
+   "fieldtype": "Text",
+   "label": "Options",
+   "mandatory_depends_on": "eval:doc.field_type=='select'"
+  },
+  {
+   "columns": 2,
+   "default": "on_open",
+   "fieldname": "show_at",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Show At",
+   "options": "on_open\non_close\nboth",
+   "reqd": 1
+  },
+  {
+   "columns": 1,
+   "fieldname": "is_required",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Required"
+  },
+  {
+   "fieldname": "placeholder",
+   "fieldtype": "Data",
+   "label": "Placeholder"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "istable": 1,
+ "links": [],
+ "modified": "2026-08-09 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Restaurant POS",
+ "name": "OT Additional Field",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

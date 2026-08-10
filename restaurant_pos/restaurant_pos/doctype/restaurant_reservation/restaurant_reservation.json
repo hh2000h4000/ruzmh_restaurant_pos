@@ -1,0 +1,283 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "naming_series:",
+ "creation": "2026-08-09 00:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "naming_series",
+  "guest_section",
+  "customer_name",
+  "phone",
+  "guest_cb",
+  "party_size",
+  "customer",
+  "booking_section",
+  "reservation_date",
+  "reservation_time",
+  "booking_cb",
+  "branch",
+  "section",
+  "table",
+  "status_section",
+  "status",
+  "restaurant_order",
+  "status_cb",
+  "cancel_reason",
+  "created_by_name",
+  "notes_section",
+  "notes"
+ ],
+ "fields": [
+  {
+   "default": "RES-.YYYY.-.MM.-.#####.",
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "label": "Naming Series",
+   "no_copy": 1,
+   "options": "RES-.YYYY.-.MM.-.#####.",
+   "print_hide": 1,
+   "reqd": 1,
+   "set_only_once": 1
+  },
+  {
+   "fieldname": "guest_section",
+   "fieldtype": "Section Break",
+   "label": "Guest"
+  },
+  {
+   "fieldname": "customer_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Guest Name",
+   "reqd": 1
+  },
+  {
+   "fieldname": "phone",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Phone",
+   "options": "Phone",
+   "reqd": 1
+  },
+  {
+   "fieldname": "guest_cb",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "party_size",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "Party Size",
+   "reqd": 1
+  },
+  {
+   "description": "Link to an existing ERPNext customer, if any.",
+   "fieldname": "customer",
+   "fieldtype": "Link",
+   "label": "Customer",
+   "options": "Customer"
+  },
+  {
+   "fieldname": "booking_section",
+   "fieldtype": "Section Break",
+   "label": "Booking"
+  },
+  {
+   "fieldname": "reservation_date",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Date",
+   "reqd": 1
+  },
+  {
+   "fieldname": "reservation_time",
+   "fieldtype": "Time",
+   "in_list_view": 1,
+   "label": "Time",
+   "reqd": 1
+  },
+  {
+   "fieldname": "booking_cb",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "branch",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "Branch",
+   "options": "Branch",
+   "reqd": 1
+  },
+  {
+   "fieldname": "section",
+   "fieldtype": "Link",
+   "label": "Section",
+   "options": "Restaurant Section"
+  },
+  {
+   "fieldname": "table",
+   "fieldtype": "Link",
+   "label": "Table",
+   "options": "Restaurant Table"
+  },
+  {
+   "fieldname": "status_section",
+   "fieldtype": "Section Break",
+   "label": "Status"
+  },
+  {
+   "default": "pending",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Status",
+   "options": "pending\nconfirmed\nseated\ncompleted\ncancelled\nno_show",
+   "reqd": 1
+  },
+  {
+   "fieldname": "restaurant_order",
+   "fieldtype": "Link",
+   "label": "Restaurant Order",
+   "no_copy": 1,
+   "options": "Restaurant Order",
+   "read_only": 1
+  },
+  {
+   "fieldname": "status_cb",
+   "fieldtype": "Column Break"
+  },
+  {
+   "depends_on": "eval:doc.status=='cancelled'",
+   "fieldname": "cancel_reason",
+   "fieldtype": "Text",
+   "label": "Cancel Reason",
+   "mandatory_depends_on": "eval:doc.status=='cancelled'"
+  },
+  {
+   "fieldname": "created_by_name",
+   "fieldtype": "Data",
+   "label": "Taken By"
+  },
+  {
+   "fieldname": "notes_section",
+   "fieldtype": "Section Break",
+   "label": "Notes"
+  },
+  {
+   "fieldname": "notes",
+   "fieldtype": "Text",
+   "label": "Special Requests"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "istable": 0,
+ "links": [],
+ "modified": "2026-08-09 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Restaurant POS",
+ "name": "Restaurant Reservation",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "amend": 0,
+   "cancel": 0,
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "submit": 0,
+   "write": 1
+  },
+  {
+   "amend": 0,
+   "cancel": 0,
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Restaurant Admin",
+   "share": 1,
+   "submit": 0,
+   "write": 1
+  },
+  {
+   "amend": 0,
+   "cancel": 0,
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Restaurant Manager",
+   "share": 1,
+   "submit": 0,
+   "write": 1
+  },
+  {
+   "amend": 0,
+   "cancel": 0,
+   "create": 1,
+   "delete": 0,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "POS Manager",
+   "share": 1,
+   "submit": 0,
+   "write": 1
+  },
+  {
+   "amend": 0,
+   "cancel": 0,
+   "create": 1,
+   "delete": 0,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "POS Senior Cashier",
+   "share": 1,
+   "submit": 0,
+   "write": 1
+  },
+  {
+   "amend": 0,
+   "cancel": 0,
+   "create": 1,
+   "delete": 0,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "POS Cashier",
+   "share": 1,
+   "submit": 0,
+   "write": 1
+  }
+ ],
+ "search_fields": "customer_name,phone,reservation_date",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "customer_name",
+ "track_changes": 1
+}

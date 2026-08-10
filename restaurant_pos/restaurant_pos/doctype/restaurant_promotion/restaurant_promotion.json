@@ -1,0 +1,369 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "naming_series:",
+ "creation": "2026-08-09 00:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "naming_series",
+  "identity_section",
+  "title",
+  "title_ar",
+  "identity_cb",
+  "is_active",
+  "is_auto_apply",
+  "is_exclusive",
+  "validity_section",
+  "valid_from",
+  "valid_to",
+  "validity_cb",
+  "time_from",
+  "time_to",
+  "days_section",
+  "monday",
+  "tuesday",
+  "wednesday",
+  "days_cb_1",
+  "thursday",
+  "friday",
+  "saturday",
+  "days_cb_2",
+  "sunday",
+  "benefit_section",
+  "promotion_type",
+  "discount_value",
+  "benefit_cb",
+  "free_item",
+  "apply_to_section",
+  "apply_to",
+  "applicable_order_types",
+  "applicable_branches",
+  "applicable_sections",
+  "item_scope_section",
+  "item_scope",
+  "applicable_item_groups",
+  "applicable_items"
+ ],
+ "fields": [
+  {
+   "default": "PROMO-.###.",
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "label": "Naming Series",
+   "no_copy": 1,
+   "options": "PROMO-.###.",
+   "print_hide": 1,
+   "reqd": 1,
+   "set_only_once": 1
+  },
+  {
+   "fieldname": "identity_section",
+   "fieldtype": "Section Break",
+   "label": "Identity"
+  },
+  {
+   "fieldname": "title",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Title (English)",
+   "reqd": 1
+  },
+  {
+   "fieldname": "title_ar",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Title (Arabic)",
+   "reqd": 1,
+   "translatable": 1
+  },
+  {
+   "fieldname": "identity_cb",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "1",
+   "fieldname": "is_active",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Is Active"
+  },
+  {
+   "fieldname": "is_auto_apply",
+   "fieldtype": "Check",
+   "label": "Auto Apply"
+  },
+  {
+   "description": "Cannot stack with other promotions.",
+   "fieldname": "is_exclusive",
+   "fieldtype": "Check",
+   "label": "Exclusive"
+  },
+  {
+   "fieldname": "validity_section",
+   "fieldtype": "Section Break",
+   "label": "Validity"
+  },
+  {
+   "fieldname": "valid_from",
+   "fieldtype": "Date",
+   "label": "Valid From"
+  },
+  {
+   "fieldname": "valid_to",
+   "fieldtype": "Date",
+   "label": "Valid To"
+  },
+  {
+   "fieldname": "validity_cb",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "For happy hour windows.",
+   "fieldname": "time_from",
+   "fieldtype": "Time",
+   "label": "Time From"
+  },
+  {
+   "fieldname": "time_to",
+   "fieldtype": "Time",
+   "label": "Time To"
+  },
+  {
+   "fieldname": "days_section",
+   "fieldtype": "Section Break",
+   "label": "Days of Week"
+  },
+  {
+   "fieldname": "monday",
+   "fieldtype": "Check",
+   "label": "Monday"
+  },
+  {
+   "fieldname": "tuesday",
+   "fieldtype": "Check",
+   "label": "Tuesday"
+  },
+  {
+   "fieldname": "wednesday",
+   "fieldtype": "Check",
+   "label": "Wednesday"
+  },
+  {
+   "fieldname": "days_cb_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "thursday",
+   "fieldtype": "Check",
+   "label": "Thursday"
+  },
+  {
+   "fieldname": "friday",
+   "fieldtype": "Check",
+   "label": "Friday"
+  },
+  {
+   "fieldname": "saturday",
+   "fieldtype": "Check",
+   "label": "Saturday"
+  },
+  {
+   "fieldname": "days_cb_2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "sunday",
+   "fieldtype": "Check",
+   "label": "Sunday"
+  },
+  {
+   "fieldname": "benefit_section",
+   "fieldtype": "Section Break",
+   "label": "Benefit"
+  },
+  {
+   "default": "percentage",
+   "fieldname": "promotion_type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Promotion Type",
+   "options": "percentage\nfixed_amount\nbuy_x_get_y\nfree_item",
+   "reqd": 1
+  },
+  {
+   "depends_on": "eval:['percentage','fixed_amount'].includes(doc.promotion_type)",
+   "description": "Percentage or amount, depending on Promotion Type.",
+   "fieldname": "discount_value",
+   "fieldtype": "Float",
+   "label": "Discount Value",
+   "mandatory_depends_on": "eval:['percentage','fixed_amount'].includes(doc.promotion_type)",
+   "precision": "2"
+  },
+  {
+   "fieldname": "benefit_cb",
+   "fieldtype": "Column Break"
+  },
+  {
+   "depends_on": "eval:doc.promotion_type=='free_item'",
+   "fieldname": "free_item",
+   "fieldtype": "Link",
+   "label": "Free Item",
+   "mandatory_depends_on": "eval:doc.promotion_type=='free_item'",
+   "options": "Item"
+  },
+  {
+   "fieldname": "apply_to_section",
+   "fieldtype": "Section Break",
+   "label": "Applies To"
+  },
+  {
+   "default": "all",
+   "fieldname": "apply_to",
+   "fieldtype": "Select",
+   "label": "Apply To",
+   "options": "all\nby_order_type\nby_branch\nby_section",
+   "reqd": 1
+  },
+  {
+   "depends_on": "eval:doc.apply_to=='by_order_type'",
+   "fieldname": "applicable_order_types",
+   "fieldtype": "Table",
+   "label": "Applicable Order Types",
+   "options": "Promotion Order Type"
+  },
+  {
+   "depends_on": "eval:doc.apply_to=='by_branch'",
+   "fieldname": "applicable_branches",
+   "fieldtype": "Table",
+   "label": "Applicable Branches",
+   "options": "Promotion Branch"
+  },
+  {
+   "depends_on": "eval:doc.apply_to=='by_section'",
+   "fieldname": "applicable_sections",
+   "fieldtype": "Table",
+   "label": "Applicable Sections",
+   "options": "Promotion Section"
+  },
+  {
+   "fieldname": "item_scope_section",
+   "fieldtype": "Section Break",
+   "label": "Item Scope"
+  },
+  {
+   "default": "all",
+   "fieldname": "item_scope",
+   "fieldtype": "Select",
+   "label": "Item Scope",
+   "options": "all\nspecific_groups\nspecific_items",
+   "reqd": 1
+  },
+  {
+   "depends_on": "eval:doc.item_scope=='specific_groups'",
+   "fieldname": "applicable_item_groups",
+   "fieldtype": "Table",
+   "label": "Applicable Item Groups",
+   "options": "Promotion Item Group"
+  },
+  {
+   "depends_on": "eval:doc.item_scope=='specific_items'",
+   "fieldname": "applicable_items",
+   "fieldtype": "Table",
+   "label": "Applicable Items",
+   "options": "Promotion Item"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "istable": 0,
+ "links": [],
+ "modified": "2026-08-09 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Restaurant POS",
+ "name": "Restaurant Promotion",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "amend": 0,
+   "cancel": 0,
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "submit": 0,
+   "write": 1
+  },
+  {
+   "amend": 0,
+   "cancel": 0,
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Restaurant Admin",
+   "share": 1,
+   "submit": 0,
+   "write": 1
+  },
+  {
+   "amend": 0,
+   "cancel": 0,
+   "create": 1,
+   "delete": 0,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Restaurant Manager",
+   "share": 1,
+   "submit": 0,
+   "write": 1
+  },
+  {
+   "amend": 0,
+   "cancel": 0,
+   "create": 0,
+   "delete": 0,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "POS Manager",
+   "share": 1,
+   "submit": 0,
+   "write": 0
+  },
+  {
+   "amend": 0,
+   "cancel": 0,
+   "create": 0,
+   "delete": 0,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "POS Cashier",
+   "share": 1,
+   "submit": 0,
+   "write": 0
+  }
+ ],
+ "search_fields": "title,title_ar",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "title",
+ "track_changes": 1
+}

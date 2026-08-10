@@ -1,0 +1,186 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "prompt",
+ "creation": "2026-08-09 00:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "identity_section",
+  "title",
+  "title_ar",
+  "identity_cb",
+  "selection_type",
+  "is_required",
+  "limits_section",
+  "min_selections",
+  "limits_cb",
+  "max_selections",
+  "options_section",
+  "modifier_options"
+ ],
+ "fields": [
+  {
+   "fieldname": "identity_section",
+   "fieldtype": "Section Break",
+   "label": "Identity"
+  },
+  {
+   "fieldname": "title",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Title (English)",
+   "reqd": 1
+  },
+  {
+   "fieldname": "title_ar",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Title (Arabic)",
+   "reqd": 1,
+   "translatable": 1
+  },
+  {
+   "fieldname": "identity_cb",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "single",
+   "fieldname": "selection_type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Selection Type",
+   "options": "single\nmultiple",
+   "reqd": 1
+  },
+  {
+   "fieldname": "is_required",
+   "fieldtype": "Check",
+   "label": "Is Required"
+  },
+  {
+   "fieldname": "limits_section",
+   "fieldtype": "Section Break",
+   "label": "Selection Limits"
+  },
+  {
+   "depends_on": "eval:doc.selection_type=='multiple'",
+   "fieldname": "min_selections",
+   "fieldtype": "Int",
+   "label": "Min Selections"
+  },
+  {
+   "fieldname": "limits_cb",
+   "fieldtype": "Column Break"
+  },
+  {
+   "depends_on": "eval:doc.selection_type=='multiple'",
+   "description": "0 means unlimited.",
+   "fieldname": "max_selections",
+   "fieldtype": "Int",
+   "label": "Max Selections"
+  },
+  {
+   "fieldname": "options_section",
+   "fieldtype": "Section Break",
+   "label": "Options"
+  },
+  {
+   "fieldname": "modifier_options",
+   "fieldtype": "Table",
+   "label": "Options",
+   "options": "POS Modifier Option"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "istable": 0,
+ "links": [],
+ "modified": "2026-08-09 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Restaurant POS",
+ "name": "POS Modifier Group",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "amend": 0,
+   "cancel": 0,
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "submit": 0,
+   "write": 1
+  },
+  {
+   "amend": 0,
+   "cancel": 0,
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Restaurant Admin",
+   "share": 1,
+   "submit": 0,
+   "write": 1
+  },
+  {
+   "amend": 0,
+   "cancel": 0,
+   "create": 1,
+   "delete": 0,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Restaurant Manager",
+   "share": 1,
+   "submit": 0,
+   "write": 1
+  },
+  {
+   "amend": 0,
+   "cancel": 0,
+   "create": 0,
+   "delete": 0,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "POS Manager",
+   "share": 1,
+   "submit": 0,
+   "write": 0
+  },
+  {
+   "amend": 0,
+   "cancel": 0,
+   "create": 0,
+   "delete": 0,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "POS Cashier",
+   "share": 1,
+   "submit": 0,
+   "write": 0
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "title",
+ "track_changes": 1
+}

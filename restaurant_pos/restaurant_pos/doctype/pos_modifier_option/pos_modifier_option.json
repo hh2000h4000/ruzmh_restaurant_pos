@@ -1,0 +1,90 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "creation": "2026-08-09 00:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "title",
+  "title_ar",
+  "price_effect",
+  "price_amount",
+  "stock_item",
+  "is_default",
+  "is_active"
+ ],
+ "fields": [
+  {
+   "columns": 2,
+   "fieldname": "title",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Title (English)",
+   "reqd": 1
+  },
+  {
+   "columns": 2,
+   "fieldname": "title_ar",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Title (Arabic)",
+   "reqd": 1,
+   "translatable": 1
+  },
+  {
+   "columns": 2,
+   "default": "none",
+   "fieldname": "price_effect",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Price Effect",
+   "options": "none\nadd\nsubtract\nreplace",
+   "reqd": 1
+  },
+  {
+   "columns": 2,
+   "depends_on": "eval:doc.price_effect!='none'",
+   "fieldname": "price_amount",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Price Amount",
+   "mandatory_depends_on": "eval:doc.price_effect!='none'",
+   "precision": "2"
+  },
+  {
+   "description": "Set when this option consumes separate stock.",
+   "fieldname": "stock_item",
+   "fieldtype": "Link",
+   "label": "Stock Item",
+   "options": "Item"
+  },
+  {
+   "columns": 1,
+   "fieldname": "is_default",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Default"
+  },
+  {
+   "columns": 1,
+   "default": "1",
+   "fieldname": "is_active",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Active"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "istable": 1,
+ "links": [],
+ "modified": "2026-08-09 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Restaurant POS",
+ "name": "POS Modifier Option",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

@@ -1,0 +1,322 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "naming_series:",
+ "creation": "2026-08-09 00:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "naming_series",
+  "identity_section",
+  "title",
+  "title_ar",
+  "identity_cb",
+  "icon",
+  "color",
+  "sort_order",
+  "is_active",
+  "behaviour_section",
+  "requires_table",
+  "requires_cover_count",
+  "behaviour_cb",
+  "send_to_kitchen_on",
+  "customer_section",
+  "customer_mode",
+  "customer_cb",
+  "pre_set_customer",
+  "visibility_section",
+  "allowed_branches",
+  "allowed_sections",
+  "allowed_pos_profiles",
+  "allowed_roles",
+  "payment_section",
+  "allowed_payment_methods",
+  "promotion_section",
+  "auto_promotions",
+  "item_visibility_section",
+  "hidden_item_groups",
+  "additional_fields_section",
+  "additional_fields"
+ ],
+ "fields": [
+  {
+   "default": "OT-.###.",
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "label": "Naming Series",
+   "no_copy": 1,
+   "options": "OT-.###.",
+   "print_hide": 1,
+   "reqd": 1,
+   "set_only_once": 1
+  },
+  {
+   "fieldname": "identity_section",
+   "fieldtype": "Section Break",
+   "label": "Identity"
+  },
+  {
+   "fieldname": "title",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Title (English)",
+   "reqd": 1
+  },
+  {
+   "fieldname": "title_ar",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Title (Arabic)",
+   "reqd": 1,
+   "translatable": 1
+  },
+  {
+   "fieldname": "identity_cb",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "Emoji or icon class.",
+   "fieldname": "icon",
+   "fieldtype": "Data",
+   "label": "Icon"
+  },
+  {
+   "fieldname": "color",
+   "fieldtype": "Color",
+   "label": "Button Color"
+  },
+  {
+   "fieldname": "sort_order",
+   "fieldtype": "Int",
+   "label": "Sort Order"
+  },
+  {
+   "default": "1",
+   "fieldname": "is_active",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Is Active"
+  },
+  {
+   "fieldname": "behaviour_section",
+   "fieldtype": "Section Break",
+   "label": "Behaviour"
+  },
+  {
+   "fieldname": "requires_table",
+   "fieldtype": "Check",
+   "label": "Requires Table"
+  },
+  {
+   "fieldname": "requires_cover_count",
+   "fieldtype": "Check",
+   "label": "Requires Cover Count"
+  },
+  {
+   "fieldname": "behaviour_cb",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "manual",
+   "fieldname": "send_to_kitchen_on",
+   "fieldtype": "Select",
+   "label": "Send to Kitchen On",
+   "options": "manual\nsave\npayment",
+   "reqd": 1
+  },
+  {
+   "fieldname": "customer_section",
+   "fieldtype": "Section Break",
+   "label": "Customer"
+  },
+  {
+   "default": "optional",
+   "fieldname": "customer_mode",
+   "fieldtype": "Select",
+   "label": "Customer Mode",
+   "options": "optional\nrequired\npre_set",
+   "reqd": 1
+  },
+  {
+   "fieldname": "customer_cb",
+   "fieldtype": "Column Break"
+  },
+  {
+   "depends_on": "eval:doc.customer_mode=='pre_set'",
+   "fieldname": "pre_set_customer",
+   "fieldtype": "Link",
+   "label": "Pre-set Customer",
+   "mandatory_depends_on": "eval:doc.customer_mode=='pre_set'",
+   "options": "Customer"
+  },
+  {
+   "fieldname": "visibility_section",
+   "fieldtype": "Section Break",
+   "label": "Visibility"
+  },
+  {
+   "description": "Leave empty to allow every branch.",
+   "fieldname": "allowed_branches",
+   "fieldtype": "Table",
+   "label": "Allowed Branches",
+   "options": "OT Branch"
+  },
+  {
+   "description": "Leave empty to allow every section.",
+   "fieldname": "allowed_sections",
+   "fieldtype": "Table",
+   "label": "Allowed Sections",
+   "options": "OT Section"
+  },
+  {
+   "description": "Leave empty to allow every POS profile.",
+   "fieldname": "allowed_pos_profiles",
+   "fieldtype": "Table",
+   "label": "Allowed POS Profiles",
+   "options": "OT POS Profile"
+  },
+  {
+   "description": "Leave empty to allow every role.",
+   "fieldname": "allowed_roles",
+   "fieldtype": "Table",
+   "label": "Allowed Roles",
+   "options": "OT Role"
+  },
+  {
+   "fieldname": "payment_section",
+   "fieldtype": "Section Break",
+   "label": "Payment"
+  },
+  {
+   "fieldname": "allowed_payment_methods",
+   "fieldtype": "Table",
+   "label": "Allowed Payment Methods",
+   "options": "OT Payment Method"
+  },
+  {
+   "fieldname": "promotion_section",
+   "fieldtype": "Section Break",
+   "label": "Promotions"
+  },
+  {
+   "fieldname": "auto_promotions",
+   "fieldtype": "Table",
+   "label": "Auto Promotions",
+   "options": "OT Promotion"
+  },
+  {
+   "fieldname": "item_visibility_section",
+   "fieldtype": "Section Break",
+   "label": "Item Visibility"
+  },
+  {
+   "fieldname": "hidden_item_groups",
+   "fieldtype": "Table",
+   "label": "Hidden Item Groups",
+   "options": "OT Hidden Item Group"
+  },
+  {
+   "fieldname": "additional_fields_section",
+   "fieldtype": "Section Break",
+   "label": "Additional Fields"
+  },
+  {
+   "fieldname": "additional_fields",
+   "fieldtype": "Table",
+   "label": "Additional Fields",
+   "options": "OT Additional Field"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "istable": 0,
+ "links": [],
+ "modified": "2026-08-09 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Restaurant POS",
+ "name": "Restaurant Order Type",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "amend": 0,
+   "cancel": 0,
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "submit": 0,
+   "write": 1
+  },
+  {
+   "amend": 0,
+   "cancel": 0,
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Restaurant Admin",
+   "share": 1,
+   "submit": 0,
+   "write": 1
+  },
+  {
+   "amend": 0,
+   "cancel": 0,
+   "create": 1,
+   "delete": 0,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Restaurant Manager",
+   "share": 1,
+   "submit": 0,
+   "write": 1
+  },
+  {
+   "amend": 0,
+   "cancel": 0,
+   "create": 0,
+   "delete": 0,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "POS Manager",
+   "share": 1,
+   "submit": 0,
+   "write": 0
+  },
+  {
+   "amend": 0,
+   "cancel": 0,
+   "create": 0,
+   "delete": 0,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "POS Cashier",
+   "share": 1,
+   "submit": 0,
+   "write": 0
+  }
+ ],
+ "search_fields": "title,title_ar",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "title",
+ "track_changes": 1
+}

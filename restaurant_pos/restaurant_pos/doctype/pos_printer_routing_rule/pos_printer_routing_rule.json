@@ -1,0 +1,196 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "hash",
+ "creation": "2026-08-09 00:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "scope_section",
+  "branch",
+  "order_type",
+  "pos_profile",
+  "scope_cb",
+  "item_group",
+  "item",
+  "target_section",
+  "production_center",
+  "target_cb",
+  "priority",
+  "is_active"
+ ],
+ "fields": [
+  {
+   "fieldname": "scope_section",
+   "fieldtype": "Section Break",
+   "label": "Scope"
+  },
+  {
+   "fieldname": "branch",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Branch",
+   "options": "Branch",
+   "reqd": 1
+  },
+  {
+   "description": "Leave empty to match every order type.",
+   "fieldname": "order_type",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Order Type",
+   "options": "Restaurant Order Type"
+  },
+  {
+   "description": "Leave empty to match every POS profile.",
+   "fieldname": "pos_profile",
+   "fieldtype": "Link",
+   "label": "POS Profile",
+   "options": "POS Profile"
+  },
+  {
+   "fieldname": "scope_cb",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "Mutually exclusive with Item.",
+   "fieldname": "item_group",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Item Group",
+   "options": "Item Group"
+  },
+  {
+   "description": "Most specific match. Mutually exclusive with Item Group.",
+   "fieldname": "item",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Item",
+   "options": "Item"
+  },
+  {
+   "fieldname": "target_section",
+   "fieldtype": "Section Break",
+   "label": "Target"
+  },
+  {
+   "fieldname": "production_center",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Production Center",
+   "options": "Production Center",
+   "reqd": 1
+  },
+  {
+   "fieldname": "target_cb",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "10",
+   "description": "Lower number is evaluated first.",
+   "fieldname": "priority",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "Priority",
+   "reqd": 1
+  },
+  {
+   "default": "1",
+   "fieldname": "is_active",
+   "fieldtype": "Check",
+   "label": "Is Active"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "istable": 0,
+ "links": [],
+ "modified": "2026-08-09 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Restaurant POS",
+ "name": "POS Printer Routing Rule",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "amend": 0,
+   "cancel": 0,
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "submit": 0,
+   "write": 1
+  },
+  {
+   "amend": 0,
+   "cancel": 0,
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Restaurant Admin",
+   "share": 1,
+   "submit": 0,
+   "write": 1
+  },
+  {
+   "amend": 0,
+   "cancel": 0,
+   "create": 1,
+   "delete": 0,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Restaurant Manager",
+   "share": 1,
+   "submit": 0,
+   "write": 1
+  },
+  {
+   "amend": 0,
+   "cancel": 0,
+   "create": 0,
+   "delete": 0,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "POS Manager",
+   "share": 1,
+   "submit": 0,
+   "write": 0
+  },
+  {
+   "amend": 0,
+   "cancel": 0,
+   "create": 0,
+   "delete": 0,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "POS Cashier",
+   "share": 1,
+   "submit": 0,
+   "write": 0
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

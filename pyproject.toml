@@ -1,0 +1,40 @@
+[project]
+name = "restaurant_pos"
+authors = [
+    { name = "RPOS", email = "hh2000h4000@gmail.com" }
+]
+description = "Restaurant POS (RPOS) built natively on Frappe / ERPNext v15"
+requires-python = ">=3.10"
+readme = "README.md"
+dynamic = ["version"]
+dependencies = []
+
+[build-system]
+requires = ["flit_core >=3.4,<4"]
+build-backend = "flit_core.buildapi"
+
+[tool.bench.frappe-dependencies]
+frappe = ">=15.0.0,<16.0.0"
+erpnext = ">=15.0.0,<16.0.0"
+
+[tool.ruff]
+line-length = 110
+target-version = "py310"
+
+[tool.ruff.format]
+indent-style = "tab"
+
+[tool.ruff.lint]
+select = ["F", "E", "W", "I", "UP", "B", "RUF"]
+ignore = [
+    "B017", # assertRaises(Exception)
+    "B023", # function definition does not bind loop variable
+    "B904", # raise without from inside except
+    "E101", # indentation contains mixed spaces and tabs
+    "E501", # line too long
+    "F401", # imported but unused
+    "W191", # indentation contains tabs
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["restaurant_pos"]

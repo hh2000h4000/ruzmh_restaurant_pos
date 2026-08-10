@@ -1,0 +1,448 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "naming_series:",
+ "creation": "2026-08-09 00:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "naming_series",
+  "context_section",
+  "order_type",
+  "status",
+  "branch",
+  "section",
+  "context_cb",
+  "pos_profile",
+  "restaurant_shift",
+  "table",
+  "cover_count",
+  "people_section",
+  "customer",
+  "cashier",
+  "people_cb",
+  "waiter",
+  "reservation",
+  "items_section",
+  "items",
+  "totals_section",
+  "subtotal",
+  "discount_type",
+  "discount_value",
+  "discount_amount",
+  "totals_cb",
+  "discount_approved_by",
+  "tax_amount",
+  "total_amount",
+  "lifecycle_section",
+  "opened_at",
+  "closed_at",
+  "sales_invoice",
+  "lifecycle_cb",
+  "cancel_reason",
+  "cancelled_by",
+  "extra_section",
+  "order_type_data",
+  "notes",
+  "merged_from_tables",
+  "offline_section",
+  "is_offline_order",
+  "offline_sequence",
+  "offline_cb",
+  "offline_queue_id"
+ ],
+ "fields": [
+  {
+   "default": "RO-.YYYY.-.MM.-.#####.",
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "label": "Naming Series",
+   "no_copy": 1,
+   "options": "RO-.YYYY.-.MM.-.#####.",
+   "print_hide": 1,
+   "reqd": 1,
+   "set_only_once": 1
+  },
+  {
+   "fieldname": "context_section",
+   "fieldtype": "Section Break",
+   "label": "Context"
+  },
+  {
+   "fieldname": "order_type",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Order Type",
+   "options": "Restaurant Order Type",
+   "reqd": 1,
+   "set_only_once": 1
+  },
+  {
+   "default": "draft",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Status",
+   "options": "draft\nactive\nin_kitchen\npending_payment\nclosed\ncancelled",
+   "reqd": 1
+  },
+  {
+   "fieldname": "branch",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "Branch",
+   "options": "Branch",
+   "reqd": 1
+  },
+  {
+   "fieldname": "section",
+   "fieldtype": "Link",
+   "label": "Section",
+   "options": "Restaurant Section",
+   "reqd": 1
+  },
+  {
+   "fieldname": "context_cb",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "pos_profile",
+   "fieldtype": "Link",
+   "label": "POS Profile",
+   "options": "POS Profile",
+   "reqd": 1
+  },
+  {
+   "fieldname": "restaurant_shift",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "Restaurant Shift",
+   "options": "Restaurant Shift",
+   "reqd": 1
+  },
+  {
+   "fieldname": "table",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Table",
+   "options": "Restaurant Table"
+  },
+  {
+   "fieldname": "cover_count",
+   "fieldtype": "Int",
+   "label": "Cover Count"
+  },
+  {
+   "fieldname": "people_section",
+   "fieldtype": "Section Break",
+   "label": "People"
+  },
+  {
+   "fieldname": "customer",
+   "fieldtype": "Link",
+   "label": "Customer",
+   "options": "Customer"
+  },
+  {
+   "fieldname": "cashier",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "Cashier",
+   "options": "User",
+   "reqd": 1
+  },
+  {
+   "fieldname": "people_cb",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "waiter",
+   "fieldtype": "Link",
+   "label": "Waiter",
+   "options": "User"
+  },
+  {
+   "fieldname": "reservation",
+   "fieldtype": "Link",
+   "label": "Reservation",
+   "options": "Restaurant Reservation"
+  },
+  {
+   "fieldname": "items_section",
+   "fieldtype": "Section Break",
+   "label": "Items"
+  },
+  {
+   "fieldname": "items",
+   "fieldtype": "Table",
+   "label": "Items",
+   "options": "Restaurant Order Item"
+  },
+  {
+   "fieldname": "totals_section",
+   "fieldtype": "Section Break",
+   "label": "Totals"
+  },
+  {
+   "default": "0",
+   "fieldname": "subtotal",
+   "fieldtype": "Currency",
+   "label": "Subtotal",
+   "precision": "2",
+   "read_only": 1
+  },
+  {
+   "fieldname": "discount_type",
+   "fieldtype": "Select",
+   "label": "Discount Type",
+   "options": "\npercentage\namount"
+  },
+  {
+   "fieldname": "discount_value",
+   "fieldtype": "Float",
+   "label": "Discount Value",
+   "precision": "2"
+  },
+  {
+   "default": "0",
+   "fieldname": "discount_amount",
+   "fieldtype": "Currency",
+   "label": "Discount Amount",
+   "precision": "2",
+   "read_only": 1
+  },
+  {
+   "fieldname": "totals_cb",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "discount_approved_by",
+   "fieldtype": "Link",
+   "label": "Discount Approved By",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "tax_amount",
+   "fieldtype": "Currency",
+   "label": "Tax Amount",
+   "precision": "2",
+   "read_only": 1
+  },
+  {
+   "bold": 1,
+   "default": "0",
+   "fieldname": "total_amount",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Total Amount",
+   "precision": "2",
+   "read_only": 1
+  },
+  {
+   "fieldname": "lifecycle_section",
+   "fieldtype": "Section Break",
+   "label": "Lifecycle"
+  },
+  {
+   "fieldname": "opened_at",
+   "fieldtype": "Datetime",
+   "label": "Opened At",
+   "reqd": 1
+  },
+  {
+   "fieldname": "closed_at",
+   "fieldtype": "Datetime",
+   "label": "Closed At",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sales_invoice",
+   "fieldtype": "Link",
+   "label": "Sales Invoice",
+   "no_copy": 1,
+   "options": "Sales Invoice",
+   "read_only": 1
+  },
+  {
+   "fieldname": "lifecycle_cb",
+   "fieldtype": "Column Break"
+  },
+  {
+   "depends_on": "eval:doc.status=='cancelled'",
+   "fieldname": "cancel_reason",
+   "fieldtype": "Text",
+   "label": "Cancel Reason",
+   "mandatory_depends_on": "eval:doc.status=='cancelled'"
+  },
+  {
+   "fieldname": "cancelled_by",
+   "fieldtype": "Link",
+   "label": "Cancelled By",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "extra_section",
+   "fieldtype": "Section Break",
+   "label": "Additional Data"
+  },
+  {
+   "description": "Values captured from the order type's additional fields.",
+   "fieldname": "order_type_data",
+   "fieldtype": "JSON",
+   "label": "Order Type Data"
+  },
+  {
+   "fieldname": "notes",
+   "fieldtype": "Text",
+   "label": "Notes"
+  },
+  {
+   "description": "JSON list of table names merged into this order.",
+   "fieldname": "merged_from_tables",
+   "fieldtype": "Text",
+   "label": "Merged From Tables"
+  },
+  {
+   "fieldname": "offline_section",
+   "fieldtype": "Section Break",
+   "label": "Offline"
+  },
+  {
+   "fieldname": "is_offline_order",
+   "fieldtype": "Check",
+   "label": "Created Offline",
+   "read_only": 1
+  },
+  {
+   "description": "OFFLINE-{terminal}-{sequence}",
+   "fieldname": "offline_sequence",
+   "fieldtype": "Data",
+   "label": "Offline Sequence",
+   "read_only": 1
+  },
+  {
+   "fieldname": "offline_cb",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "Idempotency key for offline queue replay.",
+   "fieldname": "offline_queue_id",
+   "fieldtype": "Data",
+   "label": "Offline Queue ID",
+   "no_copy": 1,
+   "read_only": 1,
+   "unique": 1
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "istable": 0,
+ "links": [],
+ "modified": "2026-08-09 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Restaurant POS",
+ "name": "Restaurant Order",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "amend": 0,
+   "cancel": 0,
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "submit": 0,
+   "write": 1
+  },
+  {
+   "amend": 0,
+   "cancel": 0,
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Restaurant Admin",
+   "share": 1,
+   "submit": 0,
+   "write": 1
+  },
+  {
+   "amend": 0,
+   "cancel": 0,
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Restaurant Manager",
+   "share": 1,
+   "submit": 0,
+   "write": 1
+  },
+  {
+   "amend": 0,
+   "cancel": 0,
+   "create": 1,
+   "delete": 0,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "POS Manager",
+   "share": 1,
+   "submit": 0,
+   "write": 1
+  },
+  {
+   "amend": 0,
+   "cancel": 0,
+   "create": 1,
+   "delete": 0,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "POS Senior Cashier",
+   "share": 1,
+   "submit": 0,
+   "write": 1
+  },
+  {
+   "amend": 0,
+   "cancel": 0,
+   "create": 1,
+   "delete": 0,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "POS Cashier",
+   "share": 1,
+   "submit": 0,
+   "write": 1
+  }
+ ],
+ "search_fields": "order_type,table,cashier,status",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

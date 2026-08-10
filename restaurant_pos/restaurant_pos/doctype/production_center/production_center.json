@@ -1,0 +1,224 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "naming_series:",
+ "creation": "2026-08-09 00:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "naming_series",
+  "identity_section",
+  "title",
+  "title_ar",
+  "identity_cb",
+  "branch",
+  "is_active",
+  "printing_section",
+  "printer",
+  "fallback_printer",
+  "printing_cb",
+  "auto_print_on_send",
+  "show_prices_on_kot",
+  "kds_section",
+  "has_kds",
+  "kds_display_id"
+ ],
+ "fields": [
+  {
+   "default": "PC-.###.",
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "label": "Naming Series",
+   "no_copy": 1,
+   "options": "PC-.###.",
+   "print_hide": 1,
+   "reqd": 1,
+   "set_only_once": 1
+  },
+  {
+   "fieldname": "identity_section",
+   "fieldtype": "Section Break",
+   "label": "Identity"
+  },
+  {
+   "fieldname": "title",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Title (English)",
+   "reqd": 1
+  },
+  {
+   "fieldname": "title_ar",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Title (Arabic)",
+   "reqd": 1,
+   "translatable": 1
+  },
+  {
+   "fieldname": "identity_cb",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "branch",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Branch",
+   "options": "Branch",
+   "reqd": 1
+  },
+  {
+   "default": "1",
+   "fieldname": "is_active",
+   "fieldtype": "Check",
+   "label": "Is Active"
+  },
+  {
+   "fieldname": "printing_section",
+   "fieldtype": "Section Break",
+   "label": "Printing"
+  },
+  {
+   "fieldname": "printer",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Printer",
+   "options": "POS Printer"
+  },
+  {
+   "description": "Used when the primary printer is unreachable.",
+   "fieldname": "fallback_printer",
+   "fieldtype": "Link",
+   "label": "Fallback Printer",
+   "options": "POS Printer"
+  },
+  {
+   "fieldname": "printing_cb",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "1",
+   "fieldname": "auto_print_on_send",
+   "fieldtype": "Check",
+   "label": "Auto Print on Send"
+  },
+  {
+   "default": "0",
+   "description": "Kitchen tickets never show prices (BR-075).",
+   "fieldname": "show_prices_on_kot",
+   "fieldtype": "Check",
+   "label": "Show Prices on KOT",
+   "read_only": 1
+  },
+  {
+   "fieldname": "kds_section",
+   "fieldtype": "Section Break",
+   "label": "Kitchen Display System"
+  },
+  {
+   "fieldname": "has_kds",
+   "fieldtype": "Check",
+   "label": "Has KDS"
+  },
+  {
+   "depends_on": "eval:doc.has_kds",
+   "fieldname": "kds_display_id",
+   "fieldtype": "Data",
+   "label": "KDS Display ID",
+   "mandatory_depends_on": "eval:doc.has_kds"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "istable": 0,
+ "links": [],
+ "modified": "2026-08-09 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Restaurant POS",
+ "name": "Production Center",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "amend": 0,
+   "cancel": 0,
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "submit": 0,
+   "write": 1
+  },
+  {
+   "amend": 0,
+   "cancel": 0,
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Restaurant Admin",
+   "share": 1,
+   "submit": 0,
+   "write": 1
+  },
+  {
+   "amend": 0,
+   "cancel": 0,
+   "create": 1,
+   "delete": 0,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Restaurant Manager",
+   "share": 1,
+   "submit": 0,
+   "write": 1
+  },
+  {
+   "amend": 0,
+   "cancel": 0,
+   "create": 0,
+   "delete": 0,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "POS Manager",
+   "share": 1,
+   "submit": 0,
+   "write": 0
+  },
+  {
+   "amend": 0,
+   "cancel": 0,
+   "create": 0,
+   "delete": 0,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "POS Cashier",
+   "share": 1,
+   "submit": 0,
+   "write": 0
+  }
+ ],
+ "search_fields": "title,title_ar,branch",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "title",
+ "track_changes": 1
+}

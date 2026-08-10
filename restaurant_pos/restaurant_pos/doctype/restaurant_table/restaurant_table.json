@@ -1,0 +1,222 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "TBL-.section.-.###.",
+ "creation": "2026-08-09 00:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "identity_section",
+  "table_number",
+  "section",
+  "identity_cb",
+  "capacity",
+  "shape",
+  "is_active",
+  "status_section",
+  "status",
+  "status_cb",
+  "current_order",
+  "floor_plan_section",
+  "pos_x",
+  "pos_y",
+  "floor_plan_cb",
+  "width",
+  "height"
+ ],
+ "fields": [
+  {
+   "fieldname": "identity_section",
+   "fieldtype": "Section Break",
+   "label": "Identity"
+  },
+  {
+   "description": "Display number, e.g. \"5\" or \"A1\".",
+   "fieldname": "table_number",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Table Number",
+   "reqd": 1
+  },
+  {
+   "fieldname": "section",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Section",
+   "options": "Restaurant Section",
+   "reqd": 1
+  },
+  {
+   "fieldname": "identity_cb",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "Number of seats.",
+   "fieldname": "capacity",
+   "fieldtype": "Int",
+   "label": "Capacity"
+  },
+  {
+   "default": "square",
+   "fieldname": "shape",
+   "fieldtype": "Select",
+   "label": "Shape",
+   "options": "square\nround\nrectangle"
+  },
+  {
+   "default": "1",
+   "fieldname": "is_active",
+   "fieldtype": "Check",
+   "label": "Is Active"
+  },
+  {
+   "fieldname": "status_section",
+   "fieldtype": "Section Break",
+   "label": "Status"
+  },
+  {
+   "default": "available",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Status",
+   "options": "available\noccupied\nreserved\ncleaning\ninactive",
+   "reqd": 1
+  },
+  {
+   "fieldname": "status_cb",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "current_order",
+   "fieldtype": "Link",
+   "label": "Current Order",
+   "no_copy": 1,
+   "options": "Restaurant Order",
+   "read_only": 1
+  },
+  {
+   "fieldname": "floor_plan_section",
+   "fieldtype": "Section Break",
+   "label": "Floor Plan Position"
+  },
+  {
+   "fieldname": "pos_x",
+   "fieldtype": "Float",
+   "label": "X Position"
+  },
+  {
+   "fieldname": "pos_y",
+   "fieldtype": "Float",
+   "label": "Y Position"
+  },
+  {
+   "fieldname": "floor_plan_cb",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "width",
+   "fieldtype": "Float",
+   "label": "Width (px)"
+  },
+  {
+   "fieldname": "height",
+   "fieldtype": "Float",
+   "label": "Height (px)"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "istable": 0,
+ "links": [],
+ "modified": "2026-08-09 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Restaurant POS",
+ "name": "Restaurant Table",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "amend": 0,
+   "cancel": 0,
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "submit": 0,
+   "write": 1
+  },
+  {
+   "amend": 0,
+   "cancel": 0,
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Restaurant Admin",
+   "share": 1,
+   "submit": 0,
+   "write": 1
+  },
+  {
+   "amend": 0,
+   "cancel": 0,
+   "create": 1,
+   "delete": 0,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Restaurant Manager",
+   "share": 1,
+   "submit": 0,
+   "write": 1
+  },
+  {
+   "amend": 0,
+   "cancel": 0,
+   "create": 0,
+   "delete": 0,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "POS Manager",
+   "share": 1,
+   "submit": 0,
+   "write": 0
+  },
+  {
+   "amend": 0,
+   "cancel": 0,
+   "create": 0,
+   "delete": 0,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "POS Cashier",
+   "share": 1,
+   "submit": 0,
+   "write": 0
+  }
+ ],
+ "search_fields": "table_number,section,status",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "table_number",
+ "track_changes": 1
+}

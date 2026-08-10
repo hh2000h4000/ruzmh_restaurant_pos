@@ -111,7 +111,10 @@ function label(button: LayoutButton): string {
 
 <template>
   <div class="flex h-full flex-col gap-3">
-    <label class="sr-only" for="item-search">بحث عن صنف</label>
+    <label
+      class="sr-only"
+      for="item-search"
+    >بحث عن صنف</label>
     <input
       id="item-search"
       v-model="search"
@@ -134,18 +137,30 @@ function label(button: LayoutButton): string {
         @click="pick(item)"
       >
         <span class="text-sm font-medium">{{ item.display_name }}</span>
-        <span v-if="item.rate !== null" class="rpos-numeric text-xs text-muted">
+        <span
+          v-if="item.rate !== null"
+          class="rpos-numeric text-xs text-muted"
+        >
           {{ item.rate.toFixed(2) }}
         </span>
-        <span v-else class="text-xs text-danger">بلا سعر</span>
+        <span
+          v-else
+          class="text-xs text-danger"
+        >بلا سعر</span>
       </button>
-      <p v-if="!searchResults.length" class="col-span-full p-4 text-center text-muted">
+      <p
+        v-if="!searchResults.length"
+        class="col-span-full p-4 text-center text-muted"
+      >
         لا نتائج.
       </p>
     </div>
 
     <!-- A group was opened from a layout button or the fallback browser. -->
-    <div v-else-if="activeGroup" class="flex flex-1 flex-col gap-2 overflow-hidden">
+    <div
+      v-else-if="activeGroup"
+      class="flex flex-1 flex-col gap-2 overflow-hidden"
+    >
       <button
         type="button"
         class="self-start rounded-rpos px-3 text-sm text-primary"
@@ -163,10 +178,16 @@ function label(button: LayoutButton): string {
           @click="pick(item)"
         >
           <span class="text-sm font-medium">{{ item.display_name }}</span>
-          <span v-if="item.rate !== null" class="rpos-numeric text-xs text-muted">
+          <span
+            v-if="item.rate !== null"
+            class="rpos-numeric text-xs text-muted"
+          >
             {{ item.rate.toFixed(2) }}
           </span>
-          <span v-else class="text-xs text-danger">بلا سعر</span>
+          <span
+            v-else
+            class="text-xs text-danger"
+          >بلا سعر</span>
         </button>
       </div>
     </div>
@@ -194,7 +215,10 @@ function label(button: LayoutButton): string {
     </div>
 
     <!-- No layout configured: browse by group. -->
-    <div v-else class="grid flex-1 auto-rows-min grid-cols-2 gap-2 overflow-y-auto sm:grid-cols-3">
+    <div
+      v-else
+      class="grid flex-1 auto-rows-min grid-cols-2 gap-2 overflow-y-auto sm:grid-cols-3"
+    >
       <button
         v-for="group in groups"
         :key="group.name"
@@ -204,7 +228,10 @@ function label(button: LayoutButton): string {
       >
         {{ group.item_group_name }}
       </button>
-      <p v-if="!groups.length" class="col-span-full p-4 text-center text-muted">
+      <p
+        v-if="!groups.length"
+        class="col-span-full p-4 text-center text-muted"
+      >
         لا توجد أصناف متاحة.
       </p>
     </div>

@@ -122,11 +122,18 @@ function confirm(): void {
     :dismissible="true"
     @close="emit('cancel')"
   >
-    <p v-if="loading" class="py-6 text-center text-muted">
+    <p
+      v-if="loading"
+      class="py-6 text-center text-muted"
+    >
       جارٍ التحميل…
     </p>
 
-    <p v-else-if="failure" role="alert" class="rounded-rpos bg-danger/10 p-3 text-sm text-danger">
+    <p
+      v-else-if="failure"
+      role="alert"
+      class="rounded-rpos bg-danger/10 p-3 text-sm text-danger"
+    >
       {{ failure }}
     </p>
 
@@ -138,7 +145,10 @@ function confirm(): void {
       >
         <h3 class="mb-2 text-sm font-medium">
           {{ group.title_ar }}
-          <span v-if="group.is_required" class="text-danger">*</span>
+          <span
+            v-if="group.is_required"
+            class="text-danger"
+          >*</span>
           <span class="text-muted">
             ({{ group.selection_type === "single" ? "اختيار واحد" : "اختيار متعدد" }})
           </span>
@@ -159,14 +169,20 @@ function confirm(): void {
             @click="toggle(group, option.title)"
           >
             {{ option.title_ar }}
-            <span v-if="option.price_amount" class="rpos-numeric text-xs">
+            <span
+              v-if="option.price_amount"
+              class="rpos-numeric text-xs"
+            >
               {{ option.price_effect === "subtract" ? "−" : "+" }}{{ option.price_amount.toFixed(2) }}
             </span>
           </button>
         </div>
       </section>
 
-      <label for="line-notes" class="mb-1.5 block text-sm font-medium">ملاحظة خاصة</label>
+      <label
+        for="line-notes"
+        class="mb-1.5 block text-sm font-medium"
+      >ملاحظة خاصة</label>
       <textarea
         id="line-notes"
         v-model="notes"
@@ -174,7 +190,10 @@ function confirm(): void {
         class="mb-4 w-full rounded-rpos border border-line bg-background p-2 text-base focus:outline-none focus:ring-2 focus:ring-primary"
       />
 
-      <p v-if="priceDelta" class="rpos-numeric mb-3 text-sm text-muted">
+      <p
+        v-if="priceDelta"
+        class="rpos-numeric mb-3 text-sm text-muted"
+      >
         الإضافة على السعر: {{ priceDelta.toFixed(2) }}
       </p>
 
@@ -196,7 +215,10 @@ function confirm(): void {
         </button>
       </div>
 
-      <p v-if="unresolved.length" class="mt-3 text-sm text-danger">
+      <p
+        v-if="unresolved.length"
+        class="mt-3 text-sm text-danger"
+      >
         اختر: {{ unresolved.map((group) => group.title_ar).join("، ") }}
       </p>
     </template>

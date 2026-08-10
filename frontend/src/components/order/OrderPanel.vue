@@ -27,7 +27,10 @@ function money(value: number): string {
 
 <template>
   <div class="flex h-full flex-col rounded-rpos bg-surface">
-    <ul class="flex-1 divide-y divide-line overflow-y-auto" aria-label="أصناف الطلب">
+    <ul
+      class="flex-1 divide-y divide-line overflow-y-auto"
+      aria-label="أصناف الطلب"
+    >
       <li
         v-for="line in lines"
         :key="line.idx"
@@ -45,7 +48,10 @@ function money(value: number): string {
             >
               {{ line.modifiers.map((modifier) => modifier.option_ar || modifier.option).join("، ") }}
             </p>
-            <p v-if="line.notes" class="truncate text-xs text-muted">
+            <p
+              v-if="line.notes"
+              class="truncate text-xs text-muted"
+            >
               ✎ {{ line.notes }}
             </p>
 
@@ -86,7 +92,10 @@ function money(value: number): string {
         </div>
       </li>
 
-      <li v-if="!lines.length" class="p-8 text-center text-muted">
+      <li
+        v-if="!lines.length"
+        class="p-8 text-center text-muted"
+      >
         لم تُضف أصناف بعد.
       </li>
     </ul>
@@ -98,7 +107,10 @@ function money(value: number): string {
           {{ money(order.subtotal) }}
         </dd>
       </div>
-      <div v-if="order.discount_amount" class="flex justify-between text-status-available">
+      <div
+        v-if="order.discount_amount"
+        class="flex justify-between text-status-available"
+      >
         <dt>الخصم</dt>
         <dd class="rpos-numeric">
           −{{ money(order.discount_amount) }}

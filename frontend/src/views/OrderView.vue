@@ -132,26 +132,43 @@ async function send(): Promise<void> {
   <main class="flex h-screen flex-col">
     <header class="flex items-center justify-between gap-3 border-b border-line bg-surface px-4 py-3">
       <div class="flex items-center gap-3">
-        <RouterLink :to="{ name: 'home' }" class="rpos-tap inline-flex items-center px-2 text-primary">
+        <RouterLink
+          :to="{ name: 'home' }"
+          class="rpos-tap inline-flex items-center px-2 text-primary"
+        >
           ←
         </RouterLink>
         <div>
           <h1 class="font-semibold">
             {{ title }}
           </h1>
-          <p v-if="orders.order" class="rpos-numeric text-xs text-muted">
+          <p
+            v-if="orders.order"
+            class="rpos-numeric text-xs text-muted"
+          >
             {{ orders.order.order_name }}
           </p>
         </div>
       </div>
-      <span v-if="orders.busy" class="text-sm text-muted">…</span>
+      <span
+        v-if="orders.busy"
+        class="text-sm text-muted"
+      >…</span>
     </header>
 
-    <p v-if="startupError" role="alert" class="m-4 rounded-rpos bg-danger/10 p-4 text-danger">
+    <p
+      v-if="startupError"
+      role="alert"
+      class="m-4 rounded-rpos bg-danger/10 p-4 text-danger"
+    >
       {{ startupError }}
     </p>
 
-    <p v-else-if="orders.error" role="alert" class="m-4 rounded-rpos bg-danger/10 p-3 text-sm text-danger">
+    <p
+      v-else-if="orders.error"
+      role="alert"
+      class="m-4 rounded-rpos bg-danger/10 p-3 text-sm text-danger"
+    >
       {{ orders.error }}
     </p>
 
@@ -163,8 +180,15 @@ async function send(): Promise<void> {
       لم يُوجَّه للمطبخ: {{ orders.unrouted.join("، ") }} — ستُطبع على طابعة الكاشير.
     </p>
 
-    <div v-if="orders.order" class="grid flex-1 gap-3 overflow-hidden p-3 lg:grid-cols-[3fr_2fr]">
-      <ItemPicker :order-type="orderType" :disabled="locked" @pick="onPick" />
+    <div
+      v-if="orders.order"
+      class="grid flex-1 gap-3 overflow-hidden p-3 lg:grid-cols-[3fr_2fr]"
+    >
+      <ItemPicker
+        :order-type="orderType"
+        :disabled="locked"
+        @pick="onPick"
+      />
       <OrderPanel
         :order="orders.order"
         :lines="orders.lines"
@@ -233,7 +257,11 @@ async function send(): Promise<void> {
         placeholder="مثال: طلب الزبون التغيير"
       >
       <div class="flex gap-2">
-        <button type="button" class="min-h-tap flex-1 rounded-rpos border border-line" @click="voidTarget = null">
+        <button
+          type="button"
+          class="min-h-tap flex-1 rounded-rpos border border-line"
+          @click="voidTarget = null"
+        >
           تراجع
         </button>
         <button
@@ -247,7 +275,11 @@ async function send(): Promise<void> {
       </div>
     </BaseDialog>
 
-    <BaseDialog :open="cancelling" title="إلغاء الطلب" @close="cancelling = false">
+    <BaseDialog
+      :open="cancelling"
+      title="إلغاء الطلب"
+      @close="cancelling = false"
+    >
       <p class="mb-3 text-sm text-muted">
         سيُلغى الطلب بالكامل، وسيُبلَّغ المطبخ بما أُرسل إليه.
       </p>
@@ -258,7 +290,11 @@ async function send(): Promise<void> {
         placeholder="سبب الإلغاء"
       >
       <div class="flex gap-2">
-        <button type="button" class="min-h-tap flex-1 rounded-rpos border border-line" @click="cancelling = false">
+        <button
+          type="button"
+          class="min-h-tap flex-1 rounded-rpos border border-line"
+          @click="cancelling = false"
+        >
           تراجع
         </button>
         <button

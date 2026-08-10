@@ -1,4 +1,4 @@
-from . import __version__ as app_version  # noqa: F401
+from . import __version__ as app_version
 
 app_name = "restaurant_pos"
 app_title = "Restaurant POS"

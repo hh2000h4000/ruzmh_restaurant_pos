@@ -19,12 +19,8 @@ class RestaurantTable(Document):
 	def validate_geometry(self):
 		for fieldname in ("pos_x", "pos_y"):
 			if flt(self.get(fieldname)) < 0:
-				frappe.throw(
-					_("{0} cannot be negative.").format(_(self.meta.get_label(fieldname)))
-				)
+				frappe.throw(_("{0} cannot be negative.").format(_(self.meta.get_label(fieldname))))
 
 		for fieldname in ("width", "height"):
 			if self.get(fieldname) is not None and flt(self.get(fieldname)) < 0:
-				frappe.throw(
-					_("{0} cannot be negative.").format(_(self.meta.get_label(fieldname)))
-				)
+				frappe.throw(_("{0} cannot be negative.").format(_(self.meta.get_label(fieldname))))

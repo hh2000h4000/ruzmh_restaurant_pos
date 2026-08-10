@@ -35,9 +35,7 @@ class RestaurantOrderType(Document):
 			for row in self.get(table_fieldname) or []:
 				value = row.get(value_fieldname)
 				if value in seen:
-					frappe.throw(
-						_("Row #{0}: {1} is listed more than once.").format(row.idx, value)
-					)
+					frappe.throw(_("Row #{0}: {1} is listed more than once.").format(row.idx, value))
 				seen.add(value)
 
 	def validate_payment_methods(self):
@@ -64,5 +62,7 @@ class RestaurantOrderType(Document):
 
 			key = (row.field_label or "").strip().lower()
 			if key in seen:
-				frappe.throw(_("Row #{0}: Label '{1}' is used more than once.").format(row.idx, row.field_label))
+				frappe.throw(
+					_("Row #{0}: Label '{1}' is used more than once.").format(row.idx, row.field_label)
+				)
 			seen.add(key)

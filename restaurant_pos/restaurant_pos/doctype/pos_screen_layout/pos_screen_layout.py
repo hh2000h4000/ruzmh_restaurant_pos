@@ -63,9 +63,7 @@ class POSScreenLayout(Document):
 
 		if cint(row.row_start) + cint(row.row_span) - 1 > cint(self.grid_rows):
 			frappe.throw(
-				_("Row #{0}: Button exceeds the grid height of {1} rows.").format(
-					row.idx, self.grid_rows
-				)
+				_("Row #{0}: Button exceeds the grid height of {1} rows.").format(row.idx, self.grid_rows)
 			)
 
 	def validate_button_overlap(self, row, occupied):

@@ -14,6 +14,4 @@ class RestaurantFloorPlan(Document):
 	def validate_canvas(self):
 		for fieldname in ("canvas_width", "canvas_height"):
 			if cint(self.get(fieldname)) <= 0:
-				frappe.throw(
-					_("{0} must be greater than zero.").format(_(self.meta.get_label(fieldname)))
-				)
+				frappe.throw(_("{0} must be greater than zero.").format(_(self.meta.get_label(fieldname))))

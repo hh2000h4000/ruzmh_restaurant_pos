@@ -15,6 +15,4 @@ class POSPermissionSet(Document):
 		for fieldname in ("max_item_discount_pct", "max_order_discount_pct"):
 			value = flt(self.get(fieldname))
 			if not 0 <= value <= 100:
-				frappe.throw(
-					_("{0} must be between 0 and 100.").format(_(self.meta.get_label(fieldname)))
-				)
+				frappe.throw(_("{0} must be between 0 and 100.").format(_(self.meta.get_label(fieldname))))

@@ -20,8 +20,6 @@ const session = useSessionStore();
 
 const search = ref("");
 const activeGroup = ref<string | null>(null);
-/** Layout navigation stack, so `goto_screen` can be backed out of (FR-3.3). */
-const layoutStack = ref<string[]>([]);
 
 const available = computed(() => session.visibleItems(props.orderType));
 
@@ -75,10 +73,14 @@ function onLayoutButton(button: LayoutButton): void {
     return;
   }
 
-  if (button.button_type === "goto_screen" && button.goto_screen) {
-    layoutStack.value.push(button.goto_screen);
-  }
-  // `action` buttons are wired in Phase 4 with the discount and split flows.
+  // `goto_screen` needs an endpoint that fetches another layout — the session
+  // carries only the one assigned to this terminal. `action` buttons need the
+  // discount and split flows. Both arrive with the layout designer in Phase 4,
+  // so those buttons render disabled rather than swallowing a tap.
+}
+
+function isUsable(button: LayoutButton): boolean {
+  return button.button_type === "item" || button.button_type === "item_group";
 }
 
 function gridStyle(button: LayoutButton): Record<string, string> {
@@ -207,7 +209,7 @@ function label(button: LayoutButton): string {
         type="button"
         class="flex items-center justify-center rounded-rpos bg-surface p-2 text-center text-sm font-medium shadow-sm disabled:opacity-50"
         :style="buttonStyle(button)"
-        :disabled="disabled"
+        :disabled="disabled || !isUsable(button)"
         @click="onLayoutButton(button)"
       >
         {{ label(button) }}

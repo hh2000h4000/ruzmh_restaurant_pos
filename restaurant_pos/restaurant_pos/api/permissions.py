@@ -97,16 +97,7 @@ def list_permission_sets() -> list[dict]:
 				"role": role,
 				"rank": perms.ROLE_RANK[role],
 				"editable": perms.ROLE_RANK[role] < perms.user_rank(),
-				"has_pin": bool(
-					frappe.db.exists(
-						"__Auth",
-						{
-							"doctype": "POS Permission Set",
-							"name": role,
-							"fieldname": "manager_pin",
-						},
-					)
-				),
+				"has_pin": perms.has_manager_pin(role),
 				"permissions": values,
 			}
 		)
@@ -144,9 +135,8 @@ def set_manager_pin(role: str, pin: str, branch: str, pos_profile: str) -> dict:
 	perms.validate_branch_access(branch)
 	perms.assert_may_edit_permission_set(role, {})
 
-	if not (pin or "").isdigit() or len(pin) != 4:
-		frappe.throw(_("The manager PIN must be exactly 4 digits."))
-
+	# Format is validated once, in the controller, so the desk form and this
+	# endpoint cannot diverge.
 	doc = frappe.get_doc("POS Permission Set", role)
 	doc.manager_pin = pin
 	doc.save(ignore_permissions=True)

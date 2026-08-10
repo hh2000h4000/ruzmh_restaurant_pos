@@ -276,6 +276,30 @@ def find_approver_for_pin(action: str, pin: str) -> str | None:
 	return None
 
 
+def has_manager_pin(role: str) -> bool:
+	"""Whether ``role`` has a PIN set, without reading it (FR-12.8).
+
+	The PIN lives in ``__Auth``, which is not a DocType, so it is read through
+	the query builder the same way Frappe's own password utilities do.
+	``encrypted = 0`` is the hashed form written by
+	``POS Permission Set.store_pin_hashed``.
+	"""
+	auth = frappe.qb.Table("__Auth")
+	row = (
+		frappe.qb.from_(auth)
+		.select(auth.name)
+		.where(
+			(auth.doctype == "POS Permission Set")
+			& (auth.name == role)
+			& (auth.fieldname == "manager_pin")
+			& (auth.encrypted == 0)
+		)
+		.limit(1)
+		.run()
+	)
+	return bool(row)
+
+
 def issue_override_token(action: str, approved_by: str) -> str:
 	"""Mint a single-use token authorising ``action`` for the next 60 seconds.
 

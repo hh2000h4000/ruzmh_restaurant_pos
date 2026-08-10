@@ -11,7 +11,7 @@ from frappe.tests.utils import FrappeTestCase
 
 from restaurant_pos.restaurant_pos.utils import permissions as perms
 from restaurant_pos.restaurant_pos.utils.audit import log_audit, redact
-from restaurant_pos.setup.defaults import create_default_data
+from restaurant_pos.setup.defaults import PERMISSION_SETS, create_default_data
 
 CASHIER = "rpos_test_cashier@example.com"
 SENIOR = "rpos_test_senior@example.com"
@@ -39,11 +39,25 @@ def _make_user(email: str, role: str) -> str:
 	return email
 
 
+def _reset_to_shipped_defaults(role: str) -> None:
+	"""Put a permission set back to the values the app ships with.
+
+	Defaults are deliberately never re-applied after install (D-013), so a site
+	that has been configured — or poked at by an earlier test — would otherwise
+	make these assertions depend on state the test does not own.
+	"""
+	doc = frappe.get_doc("POS Permission Set", role)
+	doc.update(PERMISSION_SETS[role])
+	doc.save(ignore_permissions=True)
+
+
 class TestPermissionResolution(FrappeTestCase):
 	@classmethod
 	def setUpClass(cls):
 		super().setUpClass()
 		create_default_data()
+		_reset_to_shipped_defaults("POS Cashier")
+		_reset_to_shipped_defaults("POS Manager")
 		_make_user(CASHIER, "POS Cashier")
 		_make_user(MANAGER, "POS Manager")
 		frappe.db.commit()
@@ -270,20 +284,30 @@ class TestAudit(FrappeTestCase):
 		self.assertEqual(details["item"], "BURGER")
 		self.assertEqual(entry.cashier, frappe.session.user)
 
-	def test_audit_entries_cannot_be_modified_or_deleted(self):
+	def _new_entry(self, reason: str) -> str:
 		branch = frappe.db.get_value("Branch", {}, "name")
 		profile = frappe.db.get_value("POS Profile", {}, "name")
 		if not (branch and profile):
 			self.skipTest("no Branch/POS Profile on this site")
 
-		name = log_audit("void_item", branch=branch, pos_profile=profile, reason="original")
+		return log_audit("void_item", branch=branch, pos_profile=profile, reason=reason)
+
+	def test_audit_entries_cannot_be_modified(self):
+		name = self._new_entry("original")
 
 		entry = frappe.get_doc("POS Audit Log", name)
 		entry.reason = "tampered"
 		with self.assertRaises(frappe.PermissionError):
 			entry.save(ignore_permissions=True)
 
-		frappe.db.rollback()
+		self.assertEqual(frappe.db.get_value("POS Audit Log", name, "reason"), "original")
+
+	def test_audit_entries_cannot_be_deleted(self):
+		# A separate entry, because rolling back between the two assertions would
+		# remove the row and delete_doc would then no-op instead of refusing.
+		name = self._new_entry("to delete")
 
 		with self.assertRaises(frappe.PermissionError):
 			frappe.delete_doc("POS Audit Log", name, force=True, ignore_permissions=True)
+
+		self.assertTrue(frappe.db.exists("POS Audit Log", name))

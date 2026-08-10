@@ -1,0 +1,24 @@
+@import "./tokens.css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  /* 06 §Accessibility: 48px minimum touch target, everywhere. */
+  button,
+  [role="button"],
+  a.rpos-tap {
+    min-height: var(--rpos-tap-target);
+  }
+
+  /* A cashier taps fast; text selection on a double tap is noise. */
+  button {
+    user-select: none;
+  }
+
+  :focus-visible {
+    outline: 2px solid rgb(var(--rpos-primary));
+    outline-offset: 2px;
+  }
+}

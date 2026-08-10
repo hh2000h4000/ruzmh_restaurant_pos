@@ -1,0 +1,58 @@
+/*
+ * Design tokens — FR-15.1, FR-15.4, FR-15.5
+ *
+ * Two kinds of colour live here, and the difference is deliberate.
+ *
+ * BRAND tokens are CSS custom properties. The theme store overwrites them at
+ * runtime from `load_pos_session`, so a restaurant can look like itself. The
+ * values below are only the fallback used before the session loads.
+ *
+ * STATUS colours are NOT here. They are literals in tailwind.config.js, with no
+ * variable to override, because staff read them as meaning rather than
+ * decoration — green is a free table, red is danger before a destructive
+ * action. Making them themeable would let an installation invert them and
+ * cause real mistakes (FR-15.5).
+ *
+ * Values are space-separated RGB channels, not hex, so Tailwind's opacity
+ * modifiers work: `bg-primary/10` is a real thing.
+ */
+
+:root {
+  /* Brand — themeable */
+  --rpos-primary: 29 78 216;
+  --rpos-primary-contrast: 255 255 255;
+  --rpos-secondary: 245 158 11;
+  --rpos-secondary-contrast: 255 255 255;
+  --rpos-surface: 255 255 255;
+  --rpos-background: 243 244 246;
+  --rpos-text: 17 24 39;
+
+  /* Derived, not themed directly: kept in step with the brand by the store. */
+  --rpos-muted: 107 114 128;
+  --rpos-border: 229 231 235;
+
+  /* Touch geometry — 06 §Accessibility: nothing smaller than 48px. */
+  --rpos-tap-target: 48px;
+  --rpos-radius: 0.75rem;
+}
+
+html {
+  background-color: rgb(var(--rpos-background));
+  color: rgb(var(--rpos-text));
+}
+
+/*
+ * Arabic first (03_frontend_vue_rules.md). Direction is set on <html> so every
+ * logical property below resolves correctly, and so third-party content
+ * inherits it too.
+ */
+html[dir="rtl"] {
+  text-align: start;
+}
+
+/* Numbers stay readable in an RTL paragraph. */
+.rpos-numeric {
+  direction: ltr;
+  unicode-bidi: isolate;
+  font-variant-numeric: tabular-nums;
+}

@@ -27,13 +27,20 @@ from restaurant_pos.utils.audit import log_audit
 from restaurant_pos.utils.order import (
 	assert_mutable,
 	assert_transition,
-	authorise,
 	set_table_status,
 )
-from restaurant_pos.utils.permissions import assert_within_discount_limit
+from restaurant_pos.utils.permissions import (
+	assert_within_discount_limit,
+	consume_override_token,
+	discount_override_action,
+	get_pos_permission_set,
+)
 
 #: Anything below this is float noise, not a shortfall (BR-022).
 TOLERANCE = 0.005
+
+#: Which ceiling a payment-screen discount is measured against (BR-031).
+CEILING = "max_order_discount_pct"
 
 
 def process_payment(
@@ -176,24 +183,37 @@ def _apply_discount(order, discount_type, discount_value, override_token) -> Non
 	if not discount_type or not flt(discount_value):
 		return
 
-	percentage = (
-		flt(discount_value)
-		if discount_type == "percentage"
-		else flt(discount_value) / flt(order.subtotal) * 100
-		if flt(order.subtotal)
-		else 0
-	)
+	percentage = discount_percentage(order, discount_type, discount_value)
 
-	from restaurant_pos.utils.permissions import get_pos_permission_set
+	if percentage > flt(get_pos_permission_set().get(CEILING)):
+		if not override_token:
+			# Raises with the cashier's own limit in the message.
+			assert_within_discount_limit(CEILING, percentage)
 
-	if percentage > flt(get_pos_permission_set().get("max_order_discount_pct")):
-		approver = authorise("can_manual_promotion", override_token) if override_token else None
-		if not approver:
-			assert_within_discount_limit("max_order_discount_pct", percentage)
-		order.discount_approved_by = approver
+		# The token is bound to this exact percentage, so an approval obtained
+		# for a small discount cannot be spent on a large one.
+		order.discount_approved_by = consume_override_token(
+			override_token, discount_override_action(CEILING, percentage)
+		)
 
 	order.discount_type = discount_type
 	order.discount_value = flt(discount_value)
+
+
+def discount_percentage(order, discount_type: str | None, discount_value: float) -> float:
+	"""What the requested discount is worth as a percentage of the subtotal.
+
+	A flat amount still has to be measured against the cashier's percentage
+	ceiling, or `BR-031` would be bypassed by entering riyals instead of a rate.
+	"""
+	if not discount_type or not flt(discount_value):
+		return 0.0
+
+	if discount_type == "percentage":
+		return flt(discount_value)
+
+	subtotal = flt(order.subtotal)
+	return flt(discount_value) / subtotal * 100 if subtotal else 0.0
 
 
 # --------------------------------------------------------------------------- #

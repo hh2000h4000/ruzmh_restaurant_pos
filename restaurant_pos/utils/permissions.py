@@ -257,6 +257,36 @@ def assert_may_manage_pin_of(target_user: str, user: str | None = None) -> None:
 		frappe.throw(_("You cannot manage the PIN of {0}.").format(target_user), frappe.PermissionError)
 
 
+def discount_override_action(ceiling_field: str, percentage: float) -> str:
+	"""The token action for approving a specific discount.
+
+	The percentage is part of the action, so a token approved for 10% cannot be
+	presented for 90%. A plain ``discount_override`` action would let the client
+	get a cheap approval and spend it on an expensive one.
+	"""
+	return f"{ceiling_field}:{flt(percentage, 2)}"
+
+
+def find_approver_for_discount(ceiling_field: str, percentage: float, pin: str) -> str | None:
+	"""The user whose PIN matches **and** whose own ceiling covers ``percentage``.
+
+	Holding ``can_manual_promotion`` is not enough. A manager capped at 50%
+	approving a 90% discount would make the cap meaningless — the point of a
+	ceiling is that nobody can exceed their own.
+	"""
+	from restaurant_pos.utils.manager_pin import find_user_by_pin
+
+	user = find_user_by_pin(pin)
+	if not user or not frappe.db.get_value("User", user, "enabled"):
+		return None
+
+	permissions = get_pos_permission_set(user)
+	if not permissions.get("can_manual_promotion"):
+		return None
+
+	return user if flt(percentage) <= flt(permissions.get(ceiling_field)) else None
+
+
 def issue_override_token(action: str, approved_by: str) -> str:
 	"""Mint a single-use token authorising ``action`` for the next 60 seconds.
 

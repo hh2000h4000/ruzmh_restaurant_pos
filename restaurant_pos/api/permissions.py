@@ -31,6 +31,62 @@ def get_permission_set(user: str | None = None) -> dict:
 
 
 @frappe.whitelist()
+def validate_discount_override(
+	pin: str,
+	percentage: float,
+	reason: str,
+	branch: str,
+	pos_profile: str,
+	order_name: str | None = None,
+) -> dict:
+	"""Approve a discount above the cashier's ceiling (FR-10.4, BR-031).
+
+	Separate from :func:`validate_manager_override` because a discount is not a
+	yes/no right: the approver must hold ``can_manual_promotion`` **and** have a
+	ceiling that covers this percentage. Approving 90% with a 50% ceiling would
+	make the ceiling decorative.
+
+	The returned token is bound to this exact percentage.
+	"""
+	if not (reason or "").strip():
+		frappe.throw(_("A reason is required for a discount override."))
+
+	perms.validate_branch_access(branch)
+
+	ceiling = "max_order_discount_pct"
+	approver = perms.find_approver_for_discount(ceiling, percentage, pin)
+
+	if not approver:
+		log_audit(
+			"discount_override",
+			branch=branch,
+			pos_profile=pos_profile,
+			restaurant_order=order_name,
+			reason=reason,
+			details={"percentage": percentage, "result": "rejected"},
+		)
+		frappe.throw(_("Invalid PIN or insufficient permissions."), frappe.PermissionError)
+
+	log_audit(
+		"discount_override",
+		branch=branch,
+		pos_profile=pos_profile,
+		restaurant_order=order_name,
+		approved_by=approver,
+		reason=reason,
+		details={"percentage": percentage, "result": "approved"},
+	)
+
+	return {
+		"success": True,
+		"approved_by": approver,
+		"override_token": perms.issue_override_token(
+			perms.discount_override_action(ceiling, percentage), approver
+		),
+	}
+
+
+@frappe.whitelist()
 def validate_manager_override(
 	action_type: str,
 	pin: str,

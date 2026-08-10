@@ -13,9 +13,9 @@ import frappe
 from frappe import _
 from frappe.utils import flt
 
-from restaurant_pos.utils import idempotency
+from restaurant_pos.utils import idempotency, totals
 from restaurant_pos.utils import payment as service
-from restaurant_pos.utils.permissions import validate_branch_access
+from restaurant_pos.utils.permissions import get_pos_permission_set, validate_branch_access
 
 
 @frappe.whitelist()
@@ -65,6 +65,38 @@ def process_payment(
 		reference_name=order.name,
 	)
 	return result
+
+
+@frappe.whitelist()
+def preview_totals(order_name: str, discount_type: str | None = None, discount_value: float = 0) -> dict:
+	"""What the order would come to with this discount, without applying it.
+
+	The payment screen has to show the customer a figure before charging, and
+	the frontend never computes money (`CLAUDE.md` §5.1). Nothing is saved: the
+	document is loaded, the totals recalculated in memory, and discarded.
+
+	Also reports whether the cashier may apply it, so the UI can ask for a
+	manager before the customer is told a price nobody can honour.
+	"""
+	order = frappe.get_doc("Restaurant Order", order_name)
+	validate_branch_access(order.branch)
+
+	order.discount_type = discount_type
+	order.discount_value = flt(discount_value)
+	totals.calculate(order)
+
+	percentage = service.discount_percentage(order, discount_type, discount_value)
+	ceiling = flt(get_pos_permission_set().get(service.CEILING))
+
+	return {
+		"subtotal": order.subtotal,
+		"discount_amount": order.discount_amount,
+		"tax_amount": order.tax_amount,
+		"total_amount": order.total_amount,
+		"discount_percentage": flt(percentage, 2),
+		"max_discount_percentage": ceiling,
+		"requires_override": percentage > ceiling,
+	}
 
 
 @frappe.whitelist()

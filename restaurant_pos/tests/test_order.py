@@ -439,6 +439,24 @@ class TestIdempotency(OrderTestBase):
 		order = frappe.get_doc("Restaurant Order", created["order_name"])
 		self.assertEqual(len(order.items), 1)
 
+	def test_replaying_cancel_order_is_accepted_and_changes_nothing(self):
+		"""The offline queue defers this one, so it is replayed by design.
+
+		Cancelling twice would otherwise hit the "already cancelled" guard and
+		the queue would mark a perfectly good entry as failed.
+		"""
+		created = api.create_order(order_type=self.order_type, pos_profile=self.profile)
+		queue_id = str(uuid.uuid4())
+
+		first = api.cancel_order(created["order_name"], reason="RPOS test", queue_id=queue_id)
+		second = api.cancel_order(created["order_name"], reason="RPOS test", queue_id=queue_id)
+
+		self.assertEqual(second["status"], first["status"])
+		self.assertTrue(second.get("already_processed"))
+
+		order = frappe.get_doc("Restaurant Order", created["order_name"])
+		self.assertEqual(order.status, "cancelled")
+
 	def test_two_different_queue_ids_both_apply(self):
 		created = api.create_order(order_type=self.order_type, pos_profile=self.profile)
 

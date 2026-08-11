@@ -7,6 +7,8 @@
  */
 import { mutate, query } from "./client";
 
+import { mutateOrQueue, type Queued } from "@/offline/queue";
+
 export interface OrderSummary {
   order_name: string;
   status: string;
@@ -70,6 +72,11 @@ export function getOpenOrders(posProfile: string): Promise<OpenOrder[]> {
   return query<OpenOrder[]>("order.get_open_orders", { pos_profile: posProfile });
 }
 
+/**
+ * Not deferrable. The screen needs the order name the server assigns before it
+ * can do anything else, and inventing one locally is the offline-order slice,
+ * not this one.
+ */
 export function createOrder(payload: {
   order_type: string;
   pos_profile: string;
@@ -85,6 +92,12 @@ export function getOrder(orderName: string): Promise<OrderDetail> {
   return query<OrderDetail>("order.get_order", { order_name: orderName });
 }
 
+/**
+ * Not deferrable yet. Queuing this would take the line off the screen while
+ * keeping it in the queue, and the cashier would tap again — one order, two of
+ * everything. It becomes deferrable when the device keeps its own copy of the
+ * order (`09` §3 `active_orders`).
+ */
 export function addItem(payload: {
   order_name: string;
   item: string;
@@ -95,6 +108,7 @@ export function addItem(payload: {
   return mutate("order.add_item", payload);
 }
 
+/** Not deferrable yet, for the same reason as `addItem`. */
 export function voidItem(payload: {
   order_name: string;
   item_idx: number;
@@ -104,10 +118,15 @@ export function voidItem(payload: {
   return mutate("order.void_item", payload);
 }
 
+/**
+ * Deferrable. The cashier is walking away from this order either way, and the
+ * screen can say "cancelled, waiting to sync" honestly. The order stays open on
+ * the server until the queue drains, which is the truth.
+ */
 export function cancelOrder(payload: {
   order_name: string;
   reason: string;
   manager_override_token?: string | null;
-}): Promise<OrderSummary> {
-  return mutate("order.cancel_order", payload);
+}): Promise<OrderSummary | Queued> {
+  return mutateOrQueue("order.cancel_order", payload);
 }

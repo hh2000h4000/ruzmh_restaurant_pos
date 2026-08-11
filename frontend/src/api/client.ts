@@ -168,6 +168,21 @@ export function mutate<T>(
   return request<T>("POST", path, { ...payload, queue_id: queueId });
 }
 
+/**
+ * Send a write under a `queue_id` the caller chose.
+ *
+ * Used by the offline queue: replaying with the original id is what makes it
+ * safe, because if the first attempt did reach the server after all, the
+ * backend returns that first result instead of acting twice (09 §8).
+ */
+export function sendQueued<T>(
+  path: string,
+  payload: Record<string, unknown>,
+  queueId: string,
+): Promise<T> {
+  return request<T>("POST", path, { ...payload, queue_id: queueId });
+}
+
 export function ping(): Promise<{ status: string; timestamp: string }> {
   return query("session.ping");
 }

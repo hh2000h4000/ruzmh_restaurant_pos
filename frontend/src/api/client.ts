@@ -13,6 +13,8 @@
  *    in twenty components would produce twenty different results.
  */
 
+import { t } from "@/i18n";
+
 const BASE = "/api/method/restaurant_pos.api";
 
 export class ApiError extends Error {
@@ -62,11 +64,7 @@ function csrfToken(): string {
 function assertCsrfToken(): void {
   if (csrfToken()) return;
 
-  throw new ApiError(
-    "الصفحة حُمّلت بدون رمز الحماية — سجّل الخروج وأعد تحميل الصفحة.",
-    0,
-    "CSRFTokenMissing",
-  );
+  throw new ApiError(t("err.noCsrf"), 0, "CSRFTokenMissing");
 }
 
 /** Frappe returns `{"message": ...}` on success and messages in a few shapes on failure. */
@@ -91,10 +89,7 @@ function readError(payload: unknown, status: number): ApiError {
   }
 
   if (!message) {
-    message =
-      status === 0
-        ? "لا يوجد اتصال بالخادم"
-        : `تعذّر تنفيذ الطلب (${status})`;
+    message = status === 0 ? t("err.offline") : t("err.failed", { status });
   }
 
   return new ApiError(stripHtml(message), status, body?.exception ?? body?.exc_type ?? "");
@@ -123,7 +118,7 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   } catch (cause) {
     // Network failure, not an application error. The caller decides whether to
     // queue it (09 §5).
-    throw new ApiError("لا يوجد اتصال بالخادم", 0, String(cause));
+    throw new ApiError(t("err.offline"), 0, String(cause));
   }
 
   const payload = await response.json().catch(() => null);

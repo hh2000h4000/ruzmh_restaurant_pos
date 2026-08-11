@@ -2,6 +2,7 @@
 import { onMounted, onUnmounted, ref } from "vue";
 
 import { ApiError, ping } from "@/api/client";
+import { t } from "@/i18n";
 
 /**
  * Connection status is visible on every screen (06 §Design Principles 5).
@@ -61,7 +62,7 @@ onUnmounted(() => {
       class="flex items-center justify-center gap-2 bg-status-reserved px-4 py-2 text-sm font-medium text-white"
     >
       <span aria-hidden="true">●</span>
-      <span>وضع عدم الاتصال — العمليات تُحفظ محلياً</span>
+      <span>{{ t("conn.offline") }}</span>
     </div>
 
     <div
@@ -69,13 +70,13 @@ onUnmounted(() => {
       role="alert"
       class="flex flex-wrap items-center justify-center gap-3 bg-danger px-4 py-2 text-sm font-medium text-white"
     >
-      <span>لم يتم تسجيل الدخول</span>
+      <span>{{ t("conn.signedOut") }}</span>
       <button
         type="button"
         class="rounded-rpos bg-white/20 px-3 py-1 underline"
         @click="signIn"
       >
-        تسجيل الدخول
+        {{ t("conn.signIn") }}
       </button>
     </div>
 

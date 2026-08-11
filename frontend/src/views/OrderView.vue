@@ -7,6 +7,7 @@ import BaseDialog from "@/components/BaseDialog.vue";
 import ItemPicker from "@/components/order/ItemPicker.vue";
 import ModifierDialog from "@/components/order/ModifierDialog.vue";
 import OrderPanel from "@/components/order/OrderPanel.vue";
+import { pick, t } from "@/i18n";
 import { useOrderStore } from "@/stores/order";
 import { useSessionStore } from "@/stores/session";
 import type { CatalogItem } from "@/types/session";
@@ -35,7 +36,7 @@ const orderType = computed(
 );
 
 const title = computed(() => {
-  const type = orderType.value?.title_ar ?? "";
+  const type = pick(orderType.value?.title_ar, orderType.value?.title);
   const table = orders.order?.table ? ` · ${orders.order.table}` : "";
   return `${type}${table}`;
 });
@@ -52,20 +53,20 @@ onMounted(async () => {
   const typeName = route.params.orderType as string;
   const type = session.orderTypes.find((candidate) => candidate.name === typeName);
   if (!type) {
-    startupError.value = "نوع الطلب غير متاح على هذا الجهاز.";
+    startupError.value = t("order.typeUnavailable");
     return;
   }
 
   // A table-service order arrives here already created by the table picker, so
   // reaching this branch means the cashier deep-linked past it.
   if (type.requires_table) {
-    startupError.value = "اختر طاولة أولاً.";
+    startupError.value = t("order.pickTableFirst");
     return;
   }
 
   // The customer picker is its own flow (FR-2.1 step 4) and does not exist yet.
   if (type.customer_mode === "required") {
-    startupError.value = "هذا النوع يتطلب اختيار عميل — شاشة العملاء قيد التنفيذ.";
+    startupError.value = t("order.customerPending");
     return;
   }
 
@@ -178,7 +179,7 @@ async function send(): Promise<void> {
       role="status"
       class="mx-4 mt-2 rounded-rpos bg-status-reserved/10 p-3 text-sm text-status-reserved"
     >
-      لم يُوجَّه للمطبخ: {{ orders.unrouted.join("، ") }} — ستُطبع على طابعة الكاشير.
+      {{ t("order.notRouted", { items: orders.unrouted.join(t("common.listSeparator")) }) }}
     </p>
 
     <div
@@ -209,7 +210,7 @@ async function send(): Promise<void> {
         :disabled="locked || !orders.hasUnsent"
         @click="send"
       >
-        🍳 إرسال للمطبخ
+        🍳 {{ t("order.sendToKitchen") }}
       </button>
 
       <button
@@ -218,7 +219,7 @@ async function send(): Promise<void> {
         :disabled="locked || orders.isEmpty"
         @click="router.push({ name: 'payment', params: { orderName: orders.order.order_name } })"
       >
-        💳 دفع
+        💳 {{ t("order.pay") }}
       </button>
 
       <button
@@ -228,7 +229,7 @@ async function send(): Promise<void> {
         :disabled="locked"
         @click="cancelling = true"
       >
-        🚫 إلغاء الطلب
+        🚫 {{ t("order.cancelOrder") }}
       </button>
     </footer>
 
@@ -241,7 +242,7 @@ async function send(): Promise<void> {
     <!-- BR-013: a reason is mandatory, so this dialog cannot be dismissed away. -->
     <BaseDialog
       :open="Boolean(voidTarget)"
-      title="سبب الإلغاء"
+      :title="t('order.voidReason')"
       :dismissible="true"
       @close="voidTarget = null"
     >
@@ -252,7 +253,7 @@ async function send(): Promise<void> {
         v-model="voidReason"
         type="text"
         class="mb-4 min-h-tap w-full rounded-rpos border border-line bg-background px-3"
-        placeholder="مثال: طلب الزبون التغيير"
+        :placeholder="t('order.voidPlaceholder')"
       >
       <div class="flex gap-2">
         <button
@@ -260,7 +261,7 @@ async function send(): Promise<void> {
           class="min-h-tap flex-1 rounded-rpos border border-line"
           @click="voidTarget = null"
         >
-          تراجع
+          {{ t("action.undo") }}
         </button>
         <button
           type="button"
@@ -268,24 +269,24 @@ async function send(): Promise<void> {
           :disabled="!voidReason.trim()"
           @click="confirmVoid"
         >
-          إلغاء الصنف
+          {{ t("order.voidItem") }}
         </button>
       </div>
     </BaseDialog>
 
     <BaseDialog
       :open="cancelling"
-      title="إلغاء الطلب"
+      :title="t('order.cancelOrder')"
       @close="cancelling = false"
     >
       <p class="mb-3 text-sm text-muted">
-        سيُلغى الطلب بالكامل، وسيُبلَّغ المطبخ بما أُرسل إليه.
+        {{ t("order.cancelBody") }}
       </p>
       <input
         v-model="cancelReason"
         type="text"
         class="mb-4 min-h-tap w-full rounded-rpos border border-line bg-background px-3"
-        placeholder="سبب الإلغاء"
+        :placeholder="t('order.voidReason')"
       >
       <div class="flex gap-2">
         <button
@@ -293,7 +294,7 @@ async function send(): Promise<void> {
           class="min-h-tap flex-1 rounded-rpos border border-line"
           @click="cancelling = false"
         >
-          تراجع
+          {{ t("action.undo") }}
         </button>
         <button
           type="button"
@@ -301,7 +302,7 @@ async function send(): Promise<void> {
           :disabled="!cancelReason.trim()"
           @click="confirmCancel"
         >
-          تأكيد الإلغاء
+          {{ t("order.confirmCancel") }}
         </button>
       </div>
     </BaseDialog>

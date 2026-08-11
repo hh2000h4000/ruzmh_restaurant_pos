@@ -85,8 +85,21 @@ def load_pos_session(pos_profile: str) -> dict:
 		"promotions": _promotions(profile.branch),
 		"permissions": get_pos_permission_set(),
 		"theme": DEFAULT_THEME,
+		"lang": _lang(),
 		"server_time": now_datetime(),
 	}
+
+
+def _lang() -> str:
+	"""The language this user reads, as ERPNext already knows it (FR-17.3).
+
+	Only the two languages the app ships with are honoured. Anything else — a
+	site defaulting to `de` because of an ERPNext setting nobody revisited —
+	falls back to Arabic rather than rendering keys.
+	"""
+	supported = {"ar", "en"}
+	lang = (frappe.db.get_value("User", frappe.session.user, "language") or "").split("-")[0]
+	return lang if lang in supported else "ar"
 
 
 # --------------------------------------------------------------------------- #

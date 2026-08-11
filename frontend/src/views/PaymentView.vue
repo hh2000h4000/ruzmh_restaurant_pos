@@ -5,6 +5,7 @@ import { useRoute, useRouter } from "vue-router";
 import * as paymentApi from "@/api/payment";
 import type { PaymentLine, PaymentSummary, TotalsPreview } from "@/api/payment";
 import BaseDialog from "@/components/BaseDialog.vue";
+import { formatNumber, t } from "@/i18n";
 import { useSessionStore } from "@/stores/session";
 
 /**
@@ -60,14 +61,14 @@ function round(value: number): number {
 }
 
 function money(value: number): string {
-  return value.toFixed(2);
+  return formatNumber(value, 2);
 }
 
 onMounted(async () => {
   try {
     summary.value = await paymentApi.getPaymentSummary(orderName);
     if (summary.value.already_paid) {
-      failure.value = `هذا الطلب مدفوع — الفاتورة ${summary.value.sales_invoice}`;
+      failure.value = t("pay.alreadyPaid", { invoice: summary.value.sales_invoice ?? "" });
     }
   } catch (cause) {
     failure.value = cause instanceof Error ? cause.message : String(cause);
@@ -175,7 +176,7 @@ async function confirm(): Promise<void> {
         ←
       </RouterLink>
       <h1 class="font-semibold">
-        الدفع
+        {{ t("pay.title") }}
       </h1>
       <span class="rpos-numeric text-xs text-muted">{{ orderName }}</span>
     </header>
@@ -186,7 +187,7 @@ async function confirm(): Promise<void> {
       class="m-auto max-w-sm rounded-rpos bg-surface p-8 text-center shadow-sm"
     >
       <p class="mb-2 text-lg font-semibold text-status-available">
-        تم الدفع
+        {{ t("pay.paid") }}
       </p>
       <p class="rpos-numeric mb-1 text-3xl font-bold">
         {{ money(done.total_amount) }}
@@ -195,7 +196,7 @@ async function confirm(): Promise<void> {
         v-if="done.change_amount > 0"
         class="rpos-numeric mb-4 text-lg text-status-reserved"
       >
-        الباقي للعميل: {{ money(done.change_amount) }}
+        {{ t("pay.change") }}: {{ money(done.change_amount) }}
       </p>
       <p class="rpos-numeric mb-6 text-sm text-muted">
         {{ done.sales_invoice }}
@@ -205,7 +206,7 @@ async function confirm(): Promise<void> {
         class="min-h-tap w-full rounded-rpos bg-primary px-4 font-medium text-primary-contrast"
         @click="router.push({ name: 'home' })"
       >
-        طلب جديد
+        {{ t("pay.newOrder") }}
       </button>
     </section>
 
@@ -224,14 +225,14 @@ async function confirm(): Promise<void> {
       <!-- 1 — methods -->
       <section class="rounded-rpos bg-surface p-4">
         <h2 class="mb-3 text-sm font-medium text-muted">
-          طرق الدفع
+          {{ t("pay.methods") }}
         </h2>
 
         <p
           v-if="forcedMethod"
           class="mb-3 rounded-rpos bg-status-reserved/10 p-2 text-xs text-status-reserved"
         >
-          هذا النوع يُدفع بـ{{ forcedMethod }} فقط.
+          {{ t("pay.forcedMethod", { method: forcedMethod ?? "" }) }}
         </p>
 
         <div class="mb-4 flex flex-wrap gap-2">
@@ -262,7 +263,7 @@ async function confirm(): Promise<void> {
               class="text-xs text-danger"
               @click="removeMethod(index)"
             >
-              إزالة
+              {{ t("action.remove") }}
             </button>
           </div>
           <input
@@ -277,7 +278,7 @@ async function confirm(): Promise<void> {
             :for="`tendered-${index}`"
             class="mt-1 block text-xs text-muted"
           >
-            المبلغ المستلم (للباقي)
+            {{ t("pay.received") }}
           </label>
           <input
             :id="`tendered-${index}`"
@@ -293,7 +294,7 @@ async function confirm(): Promise<void> {
       <!-- 2 — discounts -->
       <section class="rounded-rpos bg-surface p-4">
         <h2 class="mb-3 text-sm font-medium text-muted">
-          الخصومات
+          {{ t("pay.discounts") }}
         </h2>
 
         <div class="mb-4 flex gap-2">
@@ -316,7 +317,7 @@ async function confirm(): Promise<void> {
         <label
           for="manual-discount"
           class="mb-1 block text-sm font-medium"
-        >خصم يدوي</label>
+        >{{ t("pay.manualDiscount") }}</label>
         <div class="flex gap-2">
           <input
             id="manual-discount"
@@ -328,7 +329,7 @@ async function confirm(): Promise<void> {
           >
           <select
             v-model="discountType"
-            aria-label="نوع الخصم"
+            :aria-label="t('pay.discountType')"
             class="min-h-tap rounded-rpos border border-line bg-background px-2"
           >
             <option :value="null">
@@ -338,7 +339,7 @@ async function confirm(): Promise<void> {
               %
             </option>
             <option value="amount">
-              ريال
+              {{ t("currency.sar") }}
             </option>
           </select>
         </div>
@@ -347,27 +348,27 @@ async function confirm(): Promise<void> {
           v-if="needsApproval"
           class="mt-3 rounded-rpos bg-status-reserved/10 p-2 text-xs text-status-reserved"
         >
-          يتجاوز حدّك ({{ preview?.max_discount_percentage }}%) — يحتاج تفويض مدير.
+          {{ t("pay.exceedsLimit", { limit: `${preview?.max_discount_percentage ?? 0}%` }) }}
           <span
             v-if="overrideToken"
             class="font-medium text-status-available"
-          >تم التفويض ✓</span>
+          >{{ t("pay.authorized") }} ✓</span>
         </p>
 
         <p class="mt-4 text-xs text-muted">
-          الولاء غير متاح بعد.
+          {{ t("pay.loyaltySoon") }}
         </p>
       </section>
 
       <!-- 3 — summary -->
       <section class="flex flex-col rounded-rpos bg-surface p-4">
         <h2 class="mb-3 text-sm font-medium text-muted">
-          ملخص الطلب
+          {{ t("pay.summary") }}
         </h2>
 
         <dl class="space-y-1 text-sm">
           <div class="flex justify-between">
-            <dt>المجموع</dt>
+            <dt>{{ t("totals.subtotal") }}</dt>
             <dd class="rpos-numeric">
               {{ money(preview?.subtotal ?? summary.subtotal) }}
             </dd>
@@ -376,19 +377,19 @@ async function confirm(): Promise<void> {
             v-if="(preview?.discount_amount ?? summary.discount_amount) > 0"
             class="flex justify-between text-status-available"
           >
-            <dt>الخصم</dt>
+            <dt>{{ t("totals.discount") }}</dt>
             <dd class="rpos-numeric">
               −{{ money(preview?.discount_amount ?? summary.discount_amount) }}
             </dd>
           </div>
           <div class="flex justify-between">
-            <dt>الضريبة</dt>
+            <dt>{{ t("totals.tax") }}</dt>
             <dd class="rpos-numeric">
               {{ money(preview?.tax_amount ?? summary.tax_amount) }}
             </dd>
           </div>
           <div class="flex justify-between border-t border-line pt-2 text-lg font-bold">
-            <dt>الإجمالي</dt>
+            <dt>{{ t("totals.total") }}</dt>
             <dd class="rpos-numeric">
               {{ money(due) }}
             </dd>
@@ -400,14 +401,14 @@ async function confirm(): Promise<void> {
             v-if="remaining > 0"
             class="flex justify-between text-status-reserved"
           >
-            <span>المتبقي</span>
+            <span>{{ t("pay.remaining") }}</span>
             <span class="rpos-numeric">{{ money(remaining) }}</span>
           </div>
           <div
             v-if="change > 0"
             class="flex justify-between text-lg font-semibold"
           >
-            <span>الباقي للعميل</span>
+            <span>{{ t("pay.change") }}</span>
             <span class="rpos-numeric">{{ money(change) }}</span>
           </div>
         </div>
@@ -418,7 +419,7 @@ async function confirm(): Promise<void> {
           :disabled="!canConfirm"
           @click="confirm"
         >
-          {{ busy ? "…" : "✅ تأكيد الدفع وإصدار الفاتورة" }}
+          {{ busy ? "…" : `✅ ${t("pay.confirm")}` }}
         </button>
       </section>
     </div>
@@ -426,16 +427,16 @@ async function confirm(): Promise<void> {
     <!-- Screen 9 — manager authorisation -->
     <BaseDialog
       :open="askingPin"
-      title="🔐 يتطلب تفويض المدير"
+      :title="`🔐 ${t('pay.needsManager')}`"
       @close="askingPin = false"
     >
       <p class="mb-3 text-sm text-muted">
-        خصم {{ preview?.discount_percentage }}% يتجاوز حدّك.
+        {{ t("pay.discountExceeds", { value: `${preview?.discount_percentage ?? 0}%` }) }}
       </p>
       <label
         for="pin"
         class="mb-1 block text-sm font-medium"
-      >رمز المدير</label>
+      >{{ t("pay.managerPin") }}</label>
       <input
         id="pin"
         v-model="pin"
@@ -448,7 +449,7 @@ async function confirm(): Promise<void> {
       <label
         for="pin-reason"
         class="mb-1 block text-sm font-medium"
-      >السبب (مطلوب)</label>
+      >{{ t("pay.reasonRequired") }}</label>
       <input
         id="pin-reason"
         v-model="pinReason"
@@ -468,7 +469,7 @@ async function confirm(): Promise<void> {
           class="min-h-tap flex-1 rounded-rpos border border-line"
           @click="askingPin = false"
         >
-          إلغاء
+          {{ t("action.cancel") }}
         </button>
         <button
           type="button"
@@ -476,7 +477,7 @@ async function confirm(): Promise<void> {
           :disabled="pin.length !== 4 || !pinReason.trim()"
           @click="approveDiscount"
         >
-          تفويض
+          {{ t("action.authorize") }}
         </button>
       </div>
     </BaseDialog>

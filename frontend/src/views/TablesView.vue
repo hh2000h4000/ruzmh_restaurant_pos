@@ -4,6 +4,7 @@ import { useRoute, useRouter } from "vue-router";
 
 import { getFloorPlan, type FloorTable } from "@/api/table";
 import BaseDialog from "@/components/BaseDialog.vue";
+import { pick, t, tn } from "@/i18n";
 import { useOrderStore } from "@/stores/order";
 import { useSessionStore } from "@/stores/session";
 
@@ -17,13 +18,14 @@ import { useSessionStore } from "@/stores/session";
  * Status colours come from the fixed palette and are never themed (FR-15.5):
  * staff read green as "free" and act on it.
  */
-const STATUS_LABEL: Record<FloorTable["status"], string> = {
-  available: "فارغة",
-  occupied: "مشغولة",
-  reserved: "محجوزة",
-  cleaning: "تنظيف",
-  inactive: "خارج الخدمة",
-};
+/** Computed, not a constant: the labels have to follow a language switch. */
+const statusLabel = computed<Record<FloorTable["status"], string>>(() => ({
+  available: t("table.available"),
+  occupied: t("table.occupied"),
+  reserved: t("table.reserved"),
+  cleaning: t("table.cleaning"),
+  inactive: t("table.inactive"),
+}));
 
 const STATUS_CLASS: Record<FloorTable["status"], string> = {
   available: "border-status-available bg-status-available/10 text-status-available",
@@ -64,7 +66,7 @@ onMounted(load);
 async function load(): Promise<void> {
   const section = session.data?.restaurant_section?.name;
   if (!section) {
-    failure.value = "هذا الجهاز غير مرتبط بقسم.";
+    failure.value = t("tables.noSection");
     loading.value = false;
     return;
   }
@@ -132,10 +134,13 @@ async function startOrder(): Promise<void> {
       </RouterLink>
       <div class="flex-1">
         <h1 class="font-semibold">
-          {{ session.data?.restaurant_section?.title_ar ?? "الطاولات" }}
+          {{
+            pick(session.data?.restaurant_section?.title_ar, session.data?.restaurant_section?.title) ||
+              t("tables.title")
+          }}
         </h1>
         <p class="text-xs text-muted">
-          {{ orderType?.title_ar }}
+          {{ pick(orderType?.title_ar, orderType?.title) }}
         </p>
       </div>
       <button
@@ -144,7 +149,7 @@ async function startOrder(): Promise<void> {
         :disabled="loading"
         @click="load"
       >
-        🔄 تحديث
+        🔄 {{ t("action.refresh") }}
       </button>
     </header>
 
@@ -160,7 +165,7 @@ async function startOrder(): Promise<void> {
       v-else-if="loading"
       class="p-8 text-center text-muted"
     >
-      جارٍ التحميل…
+      {{ t("common.loading") }}
     </p>
 
     <template v-else>
@@ -172,23 +177,24 @@ async function startOrder(): Promise<void> {
           class="flex min-h-[7rem] flex-col items-center justify-center gap-1 rounded-rpos border-2 p-3 disabled:opacity-60"
           :class="STATUS_CLASS[table.status]"
           :disabled="table.status === 'inactive' || table.status === 'cleaning'"
-          :aria-label="`طاولة ${table.table_number} — ${STATUS_LABEL[table.status]}`"
+          :aria-label="`${t('card.table', { number: table.table_number })} — ${statusLabel[table.status]}`"
           @click="onTable(table)"
         >
           <span class="rpos-numeric text-2xl font-bold">{{ table.table_number }}</span>
-          <span class="text-xs font-medium">{{ STATUS_LABEL[table.status] }}</span>
+          <span class="text-xs font-medium">{{ statusLabel[table.status] }}</span>
 
           <span
             v-if="table.current_order"
             class="rpos-numeric text-xs"
           >
-            {{ table.order_minutes }} د · {{ table.item_count }} صنف
+            {{ tn("count.minutes", table.order_minutes ?? 0) }} ·
+            {{ tn("count.items", table.item_count ?? 0) }}
           </span>
           <span
             v-else-if="table.capacity"
             class="rpos-numeric text-xs opacity-70"
           >
-            {{ table.capacity }} كراسي
+            {{ tn("count.seats", table.capacity) }}
           </span>
         </button>
       </div>
@@ -197,13 +203,13 @@ async function startOrder(): Promise<void> {
         v-if="!tables.length"
         class="rounded-rpos bg-surface p-8 text-center text-muted"
       >
-        لا توجد طاولات في هذا القسم.
+        {{ t("tables.empty") }}
       </p>
 
       <!-- The legend doubles as the counts strip in 06 Screen 5. -->
       <footer class="mt-4 flex flex-wrap gap-3 text-xs">
         <span
-          v-for="(label, status) in STATUS_LABEL"
+          v-for="(label, status) in statusLabel"
           :key="status"
           class="rounded-rpos px-2 py-1"
           :class="STATUS_CLASS[status]"
@@ -215,7 +221,7 @@ async function startOrder(): Promise<void> {
 
     <BaseDialog
       :open="Boolean(chosen)"
-      :title="`طاولة ${chosen?.table_number ?? ''}`"
+      :title="t('card.table', { number: chosen?.table_number ?? '' })"
       @close="chosen = null"
     >
       <!-- BR-064 — cover count is mandatory when the order type asks for it. -->
@@ -223,7 +229,7 @@ async function startOrder(): Promise<void> {
         <label
           for="covers"
           class="mb-1 block text-sm font-medium"
-        >عدد الضيوف</label>
+        >{{ t("tables.covers") }}</label>
         <input
           id="covers"
           v-model.number="coverCount"
@@ -239,7 +245,7 @@ async function startOrder(): Promise<void> {
           class="min-h-tap flex-1 rounded-rpos border border-line"
           @click="chosen = null"
         >
-          تراجع
+          {{ t("action.undo") }}
         </button>
         <button
           type="button"
@@ -247,7 +253,7 @@ async function startOrder(): Promise<void> {
           :disabled="creating || (orderType?.requires_cover_count === 1 && coverCount < 1)"
           @click="startOrder"
         >
-          {{ creating ? "…" : "فتح الطلب" }}
+          {{ creating ? "…" : t("tables.start") }}
         </button>
       </div>
     </BaseDialog>

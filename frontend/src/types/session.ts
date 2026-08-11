@@ -175,5 +175,7 @@ export interface PosSession {
   promotions: Promotion[];
   permissions: PosPermissions;
   theme: ThemeTokens;
+  /** The signed-in user's ERPNext language, narrowed to what the app ships. */
+  lang: "ar" | "en";
   server_time: string;
 }

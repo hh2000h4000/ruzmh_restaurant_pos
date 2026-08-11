@@ -4,6 +4,7 @@ import { computed, ref, watch } from "vue";
 import { getModifierGroups, type ModifierGroup } from "@/api/modifiers";
 import type { ModifierChoice } from "@/api/order";
 import BaseDialog from "@/components/BaseDialog.vue";
+import { formatNumber, pick, t } from "@/i18n";
 import type { CatalogItem } from "@/types/session";
 
 /**
@@ -118,7 +119,7 @@ function confirm(): void {
 <template>
   <BaseDialog
     :open="Boolean(item)"
-    :title="item?.display_name ?? ''"
+    :title="item ? pick(item.pos_display_name_ar, item.item_name) : ''"
     :dismissible="true"
     @close="emit('cancel')"
   >
@@ -126,7 +127,7 @@ function confirm(): void {
       v-if="loading"
       class="py-6 text-center text-muted"
     >
-      جارٍ التحميل…
+      {{ t("common.loading") }}
     </p>
 
     <p
@@ -144,13 +145,13 @@ function confirm(): void {
         class="mb-4"
       >
         <h3 class="mb-2 text-sm font-medium">
-          {{ group.title_ar }}
+          {{ pick(group.title_ar, group.title) }}
           <span
             v-if="group.is_required"
             class="text-danger"
           >*</span>
           <span class="text-muted">
-            ({{ group.selection_type === "single" ? "اختيار واحد" : "اختيار متعدد" }})
+            ({{ group.selection_type === "single" ? t("mod.single") : t("mod.multi") }})
           </span>
         </h3>
 
@@ -168,12 +169,12 @@ function confirm(): void {
             :aria-pressed="isChosen(group, option.title)"
             @click="toggle(group, option.title)"
           >
-            {{ option.title_ar }}
+            {{ pick(option.title_ar, option.title) }}
             <span
               v-if="option.price_amount"
               class="rpos-numeric text-xs"
             >
-              {{ option.price_effect === "subtract" ? "−" : "+" }}{{ option.price_amount.toFixed(2) }}
+              {{ option.price_effect === "subtract" ? "−" : "+" }}{{ formatNumber(option.price_amount, 2) }}
             </span>
           </button>
         </div>
@@ -182,7 +183,7 @@ function confirm(): void {
       <label
         for="line-notes"
         class="mb-1.5 block text-sm font-medium"
-      >ملاحظة خاصة</label>
+      >{{ t("mod.note") }}</label>
       <textarea
         id="line-notes"
         v-model="notes"
@@ -194,7 +195,7 @@ function confirm(): void {
         v-if="priceDelta"
         class="rpos-numeric mb-3 text-sm text-muted"
       >
-        الإضافة على السعر: {{ priceDelta.toFixed(2) }}
+        {{ t("mod.priceDelta") }} {{ formatNumber(priceDelta, 2) }}
       </p>
 
       <div class="flex gap-2">
@@ -203,7 +204,7 @@ function confirm(): void {
           class="min-h-tap flex-1 rounded-rpos border border-line px-4"
           @click="emit('cancel')"
         >
-          إلغاء
+          {{ t("action.cancel") }}
         </button>
         <button
           type="button"
@@ -211,7 +212,7 @@ function confirm(): void {
           :disabled="unresolved.length > 0"
           @click="confirm"
         >
-          إضافة للطلب
+          {{ t("mod.add") }}
         </button>
       </div>
 
@@ -219,7 +220,10 @@ function confirm(): void {
         v-if="unresolved.length"
         class="mt-3 text-sm text-danger"
       >
-        اختر: {{ unresolved.map((group) => group.title_ar).join("، ") }}
+        {{ t("mod.choose") }}
+        {{
+          unresolved.map((group) => pick(group.title_ar, group.title)).join(t("common.listSeparator"))
+        }}
       </p>
     </template>
   </BaseDialog>

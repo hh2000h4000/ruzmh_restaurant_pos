@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { OrderDetail, OrderLine } from "@/api/order";
+import { formatNumber, pick, t } from "@/i18n";
 
 /**
  * The order side of Screen 3: the lines, then the totals.
@@ -20,8 +21,9 @@ function isSent(line: OrderLine): boolean {
   return line.status === "sent";
 }
 
+/** Bare figures: the currency is stated once, in the payment screen's total. */
 function money(value: number): string {
-  return value.toFixed(2);
+  return formatNumber(value, 2);
 }
 </script>
 
@@ -29,7 +31,7 @@ function money(value: number): string {
   <div class="flex h-full flex-col rounded-rpos bg-surface">
     <ul
       class="flex-1 divide-y divide-line overflow-y-auto"
-      aria-label="أصناف الطلب"
+      :aria-label="t('panel.title')"
     >
       <li
         v-for="line in lines"
@@ -46,7 +48,11 @@ function money(value: number): string {
               v-if="line.modifiers?.length"
               class="truncate text-xs text-muted"
             >
-              {{ line.modifiers.map((modifier) => modifier.option_ar || modifier.option).join("، ") }}
+              {{
+                line.modifiers
+                  .map((modifier) => pick(modifier.option_ar, modifier.option))
+                  .join(t("common.listSeparator"))
+              }}
             </p>
             <p
               v-if="line.notes"
@@ -60,7 +66,7 @@ function money(value: number): string {
               v-if="isSent(line)"
               class="mt-1 inline-block rounded bg-order-in_kitchen/10 px-1.5 text-xs text-order-in_kitchen"
             >
-              في المطبخ
+              {{ t("panel.inKitchen") }}
             </p>
           </div>
 
@@ -78,7 +84,7 @@ function money(value: number): string {
             :disabled="busy"
             @click="emit('repeat', line)"
           >
-            + إضافة مثله
+            + {{ t("panel.addSame") }}
           </button>
 
           <button
@@ -87,7 +93,7 @@ function money(value: number): string {
             :disabled="busy"
             @click="emit('void', line)"
           >
-            🗑 إلغاء
+            🗑 {{ t("action.cancel") }}
           </button>
         </div>
       </li>
@@ -96,13 +102,13 @@ function money(value: number): string {
         v-if="!lines.length"
         class="p-8 text-center text-muted"
       >
-        لم تُضف أصناف بعد.
+        {{ t("panel.empty") }}
       </li>
     </ul>
 
     <dl class="space-y-1 border-t border-line p-4 text-sm">
       <div class="flex justify-between">
-        <dt>المجموع</dt>
+        <dt>{{ t("totals.subtotal") }}</dt>
         <dd class="rpos-numeric">
           {{ money(order.subtotal) }}
         </dd>
@@ -111,19 +117,19 @@ function money(value: number): string {
         v-if="order.discount_amount"
         class="flex justify-between text-status-available"
       >
-        <dt>الخصم</dt>
+        <dt>{{ t("totals.discount") }}</dt>
         <dd class="rpos-numeric">
           −{{ money(order.discount_amount) }}
         </dd>
       </div>
       <div class="flex justify-between">
-        <dt>الضريبة</dt>
+        <dt>{{ t("totals.tax") }}</dt>
         <dd class="rpos-numeric">
           {{ money(order.tax_amount) }}
         </dd>
       </div>
       <div class="flex justify-between border-t border-line pt-2 text-base font-semibold">
-        <dt>الإجمالي</dt>
+        <dt>{{ t("totals.total") }}</dt>
         <dd class="rpos-numeric">
           {{ money(order.total_amount) }}
         </dd>

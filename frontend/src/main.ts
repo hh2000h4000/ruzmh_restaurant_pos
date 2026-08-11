@@ -2,16 +2,19 @@ import { createPinia } from "pinia";
 import { createApp } from "vue";
 
 import App from "./App.vue";
+import { initLocale } from "./i18n";
 import router from "./router";
 import "./styles/main.css";
 
 /**
- * Arabic RTL is the default, not a mode (03_frontend_vue_rules.md).
+ * Language and direction are settled before mount.
  *
- * Set before mount so the first paint is already correct — flipping direction
- * after render is visible as a jump.
+ * Direction drives every CSS logical property in the app, so flipping it after
+ * the first paint is visible as the whole screen jumping sides. The stored
+ * device choice is enough to decide; the signed-in user's ERPNext language is
+ * only consulted later, when the session payload arrives and no choice has been
+ * made on this terminal yet.
  */
-document.documentElement.setAttribute("dir", "rtl");
-document.documentElement.setAttribute("lang", "ar");
+initLocale();
 
 createApp(App).use(createPinia()).use(router).mount("#app");

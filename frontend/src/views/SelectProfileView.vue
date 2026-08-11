@@ -3,6 +3,8 @@ import { onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 
 import { ApiError } from "@/api/client";
+import LocaleToggle from "@/components/LocaleToggle.vue";
+import { t } from "@/i18n";
 import { useSessionStore } from "@/stores/session";
 
 /**
@@ -41,7 +43,7 @@ async function start(): Promise<void> {
     await router.push({ name: "home" });
   } catch (cause) {
     if (cause instanceof ApiError && cause.status === 403) {
-      message.value = "سجّل الدخول أولاً، ثم أعد المحاولة.";
+      message.value = t("setup.signInFirst");
     } else {
       message.value = cause instanceof Error ? cause.message : String(cause);
     }
@@ -55,11 +57,16 @@ async function start(): Promise<void> {
 <template>
   <main class="flex min-h-screen items-center justify-center p-4">
     <div class="w-full max-w-sm rounded-rpos bg-surface p-6 shadow-sm">
-      <h1 class="mb-1 text-lg font-semibold">
-        تهيئة الجهاز
-      </h1>
+      <div class="mb-1 flex items-start justify-between gap-3">
+        <h1 class="text-lg font-semibold">
+          {{ t("setup.title") }}
+        </h1>
+        <!-- The language is chosen before anything else: this is the first
+             screen a newly installed terminal shows. -->
+        <LocaleToggle />
+      </div>
       <p class="mb-5 text-sm text-muted">
-        اختر ملف نقطة البيع لهذا الجهاز.
+        {{ t("setup.hint") }}
       </p>
 
       <form @submit.prevent="start">
@@ -67,7 +74,7 @@ async function start(): Promise<void> {
           for="pos-profile"
           class="mb-1.5 block text-sm font-medium"
         >
-          ملف نقطة البيع
+          {{ t("setup.profile") }}
         </label>
         <input
           id="pos-profile"
@@ -83,7 +90,7 @@ async function start(): Promise<void> {
           class="min-h-tap w-full rounded-rpos bg-primary px-4 font-medium text-primary-contrast disabled:opacity-60"
           :disabled="busy || !posProfile.trim()"
         >
-          {{ busy ? "جارٍ التحميل…" : "ابدأ" }}
+          {{ busy ? t("common.loading") : t("setup.start") }}
         </button>
       </form>
 

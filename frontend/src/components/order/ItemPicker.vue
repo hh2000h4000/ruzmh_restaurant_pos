@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 
+// `pick` is already this component's "add this item" handler, so the i18n
+// helper comes in under a name that says what it does here.
+import { formatNumber, pick as localized, t } from "@/i18n";
 import { useSessionStore } from "@/stores/session";
 import type { CatalogItem, LayoutButton, OrderType } from "@/types/session";
 
@@ -104,10 +107,18 @@ function buttonStyle(button: LayoutButton): Record<string, string> {
 }
 
 function label(button: LayoutButton): string {
-  if (button.display_text_ar) return button.display_text_ar;
-  if (button.display_text) return button.display_text;
-  if (button.button_type === "item") return itemFor(button.item)?.display_name ?? button.item ?? "";
+  const configured = localized(button.display_text_ar, button.display_text);
+  if (configured) return configured;
+
+  if (button.button_type === "item") {
+    const item = itemFor(button.item);
+    return item ? itemName(item) : (button.item ?? "");
+  }
   return button.item_group ?? button.action_type ?? "";
+}
+
+function itemName(item: CatalogItem): string {
+  return localized(item.pos_display_name_ar, item.item_name);
 }
 </script>
 
@@ -116,12 +127,12 @@ function label(button: LayoutButton): string {
     <label
       class="sr-only"
       for="item-search"
-    >بحث عن صنف</label>
+    >{{ t("picker.search") }}</label>
     <input
       id="item-search"
       v-model="search"
       type="search"
-      placeholder="🔍 بحث عن صنف"
+      :placeholder="`🔍 ${t('picker.search')}`"
       class="min-h-tap w-full rounded-rpos border border-line bg-surface px-3 text-base focus:outline-none focus:ring-2 focus:ring-primary"
     >
 
@@ -138,23 +149,23 @@ function label(button: LayoutButton): string {
         :disabled="item.rate === null || disabled"
         @click="pick(item)"
       >
-        <span class="text-sm font-medium">{{ item.display_name }}</span>
+        <span class="text-sm font-medium">{{ itemName(item) }}</span>
         <span
           v-if="item.rate !== null"
           class="rpos-numeric text-xs text-muted"
         >
-          {{ item.rate.toFixed(2) }}
+          {{ formatNumber(item.rate, 2) }}
         </span>
         <span
           v-else
           class="text-xs text-danger"
-        >بلا سعر</span>
+        >{{ t("picker.noPrice") }}</span>
       </button>
       <p
         v-if="!searchResults.length"
         class="col-span-full p-4 text-center text-muted"
       >
-        لا نتائج.
+        {{ t("picker.noResults") }}
       </p>
     </div>
 
@@ -168,7 +179,7 @@ function label(button: LayoutButton): string {
         class="self-start rounded-rpos px-3 text-sm text-primary"
         @click="activeGroup = null"
       >
-        ← رجوع
+        ← {{ t("action.back") }}
       </button>
       <div class="grid flex-1 auto-rows-min grid-cols-2 gap-2 overflow-y-auto sm:grid-cols-3">
         <button
@@ -179,17 +190,17 @@ function label(button: LayoutButton): string {
           :disabled="item.rate === null || disabled"
           @click="pick(item)"
         >
-          <span class="text-sm font-medium">{{ item.display_name }}</span>
+          <span class="text-sm font-medium">{{ itemName(item) }}</span>
           <span
             v-if="item.rate !== null"
             class="rpos-numeric text-xs text-muted"
           >
-            {{ item.rate.toFixed(2) }}
+            {{ formatNumber(item.rate, 2) }}
           </span>
           <span
             v-else
             class="text-xs text-danger"
-          >بلا سعر</span>
+          >{{ t("picker.noPrice") }}</span>
         </button>
       </div>
     </div>
@@ -234,7 +245,7 @@ function label(button: LayoutButton): string {
         v-if="!groups.length"
         class="col-span-full p-4 text-center text-muted"
       >
-        لا توجد أصناف متاحة.
+        {{ t("picker.empty") }}
       </p>
     </div>
   </div>

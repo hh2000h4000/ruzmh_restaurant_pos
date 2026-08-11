@@ -2,6 +2,7 @@ import { defineStore } from "pinia";
 import { computed, ref } from "vue";
 
 import { query } from "@/api/client";
+import { initLocale } from "@/i18n";
 import type { CatalogItem, OrderType, PosSession } from "@/types/session";
 
 import { useThemeStore } from "./theme";
@@ -71,6 +72,9 @@ export const useSessionStore = defineStore("session", () => {
       data.value = payload;
       // Brand the app before the first screen paints.
       useThemeStore().apply(payload.theme);
+      // Only used when this terminal has no stored choice of its own; a shared
+      // till keeps the language it was set up in (`i18n/index.ts`).
+      initLocale(payload.lang);
     } catch (cause) {
       error.value = cause instanceof Error ? cause.message : String(cause);
       throw cause;

@@ -11,6 +11,7 @@ Refs: 07_API_Design.md §3, FR-2.1..FR-2.8
 """
 
 import frappe
+from frappe.utils import now_datetime, time_diff_in_seconds
 
 from restaurant_pos.utils import idempotency
 from restaurant_pos.utils import order as service
@@ -166,6 +167,109 @@ def cancel_order(
 		queue_id, "cancel_order", result, reference_doctype="Restaurant Order", reference_name=order.name
 	)
 	return result
+
+
+#: An order the cashier can still act on. Anything else belongs to history.
+OPEN_STATUSES = ("draft", "active", "in_kitchen", "pending_payment")
+
+
+@frappe.whitelist()
+def get_open_orders(pos_profile: str) -> list[dict]:
+	"""Every order still on the floor, for the home screen (06 Screen 1).
+
+	Scoped to the **branch**, not the terminal. An order opened on the waiter's
+	tablet has to be payable at the till, and a takeaway opened by the cashier
+	who just went on break has to be findable by the one taking over. Scoping
+	this to ``pos_profile`` would hide both and strand the order.
+
+	Oldest first: the card that has been waiting longest is the one that needs
+	attention (06 §Screen 1 behaviour).
+	"""
+	# A POS Profile has no branch of its own; it inherits one from the section
+	# it serves, the same way `session._profile` resolves it.
+	section = frappe.db.get_value("POS Profile", pos_profile, "restaurant_section")
+	branch = frappe.db.get_value("Restaurant Section", section, "branch") if section else None
+
+	filters: dict = {"status": ("in", OPEN_STATUSES)}
+	if branch:
+		validate_branch_access(branch)
+		filters["branch"] = branch
+	else:
+		# A terminal attached to no section has no branch to scope by. Falling
+		# back to the terminal is narrower than right; listing every branch's
+		# floor would be wrong.
+		filters["pos_profile"] = pos_profile
+
+	orders = frappe.get_all(
+		"Restaurant Order",
+		filters=filters,
+		fields=[
+			"name",
+			"order_type",
+			"status",
+			"table",
+			"cover_count",
+			"customer",
+			"total_amount",
+			"opened_at",
+		],
+		order_by="opened_at asc",
+	)
+	if not orders:
+		return []
+
+	_annotate_open_orders(orders)
+	return orders
+
+
+def _annotate_open_orders(orders: list) -> None:
+	"""Add item count, elapsed minutes and display labels.
+
+	Three lookups for the whole list rather than three per order: a lunch rush
+	is fifty open orders and this list refreshes on every realtime event
+	(``04`` §8).
+	"""
+	names = [row.name for row in orders]
+
+	counts: dict[str, int] = {}
+	for row in frappe.get_all(
+		"Restaurant Order Item",
+		filters={"parent": ("in", names), "parenttype": "Restaurant Order"},
+		fields=["parent", "status"],
+	):
+		if row.status != "void":
+			counts[row.parent] = counts.get(row.parent, 0) + 1
+
+	# The terminal already holds the order types it is allowed to open, but an
+	# order may carry one this terminal cannot open and still needs to display.
+	types = {
+		row.name: row
+		for row in frappe.get_all(
+			"Restaurant Order Type",
+			filters={"name": ("in", list({row.order_type for row in orders if row.order_type}))},
+			fields=["name", "title", "title_ar", "icon", "color"],
+		)
+	}
+
+	table_numbers = {
+		row.name: row.table_number
+		for row in frappe.get_all(
+			"Restaurant Table",
+			filters={"name": ("in", list({row.table for row in orders if row.table}))},
+			fields=["name", "table_number"],
+		)
+	}
+
+	now = now_datetime()
+	for order in orders:
+		order_type = types.get(order.order_type)
+		order.order_type_title = order_type.title if order_type else order.order_type
+		order.order_type_title_ar = order_type.title_ar if order_type else order.order_type
+		order.icon = order_type.icon if order_type else None
+		order.color = order_type.color if order_type else None
+		order.table_number = table_numbers.get(order.table)
+		order.item_count = counts.get(order.name, 0)
+		order.order_minutes = int(time_diff_in_seconds(now, order.opened_at) // 60) if order.opened_at else 0
 
 
 @frappe.whitelist()

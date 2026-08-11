@@ -40,5 +40,5 @@ class TestPublishedPage(FrappeTestCase):
 
 		self.assertFalse(
 			frappe.cache.hget("website_page", ROUTE),
-			"the POS page was stored in the website cache — <!-- no-cache --> is missing",
+			"the POS page was stored in the website cache — check www/restaurant-pos.py",
 		)

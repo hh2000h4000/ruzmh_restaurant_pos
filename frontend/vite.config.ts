@@ -25,22 +25,18 @@ const WWW_PAGE = resolve(__dirname, "../restaurant_pos/www/restaurant-pos.html")
  * Vite's index.html is static, so there is nothing here Jinja could misread.
  */
 /**
- * Two lines go into <head>, and both are load-bearing.
+ * The CSRF token, rendered per session by Jinja.
  *
- * `<!-- no-cache -->` is Frappe's own opt-out, and this page cannot live
- * without it. A rendered www page is cached in redis under its path alone —
- * no user and no session in the key (`website/utils.py:cache_html`). A page
- * carrying a per-session CSRF token would therefore be rendered once and
- * handed to everyone after that: whoever loads it first decides every other
- * cashier's token, and if that first visitor was signed out the token is empty
- * and no till can write anything.
+ * This only works because the page is declared `no_cache` in
+ * `restaurant_pos/www/restaurant-pos.py`. Frappe caches a rendered www page
+ * under its path alone, with no user in the key, so a cached page would hand
+ * every terminal the first visitor's token. Do not remove that file.
  *
- * `or ""` guards the same class of mistake in miniature: an anonymous session
+ * `or ""` guards a smaller version of the same mistake: an anonymous session
  * has no token and Jinja would otherwise render the literal string "None",
  * which looks like a valid token to any truthiness check.
  */
 const HEAD_INJECTION = [
-  "  <!-- no-cache -->",
   '  <script>window.csrf_token = "{{ frappe.session.csrf_token or "" }}";</script>',
   "  ",
 ].join("\n");

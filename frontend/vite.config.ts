@@ -24,9 +24,23 @@ const WWW_PAGE = resolve(__dirname, "../restaurant_pos/www/restaurant-pos.html")
  * broken while every GET keeps working — which is exactly how this surfaced.
  * Vite's index.html is static, so there is nothing here Jinja could misread.
  */
-// `or ""` matters: an anonymous session has no token and Jinja would otherwise
-// render the literal string "None", which looks like a valid token to any check.
-const CSRF_SCRIPT = [
+/**
+ * Two lines go into <head>, and both are load-bearing.
+ *
+ * `<!-- no-cache -->` is Frappe's own opt-out, and this page cannot live
+ * without it. A rendered www page is cached in redis under its path alone —
+ * no user and no session in the key (`website/utils.py:cache_html`). A page
+ * carrying a per-session CSRF token would therefore be rendered once and
+ * handed to everyone after that: whoever loads it first decides every other
+ * cashier's token, and if that first visitor was signed out the token is empty
+ * and no till can write anything.
+ *
+ * `or ""` guards the same class of mistake in miniature: an anonymous session
+ * has no token and Jinja would otherwise render the literal string "None",
+ * which looks like a valid token to any truthiness check.
+ */
+const HEAD_INJECTION = [
+  "  <!-- no-cache -->",
   '  <script>window.csrf_token = "{{ frappe.session.csrf_token or "" }}";</script>',
   "  ",
 ].join("\n");
@@ -43,7 +57,7 @@ function publishToFrappe(): Plugin {
       }
 
       mkdirSync(resolve(WWW_PAGE, ".."), { recursive: true });
-      writeFileSync(WWW_PAGE, html.replace("</head>", `${CSRF_SCRIPT}</head>`), "utf-8");
+      writeFileSync(WWW_PAGE, html.replace("</head>", `${HEAD_INJECTION}</head>`), "utf-8");
 
       // The service worker must be served from the app root, not /assets,
       // or its scope cannot cover the whole SPA.

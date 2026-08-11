@@ -39,9 +39,35 @@ export interface OrderDetail extends OrderSummary {
   items: OrderLine[];
 }
 
+export type OpenOrderStatus = "draft" | "active" | "in_kitchen" | "pending_payment";
+
+/** One card on the home screen (06 Screen 1). */
+export interface OpenOrder {
+  name: string;
+  order_type: string;
+  order_type_title: string;
+  order_type_title_ar: string;
+  icon: string | null;
+  color: string | null;
+  status: OpenOrderStatus;
+  table: string | null;
+  table_number: string | null;
+  cover_count: number;
+  customer: string | null;
+  total_amount: number;
+  opened_at: string;
+  order_minutes: number;
+  item_count: number;
+}
+
 export interface ModifierChoice {
   group: string;
   option: string;
+}
+
+/** Branch-wide, not terminal-wide — see the docstring on the endpoint. */
+export function getOpenOrders(posProfile: string): Promise<OpenOrder[]> {
+  return query<OpenOrder[]>("order.get_open_orders", { pos_profile: posProfile });
 }
 
 export function createOrder(payload: {

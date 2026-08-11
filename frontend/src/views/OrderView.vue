@@ -174,6 +174,16 @@ async function send(): Promise<void> {
       {{ orders.error }}
     </p>
 
+    <!-- 09 §10 — an order carrying queued work must say so, or the cashier
+         reads a confirmation that has not reached the server. -->
+    <p
+      v-if="orders.pendingSync"
+      role="status"
+      class="mx-4 mt-2 rounded-rpos bg-status-cleaning/10 p-3 text-sm text-status-cleaning"
+    >
+      ⏳ {{ t("order.pendingSync") }}
+    </p>
+
     <p
       v-if="orders.unrouted.length"
       role="status"

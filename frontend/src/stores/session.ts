@@ -1,8 +1,9 @@
 import { defineStore } from "pinia";
 import { computed, ref } from "vue";
 
-import { query } from "@/api/client";
+import { ApiError, query } from "@/api/client";
 import { initLocale } from "@/i18n";
+import { loadSession, saveSession } from "@/offline/cache";
 import type { CatalogItem, OrderType, PosSession } from "@/types/session";
 
 import { useThemeStore } from "./theme";
@@ -18,6 +19,8 @@ export const useSessionStore = defineStore("session", () => {
   const data = ref<PosSession | null>(null);
   const loading = ref(false);
   const error = ref<string | null>(null);
+  /** Set when this session came from the device cache instead of the server. */
+  const cachedAt = ref<string | null>(null);
 
   const isLoaded = computed(() => data.value !== null);
   const profile = computed(() => data.value?.pos_profile ?? null);
@@ -60,6 +63,15 @@ export const useSessionStore = defineStore("session", () => {
     return items.value.filter((item) => !hidden.has(item.item_group));
   }
 
+  function adopt(payload: PosSession): void {
+    data.value = payload;
+    // Brand the app before the first screen paints.
+    useThemeStore().apply(payload.theme);
+    // Only used when this terminal has no stored choice of its own; a shared
+    // till keeps the language it was set up in (`i18n/index.ts`).
+    initLocale(payload.lang);
+  }
+
   async function load(posProfile: string): Promise<void> {
     loading.value = true;
     error.value = null;
@@ -69,15 +81,24 @@ export const useSessionStore = defineStore("session", () => {
         pos_profile: posProfile,
       });
 
-      data.value = payload;
-      // Brand the app before the first screen paints.
-      useThemeStore().apply(payload.theme);
-      // Only used when this terminal has no stored choice of its own; a shared
-      // till keeps the language it was set up in (`i18n/index.ts`).
-      initLocale(payload.lang);
+      adopt(payload);
+      cachedAt.value = null;
+      void saveSession(payload);
     } catch (cause) {
-      error.value = cause instanceof Error ? cause.message : String(cause);
-      throw cause;
+      // A till that reboots during an outage must come back with its menu and
+      // its permissions rather than a setup screen (09 §3). Only an outage
+      // qualifies: a refusal from the server is a real answer, and starting
+      // from cache would hide it.
+      const offline = cause instanceof ApiError && cause.isOffline;
+      const cached = offline ? await loadSession() : null;
+
+      if (cached) {
+        adopt(cached.session);
+        cachedAt.value = cached.cached_at;
+      } else {
+        error.value = cause instanceof Error ? cause.message : String(cause);
+        throw cause;
+      }
     } finally {
       loading.value = false;
     }
@@ -86,6 +107,7 @@ export const useSessionStore = defineStore("session", () => {
   function clear(): void {
     data.value = null;
     error.value = null;
+    cachedAt.value = null;
     useThemeStore().reset();
   }
 
@@ -93,6 +115,7 @@ export const useSessionStore = defineStore("session", () => {
     data,
     loading,
     error,
+    cachedAt,
     isLoaded,
     profile,
     branch,

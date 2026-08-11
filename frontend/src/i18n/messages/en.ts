@@ -28,6 +28,9 @@ export const messages = {
   "conn.offline": "Offline — actions are saved on this device",
   "conn.signedOut": "Not signed in",
   "conn.signIn": "Sign in",
+  "conn.syncing": "Syncing…",
+  "conn.syncNow": "Sync now",
+  "conn.staleConfig": "Working from this device's copy, saved {when}.",
 
   // Errors raised by the API client
   "err.noCsrf": "The page loaded without a security token — sign out and reload.",
@@ -88,6 +91,7 @@ export const messages = {
   "order.voidItem": "Void the item",
   "order.cancelBody": "The whole order will be cancelled, and the kitchen told about anything already sent.",
   "order.confirmCancel": "Confirm the cancellation",
+  "order.pendingSync": "Saved on this device — waiting for the connection to reach the server.",
 
   // Order panel
   "panel.title": "Order items",
@@ -143,6 +147,8 @@ export const plurals = {
   "count.seats": { one: "{n} seat", other: "{n} seats" },
   "count.minutes": { one: "{n} min", other: "{n} min" },
   "count.openOrders": { one: "{n} open order", other: "{n} open orders" },
+  "count.queued": { one: "{n} action waiting", other: "{n} actions waiting" },
+  "count.syncFailed": { one: "{n} action failed", other: "{n} actions failed" },
 } as const;
 
 export default { messages, plurals };

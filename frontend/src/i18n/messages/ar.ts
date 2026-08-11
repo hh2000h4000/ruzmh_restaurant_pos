@@ -25,6 +25,9 @@ const messages: Catalogue["messages"] = {
   "conn.offline": "وضع عدم الاتصال — العمليات تُحفظ محلياً",
   "conn.signedOut": "لم يتم تسجيل الدخول",
   "conn.signIn": "تسجيل الدخول",
+  "conn.syncing": "جارٍ المزامنة…",
+  "conn.syncNow": "زامن الآن",
+  "conn.staleConfig": "يعمل من نسخة هذا الجهاز، المحفوظة {when}.",
 
   // Errors raised by the API client
   "err.noCsrf": "الصفحة حُمّلت بدون رمز الحماية — سجّل الخروج وأعد تحميل الصفحة.",
@@ -85,6 +88,7 @@ const messages: Catalogue["messages"] = {
   "order.voidItem": "إلغاء الصنف",
   "order.cancelBody": "سيُلغى الطلب بالكامل، وسيُبلَّغ المطبخ بما أُرسل إليه.",
   "order.confirmCancel": "تأكيد الإلغاء",
+  "order.pendingSync": "محفوظ على هذا الجهاز — بانتظار الاتصال ليصل الخادم.",
 
   // Order panel
   "panel.title": "أصناف الطلب",
@@ -178,6 +182,22 @@ const plurals: Catalogue["plurals"] = {
     few: "{n} طلبات مفتوحة",
     many: "{n} طلباً مفتوحاً",
     other: "{n} طلب مفتوح",
+  },
+  "count.queued": {
+    zero: "لا شيء بانتظار المزامنة",
+    one: "عملية بانتظار المزامنة",
+    two: "عمليتان بانتظار المزامنة",
+    few: "{n} عمليات بانتظار المزامنة",
+    many: "{n} عملية بانتظار المزامنة",
+    other: "{n} عملية بانتظار المزامنة",
+  },
+  "count.syncFailed": {
+    zero: "لا عمليات فاشلة",
+    one: "عملية فشلت مزامنتها",
+    two: "عمليتان فشلت مزامنتهما",
+    few: "{n} عمليات فشلت مزامنتها",
+    many: "{n} عملية فشلت مزامنتها",
+    other: "{n} عملية فشلت مزامنتها",
   },
 };
 

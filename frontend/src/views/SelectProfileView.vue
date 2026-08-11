@@ -95,6 +95,14 @@ async function start(): Promise<void> {
       </form>
 
       <p
+        v-if="session.cachedAt"
+        role="status"
+        class="mt-4 rounded-rpos bg-status-cleaning/10 p-3 text-sm text-status-cleaning"
+      >
+        {{ t("conn.staleConfig", { when: session.cachedAt }) }}
+      </p>
+
+      <p
         v-if="message"
         id="pos-profile-error"
         role="alert"

@@ -4,6 +4,8 @@ import { computed, ref } from "vue";
 import * as kitchenApi from "@/api/kitchen";
 import * as orderApi from "@/api/order";
 import type { ModifierChoice, OrderDetail, OrderSummary } from "@/api/order";
+import { isQueued } from "@/offline/queue";
+import { useConnectionStore } from "@/stores/connection";
 
 /**
  * The order the cashier is working on.
@@ -18,6 +20,14 @@ export const useOrderStore = defineStore("order", () => {
   const error = ref<string | null>(null);
   /** Set after a send, so the screen can warn about items no station received. */
   const unrouted = ref<string[]>([]);
+  /**
+   * An action for this order is sitting in the offline queue.
+   *
+   * The screen has to say so. Without it the cashier reads "cancelled" and
+   * walks away, while the order is still open on the server until the queue
+   * drains (09 §10, "PENDING SYNC").
+   */
+  const pendingSync = ref(false);
 
   const lines = computed(() => order.value?.items.filter((row) => row.status !== "void") ?? []);
   const voided = computed(() => order.value?.items.filter((row) => row.status === "void") ?? []);
@@ -55,6 +65,9 @@ export const useOrderStore = defineStore("order", () => {
   async function open(orderName: string): Promise<void> {
     await run(async () => {
       order.value = await orderApi.getOrder(orderName);
+      // Whatever the server just handed back is the truth; anything this screen
+      // was holding is either applied or gone.
+      pendingSync.value = false;
     });
   }
 
@@ -103,8 +116,15 @@ export const useOrderStore = defineStore("order", () => {
     const done = await run(() =>
       orderApi.cancelOrder({ order_name: order.value!.order_name, reason }),
     );
-    if (done) applySummary(done);
-    return Boolean(done);
+    if (!done) return false;
+
+    if (isQueued(done)) {
+      pendingSync.value = true;
+      void useConnectionStore().refreshCounts();
+    } else {
+      applySummary(done);
+    }
+    return true;
   }
 
   async function sendToKitchen(): Promise<boolean> {
@@ -112,6 +132,14 @@ export const useOrderStore = defineStore("order", () => {
 
     const result = await run(() => kitchenApi.sendToKitchen(order.value!.order_name));
     if (!result) return false;
+
+    if (isQueued(result)) {
+      // The ticket is held on this device. Nothing has reached a station, so
+      // the lines stay as they are and the screen says why.
+      pendingSync.value = true;
+      void useConnectionStore().refreshCounts();
+      return true;
+    }
 
     unrouted.value = result.unrouted_items;
     await open(order.value.order_name);
@@ -122,6 +150,7 @@ export const useOrderStore = defineStore("order", () => {
     order.value = null;
     error.value = null;
     unrouted.value = [];
+    pendingSync.value = false;
   }
 
   return {
@@ -129,6 +158,7 @@ export const useOrderStore = defineStore("order", () => {
     busy,
     error,
     unrouted,
+    pendingSync,
     lines,
     voided,
     isEmpty,

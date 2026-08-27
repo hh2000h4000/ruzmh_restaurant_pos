@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import type { OpenOrder } from "@/api/order";
 import AppIcon from "@/components/AppIcon.vue";
+import OpenOrderCard from "@/components/pos/OpenOrderCard.vue";
 import OpenOrderRow from "@/components/pos/OpenOrderRow.vue";
-import { formatNumber, pick, t, tn } from "@/i18n";
+import { formatNumber, t } from "@/i18n";
 
 /**
  * The floor: every order still open, in the shape the cashier asked for.
@@ -27,17 +28,6 @@ const emit = defineEmits<{
 
 const view = defineModel<"list" | "grid">("view", { default: "list" });
 
-const STATUS_CLASS: Record<OpenOrder["status"], string> = {
-  draft: "bg-order-draft/10 text-order-draft",
-  active: "bg-order-active/10 text-order-active",
-  in_kitchen: "bg-order-in_kitchen/10 text-order-in_kitchen",
-  pending_payment: "bg-order-pending_payment/10 text-order-pending_payment",
-};
-
-function whereLabel(order: OpenOrder): string {
-  if (order.table_number) return t("card.table", { number: order.table_number });
-  return pick(order.order_type_title_ar, order.order_type_title);
-}
 </script>
 
 <template>
@@ -130,50 +120,18 @@ function whereLabel(order: OpenOrder): string {
         />
       </div>
 
-      <!-- The same orders, when the floor is read by table rather than by bill. -->
+      <!-- The same orders and the same fields, stacked instead of spread. -->
       <div
         v-else-if="orders.length"
         class="grid grid-cols-1 gap-3.5 md:grid-cols-2 2xl:grid-cols-3"
       >
-        <button
+        <OpenOrderCard
           v-for="order in orders"
           :key="order.name"
-          type="button"
-          class="flex flex-col gap-3 rounded-rpos border border-line bg-surface p-5 text-start shadow-card transition duration-200 ease-rpos hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-lift"
-          @click="emit('open', order)"
-        >
-          <div class="flex items-start justify-between gap-2">
-            <span class="truncate text-lg font-bold">{{ whereLabel(order) }}</span>
-            <span
-              class="shrink-0 rounded-full px-3 py-1 text-sm font-medium"
-              :class="STATUS_CLASS[order.status]"
-            >{{ t(`status.${order.status}`) }}</span>
-          </div>
-
-          <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted">
-            <span>{{ tn("count.minutes", order.order_minutes) }}</span>
-            <span aria-hidden="true">·</span>
-            <span>{{ tn("count.items", order.item_count) }}</span>
-            <template v-if="order.cover_count">
-              <span aria-hidden="true">·</span>
-              <span>{{ tn("count.covers", order.cover_count) }}</span>
-            </template>
-          </div>
-
-          <div class="flex items-end justify-between gap-2 border-t border-line pt-3">
-            <div class="min-w-0">
-              <p class="rpos-numeric truncate text-sm text-muted">
-                {{ order.name }}
-              </p>
-              <p class="truncate text-sm text-muted">
-                {{ order.cashier_name }}
-              </p>
-            </div>
-            <span class="rpos-numeric shrink-0 text-[22px] font-bold text-primary">
-              {{ formatNumber(order.total_amount, 2) }}
-            </span>
-          </div>
-        </button>
+          :order="order"
+          @open="emit('open', order)"
+          @floor-plan="emit('floorPlan')"
+        />
       </div>
 
       <div

@@ -29,6 +29,17 @@ const PATHS = {
   user: "M12 12a4 4 0 100-8 4 4 0 000 8zM6 20a6 6 0 0112 0",
   document: "M14 3v5h5M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8z",
   clock: "M12 7v5l3 2M21 12a9 9 0 11-18 0 9 9 0 0118 0z",
+
+  // Order types. A manager types one of these names into the order type's icon
+  // field; anything else is rendered as written, so an emoji still works.
+  plane: "M10 19l2-2 2 2v-4l7-4V9l-7 2V6l2-2-4-1-4 1 2 2v5L3 9v2l7 4z",
+  mobile: "M9 3h6a1 1 0 011 1v16a1 1 0 01-1 1H9a1 1 0 01-1-1V4a1 1 0 011-1zM11 18h2",
+  card: "M3 8h18M3 10a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2zM7 15h3",
+  users: "M9 11a3 3 0 100-6 3 3 0 000 6zM3 20a6 6 0 0112 0M16 6a3 3 0 010 6M18 20a6 6 0 00-2-4",
+  hanger: "M12 8a2 2 0 112-2M12 8v2M3 18l9-6 9 6a1 1 0 01-.6 1.8H3.6A1 1 0 013 18z",
+  truck: "M3 7h10v9H3zM13 11h4l3 3v2h-7zM7 19a1.5 1.5 0 100-3 1.5 1.5 0 000 3zM17 19a1.5 1.5 0 100-3 1.5 1.5 0 000 3z",
+  home: "M4 11l8-7 8 7M6 10v9a1 1 0 001 1h10a1 1 0 001-1v-9",
+  bag: "M6 7h12l1 13H5zM9 7V5a3 3 0 016 0v2",
 } as const;
 
 export type IconName = keyof typeof PATHS;

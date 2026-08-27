@@ -196,9 +196,13 @@ const bottomActions = computed<BottomAction[]>(() => [
 
 const signingOut = ref(false);
 
+function showFloorPlan(): void {
+  void router.push({ name: "tables", params: { orderType: orderTypes.value[0]?.name ?? "" } });
+}
+
 function onAction(action: BottomAction): void {
   if (action.key === "floor") {
-    void router.push({ name: "tables", params: { orderType: orderTypes.value[0]?.name ?? "" } });
+    showFloorPlan();
   } else if (action.key === "refresh") {
     void refresh();
   } else if (action.key === "sort") {
@@ -261,6 +265,7 @@ const SORT_OPTIONS = [
           :searching="Boolean(search.trim())"
           :scope="maySeeEveryone ? scope : null"
           @open="resume"
+          @floor-plan="showFloorPlan"
           @update:scope="scope = $event"
         />
       </div>

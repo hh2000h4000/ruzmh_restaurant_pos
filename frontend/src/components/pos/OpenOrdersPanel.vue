@@ -21,6 +21,7 @@ defineProps<{
 
 const emit = defineEmits<{
   open: [order: OpenOrder];
+  floorPlan: [];
   "update:scope": [scope: "mine" | "all"];
 }>();
 
@@ -116,6 +117,7 @@ function whereLabel(order: OpenOrder): string {
           :key="order.name"
           :order="order"
           @open="emit('open', order)"
+          @floor-plan="emit('floorPlan')"
         />
       </div>
 

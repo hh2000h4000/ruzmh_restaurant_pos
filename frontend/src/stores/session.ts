@@ -55,6 +55,22 @@ export const useSessionStore = defineStore("session", () => {
     return Number(data.value?.permissions?.[key] ?? 0);
   }
 
+  /**
+   * What this item costs on an order of this type (FR-1.6).
+   *
+   * A delivery platform takes a commission, so its menu is priced above the
+   * dining room's. The server sends every list the terminal can sell from, so
+   * this answers correctly during an outage too.
+   *
+   * `null` means no price is configured, which is not the same as free: the
+   * backend refuses to sell it (D-020).
+   */
+  function priceOf(item: CatalogItem, orderType: OrderType | null): number | null {
+    const list = orderType?.selling_price_list;
+    if (list) return item.rates[list] ?? null;
+    return item.rate;
+  }
+
   /** Items a given order type hides (FR-1.1). */
   function visibleItems(orderType: OrderType | null): CatalogItem[] {
     if (!orderType?.hidden_item_groups.length) return items.value;
@@ -126,6 +142,7 @@ export const useSessionStore = defineStore("session", () => {
     itemsByCode,
     can,
     maxDiscount,
+    priceOf,
     visibleItems,
     load,
     clear,

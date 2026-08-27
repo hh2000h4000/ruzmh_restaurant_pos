@@ -141,14 +141,15 @@ def load_pos_session(pos_profile: str) -> dict:
 		else None
 	)
 
-	items, item_groups = _catalog(profile)
+	order_types = _order_types(profile)
+	items, item_groups = _catalog(profile, order_types)
 
 	return {
 		"pos_profile": profile,
 		"restaurant_section": section,
 		"branch": _branch(profile.branch),
 		"screen_layout": _screen_layout(profile.screen_layout),
-		"order_types": _order_types(profile),
+		"order_types": order_types,
 		"payment_methods": _payment_methods(pos_profile),
 		"active_shift": _active_shift(profile),
 		"items": items,
@@ -297,6 +298,9 @@ def _order_types(profile) -> list[dict]:
 				"customer_mode": config.customer_mode,
 				"send_to_kitchen_on": config.send_to_kitchen_on,
 				"sort_order": config.sort_order,
+				# FR-1.6 — a delivery platform's menu is priced above the dining
+				# room's. Empty means the terminal's own list.
+				"selling_price_list": config.selling_price_list,
 				"hidden_item_groups": [row.item_group for row in config.hidden_item_groups],
 				"additional_fields": [
 					{
@@ -349,12 +353,18 @@ def _active_shift(profile) -> dict | None:
 	return shift if shift and shift.status == "open" else None
 
 
-def _catalog(profile) -> tuple[list[dict], list[dict]]:
+def _catalog(profile, order_types: list[dict]) -> tuple[list[dict], list[dict]]:
 	"""The menu, assembled in a fixed number of queries regardless of its size.
 
 	Prices, modifier groups and item groups are each fetched once and joined in
 	memory. Looking any of them up per item is the N+1 pattern that would make
 	login crawl on a real menu (``04`` §8).
+
+	**Every price list the terminal can sell from is included**, not just the
+	terminal's own: an order type may price its menu differently (FR-1.6), and
+	the app is expected to keep working through an outage, so it cannot fetch
+	the delivery prices later. That is one extra query per distinct list, and a
+	shop has two or three.
 	"""
 	items = frappe.get_all(
 		"Item",
@@ -375,18 +385,25 @@ def _catalog(profile) -> tuple[list[dict], list[dict]]:
 
 	codes = [row.item_code for row in items]
 
-	prices = {}
+	wanted = {row["selling_price_list"] for row in order_types if row.get("selling_price_list")}
 	if profile.selling_price_list:
+		wanted.add(profile.selling_price_list)
+
+	#: {price_list: {item_code: rate}}
+	by_list: dict[str, dict[str, float]] = {name: {} for name in wanted}
+	if wanted:
 		for row in frappe.get_all(
 			"Item Price",
 			filters={
-				"price_list": profile.selling_price_list,
+				"price_list": ("in", list(wanted)),
 				"selling": 1,
 				"item_code": ("in", codes),
 			},
-			fields=["item_code", "price_list_rate"],
+			fields=["item_code", "price_list", "price_list_rate"],
 		):
-			prices[row.item_code] = flt(row.price_list_rate)
+			by_list[row.price_list][row.item_code] = flt(row.price_list_rate)
+
+	prices = by_list.get(profile.selling_price_list, {})
 
 	modifiers: dict[str, list[str]] = {}
 	for row in frappe.get_all(
@@ -401,6 +418,13 @@ def _catalog(profile) -> tuple[list[dict], list[dict]]:
 		# None, not 0: an item with no price cannot be sold, and the UI must be
 		# able to tell that apart from a deliberately free item (D-020).
 		row.rate = prices.get(row.item_code)
+		# Only the lists that differ from the terminal's; the common case adds
+		# nothing to the payload.
+		row.rates = {
+			name: rates[row.item_code]
+			for name, rates in by_list.items()
+			if name != profile.selling_price_list and row.item_code in rates
+		}
 		row.modifier_groups = modifiers.get(row.item_code, [])
 		row.display_name = row.pos_display_name_ar or row.item_name
 

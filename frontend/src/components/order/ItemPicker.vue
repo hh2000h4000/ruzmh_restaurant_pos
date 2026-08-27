@@ -61,7 +61,7 @@ function itemFor(code: string | null): CatalogItem | undefined {
 }
 
 function pick(item: CatalogItem | undefined): void {
-  if (!item || item.rate === null || props.disabled) return;
+  if (!item || priceOf(item) === null || props.disabled) return;
   emit("pick", item);
 }
 
@@ -120,6 +120,11 @@ function label(button: LayoutButton): string {
 function itemName(item: CatalogItem): string {
   return localized(item.pos_display_name_ar, item.item_name);
 }
+
+/** FR-1.6 — an order type may sell from its own price list. */
+function priceOf(item: CatalogItem): number | null {
+  return session.priceOf(item, props.orderType);
+}
 </script>
 
 <template>
@@ -146,15 +151,15 @@ function itemName(item: CatalogItem): string {
         :key="item.item_code"
         type="button"
         class="flex min-h-tap flex-col items-start rounded-rpos bg-surface p-3 text-start shadow-sm disabled:opacity-50"
-        :disabled="item.rate === null || disabled"
+        :disabled="priceOf(item) === null || disabled"
         @click="pick(item)"
       >
         <span class="text-sm font-medium">{{ itemName(item) }}</span>
         <span
-          v-if="item.rate !== null"
+          v-if="priceOf(item) !== null"
           class="rpos-numeric text-xs text-muted"
         >
-          {{ formatNumber(item.rate, 2) }}
+          {{ formatNumber(priceOf(item)!, 2) }}
         </span>
         <span
           v-else
@@ -187,15 +192,15 @@ function itemName(item: CatalogItem): string {
           :key="item.item_code"
           type="button"
           class="flex min-h-[5rem] flex-col items-start rounded-rpos bg-surface p-3 text-start shadow-sm disabled:opacity-50"
-          :disabled="item.rate === null || disabled"
+          :disabled="priceOf(item) === null || disabled"
           @click="pick(item)"
         >
           <span class="text-sm font-medium">{{ itemName(item) }}</span>
           <span
-            v-if="item.rate !== null"
+            v-if="priceOf(item) !== null"
             class="rpos-numeric text-xs text-muted"
           >
-            {{ formatNumber(item.rate, 2) }}
+            {{ formatNumber(priceOf(item)!, 2) }}
           </span>
           <span
             v-else

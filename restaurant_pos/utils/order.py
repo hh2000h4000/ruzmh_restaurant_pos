@@ -344,6 +344,23 @@ def _load_item(item: str) -> frappe._dict:
 	return details
 
 
+def price_list_for(order_type: str | None, pos_profile: str) -> str | None:
+	"""Which price list an order of this type sells from (FR-1.6).
+
+	The order type wins when it names one. A delivery platform takes a
+	commission, so its menu is priced above the dining room's, and the shop
+	needs to say that once on the order type rather than per item.
+
+	The terminal's own list is the fallback, which is what every order type used
+	before this existed.
+	"""
+	listed = None
+	if order_type:
+		listed = frappe.db.get_value("Restaurant Order Type", order_type, "selling_price_list")
+
+	return listed or frappe.db.get_value("POS Profile", pos_profile, "selling_price_list")
+
+
 def _resolve_rate(order, item: str, requested_rate: float | None) -> float:
 	"""The selling price, from the price list — not from the client.
 
@@ -355,7 +372,7 @@ def _resolve_rate(order, item: str, requested_rate: float | None) -> float:
 	the day's takings. A price list row that says ``0`` is a deliberate free
 	item and is honoured.
 	"""
-	price_list = frappe.db.get_value("POS Profile", order.pos_profile, "selling_price_list")
+	price_list = price_list_for(order.order_type, order.pos_profile)
 	if not price_list:
 		frappe.throw(_("POS Profile {0} has no selling price list.").format(order.pos_profile))
 

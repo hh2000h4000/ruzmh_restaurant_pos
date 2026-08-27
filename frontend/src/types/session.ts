@@ -101,6 +101,8 @@ export interface OrderType {
   customer_mode: "optional" | "required" | "pre_set";
   send_to_kitchen_on: "manual" | "save" | "payment";
   sort_order: number;
+  /** Overrides the terminal's price list for this type (FR-1.6). */
+  selling_price_list: string | null;
   hidden_item_groups: string[];
   additional_fields: OrderTypeField[];
   payment_methods: { method: string; is_forced: 0 | 1; is_default: 0 | 1 }[];
@@ -115,8 +117,11 @@ export interface CatalogItem {
   stock_uom: string;
   image: string | null;
   default_production_center: string | null;
-  /** `null` means no price is configured — not a free item (D-020). */
+  /** The terminal's own price. `null` means none is configured — not a free
+   *  item (D-020). */
   rate: number | null;
+  /** Prices under any *other* list an order type sells from (FR-1.6). */
+  rates: Record<string, number>;
   modifier_groups: string[];
 }
 

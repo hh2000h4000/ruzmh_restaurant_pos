@@ -93,7 +93,7 @@ ORDER_TYPES = [
 	{
 		"title": "Dine In",
 		"title_ar": "محلي",
-		"icon": "🏠",
+		"icon": "home",
 		"color": "#1D4ED8",
 		"requires_table": 1,
 		"requires_cover_count": 1,
@@ -104,7 +104,7 @@ ORDER_TYPES = [
 	{
 		"title": "Takeaway",
 		"title_ar": "سفري",
-		"icon": "🥡",
+		"icon": "bag",
 		"color": "#F59E0B",
 		"requires_table": 0,
 		"requires_cover_count": 0,
@@ -115,7 +115,7 @@ ORDER_TYPES = [
 	{
 		"title": "Delivery",
 		"title_ar": "توصيل خاص",
-		"icon": "🛵",
+		"icon": "truck",
 		"color": "#22C55E",
 		"requires_table": 0,
 		"requires_cover_count": 0,
@@ -147,9 +147,15 @@ APP_ORDER_NUMBER_FIELD = {
 }
 
 DELIVERY_APPS = [
-	{"title": "HungerStation", "title_ar": "هنقرستيشن", "icon": "🛵", "color": "#F59E0B", "sort_order": 4},
-	{"title": "Jahez", "title_ar": "جاهز", "icon": "📱", "color": "#EF4444", "sort_order": 5},
-	{"title": "Talabat", "title_ar": "طلبات", "icon": "📱", "color": "#22C55E", "sort_order": 6},
+	{
+		"title": "HungerStation",
+		"title_ar": "هنقرستيشن",
+		"icon": "mobile",
+		"color": "#F59E0B",
+		"sort_order": 4,
+	},
+	{"title": "Jahez", "title_ar": "جاهز", "icon": "mobile", "color": "#EF4444", "sort_order": 5},
+	{"title": "Talabat", "title_ar": "طلبات", "icon": "mobile", "color": "#22C55E", "sort_order": 6},
 ]
 
 #: A general credit method for corporate accounts (02 §3, "Invoice/Credit").
@@ -177,7 +183,7 @@ APP_ORDER_TYPES = [
 CORPORATE_ORDER_TYPE = {
 	"title": "Corporate",
 	"title_ar": "شركات",
-	"icon": "🏢",
+	"icon": "users",
 	"color": "#6B7280",
 	"requires_table": 0,
 	"requires_cover_count": 0,

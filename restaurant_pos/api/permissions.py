@@ -161,7 +161,7 @@ def list_permission_sets() -> list[dict]:
 
 
 @frappe.whitelist()
-def update_permission_set(role: str, values: dict, branch: str, pos_profile: str) -> dict:
+def update_permission_set(role: str, values: dict | str, branch: str, pos_profile: str) -> dict:
 	"""Apply an edit to a role's permission set (FR-12.4, FR-12.6, FR-12.7)."""
 	values = frappe.parse_json(values) if isinstance(values, str) else values
 	perms.validate_branch_access(branch)

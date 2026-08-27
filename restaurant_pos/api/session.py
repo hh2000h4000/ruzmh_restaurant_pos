@@ -505,7 +505,7 @@ def _promotions(branch: str | None) -> list[dict]:
 
 
 @frappe.whitelist()
-def get_modifier_groups(groups: list | None = None) -> list[dict]:
+def get_modifier_groups(groups: list | str | None = None) -> list[dict]:
 	"""Modifier groups with their options, for the item popup (FR-4.4)."""
 	if isinstance(groups, str):
 		groups = frappe.parse_json(groups)

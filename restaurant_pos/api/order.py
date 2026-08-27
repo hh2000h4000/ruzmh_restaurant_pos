@@ -44,7 +44,7 @@ def create_order(
 	customer: str | None = None,
 	cover_count: int | None = None,
 	waiter: str | None = None,
-	order_type_data: dict | None = None,
+	order_type_data: dict | str | None = None,
 	notes: str | None = None,
 	queue_id: str | None = None,
 ) -> dict:
@@ -89,7 +89,7 @@ def add_item(
 	order_name: str,
 	item: str,
 	qty: float = 1,
-	modifiers: list | None = None,
+	modifiers: list | str | None = None,
 	notes: str | None = None,
 	course: int | None = None,
 	rate: float | None = None,

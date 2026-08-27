@@ -21,7 +21,7 @@ from restaurant_pos.utils.permissions import get_pos_permission_set, validate_br
 @frappe.whitelist()
 def process_payment(
 	order_name: str,
-	payments: list,
+	payments: list | str,
 	discount_type: str | None = None,
 	discount_value: float = 0,
 	promotion_applied: str | None = None,

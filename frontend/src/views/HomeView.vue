@@ -226,7 +226,14 @@ const SORT_OPTIONS = [
 </script>
 
 <template>
-  <div class="flex min-h-0 flex-1 flex-col bg-background">
+  <!--
+    The screen is three rows: the header, the working area, and the action bar.
+    `minmax(0, 1fr)` on the middle one is the whole trick — a plain `1fr` track
+    refuses to shrink below its content, which is how a list stops scrolling and
+    pushes the bar off the screen. The outer rows size to their content, so the
+    bar is always exactly where it was.
+  -->
+  <div class="grid h-full grid-rows-[auto_minmax(0,1fr)_auto] bg-background">
     <PosHeader
       v-model:search="search"
       :subtitle="sectionTitle"
@@ -236,7 +243,7 @@ const SORT_OPTIONS = [
          instead of showing buttons that will be refused. -->
     <section
       v-if="!session.hasOpenShift"
-      class="m-auto max-w-md rounded-rpos bg-surface p-10 text-center shadow-card"
+      class="m-auto max-w-md self-center justify-self-center rounded-rpos bg-surface p-10 text-center shadow-card"
     >
       <p class="mb-2 text-lg font-semibold">
         {{ t("home.shiftRequired") }}
@@ -246,9 +253,13 @@ const SORT_OPTIONS = [
       </p>
     </section>
 
+    <!--
+      The working area is two columns: how to open an order, and what is open.
+      The column narrows on smaller terminals rather than squeezing the floor.
+    -->
     <div
       v-else
-      class="flex min-h-0 flex-1"
+      class="grid min-h-0 grid-cols-[270px_minmax(0,1fr)] xl:grid-cols-[300px_minmax(0,1fr)] 2xl:grid-cols-[320px_minmax(0,1fr)]"
     >
       <OrderTypeSidebar
         :order-types="orderTypes"
@@ -256,7 +267,7 @@ const SORT_OPTIONS = [
         @open="open"
       />
 
-      <div class="flex min-w-0 flex-1 flex-col p-5 ps-0">
+      <div class="grid min-h-0 grid-rows-[minmax(0,1fr)] p-5 ps-0">
         <OpenOrdersPanel
           v-model:view="view"
           :orders="visibleOrders"
@@ -271,7 +282,7 @@ const SORT_OPTIONS = [
       </div>
     </div>
 
-    <div class="relative shrink-0">
+    <div class="relative">
       <!-- Anchored to the bar so it opens over the floor, not under it. -->
       <div
         v-if="sortOpen"

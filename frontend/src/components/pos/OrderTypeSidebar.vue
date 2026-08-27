@@ -61,7 +61,7 @@ function subtitle(orderType: OrderType): string {
 </script>
 
 <template>
-  <aside class="flex w-[320px] shrink-0 flex-col gap-4 overflow-y-auto p-5 xl:w-[300px] 2xl:w-[320px]">
+  <aside class="flex min-h-0 min-w-0 flex-col gap-4 overflow-y-auto p-5">
     <h2 class="text-center text-lg font-semibold">
       {{ t("home.newOrder") }}
     </h2>

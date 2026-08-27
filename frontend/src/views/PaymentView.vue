@@ -167,7 +167,7 @@ async function confirm(): Promise<void> {
 </script>
 
 <template>
-  <main class="flex min-h-0 flex-1 flex-col">
+  <main class="flex h-full min-h-0 flex-col">
     <header class="flex items-center gap-3 border-b border-line bg-surface px-4 py-3">
       <RouterLink
         :to="{ name: 'order', params: { orderName } }"

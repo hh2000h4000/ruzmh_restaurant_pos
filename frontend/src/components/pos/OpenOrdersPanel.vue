@@ -41,73 +41,82 @@ function whereLabel(order: OpenOrder): string {
 </script>
 
 <template>
-  <section class="flex min-w-0 flex-1 flex-col rounded-rpos bg-surface p-6 shadow-card">
-    <div class="mb-5 flex flex-wrap items-start justify-between gap-4">
-      <div>
-        <h2 class="flex items-center gap-2 text-2xl font-bold">
-          <AppIcon
-            name="document"
-            :size="26"
-          />
-          {{ t("home.openOrders") }}
-        </h2>
-        <p class="mt-1 text-base text-muted">
-          <span class="rpos-numeric font-bold text-primary">{{ formatNumber(orders.length) }}</span>
-          {{ t("home.openOrdersUnit") }}
-        </p>
-      </div>
-
-      <div class="flex flex-wrap items-center gap-2.5">
-        <!-- Only for someone who may see the whole floor. The backend enforces
-             the same rule regardless (FR-12.3). -->
-        <div
-          v-if="scope"
-          class="flex rounded-full bg-background p-1"
-          role="group"
-        >
-          <button
-            v-for="option in (['mine', 'all'] as const)"
-            :key="option"
-            type="button"
-            class="min-h-tap rounded-full px-6 text-sm font-semibold transition duration-200 ease-rpos"
-            :class="scope === option ? 'bg-primary text-primary-contrast' : 'text-muted'"
-            :aria-pressed="scope === option"
-            @click="emit('update:scope', option)"
-          >
-            {{ option === "mine" ? t("home.scopeMine") : t("home.scopeAll") }}
-          </button>
-        </div>
-
-        <div class="flex h-[50px] w-[120px] rounded-rpos bg-background p-1">
-          <button
-            v-for="option in (['grid', 'list'] as const)"
-            :key="option"
-            type="button"
-            class="grid flex-1 place-items-center rounded-[0.75rem] transition duration-200 ease-rpos"
-            :class="view === option ? 'bg-primary text-primary-contrast shadow-card' : 'text-muted'"
-            :aria-pressed="view === option"
-            :aria-label="option === 'grid' ? t('home.viewGrid') : t('home.viewList')"
-            :title="option === 'grid' ? t('home.viewGrid') : t('home.viewList')"
-            @click="view = option"
-          >
+  <!--
+    Two rows: the toolbar sizes to its content, the list takes what is left and
+    scrolls inside it. Both rows are declared here rather than left to flex, so
+    the list cannot grow the panel and take the page with it.
+  -->
+  <section
+    class="grid min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)] rounded-rpos bg-surface p-6 shadow-card"
+  >
+    <div>
+      <div class="mb-5 flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h2 class="flex items-center gap-2 text-2xl font-bold">
             <AppIcon
-              :name="option"
-              :size="22"
+              name="document"
+              :size="26"
             />
-          </button>
+            {{ t("home.openOrders") }}
+          </h2>
+          <p class="mt-1 text-base text-muted">
+            <span class="rpos-numeric font-bold text-primary">{{ formatNumber(orders.length) }}</span>
+            {{ t("home.openOrdersUnit") }}
+          </p>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2.5">
+          <!-- Only for someone who may see the whole floor. The backend enforces
+               the same rule regardless (FR-12.3). -->
+          <div
+            v-if="scope"
+            class="flex rounded-full bg-background p-1"
+            role="group"
+          >
+            <button
+              v-for="option in (['mine', 'all'] as const)"
+              :key="option"
+              type="button"
+              class="min-h-tap rounded-full px-6 text-sm font-semibold transition duration-200 ease-rpos"
+              :class="scope === option ? 'bg-primary text-primary-contrast' : 'text-muted'"
+              :aria-pressed="scope === option"
+              @click="emit('update:scope', option)"
+            >
+              {{ option === "mine" ? t("home.scopeMine") : t("home.scopeAll") }}
+            </button>
+          </div>
+
+          <div class="flex h-[50px] w-[120px] rounded-rpos bg-background p-1">
+            <button
+              v-for="option in (['grid', 'list'] as const)"
+              :key="option"
+              type="button"
+              class="grid flex-1 place-items-center rounded-[0.75rem] transition duration-200 ease-rpos"
+              :class="view === option ? 'bg-primary text-primary-contrast shadow-card' : 'text-muted'"
+              :aria-pressed="view === option"
+              :aria-label="option === 'grid' ? t('home.viewGrid') : t('home.viewList')"
+              :title="option === 'grid' ? t('home.viewGrid') : t('home.viewList')"
+              @click="view = option"
+            >
+              <AppIcon
+                :name="option"
+                :size="22"
+              />
+            </button>
+          </div>
         </div>
       </div>
+
+      <p
+        v-if="error"
+        role="alert"
+        class="mb-3 rounded-rpos bg-danger/10 p-3 text-sm text-danger"
+      >
+        {{ error }}
+      </p>
     </div>
 
-    <p
-      v-if="error"
-      role="alert"
-      class="mb-3 rounded-rpos bg-danger/10 p-3 text-sm text-danger"
-    >
-      {{ error }}
-    </p>
-
-    <div class="min-h-0 flex-1 overflow-y-auto">
+    <div class="min-h-0 overflow-y-auto">
       <div
         v-if="orders.length && view === 'list'"
         class="flex flex-col gap-3.5"

@@ -72,10 +72,13 @@ onUnmounted(connection.stop);
       </button>
     </div>
 
-    <!-- `min-h-0` is what lets a screen inside this column shrink instead of
-         pushing a bottom bar off the window. Screens own their own scrolling;
-         this box never scrolls. -->
-    <div class="flex min-h-0 flex-1 flex-col overflow-hidden">
+    <!--
+      One grid row, `minmax(0, 1fr)` tall. The screen inside it is a grid item,
+      so it stretches to exactly this height with no percentage to resolve and
+      no way to push a bottom bar off the window. Screens own their own
+      scrolling; this box never scrolls.
+    -->
+    <div class="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)] overflow-hidden">
       <RouterView />
     </div>
   </div>

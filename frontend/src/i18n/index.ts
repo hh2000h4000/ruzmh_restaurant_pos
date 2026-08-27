@@ -116,6 +116,32 @@ export function clockTime(at: Date = new Date()): string {
   }).format(at);
 }
 
+/**
+ * A server timestamp, split into the two lines a bill row shows.
+ *
+ * Frappe sends naive local datetimes ("2026-08-26 16:47:00"), which `Date`
+ * reads as UTC once a `T` is added and as local time without one. Replacing the
+ * space keeps it local, which is what the shop's clock says.
+ */
+function parse(value: string): Date {
+  return new Date(value.replace(" ", "T"));
+}
+
+export function dateOnly(value: string): string {
+  return new Intl.DateTimeFormat(numberLocale(), {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(parse(value));
+}
+
+export function timeOnly(value: string): string {
+  return new Intl.DateTimeFormat(numberLocale(), {
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(parse(value));
+}
+
 export function setLocale(next: Locale): void {
   locale.value = next;
 

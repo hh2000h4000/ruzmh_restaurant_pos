@@ -21,6 +21,24 @@ const STATUS = {
   inactive: "#9CA3AF",
 };
 
+/**
+ * Soft accents for chrome — icon tiles, toolbar buttons.
+ *
+ * Decoration, not meaning: nothing here tells a cashier a table is free or an
+ * order is late, so unlike STATUS these carry no operational weight. They live
+ * in this file rather than in a component because a raw hex in a component is
+ * a lint error (03_frontend_vue_rules.md).
+ */
+const ACCENT = {
+  blue: "#3B82F6",
+  teal: "#14B8A6",
+  green: "#10B981",
+  amber: "#F59E0B",
+  violet: "#8B5CF6",
+  rose: "#F43F5E",
+  slate: "#64748B",
+};
+
 /** Order lifecycle, BR-010. Also fixed — cashiers scan by colour. */
 const ORDER = {
   draft: "#22C55E",
@@ -49,6 +67,8 @@ export default {
         content: themed("text"),
         muted: themed("muted"),
         line: themed("border"),
+
+        accent: ACCENT,
 
         // Never themeable — see FR-15.5.
         status: STATUS,

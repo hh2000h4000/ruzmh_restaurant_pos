@@ -19,21 +19,22 @@
 
 :root {
   /* Brand — themeable */
-  --rpos-primary: 29 78 216;
+  --rpos-primary: 22 119 255;
   --rpos-primary-contrast: 255 255 255;
-  --rpos-secondary: 245 158 11;
+  --rpos-secondary: 255 159 67;
   --rpos-secondary-contrast: 255 255 255;
   --rpos-surface: 255 255 255;
-  --rpos-background: 243 244 246;
-  --rpos-text: 17 24 39;
+  --rpos-background: 248 250 253;
+  --rpos-text: 23 32 51;
 
   /* Derived, not themed directly: kept in step with the brand by the store. */
-  --rpos-muted: 107 114 128;
-  --rpos-border: 229 231 235;
+  --rpos-muted: 104 116 138;
+  --rpos-border: 231 235 243;
 
   /* Touch geometry — 06 §Accessibility: nothing smaller than 48px. */
   --rpos-tap-target: 48px;
-  --rpos-radius: 0.875rem;
+  /* 16px cards, per the specification's radius scale. */
+  --rpos-radius: 1rem;
 
   /*
    * Elevation.
@@ -44,9 +45,9 @@
    * a tight contact shadow plus a wider ambient one is how a real card sits on
    * a real surface.
    */
-  --rpos-shadow-card: 0 1px 2px rgb(17 24 39 / 0.04), 0 4px 12px rgb(17 24 39 / 0.06);
-  --rpos-shadow-lift: 0 2px 4px rgb(17 24 39 / 0.06), 0 12px 28px rgb(17 24 39 / 0.1);
-  --rpos-shadow-bar: 0 1px 0 rgb(17 24 39 / 0.06);
+  --rpos-shadow-card: 0 3px 12px rgb(23 32 51 / 0.05);
+  --rpos-shadow-lift: 0 6px 20px rgb(23 32 51 / 0.09);
+  --rpos-shadow-bar: 0 -2px 10px rgb(23 32 51 / 0.04);
 }
 
 html {

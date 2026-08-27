@@ -30,13 +30,13 @@ const STATUS = {
  * a lint error (03_frontend_vue_rules.md).
  */
 const ACCENT = {
-  blue: "#3B82F6",
-  teal: "#14B8A6",
-  green: "#10B981",
-  amber: "#F59E0B",
-  violet: "#8B5CF6",
-  rose: "#F43F5E",
-  slate: "#64748B",
+  blue: "#1677FF",
+  teal: "#13B8A6",
+  green: "#13B8A6",
+  amber: "#FF9F43",
+  violet: "#7357E8",
+  rose: "#E94B87",
+  slate: "#68748A",
 };
 
 /** Order lifecycle, BR-010. Also fixed — cashiers scan by colour. */
@@ -96,9 +96,19 @@ export default {
         tap: "var(--rpos-tap-target)",
       },
       fontFamily: {
-        // System Arabic first; no webfont, because a cashier terminal on a slow
-        // connection must not wait for text.
-        sans: ["'Segoe UI'", "Tahoma", "'Noto Sans Arabic'", "system-ui", "sans-serif"],
+        // Cairo and Tajawal first, used when the terminal already has them.
+        // Nothing is fetched from a CDN: this app has to start during an
+        // outage, and a webfont over a dead link is a screen with no text on
+        // it. Self-hosting the files is the way to guarantee them.
+        sans: [
+          "Cairo",
+          "Tajawal",
+          "'Segoe UI'",
+          "Tahoma",
+          "'Noto Sans Arabic'",
+          "system-ui",
+          "sans-serif",
+        ],
       },
       fontSize: {
         // 06 §Accessibility: nothing below 14px anywhere.

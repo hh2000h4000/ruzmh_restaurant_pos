@@ -32,13 +32,13 @@ from restaurant_pos.utils.permissions import get_pos_permission_set, validate_br
 #: The Vue app reads its colours from here from day one, so no component ever
 #: needs a hardcoded brand colour.
 DEFAULT_THEME = {
-	"primary": "#1D4ED8",
+	"primary": "#1677FF",
 	"primary_contrast": "#FFFFFF",
-	"secondary": "#F59E0B",
+	"secondary": "#FF9F43",
 	"secondary_contrast": "#FFFFFF",
 	"surface": "#FFFFFF",
-	"background": "#F3F4F6",
-	"text": "#111827",
+	"background": "#F8FAFD",
+	"text": "#172033",
 	"brand_logo": None,
 }
 

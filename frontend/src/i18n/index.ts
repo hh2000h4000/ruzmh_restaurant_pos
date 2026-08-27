@@ -108,6 +108,14 @@ export function money(value: number, currency = "SAR"): string {
   return `${formatNumber(value, 2)} ${currency === "SAR" ? t("currency.sar") : currency}`;
 }
 
+/** Wall-clock time for the header. Latin digits, for the reason above. */
+export function clockTime(at: Date = new Date()): string {
+  return new Intl.DateTimeFormat(numberLocale(), {
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(at);
+}
+
 export function setLocale(next: Locale): void {
   locale.value = next;
 

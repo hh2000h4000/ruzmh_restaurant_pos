@@ -33,7 +33,20 @@
 
   /* Touch geometry — 06 §Accessibility: nothing smaller than 48px. */
   --rpos-tap-target: 48px;
-  --rpos-radius: 0.75rem;
+  --rpos-radius: 0.875rem;
+
+  /*
+   * Elevation.
+   *
+   * A till is read at arm's length under bright light, where a flat grey box on
+   * a flat grey page has no edge at all. These are deliberately soft and
+   * layered rather than the single hard drop shadow that dates an interface:
+   * a tight contact shadow plus a wider ambient one is how a real card sits on
+   * a real surface.
+   */
+  --rpos-shadow-card: 0 1px 2px rgb(17 24 39 / 0.04), 0 4px 12px rgb(17 24 39 / 0.06);
+  --rpos-shadow-lift: 0 2px 4px rgb(17 24 39 / 0.06), 0 12px 28px rgb(17 24 39 / 0.1);
+  --rpos-shadow-bar: 0 1px 0 rgb(17 24 39 / 0.06);
 }
 
 html {

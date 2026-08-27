@@ -57,6 +57,17 @@ export default {
       },
       borderRadius: {
         rpos: "var(--rpos-radius)",
+        "rpos-lg": "calc(var(--rpos-radius) * 1.4)",
+      },
+      boxShadow: {
+        card: "var(--rpos-shadow-card)",
+        lift: "var(--rpos-shadow-lift)",
+        bar: "var(--rpos-shadow-bar)",
+      },
+      transitionTimingFunction: {
+        // A touch UI feels responsive when motion decelerates quickly rather
+        // than easing in — the press should look like it has already happened.
+        rpos: "cubic-bezier(0.16, 1, 0.3, 1)",
       },
       minWidth: {
         tap: "var(--rpos-tap-target)",

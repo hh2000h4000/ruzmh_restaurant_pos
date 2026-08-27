@@ -4,7 +4,7 @@ import { useRouter } from "vue-router";
 
 import { getOpenOrders, type OpenOrder } from "@/api/order";
 import LocaleToggle from "@/components/LocaleToggle.vue";
-import { money, pick, t, tn } from "@/i18n";
+import { clockTime, money, pick, t, tn } from "@/i18n";
 import { useSessionStore } from "@/stores/session";
 import type { OrderType } from "@/types/session";
 
@@ -33,12 +33,27 @@ function open(orderType: OrderType): void {
 }
 
 // --------------------------------------------------------------------------
-// Open orders
+// The floor
 // --------------------------------------------------------------------------
 
 const openOrders = ref<OpenOrder[]>([]);
 const ordersError = ref<string | null>(null);
 const loadingOrders = ref(false);
+
+/** "Mine" is the default even for a supervisor: it is the smaller, calmer list. */
+const scope = ref<"mine" | "all">("mine");
+
+/**
+ * Whether the "all" tab exists at all. The backend enforces the same rule —
+ * without the right it simply does not return other people's orders — so this
+ * only decides whether an empty tab is worth showing.
+ */
+const maySeeEveryone = computed(() => session.can("can_view_all_orders"));
+
+const visibleOrders = computed(() => {
+  if (!maySeeEveryone.value || scope.value === "all") return openOrders.value;
+  return openOrders.value.filter((order) => order.cashier === session.data?.user);
+});
 
 /** Cheap enough to poll, and a stale card sends a cashier to the wrong table. */
 const REFRESH_MS = 15_000;
@@ -65,14 +80,21 @@ function onVisibilityChange(): void {
   if (document.visibilityState === "visible") void refresh();
 }
 
+// The clock is part of the furniture on a till: staff read it off this screen
+// all shift. Minutes, not seconds — a second hand is motion nobody asked for.
+const now = ref(clockTime());
+let clock: number | undefined;
+
 onMounted(() => {
   void refresh();
   timer = window.setInterval(refresh, REFRESH_MS);
+  clock = window.setInterval(() => (now.value = clockTime()), 15_000);
   document.addEventListener("visibilitychange", onVisibilityChange);
 });
 
 onUnmounted(() => {
   window.clearInterval(timer);
+  window.clearInterval(clock);
   document.removeEventListener("visibilitychange", onVisibilityChange);
 });
 
@@ -85,15 +107,24 @@ function resume(order: OpenOrder): void {
  * also spells its status out (06 §Accessibility).
  */
 const STATUS_CLASS: Record<OpenOrder["status"], string> = {
-  draft: "bg-order-draft",
-  active: "bg-order-active",
-  in_kitchen: "bg-order-in_kitchen",
-  pending_payment: "bg-order-pending_payment",
+  draft: "bg-order-draft/10 text-order-draft",
+  active: "bg-order-active/10 text-order-active",
+  in_kitchen: "bg-order-in_kitchen/10 text-order-in_kitchen",
+  pending_payment: "bg-order-pending_payment/10 text-order-pending_payment",
 };
 
 function whereLabel(order: OpenOrder): string {
   if (order.table_number) return t("card.table", { number: order.table_number });
   return pick(order.order_type_title_ar, order.order_type_title);
+}
+
+const cashierName = computed(() => session.data?.user_name || session.data?.user || "");
+
+/** First letter of the name on duty, for the header badge. */
+const cashierInitial = computed(() => cashierName.value.trim().charAt(0) || "?");
+
+function goToFloorPlan(): void {
+  void router.push({ name: "tables", params: { orderType: orderTypes.value[0]?.name ?? "" } });
 }
 
 /**
@@ -103,41 +134,56 @@ function whereLabel(order: OpenOrder): string {
  * a busy till that is how a refund lands on the wrong bill. Order actions live
  * on the order screen, where the order is unambiguous and every one of them is
  * permission-checked.
- *
- * These three screens are not built yet, so they are disabled rather than
- * routed somewhere empty — a dead button hides what is missing.
  */
-const bottomActions = [
-  { key: "home.closedInvoices", icon: "📋" },
+const pendingScreens = [
+  { key: "home.closedInvoices", icon: "🧾" },
   { key: "home.reservations", icon: "📅" },
   { key: "home.shiftReport", icon: "📊" },
 ] as const;
+
+/** Only offered when a table-service type exists to open an order from. */
+const canShowFloorPlan = computed(() =>
+  orderTypes.value.some((orderType) => orderType.requires_table),
+);
 </script>
 
 <template>
-  <div class="flex h-screen flex-col">
-    <header class="flex flex-wrap items-center justify-between gap-3 border-b border-line px-4 py-3">
-      <div>
-        <h1 class="text-xl font-semibold">
+  <div class="flex h-screen flex-col bg-background">
+    <header
+      class="flex flex-wrap items-center justify-between gap-4 border-b border-line bg-surface px-5 py-3 shadow-bar"
+    >
+      <div class="min-w-0">
+        <h1 class="truncate text-xl font-semibold tracking-tight">
           {{ sectionTitle }}
         </h1>
-        <p class="text-sm text-muted">
+        <p class="truncate text-sm text-muted">
           {{ session.data?.pos_profile.name }}
         </p>
       </div>
 
       <div class="flex items-center gap-3">
-        <div
-          v-if="session.hasOpenShift"
-          class="rounded-rpos bg-status-available/10 px-3 py-1.5 text-sm text-status-available"
+        <span
+          class="rpos-numeric hidden text-2xl font-semibold tabular-nums sm:block"
+          aria-hidden="true"
+        >{{ now }}</span>
+
+        <span
+          class="rounded-full px-3 py-1.5 text-sm font-medium"
+          :class="
+            session.hasOpenShift
+              ? 'bg-status-available/10 text-status-available'
+              : 'bg-status-reserved/10 text-status-reserved'
+          "
         >
-          {{ t("home.shiftOpen") }}
-        </div>
-        <div
-          v-else
-          class="rounded-rpos bg-status-reserved/10 px-3 py-1.5 text-sm text-status-reserved"
-        >
-          {{ t("home.shiftClosed") }}
+          {{ session.hasOpenShift ? t("home.shiftOpen") : t("home.shiftClosed") }}
+        </span>
+
+        <div class="flex items-center gap-2">
+          <span
+            class="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-primary/10 text-sm font-semibold uppercase text-primary"
+            aria-hidden="true"
+          >{{ cashierInitial }}</span>
+          <span class="hidden text-sm font-medium md:block">{{ cashierName }}</span>
         </div>
 
         <LocaleToggle />
@@ -148,9 +194,9 @@ const bottomActions = [
          instead of showing buttons that will be refused. -->
     <section
       v-if="!session.hasOpenShift"
-      class="m-4 rounded-rpos bg-surface p-6 text-center"
+      class="m-auto max-w-md rounded-rpos-lg bg-surface p-10 text-center shadow-card"
     >
-      <p class="mb-2">
+      <p class="mb-2 text-lg font-medium">
         {{ t("home.shiftRequired") }}
       </p>
       <p class="text-sm text-muted">
@@ -165,8 +211,8 @@ const bottomActions = [
       <!-- Order types. The column sits at the inline start, so it follows the
            document direction: right in Arabic, left in English, with no
            direction-specific CSS. -->
-      <aside class="w-40 shrink-0 overflow-y-auto border-e border-line bg-surface p-3 sm:w-48">
-        <h2 class="mb-3 text-sm font-medium text-muted">
+      <aside class="w-44 shrink-0 overflow-y-auto border-e border-line bg-surface p-3 lg:w-56">
+        <h2 class="mb-3 px-1 text-xs font-semibold uppercase tracking-wider text-muted">
           {{ t("home.newOrder") }}
         </h2>
 
@@ -175,114 +221,198 @@ const bottomActions = [
             v-for="orderType in orderTypes"
             :key="orderType.name"
             type="button"
-            class="flex min-h-tap items-center gap-2 rounded-rpos bg-background p-3 text-start shadow-sm transition hover:shadow focus:outline-none focus:ring-2 focus:ring-primary"
-            :style="orderType.color ? { borderInlineStartWidth: '4px', borderInlineStartColor: orderType.color } : undefined"
+            class="group relative flex min-h-tap items-center gap-3 overflow-hidden rounded-rpos bg-background px-3 py-3 text-start transition duration-200 ease-rpos hover:-translate-y-px hover:shadow-card focus:outline-none focus:ring-2 focus:ring-primary"
             @click="open(orderType)"
           >
+            <!-- The type's own colour, as a spine rather than a fill: it marks
+                 the row without fighting the text for contrast. -->
+            <span
+              class="absolute inset-y-0 start-0 w-1"
+              :style="{ backgroundColor: orderType.color ?? 'transparent' }"
+              aria-hidden="true"
+            />
             <span
               v-if="orderType.icon"
-              class="text-2xl"
+              class="text-2xl leading-none"
               aria-hidden="true"
             >{{ orderType.icon }}</span>
-            <span class="text-sm font-medium">{{ pick(orderType.title_ar, orderType.title) }}</span>
+            <span class="truncate text-sm font-medium">
+              {{ pick(orderType.title_ar, orderType.title) }}
+            </span>
           </button>
         </div>
 
         <p
           v-if="!orderTypes.length"
-          class="text-sm text-muted"
+          class="px-1 text-sm text-muted"
         >
           {{ t("home.noOrderTypes") }}
         </p>
       </aside>
 
-      <!-- Open orders -->
-      <main class="min-w-0 flex-1 overflow-y-auto p-4">
-        <div class="mb-3 flex items-center justify-between gap-3">
-          <h2 class="text-sm font-medium text-muted">
-            {{ t("home.openOrders") }} — {{ tn("count.openOrders", openOrders.length) }}
+      <!-- The floor -->
+      <main class="flex min-w-0 flex-1 flex-col">
+        <div class="flex flex-wrap items-center justify-between gap-3 px-5 py-3">
+          <h2 class="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted">
+            {{ t("home.openOrders") }}
+            <span class="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">
+              {{ visibleOrders.length }}
+            </span>
           </h2>
-          <button
-            type="button"
-            class="rounded-rpos px-2 py-1 text-sm text-muted underline disabled:opacity-50"
-            :disabled="loadingOrders"
-            @click="refresh"
-          >
-            {{ loadingOrders ? t("common.loading") : t("action.refresh") }}
-          </button>
+
+          <div class="flex items-center gap-2">
+            <!-- Shown only to someone who may see the whole floor; the backend
+                 enforces the same rule regardless (FR-12.3). -->
+            <div
+              v-if="maySeeEveryone"
+              class="flex rounded-full bg-surface p-1 shadow-card"
+              role="group"
+            >
+              <button
+                v-for="option in (['mine', 'all'] as const)"
+                :key="option"
+                type="button"
+                class="min-h-tap rounded-full px-5 text-sm font-medium transition duration-200 ease-rpos"
+                :class="
+                  scope === option ? 'bg-primary text-primary-contrast shadow-card' : 'text-muted'
+                "
+                :aria-pressed="scope === option"
+                @click="scope = option"
+              >
+                {{ option === "mine" ? t("home.scopeMine") : t("home.scopeAll") }}
+              </button>
+            </div>
+
+            <button
+              type="button"
+              class="grid h-12 w-12 place-items-center rounded-full bg-surface text-muted shadow-card transition duration-200 ease-rpos hover:text-content disabled:opacity-50"
+              :disabled="loadingOrders"
+              :aria-label="t('action.refresh')"
+              :title="t('action.refresh')"
+              @click="refresh"
+            >
+              <span
+                class="text-lg"
+                :class="{ 'animate-spin': loadingOrders }"
+                aria-hidden="true"
+              >⟳</span>
+            </button>
+          </div>
         </div>
 
-        <p
-          v-if="ordersError"
-          role="alert"
-          class="mb-3 rounded-rpos bg-danger/10 p-3 text-sm text-danger"
-        >
-          {{ ordersError }}
-        </p>
-
-        <div
-          v-if="openOrders.length"
-          class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
-        >
-          <button
-            v-for="order in openOrders"
-            :key="order.name"
-            type="button"
-            class="rounded-rpos bg-surface p-3 text-start shadow-sm transition hover:shadow focus:outline-none focus:ring-2 focus:ring-primary"
-            @click="resume(order)"
+        <div class="min-h-0 flex-1 overflow-y-auto px-5 pb-5">
+          <p
+            v-if="ordersError"
+            role="alert"
+            class="mb-3 rounded-rpos bg-danger/10 p-3 text-sm text-danger"
           >
-            <div class="mb-2 flex items-center justify-between gap-2">
-              <span class="truncate font-medium">
-                <span
-                  v-if="order.icon"
-                  aria-hidden="true"
-                >{{ order.icon }} </span>
-                {{ whereLabel(order) }}
-              </span>
-              <span class="shrink-0 text-xs text-muted">{{ order.name }}</span>
-            </div>
+            {{ ordersError }}
+          </p>
 
-            <div class="mb-2 flex flex-wrap gap-x-3 gap-y-1 text-sm text-muted">
-              <span>{{ tn("count.minutes", order.order_minutes) }}</span>
-              <span>{{ tn("count.items", order.item_count) }}</span>
-              <span v-if="order.cover_count">{{ tn("count.covers", order.cover_count) }}</span>
-            </div>
+          <div
+            v-if="visibleOrders.length"
+            class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4"
+          >
+            <button
+              v-for="order in visibleOrders"
+              :key="order.name"
+              type="button"
+              class="group relative flex flex-col gap-3 overflow-hidden rounded-rpos-lg bg-surface p-4 text-start shadow-card transition duration-200 ease-rpos hover:-translate-y-0.5 hover:shadow-lift focus:outline-none focus:ring-2 focus:ring-primary"
+              @click="resume(order)"
+            >
+              <span
+                class="absolute inset-y-0 start-0 w-1"
+                :style="{ backgroundColor: order.color ?? 'transparent' }"
+                aria-hidden="true"
+              />
 
-            <div class="flex items-center justify-between gap-2">
-              <!-- Colour plus words: never colour alone (06 §Accessibility). -->
-              <span class="flex items-center gap-1.5 text-sm">
+              <div class="flex items-start justify-between gap-2">
+                <div class="flex min-w-0 items-center gap-2">
+                  <span
+                    v-if="order.icon"
+                    class="text-xl leading-none"
+                    aria-hidden="true"
+                  >{{ order.icon }}</span>
+                  <span class="truncate text-base font-semibold">{{ whereLabel(order) }}</span>
+                </div>
+
+                <!-- Colour plus words: never colour alone (06 §Accessibility). -->
                 <span
-                  class="inline-block h-2.5 w-2.5 rounded-full"
+                  class="shrink-0 rounded-full px-2.5 py-1 text-xs font-medium"
                   :class="STATUS_CLASS[order.status]"
-                  aria-hidden="true"
-                />
-                {{ t(`status.${order.status}`) }}
-              </span>
-              <span class="font-medium">{{ money(order.total_amount, session.profile?.currency) }}</span>
-            </div>
-          </button>
-        </div>
+                >
+                  {{ t(`status.${order.status}`) }}
+                </span>
+              </div>
 
-        <p
-          v-else-if="!loadingOrders"
-          class="rounded-rpos bg-surface p-6 text-center text-muted"
-        >
-          {{ t("home.openOrdersEmpty") }}
-        </p>
+              <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted">
+                <span>{{ tn("count.minutes", order.order_minutes) }}</span>
+                <span aria-hidden="true">·</span>
+                <span>{{ tn("count.items", order.item_count) }}</span>
+                <template v-if="order.cover_count">
+                  <span aria-hidden="true">·</span>
+                  <span>{{ tn("count.covers", order.cover_count) }}</span>
+                </template>
+              </div>
+
+              <div class="flex items-end justify-between gap-2 border-t border-line pt-3">
+                <div class="min-w-0">
+                  <p class="rpos-numeric truncate text-xs text-muted">
+                    {{ order.name }}
+                  </p>
+                  <p
+                    v-if="order.cashier_name"
+                    class="truncate text-xs text-muted"
+                  >
+                    {{ order.cashier_name }}
+                  </p>
+                </div>
+                <span class="rpos-numeric shrink-0 text-lg font-semibold">
+                  {{ money(order.total_amount, session.profile?.currency) }}
+                </span>
+              </div>
+            </button>
+          </div>
+
+          <div
+            v-else-if="!loadingOrders"
+            class="grid place-items-center rounded-rpos-lg bg-surface/60 px-6 py-16 text-center"
+          >
+            <span
+              class="mb-3 text-4xl opacity-40"
+              aria-hidden="true"
+            >🍽️</span>
+            <p class="text-muted">
+              {{ t("home.openOrdersEmpty") }}
+            </p>
+          </div>
+        </div>
       </main>
     </div>
 
-    <nav class="flex flex-wrap gap-2 border-t border-line px-4 py-2">
+    <nav class="flex flex-wrap gap-2 border-t border-line bg-surface px-5 py-2.5">
       <button
-        v-for="action in bottomActions"
-        :key="action.key"
+        v-if="canShowFloorPlan"
+        type="button"
+        class="flex min-h-tap items-center gap-2 rounded-rpos px-4 text-sm font-medium transition duration-200 ease-rpos hover:bg-background"
+        @click="goToFloorPlan"
+      >
+        <span aria-hidden="true">🪑</span>
+        <span>{{ t("home.floorPlan") }}</span>
+      </button>
+
+      <!-- These screens do not exist yet, so their buttons are visibly
+           unavailable rather than routed somewhere empty. -->
+      <button
+        v-for="screen in pendingScreens"
+        :key="screen.key"
         type="button"
         disabled
-        class="flex min-h-tap items-center gap-2 rounded-rpos px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-50"
+        class="flex min-h-tap items-center gap-2 rounded-rpos px-4 text-sm disabled:cursor-not-allowed disabled:opacity-40"
         :title="t('common.soon')"
       >
-        <span aria-hidden="true">{{ action.icon }}</span>
-        <span>{{ t(action.key) }}</span>
+        <span aria-hidden="true">{{ screen.icon }}</span>
+        <span>{{ t(screen.key) }}</span>
       </button>
     </nav>
   </div>

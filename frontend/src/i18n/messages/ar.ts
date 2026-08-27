@@ -126,6 +126,8 @@ const messages: Catalogue["messages"] = {
   "panel.addSame": "إضافة مثله",
   "panel.empty": "لم تُضف أصناف بعد.",
   "panel.count": "أصناف هذا الطلب",
+  "panel.opened": "فُتح",
+  "panel.covers": "الضيوف",
   "totals.subtotal": "المجموع",
   "totals.discount": "الخصم",
   "totals.tax": "الضريبة",
@@ -136,6 +138,11 @@ const messages: Catalogue["messages"] = {
   "picker.noPrice": "بلا سعر",
   "picker.noResults": "لا نتائج.",
   "picker.empty": "لا توجد أصناف متاحة.",
+  "picker.qty": "الكمية",
+  "picker.qtyMore": "واحد أكثر",
+  "picker.qtyLess": "واحد أقل",
+  "picker.allItems": "كل الأصناف",
+  "picker.priceList": "قائمة الأسعار",
 
   // Modifiers
   "mod.single": "اختيار واحد",

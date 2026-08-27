@@ -129,6 +129,8 @@ export const messages = {
   "panel.addSame": "Add another",
   "panel.empty": "No items added yet.",
   "panel.count": "Items on this order",
+  "panel.opened": "Opened",
+  "panel.covers": "Guests",
   "totals.subtotal": "Subtotal",
   "totals.discount": "Discount",
   "totals.tax": "VAT",
@@ -139,6 +141,11 @@ export const messages = {
   "picker.noPrice": "No price",
   "picker.noResults": "No results.",
   "picker.empty": "No items available.",
+  "picker.qty": "Qty",
+  "picker.qtyMore": "One more",
+  "picker.qtyLess": "One fewer",
+  "picker.allItems": "All items",
+  "picker.priceList": "Price list",
 
   // Modifiers
   "mod.single": "choose one",

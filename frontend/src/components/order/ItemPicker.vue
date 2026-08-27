@@ -18,12 +18,39 @@ import type { CatalogItem, LayoutButton, OrderType } from "@/types/session";
  * Search is always available: on a long menu it beats any grid (Screen 3).
  */
 const props = defineProps<{ orderType: OrderType | null; disabled?: boolean }>();
-const emit = defineEmits<{ pick: [item: CatalogItem] }>();
+const emit = defineEmits<{ pick: [item: CatalogItem, qty: number] }>();
 
 const session = useSessionStore();
 
 const search = ref("");
 const activeGroup = ref<string | null>(null);
+
+/**
+ * How many of the next item to add.
+ *
+ * Six of the same drink is one tap on "6" and one on the drink, not six taps
+ * on the drink — the difference between a queue that moves and one that does
+ * not. It falls back to 1 after every add, because a quantity left standing is
+ * how the next customer gets six of something.
+ */
+const qty = ref(1);
+const MAX_QTY = 99;
+
+function bumpQty(by: number): void {
+  qty.value = Math.min(MAX_QTY, Math.max(1, qty.value + by));
+}
+
+/** Which price list this order sells from, when it is not the terminal's. */
+const priceListName = computed(() => props.orderType?.selling_price_list ?? null);
+
+/** Where in the menu the cashier is, so a drilled-in group is not a dead end. */
+const breadcrumb = computed(() => {
+  if (search.value.trim()) return t("picker.search");
+  if (!activeGroup.value) return t("picker.allItems");
+
+  const group = session.data?.item_groups.find((row) => row.name === activeGroup.value);
+  return group?.item_group_name ?? activeGroup.value;
+});
 
 const available = computed(() => session.visibleItems(props.orderType));
 
@@ -63,7 +90,9 @@ function itemFor(code: string | null): CatalogItem | undefined {
 
 function pick(item: CatalogItem | undefined): void {
   if (!item || priceOf(item) === null || props.disabled) return;
-  emit("pick", item);
+
+  emit("pick", item, qty.value);
+  qty.value = 1;
 }
 
 function onLayoutButton(button: LayoutButton): void {
@@ -132,28 +161,72 @@ function priceOf(item: CatalogItem): number | null {
   <!-- A search field over one scrolling grid: whichever grid the state calls
        for, it is the only thing on this panel that moves. -->
   <div class="grid min-h-0 grid-rows-[auto_minmax(0,1fr)] gap-3">
-    <div>
-      <label
-        class="sr-only"
-        for="item-search"
-      >{{ t("picker.search") }}</label>
-      <div class="relative">
-        <span
-          class="pointer-events-none absolute inset-y-0 start-4 grid place-items-center text-muted"
-        >
-          <AppIcon
-            name="search"
-            :size="20"
-          />
-        </span>
-        <input
-          id="item-search"
-          v-model="search"
-          type="search"
-          :placeholder="t('picker.search')"
-          class="h-[52px] w-full rounded-full bg-background ps-12 pe-4 text-base outline-none transition duration-200 ease-rpos focus:bg-surface focus:ring-2 focus:ring-primary/30"
-        >
+    <div class="flex flex-col gap-3">
+      <div class="flex flex-wrap items-center gap-3">
+        <label
+          class="sr-only"
+          for="item-search"
+        >{{ t("picker.search") }}</label>
+        <div class="relative min-w-0 flex-1">
+          <span
+            class="pointer-events-none absolute inset-y-0 start-4 grid place-items-center text-muted"
+          >
+            <AppIcon
+              name="search"
+              :size="20"
+            />
+          </span>
+          <input
+            id="item-search"
+            v-model="search"
+            type="search"
+            :placeholder="t('picker.search')"
+            class="h-[52px] w-full rounded-full bg-background ps-12 pe-4 text-base outline-none transition duration-200 ease-rpos focus:bg-surface focus:ring-2 focus:ring-primary/30"
+          >
+        </div>
+
+        <!-- Set the quantity, then tap the item. -->
+        <div class="flex h-[52px] shrink-0 items-center gap-1 rounded-full bg-background px-2">
+          <span class="ps-2 text-sm font-medium text-muted">{{ t("picker.qty") }}</span>
+          <button
+            type="button"
+            class="grid h-11 w-11 place-items-center rounded-full text-muted transition duration-200 ease-rpos hover:bg-surface disabled:opacity-40"
+            :disabled="qty <= 1"
+            :aria-label="t('picker.qtyLess')"
+            @click="bumpQty(-1)"
+          >
+            <AppIcon
+              name="minus"
+              :size="20"
+            />
+          </button>
+          <span
+            class="rpos-numeric w-8 text-center text-lg font-bold"
+            aria-live="polite"
+          >{{ formatNumber(qty) }}</span>
+          <button
+            type="button"
+            class="grid h-11 w-11 place-items-center rounded-full text-muted transition duration-200 ease-rpos hover:bg-surface disabled:opacity-40"
+            :disabled="qty >= 99"
+            :aria-label="t('picker.qtyMore')"
+            @click="bumpQty(1)"
+          >
+            <AppIcon
+              name="plus"
+              :size="20"
+            />
+          </button>
+        </div>
       </div>
+
+      <!-- Where you are, and which prices you are seeing (FR-1.6). -->
+      <p class="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted">
+        <span>{{ breadcrumb }}</span>
+        <template v-if="priceListName">
+          <span aria-hidden="true">·</span>
+          <span>{{ t("picker.priceList") }}: {{ priceListName }}</span>
+        </template>
+      </p>
     </div>
 
     <!-- Search wins over whatever else is on screen. -->

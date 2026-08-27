@@ -27,6 +27,7 @@ const orders = useOrderStore();
 
 const startupError = ref<string | null>(null);
 const pendingItem = ref<CatalogItem | null>(null);
+const pendingQty = ref(1);
 const voidTarget = ref<OrderLine | null>(null);
 const voidReason = ref("");
 const cancelling = ref(false);
@@ -107,23 +108,33 @@ onMounted(async () => {
 });
 
 /** FR-2.2 — an item with modifier groups opens the popup first. */
-function onPick(item: CatalogItem): void {
+function onPick(item: CatalogItem, qty: number): void {
   if (item.modifier_groups.length) {
+    // The quantity has to survive the detour, or six coffees with extra milk
+    // arrive as one.
     pendingItem.value = item;
+    pendingQty.value = qty;
     return;
   }
-  void orders.addItem(item.item_code);
+  void orders.addItem(item.item_code, { qty });
 }
 
 function onModifiersConfirmed(payload: { modifiers: ModifierChoice[]; notes: string }): void {
   const item = pendingItem.value;
-  pendingItem.value = null;
+  const qty = pendingQty.value;
+  clearPending();
   if (!item) return;
 
   void orders.addItem(item.item_code, {
+    qty,
     modifiers: payload.modifiers,
     notes: payload.notes || null,
   });
+}
+
+function clearPending(): void {
+  pendingItem.value = null;
+  pendingQty.value = 1;
 }
 
 function repeat(line: OrderLine): void {
@@ -326,7 +337,7 @@ async function send(): Promise<void> {
     <ModifierDialog
       :item="pendingItem"
       @confirm="onModifiersConfirmed"
-      @cancel="pendingItem = null"
+      @cancel="clearPending"
     />
 
     <!-- BR-013: a reason is mandatory, so this cannot be dismissed away. -->

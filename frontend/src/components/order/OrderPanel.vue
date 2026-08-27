@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { OrderDetail, OrderLine } from "@/api/order";
 import AppIcon from "@/components/AppIcon.vue";
-import { formatNumber, pick, t } from "@/i18n";
+import { formatNumber, pick, t, timeOnly } from "@/i18n";
 
 /**
  * The order side of Screen 3: the lines, then the totals.
@@ -44,10 +44,27 @@ function money(value: number): string {
         />
         {{ t("panel.title") }}
       </h2>
-      <span
-        class="rpos-numeric grid h-9 min-w-[2.25rem] place-items-center rounded-full bg-primary/10 px-2 font-bold text-primary"
-        :aria-label="t('panel.count')"
-      >{{ formatNumber(lines.length) }}</span>
+      <div class="flex items-center gap-3">
+        <p
+          v-if="order.cover_count"
+          class="text-sm text-muted"
+        >
+          <span class="rpos-numeric font-semibold text-content">{{
+            formatNumber(order.cover_count)
+          }}</span>
+          {{ t("panel.covers") }}
+        </p>
+        <p
+          v-if="order.opened_at"
+          class="rpos-numeric text-sm text-muted"
+        >
+          {{ timeOnly(order.opened_at) }}
+        </p>
+        <span
+          class="rpos-numeric grid h-9 min-w-[2.25rem] place-items-center rounded-full bg-primary/10 px-2 font-bold text-primary"
+          :aria-label="t('panel.count')"
+        >{{ formatNumber(lines.length) }}</span>
+      </div>
     </header>
 
     <ul
@@ -95,16 +112,17 @@ function money(value: number): string {
             </p>
           </div>
 
-          <p class="rpos-numeric shrink-0 text-lg font-bold">
-            {{ money(line.amount) }}
-          </p>
+          <div class="shrink-0 text-end">
+            <p class="rpos-numeric text-lg font-bold">
+              {{ money(line.amount) }}
+            </p>
+            <p class="rpos-numeric text-sm text-muted">
+              {{ formatNumber(line.qty) }} × {{ money(line.rate) }}
+            </p>
+          </div>
         </div>
 
         <div class="mt-3 flex items-center gap-2">
-          <span
-            class="rpos-numeric grid h-9 min-w-[2.25rem] place-items-center rounded-full bg-background px-2 text-sm font-semibold"
-          >×{{ formatNumber(line.qty) }}</span>
-
           <button
             type="button"
             class="ms-auto flex min-h-tap items-center gap-1.5 rounded-rpos px-3 text-sm font-medium text-primary transition duration-200 ease-rpos hover:bg-primary/10 disabled:opacity-40"

@@ -40,9 +40,8 @@ export const messages = {
   // Device setup
   "setup.signInFirst": "Sign in first, then try again.",
   "setup.title": "Device setup",
-  "setup.hint": "Choose the POS profile for this device.",
-  "setup.profile": "POS profile",
-  "setup.start": "Start",
+  "setup.hint": "Choose the terminal this device is. Asked once.",
+  "setup.empty": "No terminal is available for your user. Ask the manager to add you to a POS profile.",
 
   // Home
   "home.newOrder": "Open a new order",

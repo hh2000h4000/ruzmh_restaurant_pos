@@ -151,19 +151,32 @@ def validate_branch_access(branch: str, user: str | None = None) -> None:
 	directly: no User Permission rows means unrestricted, which is the right
 	default for a single-branch restaurant.
 	"""
+	allowed = allowed_branches(user)
+	if allowed is None or branch in allowed:
+		return
+
+	frappe.throw(
+		_("You do not have access to branch {0}.").format(branch),
+		frappe.PermissionError,
+	)
+
+
+def allowed_branches(user: str | None = None) -> set[str] | None:
+	"""The branches ``user`` is restricted to, or ``None`` for unrestricted.
+
+	``None`` and an empty set mean opposite things, which is why this returns
+	``None`` rather than "all branches": no ``User Permission`` rows means no
+	restriction, and an empty set would lock every cashier out of everything.
+	"""
 	user = user or frappe.session.user
 	if is_superuser(user):
-		return
+		return None
 
 	restricted_to = frappe.permissions.get_user_permissions(user).get("Branch") or []
 	if not restricted_to:
-		return
+		return None
 
-	if branch not in {row.get("doc") for row in restricted_to}:
-		frappe.throw(
-			_("You do not have access to branch {0}.").format(branch),
-			frappe.PermissionError,
-		)
+	return {row.get("doc") for row in restricted_to}
 
 
 # --------------------------------------------------------------------------- #

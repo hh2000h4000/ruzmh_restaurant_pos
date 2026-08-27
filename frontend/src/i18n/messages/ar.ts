@@ -37,9 +37,8 @@ const messages: Catalogue["messages"] = {
   // Device setup
   "setup.signInFirst": "سجّل الدخول أولاً، ثم أعد المحاولة.",
   "setup.title": "تهيئة الجهاز",
-  "setup.hint": "اختر ملف نقطة البيع لهذا الجهاز.",
-  "setup.profile": "ملف نقطة البيع",
-  "setup.start": "ابدأ",
+  "setup.hint": "اختر نقطة البيع الخاصة بهذا الجهاز. يُسأل مرة واحدة فقط.",
+  "setup.empty": "لا توجد نقطة بيع متاحة لحسابك. اطلب من المدير إضافتك إلى نقطة بيع.",
 
   // Home
   "home.newOrder": "افتح طلباً جديداً",

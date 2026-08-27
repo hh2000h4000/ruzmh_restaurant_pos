@@ -44,6 +44,77 @@ DEFAULT_THEME = {
 
 
 @frappe.whitelist()
+def list_pos_profiles() -> list[dict]:
+	"""The terminals this user may bind this device to.
+
+	Shown **once**, when the app is first installed on a till. A cashier does
+	not pick a terminal at the start of every shift: the device belongs to one
+	POS Profile and opens straight onto the cashier screen from then on. A till
+	in Dammam must not be able to start selling on the Riyadh branch because
+	somebody tapped the wrong row (D-035).
+
+	Two filters, both of which have to hold:
+
+	* the profile is enabled and, when it restricts its users, lists this one;
+	* the branch behind it is one this user may act in.
+	"""
+	from restaurant_pos.utils.permissions import allowed_branches
+
+	profiles = frappe.get_all(
+		"POS Profile",
+		filters={"disabled": 0},
+		fields=["name", "company", "restaurant_section"],
+		order_by="name asc",
+	)
+	if not profiles:
+		return []
+
+	sections = {
+		row.name: row
+		for row in frappe.get_all(
+			"Restaurant Section",
+			filters={"name": ("in", list({p.restaurant_section for p in profiles if p.restaurant_section}))},
+			fields=["name", "title", "title_ar", "branch"],
+		)
+	}
+
+	restricted: dict[str, set[str]] = {}
+	for row in frappe.get_all(
+		"POS Profile User",
+		filters={"parenttype": "POS Profile", "parent": ("in", [p.name for p in profiles])},
+		fields=["parent", "user"],
+	):
+		restricted.setdefault(row.parent, set()).add(row.user)
+
+	branches = allowed_branches()
+	user = frappe.session.user
+
+	visible = []
+	for profile in profiles:
+		users = restricted.get(profile.name)
+		if users and user not in users:
+			continue
+
+		section = sections.get(profile.restaurant_section)
+		branch = section.branch if section else None
+		if branches is not None and branch not in branches:
+			continue
+
+		visible.append(
+			{
+				"name": profile.name,
+				"company": profile.company,
+				"branch": branch,
+				"section": section.name if section else None,
+				"section_title": section.title if section else None,
+				"section_title_ar": section.title_ar if section else None,
+			}
+		)
+
+	return visible
+
+
+@frappe.whitelist()
 def ping() -> dict:
 	"""Connectivity probe for the sync engine (``09`` §2).
 

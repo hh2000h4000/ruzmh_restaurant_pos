@@ -8,10 +8,15 @@ import { dateOnly, formatNumber, pick, t, timeOnly } from "@/i18n";
 /**
  * One open order, as a row.
  *
- * **Every column is a value over its label**, including the status. That is the
- * whole grammar of this row: the eye lands on the number and the small grey
- * line underneath says what it was. A pill for the status and a label for
- * everything else would be two languages in one row.
+ * **Every column is a value over its label.** That is the whole grammar of the
+ * row: the eye lands on the number and the small grey line underneath says what
+ * it was. A pill for one column and a label for the rest would be two languages
+ * in one row.
+ *
+ * **The amount comes first in reading order** — the right in Arabic, the left
+ * in English — because it is the one figure a cashier looks for. Who opened the
+ * order comes last. The order flips with the language on its own: the row is a
+ * plain flex line, and direction is set on `<html>`.
  *
  * 108px tall, evenly distributed, per the reference layout.
  */
@@ -63,6 +68,85 @@ function choose(where: "order" | "floor"): void {
       @click="emit('open')"
     />
 
+    <div class="shrink-0">
+      <p class="rpos-numeric text-[22px] font-bold leading-tight text-primary">
+        {{ formatNumber(order.total_amount, 2) }}
+      </p>
+      <p class="text-sm text-muted">
+        {{ t("card.amount") }}
+      </p>
+    </div>
+
+    <div class="shrink-0 text-center">
+      <span
+        class="rpos-numeric mx-auto grid h-9 w-9 place-items-center rounded-full bg-primary/10 font-bold text-primary"
+      >{{ formatNumber(order.item_count) }}</span>
+      <p class="mt-1 text-sm text-muted">
+        {{ t("card.itemCount") }}
+      </p>
+    </div>
+
+    <div class="hidden flex-1 lg:block">
+      <p class="rpos-numeric font-bold">
+        {{ dateOnly(order.opened_at) }}
+      </p>
+      <p class="rpos-numeric text-sm text-muted">
+        {{ timeOnly(order.opened_at) }}
+      </p>
+    </div>
+
+    <div class="hidden min-w-0 flex-1 md:block">
+      <p class="rpos-numeric truncate font-bold">
+        {{ order.name }}
+      </p>
+      <p class="truncate text-sm text-muted">
+        {{ t("card.number") }}
+      </p>
+    </div>
+
+    <div class="hidden min-w-0 flex-1 sm:block">
+      <p class="truncate font-bold">
+        {{ whereLabel(order) }}
+      </p>
+      <p class="truncate text-sm text-muted">
+        {{ t("card.type") }}
+      </p>
+    </div>
+
+    <!-- Draft says nothing: every order on this screen is one until it moves.
+         The column appears when the status is worth reading. -->
+    <div
+      v-if="order.status !== 'draft'"
+      class="shrink-0"
+    >
+      <p
+        class="font-bold"
+        :class="STATUS_TEXT[order.status]"
+      >
+        {{ t(`status.${order.status}`) }}
+      </p>
+      <p class="text-sm text-muted">
+        {{ t("card.status") }}
+      </p>
+    </div>
+
+    <div class="flex min-w-0 flex-1 items-center justify-end gap-3">
+      <div class="min-w-0 text-end">
+        <p class="truncate font-bold">
+          {{ order.cashier_name }}
+        </p>
+        <p class="truncate text-sm text-muted">
+          {{ t("card.cashier") }}
+        </p>
+      </div>
+      <span
+        class="grid h-[42px] w-[42px] shrink-0 place-items-center rounded-full bg-primary/10 text-primary"
+        aria-hidden="true"
+      >
+        <AppIcon name="user" />
+      </span>
+    </div>
+
     <button
       type="button"
       class="relative z-10 grid h-11 w-11 shrink-0 place-items-center rounded-full text-muted transition duration-200 ease-rpos hover:bg-background"
@@ -78,7 +162,7 @@ function choose(where: "order" | "floor"): void {
 
     <div
       v-if="menuOpen"
-      class="absolute top-full z-20 mt-1 w-56 overflow-hidden rounded-rpos border border-line bg-surface shadow-lift"
+      class="absolute top-full end-0 z-20 mt-1 w-56 overflow-hidden rounded-rpos border border-line bg-surface shadow-lift"
     >
       <button
         type="button"
@@ -95,80 +179,6 @@ function choose(where: "order" | "floor"): void {
       >
         {{ t("card.goToTable") }}
       </button>
-    </div>
-
-    <div class="flex min-w-0 flex-1 items-center gap-3">
-      <span
-        class="grid h-[42px] w-[42px] shrink-0 place-items-center rounded-full bg-primary/10 text-primary"
-        aria-hidden="true"
-      >
-        <AppIcon name="user" />
-      </span>
-      <div class="min-w-0">
-        <p class="truncate font-bold">
-          {{ order.cashier_name }}
-        </p>
-        <p class="truncate text-sm text-muted">
-          {{ t("card.cashier") }}
-        </p>
-      </div>
-    </div>
-
-    <div class="hidden min-w-0 flex-1 sm:block">
-      <p class="truncate font-bold">
-        {{ whereLabel(order) }}
-      </p>
-      <p class="truncate text-sm text-muted">
-        {{ t("card.type") }}
-      </p>
-    </div>
-
-    <div class="hidden min-w-0 flex-1 md:block">
-      <p class="rpos-numeric truncate font-bold">
-        {{ order.name }}
-      </p>
-      <p class="truncate text-sm text-muted">
-        {{ t("card.number") }}
-      </p>
-    </div>
-
-    <div class="hidden flex-1 lg:block">
-      <p class="rpos-numeric font-bold">
-        {{ dateOnly(order.opened_at) }}
-      </p>
-      <p class="rpos-numeric text-sm text-muted">
-        {{ timeOnly(order.opened_at) }}
-      </p>
-    </div>
-
-    <div class="shrink-0 text-center">
-      <span
-        class="rpos-numeric mx-auto grid h-9 w-9 place-items-center rounded-full bg-primary/10 font-bold text-primary"
-      >{{ formatNumber(order.item_count) }}</span>
-      <p class="mt-1 text-sm text-muted">
-        {{ t("card.itemCount") }}
-      </p>
-    </div>
-
-    <div class="shrink-0">
-      <p class="rpos-numeric text-[22px] font-bold leading-tight text-primary">
-        {{ formatNumber(order.total_amount, 2) }}
-      </p>
-      <p class="text-sm text-muted">
-        {{ t("card.amount") }}
-      </p>
-    </div>
-
-    <div class="shrink-0">
-      <p
-        class="font-bold"
-        :class="STATUS_TEXT[order.status]"
-      >
-        {{ t(`status.${order.status}`) }}
-      </p>
-      <p class="text-sm text-muted">
-        {{ t("card.status") }}
-      </p>
     </div>
   </div>
 </template>

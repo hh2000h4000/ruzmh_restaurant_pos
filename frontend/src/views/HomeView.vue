@@ -226,7 +226,7 @@ const SORT_OPTIONS = [
 </script>
 
 <template>
-  <div class="flex h-screen flex-col bg-background">
+  <div class="flex h-full flex-col bg-background">
     <PosHeader
       v-model:search="search"
       :subtitle="sectionTitle"

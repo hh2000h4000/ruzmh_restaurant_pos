@@ -131,7 +131,7 @@ async function send(): Promise<void> {
 </script>
 
 <template>
-  <main class="flex h-screen flex-col">
+  <main class="flex h-full flex-col">
     <header class="flex items-center justify-between gap-3 border-b border-line bg-surface px-4 py-3">
       <div class="flex items-center gap-3">
         <RouterLink

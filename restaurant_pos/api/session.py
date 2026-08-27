@@ -115,6 +115,35 @@ def list_pos_profiles() -> list[dict]:
 
 
 @frappe.whitelist()
+def csrf_token() -> dict:
+	"""The signed-in session's CSRF token, fetched at runtime.
+
+	The page carries the token already, injected by Jinja. That is enough right
+	up until the browser serves the HTML from its own cache — a page stored
+	while nobody was signed in comes back with an empty token, and every write
+	is refused before it leaves the machine. It looks exactly like a broken
+	button, and it has now cost two rounds of debugging (D-030, D-031).
+
+	Reading it back over a **GET** closes that off for good: a GET carries no
+	token, so this cannot deadlock, and the answer is bound to the session
+	cookie the browser already holds. Nothing is exposed — another origin can
+	send the request but the same-origin policy stops it reading the reply, and
+	a caller without a session gets nothing at all.
+	"""
+	if frappe.session.user == "Guest":
+		frappe.throw(_("Sign in first."), frappe.PermissionError)
+
+	token = frappe.session.data.get("csrf_token")
+	if not token:
+		# Frappe issues one when a session starts, so an empty one means the
+		# session is not what it looks like. Say that, rather than hand back a
+		# null the browser would try to send.
+		frappe.throw(_("This session has no security token. Sign out and sign in again."))
+
+	return {"csrf_token": token}
+
+
+@frappe.whitelist()
 def ping() -> dict:
 	"""Connectivity probe for the sync engine (``09`` §2).
 

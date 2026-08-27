@@ -53,18 +53,34 @@ function csrfToken(): string {
   return (window as unknown as { csrf_token?: string }).csrf_token ?? "";
 }
 
+function setCsrfToken(value: string): void {
+  (window as unknown as { csrf_token?: string }).csrf_token = value;
+}
+
 /**
+ * Make sure this page can write, fetching the token if it has none.
+ *
  * Frappe rejects a write without a CSRF token with a bare 400, which looks
  * identical to a malformed request while every GET keeps working — the app
- * appears half-broken with nothing in the console to explain it.
+ * appears half-broken with nothing in the console to explain it. It has cost
+ * two separate rounds of debugging (D-030, D-031).
  *
- * The token is injected into the page by Jinja at build time
- * (`frontend/vite.config.ts`). If it is missing, say so.
+ * The token is injected into the page by Jinja (`frontend/vite.config.ts`),
+ * and that covers every load except one: HTML the *browser* kept from a visit
+ * made while nobody was signed in comes back with an empty token. So when it
+ * is missing, ask the server. A GET carries no token, so this cannot deadlock,
+ * and a caller with no session gets a 403 — which is the honest answer, and a
+ * far better message than "reload the page".
  */
-function assertCsrfToken(): void {
+async function ensureCsrfToken(): Promise<void> {
   if (csrfToken()) return;
 
-  throw new ApiError(t("err.noCsrf"), 0, "CSRFTokenMissing");
+  const fresh = await query<{ csrf_token: string }>("session.csrf_token");
+  if (!fresh?.csrf_token) {
+    throw new ApiError(t("err.noCsrf"), 0, "CSRFTokenMissing");
+  }
+
+  setCsrfToken(fresh.csrf_token);
 }
 
 /** Frappe returns `{"message": ...}` on success and messages in a few shapes on failure. */
@@ -100,7 +116,7 @@ function stripHtml(value: string): string {
 }
 
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
-  if (method !== "GET") assertCsrfToken();
+  if (method !== "GET") await ensureCsrfToken();
 
   let response: Response;
 

@@ -15,7 +15,7 @@ from frappe.utils import now_datetime, time_diff_in_seconds
 
 from restaurant_pos.utils import idempotency
 from restaurant_pos.utils import order as service
-from restaurant_pos.utils.permissions import validate_branch_access
+from restaurant_pos.utils.permissions import get_pos_permission_set, validate_branch_access
 
 
 def _load(order_name: str):
@@ -191,6 +191,13 @@ def get_open_orders(pos_profile: str) -> list[dict]:
 	branch = frappe.db.get_value("Restaurant Section", section, "branch") if section else None
 
 	filters: dict = {"status": ("in", OPEN_STATUSES)}
+
+	# FR-12.x — whose orders this cashier may see is a permission, enforced
+	# here and not by hiding a button. A till without the right must not be
+	# able to read another cashier's floor by calling this directly.
+	if not get_pos_permission_set().get("can_view_all_orders"):
+		filters["cashier"] = frappe.session.user
+
 	if branch:
 		validate_branch_access(branch)
 		filters["branch"] = branch
@@ -210,6 +217,7 @@ def get_open_orders(pos_profile: str) -> list[dict]:
 			"table",
 			"cover_count",
 			"customer",
+			"cashier",
 			"total_amount",
 			"opened_at",
 		],
@@ -251,6 +259,17 @@ def _annotate_open_orders(orders: list) -> None:
 		)
 	}
 
+	# The card shows who opened the order, so a cashier taking over a shift can
+	# tell their own tables from someone else's at a glance.
+	cashiers = {
+		row.name: row.full_name
+		for row in frappe.get_all(
+			"User",
+			filters={"name": ("in", list({row.cashier for row in orders if row.cashier}))},
+			fields=["name", "full_name"],
+		)
+	}
+
 	table_numbers = {
 		row.name: row.table_number
 		for row in frappe.get_all(
@@ -268,6 +287,7 @@ def _annotate_open_orders(orders: list) -> None:
 		order.icon = order_type.icon if order_type else None
 		order.color = order_type.color if order_type else None
 		order.table_number = table_numbers.get(order.table)
+		order.cashier_name = cashiers.get(order.cashier) or order.cashier
 		order.item_count = counts.get(order.name, 0)
 		order.order_minutes = int(time_diff_in_seconds(now, order.opened_at) // 60) if order.opened_at else 0
 

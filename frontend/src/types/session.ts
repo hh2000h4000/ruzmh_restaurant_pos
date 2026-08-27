@@ -182,5 +182,8 @@ export interface PosSession {
   theme: ThemeTokens;
   /** The signed-in user's ERPNext language, narrowed to what the app ships. */
   lang: "ar" | "en";
+  /** Who is on this till: the login, and the name to show. */
+  user: string;
+  user_name: string | null;
   server_time: string;
 }

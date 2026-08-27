@@ -9,7 +9,7 @@ Refs: 06 Screen 1, 07 §3, 04 §8
 import frappe
 
 from restaurant_pos.api import order as api
-from restaurant_pos.tests.test_order import ITEM, OrderTestBase
+from restaurant_pos.tests.test_order import ITEM, OrderTestBase, _make_cashier
 from restaurant_pos.utils import order as service
 
 
@@ -72,6 +72,32 @@ class TestOpenOrders(OrderTestBase):
 		order = self._order()
 		listed = {row["name"] for row in api.get_open_orders(other)}
 		self.assertIn(order.name, listed)
+
+	def test_a_card_names_the_cashier_who_opened_it(self):
+		"""06 Screen 1 — whoever takes over a shift has to tell the tables apart."""
+		order = self._order()
+
+		row = next(entry for entry in api.get_open_orders(self.profile) if entry["name"] == order.name)
+		self.assertTrue(row["cashier_name"])
+
+	def test_a_cashier_without_the_right_sees_only_their_own(self):
+		"""FR-12.3 — enforced here, not by hiding a tab.
+
+		A till whose user may not see the floor must not be able to read another
+		cashier's orders by calling this endpoint directly.
+		"""
+		mine = self._order()
+
+		cashier = _make_cashier()
+		frappe.set_user(cashier)
+		frappe.local.rpos_permission_cache = {}
+		try:
+			listed = {row["name"] for row in api.get_open_orders(self.profile)}
+		finally:
+			frappe.set_user("Administrator")
+			frappe.local.rpos_permission_cache = {}
+
+		self.assertNotIn(mine.name, listed, "another cashier's order leaked to a restricted user")
 
 	def test_listing_does_not_scale_with_the_number_of_orders(self):
 		"""04 §8 — this list refreshes on every realtime event."""

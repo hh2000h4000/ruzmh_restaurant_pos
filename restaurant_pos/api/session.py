@@ -158,6 +158,10 @@ def load_pos_session(pos_profile: str) -> dict:
 		"permissions": get_pos_permission_set(),
 		"theme": DEFAULT_THEME,
 		"lang": _lang(),
+		# The header names the cashier on duty, and the home screen tells their
+		# own orders from the rest of the floor.
+		"user": frappe.session.user,
+		"user_name": frappe.db.get_value("User", frappe.session.user, "full_name"),
 		"server_time": now_datetime(),
 	}
 

@@ -56,6 +56,8 @@ export interface OpenOrder {
   table_number: string | null;
   cover_count: number;
   customer: string | null;
+  cashier: string | null;
+  cashier_name: string | null;
   total_amount: number;
   opened_at: string;
   order_minutes: number;

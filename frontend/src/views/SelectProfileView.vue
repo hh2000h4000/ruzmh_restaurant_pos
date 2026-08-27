@@ -96,7 +96,7 @@ function subtitle(option: ProfileOption): string {
 </script>
 
 <template>
-  <main class="flex min-h-screen items-center justify-center p-4">
+  <main class="flex min-h-0 flex-1 items-center justify-center overflow-y-auto p-4">
     <div class="w-full max-w-md rounded-rpos bg-surface p-6 shadow-sm">
       <div class="mb-1 flex items-start justify-between gap-3">
         <h1 class="text-lg font-semibold">

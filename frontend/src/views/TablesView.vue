@@ -124,7 +124,7 @@ async function startOrder(): Promise<void> {
 </script>
 
 <template>
-  <main class="mx-auto max-w-5xl p-4">
+  <main class="mx-auto w-full max-w-5xl overflow-y-auto p-4">
     <header class="mb-4 flex items-center gap-3">
       <RouterLink
         :to="{ name: 'home' }"

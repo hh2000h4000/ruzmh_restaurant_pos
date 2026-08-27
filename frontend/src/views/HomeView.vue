@@ -226,7 +226,7 @@ const SORT_OPTIONS = [
 </script>
 
 <template>
-  <div class="flex h-full flex-col bg-background">
+  <div class="flex min-h-0 flex-1 flex-col bg-background">
     <PosHeader
       v-model:search="search"
       :subtitle="sectionTitle"
@@ -271,7 +271,7 @@ const SORT_OPTIONS = [
       </div>
     </div>
 
-    <div class="relative">
+    <div class="relative shrink-0">
       <!-- Anchored to the bar so it opens over the floor, not under it. -->
       <div
         v-if="sortOpen"

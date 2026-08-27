@@ -23,7 +23,7 @@ onUnmounted(connection.stop);
 </script>
 
 <template>
-  <div class="flex h-screen flex-col overflow-hidden bg-background font-sans text-content">
+  <div class="flex h-full flex-col overflow-hidden bg-background font-sans text-content">
     <!-- Status is never colour alone (06 §Accessibility): a mark plus words. -->
     <div
       v-if="connection.state === 'offline'"
@@ -73,8 +73,9 @@ onUnmounted(connection.stop);
     </div>
 
     <!-- `min-h-0` is what lets a screen inside this column shrink instead of
-         pushing the bar off the bottom of the window. -->
-    <div class="min-h-0 flex-1 overflow-y-auto">
+         pushing a bottom bar off the window. Screens own their own scrolling;
+         this box never scrolls. -->
+    <div class="flex min-h-0 flex-1 flex-col overflow-hidden">
       <RouterView />
     </div>
   </div>

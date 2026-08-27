@@ -5,6 +5,17 @@
 @tailwind utilities;
 
 @layer base {
+  /*
+   * The app owns the viewport. Only a list scrolls, never the page — a bottom
+   * bar that slides away mid-shift is a bar the cashier cannot trust.
+   */
+  html,
+  body,
+  #app {
+    height: 100%;
+    overflow: hidden;
+  }
+
   /* 06 §Accessibility: 48px minimum touch target, everywhere. */
   button,
   [role="button"],

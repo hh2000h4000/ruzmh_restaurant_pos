@@ -44,9 +44,9 @@ onUnmounted(() => window.clearInterval(clock));
 
 <template>
   <header
-    class="flex h-[90px] shrink-0 items-center gap-6 border-b border-line bg-surface px-6"
+    class="flex h-[90px] shrink-0 items-center gap-4 overflow-hidden border-b border-line bg-surface px-6 xl:gap-6"
   >
-    <div class="flex items-center gap-3">
+    <div class="flex min-w-0 shrink items-center gap-3">
       <span
         class="grid h-[46px] w-[46px] shrink-0 place-items-center rounded-rpos bg-primary text-primary-contrast"
         aria-hidden="true"
@@ -66,7 +66,7 @@ onUnmounted(() => window.clearInterval(clock));
       </div>
     </div>
 
-    <div class="relative w-[300px] max-w-full">
+    <div class="relative w-[300px] min-w-0 shrink">
       <span
         class="pointer-events-none absolute inset-y-0 start-4 grid place-items-center text-muted"
       >
@@ -84,7 +84,7 @@ onUnmounted(() => window.clearInterval(clock));
       >
     </div>
 
-    <div class="ms-auto flex items-center gap-3">
+    <div class="ms-auto flex shrink-0 items-center gap-3">
       <span class="rpos-numeric hidden items-center gap-1.5 text-sm font-medium text-muted xl:flex">
         <AppIcon
           name="clock"

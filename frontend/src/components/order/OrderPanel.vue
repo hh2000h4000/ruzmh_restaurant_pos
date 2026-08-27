@@ -1,13 +1,18 @@
 <script setup lang="ts">
 import type { OrderDetail, OrderLine } from "@/api/order";
+import AppIcon from "@/components/AppIcon.vue";
 import { formatNumber, pick, t } from "@/i18n";
 
 /**
  * The order side of Screen 3: the lines, then the totals.
  *
- * Every figure shown here came from the server. Nothing on this screen adds up
- * a column (`CLAUDE.md` §5.1) — if it did, the customer could be told one
- * number and charged another.
+ * Three rows — heading, a list that scrolls, totals pinned at the foot — so the
+ * total never leaves the screen no matter how long the order gets. That is the
+ * figure the customer is being told.
+ *
+ * Every figure here came from the server. Nothing on this screen adds up a
+ * column (`CLAUDE.md` §5.1); if it did, the customer could be told one number
+ * and charged another.
  */
 defineProps<{ order: OrderDetail; lines: OrderLine[]; busy?: boolean }>();
 
@@ -21,32 +26,48 @@ function isSent(line: OrderLine): boolean {
   return line.status === "sent";
 }
 
-/** Bare figures: the currency is stated once, in the payment screen's total. */
+/** Bare figures: the currency is stated once, on the total. */
 function money(value: number): string {
   return formatNumber(value, 2);
 }
 </script>
 
 <template>
-  <div class="flex h-full flex-col rounded-rpos bg-surface">
+  <section
+    class="grid min-h-0 grid-rows-[auto_minmax(0,1fr)_auto] rounded-rpos bg-surface shadow-card"
+  >
+    <header class="flex items-center justify-between gap-3 border-b border-line px-5 py-4">
+      <h2 class="flex items-center gap-2 text-lg font-bold">
+        <AppIcon
+          name="receipt"
+          :size="22"
+        />
+        {{ t("panel.title") }}
+      </h2>
+      <span
+        class="rpos-numeric grid h-9 min-w-[2.25rem] place-items-center rounded-full bg-primary/10 px-2 font-bold text-primary"
+        :aria-label="t('panel.count')"
+      >{{ formatNumber(lines.length) }}</span>
+    </header>
+
     <ul
-      class="flex-1 divide-y divide-line overflow-y-auto"
+      class="min-h-0 divide-y divide-line overflow-y-auto"
       :aria-label="t('panel.title')"
     >
       <li
         v-for="line in lines"
         :key="line.idx"
-        class="p-3"
+        class="p-4"
       >
-        <div class="flex items-start justify-between gap-2">
+        <div class="flex items-start justify-between gap-3">
           <div class="min-w-0">
-            <p class="truncate font-medium">
+            <p class="truncate font-semibold">
               {{ line.item_name }}
             </p>
 
             <p
               v-if="line.modifiers?.length"
-              class="truncate text-xs text-muted"
+              class="truncate text-sm text-muted"
             >
               {{
                 line.modifiers
@@ -56,58 +77,80 @@ function money(value: number): string {
             </p>
             <p
               v-if="line.notes"
-              class="truncate text-xs text-muted"
+              class="flex items-center gap-1.5 truncate text-sm text-muted"
             >
-              ✎ {{ line.notes }}
+              <AppIcon
+                name="note"
+                :size="14"
+              />
+              {{ line.notes }}
             </p>
 
             <!-- Status is never colour alone (06 §Accessibility). -->
             <p
               v-if="isSent(line)"
-              class="mt-1 inline-block rounded bg-order-in_kitchen/10 px-1.5 text-xs text-order-in_kitchen"
+              class="mt-1.5 inline-block rounded-full bg-order-in_kitchen/10 px-2.5 py-0.5 text-xs font-medium text-order-in_kitchen"
             >
               {{ t("panel.inKitchen") }}
             </p>
           </div>
 
-          <p class="rpos-numeric shrink-0 font-medium">
+          <p class="rpos-numeric shrink-0 text-lg font-bold">
             {{ money(line.amount) }}
           </p>
         </div>
 
-        <div class="mt-2 flex items-center gap-2">
-          <span class="rpos-numeric text-sm text-muted">×{{ line.qty }}</span>
+        <div class="mt-3 flex items-center gap-2">
+          <span
+            class="rpos-numeric grid h-9 min-w-[2.25rem] place-items-center rounded-full bg-background px-2 text-sm font-semibold"
+          >×{{ formatNumber(line.qty) }}</span>
 
           <button
             type="button"
-            class="min-h-tap rounded-rpos border border-line px-3 text-sm disabled:opacity-50"
+            class="ms-auto flex min-h-tap items-center gap-1.5 rounded-rpos px-3 text-sm font-medium text-primary transition duration-200 ease-rpos hover:bg-primary/10 disabled:opacity-40"
             :disabled="busy"
             @click="emit('repeat', line)"
           >
-            + {{ t("panel.addSame") }}
+            <AppIcon
+              name="plus"
+              :size="18"
+            />
+            {{ t("panel.addSame") }}
           </button>
 
           <button
             type="button"
-            class="min-h-tap rounded-rpos px-3 text-sm text-danger disabled:opacity-50"
+            class="flex min-h-tap items-center gap-1.5 rounded-rpos px-3 text-sm font-medium text-danger transition duration-200 ease-rpos hover:bg-danger/10 disabled:opacity-40"
             :disabled="busy"
             @click="emit('void', line)"
           >
-            🗑 {{ t("action.cancel") }}
+            <AppIcon
+              name="trash"
+              :size="18"
+            />
+            {{ t("action.cancel") }}
           </button>
         </div>
       </li>
 
       <li
         v-if="!lines.length"
-        class="p-8 text-center text-muted"
+        class="grid place-items-center px-6 py-16 text-center"
       >
-        {{ t("panel.empty") }}
+        <span class="mb-3 text-muted opacity-40">
+          <AppIcon
+            name="receipt"
+            :size="44"
+          />
+        </span>
+        <p class="text-muted">
+          {{ t("panel.empty") }}
+        </p>
       </li>
     </ul>
 
-    <dl class="space-y-1 border-t border-line p-4 text-sm">
-      <div class="flex justify-between">
+    <dl class="space-y-2 border-t border-line p-5">
+      <div class="flex justify-between text-muted">
         <dt>{{ t("totals.subtotal") }}</dt>
         <dd class="rpos-numeric">
           {{ money(order.subtotal) }}
@@ -122,18 +165,20 @@ function money(value: number): string {
           −{{ money(order.discount_amount) }}
         </dd>
       </div>
-      <div class="flex justify-between">
+      <div class="flex justify-between text-muted">
         <dt>{{ t("totals.tax") }}</dt>
         <dd class="rpos-numeric">
           {{ money(order.tax_amount) }}
         </dd>
       </div>
-      <div class="flex justify-between border-t border-line pt-2 text-base font-semibold">
-        <dt>{{ t("totals.total") }}</dt>
-        <dd class="rpos-numeric">
+      <div class="flex items-baseline justify-between border-t border-line pt-3">
+        <dt class="text-lg font-bold">
+          {{ t("totals.total") }}
+        </dt>
+        <dd class="rpos-numeric text-[26px] font-bold text-primary">
           {{ money(order.total_amount) }}
         </dd>
       </div>
     </dl>
-  </div>
+  </section>
 </template>

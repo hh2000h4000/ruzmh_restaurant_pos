@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 
 import type { ModifierChoice, OrderLine } from "@/api/order";
+import AppIcon from "@/components/AppIcon.vue";
 import BaseDialog from "@/components/BaseDialog.vue";
 import ItemPicker from "@/components/order/ItemPicker.vue";
 import ModifierDialog from "@/components/order/ModifierDialog.vue";
@@ -42,6 +43,31 @@ const title = computed(() => {
 });
 
 const locked = computed(() => orders.busy || orders.isClosed);
+
+/**
+ * The order's own state, shown in the header where the cashier already looks.
+ *
+ * Colour follows the lifecycle and never carries the meaning alone: the pill
+ * always spells the status out (06 §Accessibility).
+ */
+const STATUS_CLASS: Record<string, string> = {
+  draft: "bg-order-draft/10 text-order-draft",
+  active: "bg-order-active/10 text-order-active",
+  in_kitchen: "bg-order-in_kitchen/10 text-order-in_kitchen",
+  pending_payment: "bg-order-pending_payment/10 text-order-pending_payment",
+  closed: "bg-order-closed/10 text-order-closed",
+  cancelled: "bg-order-cancelled/10 text-order-cancelled",
+};
+
+const KNOWN_STATUSES = ["draft", "active", "in_kitchen", "pending_payment"] as const;
+
+const statusLabel = computed(() => {
+  const status = orders.order?.status;
+  if (!status) return "";
+
+  const known = KNOWN_STATUSES.find((candidate) => candidate === status);
+  return known ? t(`status.${known}`) : status;
+});
 
 onMounted(async () => {
   const existing = route.params.orderName as string | undefined;
@@ -131,117 +157,171 @@ async function send(): Promise<void> {
 </script>
 
 <template>
-  <main class="flex h-full min-h-0 flex-col">
-    <header class="flex items-center justify-between gap-3 border-b border-line bg-surface px-4 py-3">
-      <div class="flex items-center gap-3">
-        <RouterLink
-          :to="{ name: 'home' }"
-          class="rpos-tap inline-flex items-center px-2 text-primary"
+  <!--
+    The same three rows as the till screen: identity, the work, the actions.
+    `minmax(0, 1fr)` on the middle row is what lets both panels scroll inside it
+    instead of growing the page (06 Screen 3).
+  -->
+  <main class="grid h-full grid-rows-[auto_minmax(0,1fr)_auto] bg-background">
+    <header class="flex h-[90px] shrink-0 items-center gap-4 border-b border-line bg-surface px-6">
+      <RouterLink
+        :to="{ name: 'home' }"
+        class="grid h-11 w-11 shrink-0 place-items-center rounded-full text-primary transition duration-200 ease-rpos hover:bg-background"
+        :aria-label="t('action.back')"
+      >
+        <AppIcon
+          name="back"
+          class="rpos-flip"
+          :size="24"
+        />
+      </RouterLink>
+
+      <div class="min-w-0">
+        <h1 class="truncate text-xl font-bold leading-tight">
+          {{ title || t("order.title") }}
+        </h1>
+        <p
+          v-if="orders.order"
+          class="rpos-numeric truncate text-sm text-muted"
         >
-          ←
-        </RouterLink>
-        <div>
-          <h1 class="font-semibold">
-            {{ title }}
-          </h1>
-          <p
-            v-if="orders.order"
-            class="rpos-numeric text-xs text-muted"
-          >
-            {{ orders.order.order_name }}
-          </p>
-        </div>
+          {{ orders.order.order_name }}
+        </p>
       </div>
-      <span
-        v-if="orders.busy"
-        class="text-sm text-muted"
-      >…</span>
+
+      <div class="ms-auto flex shrink-0 items-center gap-3">
+        <span
+          v-if="orders.busy"
+          class="text-muted"
+          :title="t('common.loading')"
+        >
+          <AppIcon
+            name="refresh"
+            class="animate-spin"
+            :size="22"
+          />
+        </span>
+
+        <span
+          v-if="orders.order"
+          class="rounded-full px-4 py-2 text-sm font-semibold"
+          :class="STATUS_CLASS[orders.order.status] ?? 'bg-background text-muted'"
+        >
+          {{ statusLabel }}
+        </span>
+      </div>
     </header>
 
-    <p
-      v-if="startupError"
-      role="alert"
-      class="m-4 rounded-rpos bg-danger/10 p-4 text-danger"
-    >
-      {{ startupError }}
-    </p>
+    <div class="grid min-h-0 grid-rows-[minmax(0,1fr)] p-5">
+      <p
+        v-if="startupError"
+        role="alert"
+        class="self-start rounded-rpos bg-danger/10 p-4 text-danger"
+      >
+        {{ startupError }}
+      </p>
 
-    <p
-      v-else-if="orders.error"
-      role="alert"
-      class="m-4 rounded-rpos bg-danger/10 p-3 text-sm text-danger"
-    >
-      {{ orders.error }}
-    </p>
+      <div
+        v-else-if="orders.order"
+        class="grid min-h-0 gap-4 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]"
+      >
+        <div class="grid min-h-0 grid-rows-[auto_minmax(0,1fr)] gap-3">
+          <div class="flex flex-col gap-2 empty:hidden">
+            <p
+              v-if="orders.error"
+              role="alert"
+              class="rounded-rpos bg-danger/10 p-3 text-sm text-danger"
+            >
+              {{ orders.error }}
+            </p>
 
-    <!-- 09 §10 — an order carrying queued work must say so, or the cashier
-         reads a confirmation that has not reached the server. -->
-    <p
-      v-if="orders.pendingSync"
-      role="status"
-      class="mx-4 mt-2 rounded-rpos bg-status-cleaning/10 p-3 text-sm text-status-cleaning"
-    >
-      ⏳ {{ t("order.pendingSync") }}
-    </p>
+            <!-- 09 §10 — an order carrying queued work must say so, or the
+                 cashier reads a confirmation the server never got. -->
+            <p
+              v-if="orders.pendingSync"
+              role="status"
+              class="flex items-center gap-2 rounded-rpos bg-status-cleaning/10 p-3 text-sm text-status-cleaning"
+            >
+              <AppIcon
+                name="hourglass"
+                :size="18"
+              />
+              {{ t("order.pendingSync") }}
+            </p>
 
-    <p
-      v-if="orders.unrouted.length"
-      role="status"
-      class="mx-4 mt-2 rounded-rpos bg-status-reserved/10 p-3 text-sm text-status-reserved"
-    >
-      {{ t("order.notRouted", { items: orders.unrouted.join(t("common.listSeparator")) }) }}
-    </p>
+            <p
+              v-if="orders.unrouted.length"
+              role="status"
+              class="rounded-rpos bg-status-reserved/10 p-3 text-sm text-status-reserved"
+            >
+              {{ t("order.notRouted", { items: orders.unrouted.join(t("common.listSeparator")) }) }}
+            </p>
+          </div>
 
-    <div
-      v-if="orders.order"
-      class="grid flex-1 gap-3 overflow-hidden p-3 lg:grid-cols-[3fr_2fr]"
-    >
-      <ItemPicker
-        :order-type="orderType"
-        :disabled="locked"
-        @pick="onPick"
-      />
-      <OrderPanel
-        :order="orders.order"
-        :lines="orders.lines"
-        :busy="locked"
-        @void="askVoid"
-        @repeat="repeat"
-      />
+          <div class="grid min-h-0 grid-rows-[minmax(0,1fr)] rounded-rpos bg-surface p-4 shadow-card">
+            <ItemPicker
+              :order-type="orderType"
+              :disabled="locked"
+              @pick="onPick"
+            />
+          </div>
+        </div>
+
+        <OrderPanel
+          :order="orders.order"
+          :lines="orders.lines"
+          :busy="locked"
+          @void="askVoid"
+          @repeat="repeat"
+        />
+      </div>
     </div>
 
-    <footer
+    <nav
       v-if="orders.order && !orders.isClosed"
-      class="flex flex-wrap gap-2 border-t border-line bg-surface p-3"
+      class="flex items-center gap-3 border-t border-line bg-surface px-5 py-3 shadow-bar"
     >
       <button
         type="button"
-        class="min-h-tap flex-1 rounded-rpos bg-secondary px-4 font-medium text-secondary-contrast disabled:opacity-50"
+        class="flex h-[70px] flex-1 flex-col items-center justify-center gap-1 rounded-rpos bg-accent-amber/10 text-sm font-semibold text-accent-amber transition duration-200 ease-rpos hover:bg-accent-amber/20 disabled:cursor-not-allowed disabled:opacity-40"
         :disabled="locked || !orders.hasUnsent"
         @click="send"
       >
-        🍳 {{ t("order.sendToKitchen") }}
+        <AppIcon
+          name="kitchen"
+          :size="24"
+        />
+        {{ t("order.sendToKitchen") }}
       </button>
 
+      <!-- The one action this whole screen exists to reach, so it is the only
+           solid surface on the bar. -->
       <button
         type="button"
-        class="min-h-tap flex-1 rounded-rpos bg-primary px-4 font-medium text-primary-contrast disabled:opacity-50"
+        class="flex h-[70px] flex-[2] flex-col items-center justify-center gap-1 rounded-rpos bg-primary text-base font-bold text-primary-contrast shadow-card transition duration-200 ease-rpos disabled:cursor-not-allowed disabled:opacity-40"
         :disabled="locked || orders.isEmpty"
         @click="router.push({ name: 'payment', params: { orderName: orders.order.order_name } })"
       >
-        💳 {{ t("order.pay") }}
+        <AppIcon
+          name="card"
+          :size="24"
+        />
+        {{ t("order.pay") }}
       </button>
 
       <button
         v-if="session.can('can_cancel_order')"
         type="button"
-        class="min-h-tap rounded-rpos border border-danger px-4 text-danger disabled:opacity-50"
+        class="flex h-[70px] flex-1 flex-col items-center justify-center gap-1 rounded-rpos bg-accent-rose/10 text-sm font-semibold text-accent-rose transition duration-200 ease-rpos hover:bg-accent-rose/20 disabled:cursor-not-allowed disabled:opacity-40"
         :disabled="locked"
         @click="cancelling = true"
       >
-        🚫 {{ t("order.cancelOrder") }}
+        <AppIcon
+          name="ban"
+          :size="24"
+        />
+        {{ t("order.cancelOrder") }}
       </button>
-    </footer>
+    </nav>
 
     <ModifierDialog
       :item="pendingItem"
@@ -249,7 +329,7 @@ async function send(): Promise<void> {
       @cancel="pendingItem = null"
     />
 
-    <!-- BR-013: a reason is mandatory, so this dialog cannot be dismissed away. -->
+    <!-- BR-013: a reason is mandatory, so this cannot be dismissed away. -->
     <BaseDialog
       :open="Boolean(voidTarget)"
       :title="t('order.voidReason')"

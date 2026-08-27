@@ -119,6 +119,8 @@ export const messages = {
   "order.voidItem": "Void the item",
   "order.cancelBody": "The whole order will be cancelled, and the kitchen told about anything already sent.",
   "order.confirmCancel": "Confirm the cancellation",
+  "order.title": "Order",
+  "order.save": "Save",
   "order.pendingSync": "Saved on this device — waiting for the connection to reach the server.",
 
   // Order panel
@@ -126,6 +128,7 @@ export const messages = {
   "panel.inKitchen": "In kitchen",
   "panel.addSame": "Add another",
   "panel.empty": "No items added yet.",
+  "panel.count": "Items on this order",
   "totals.subtotal": "Subtotal",
   "totals.discount": "Discount",
   "totals.tax": "VAT",

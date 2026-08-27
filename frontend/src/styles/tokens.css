@@ -64,6 +64,14 @@ html[dir="rtl"] {
   text-align: start;
 }
 
+/*
+ * A directional glyph — a back arrow, a chevron — is drawn pointing left and
+ * mirrored in Arabic. Text and layout flip on their own; an SVG path does not.
+ */
+html[dir="rtl"] .rpos-flip {
+  transform: scaleX(-1);
+}
+
 /* Numbers stay readable in an RTL paragraph. */
 .rpos-numeric {
   direction: ltr;

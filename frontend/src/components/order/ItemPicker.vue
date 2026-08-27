@@ -3,6 +3,7 @@ import { computed, ref } from "vue";
 
 // `pick` is already this component's "add this item" handler, so the i18n
 // helper comes in under a name that says what it does here.
+import AppIcon from "@/components/AppIcon.vue";
 import { formatNumber, pick as localized, t } from "@/i18n";
 import { useSessionStore } from "@/stores/session";
 import type { CatalogItem, LayoutButton, OrderType } from "@/types/session";
@@ -128,47 +129,59 @@ function priceOf(item: CatalogItem): number | null {
 </script>
 
 <template>
-  <div class="flex h-full flex-col gap-3">
-    <label
-      class="sr-only"
-      for="item-search"
-    >{{ t("picker.search") }}</label>
-    <input
-      id="item-search"
-      v-model="search"
-      type="search"
-      :placeholder="`🔍 ${t('picker.search')}`"
-      class="min-h-tap w-full rounded-rpos border border-line bg-surface px-3 text-base focus:outline-none focus:ring-2 focus:ring-primary"
-    >
+  <!-- A search field over one scrolling grid: whichever grid the state calls
+       for, it is the only thing on this panel that moves. -->
+  <div class="grid min-h-0 grid-rows-[auto_minmax(0,1fr)] gap-3">
+    <div>
+      <label
+        class="sr-only"
+        for="item-search"
+      >{{ t("picker.search") }}</label>
+      <div class="relative">
+        <span
+          class="pointer-events-none absolute inset-y-0 start-4 grid place-items-center text-muted"
+        >
+          <AppIcon
+            name="search"
+            :size="20"
+          />
+        </span>
+        <input
+          id="item-search"
+          v-model="search"
+          type="search"
+          :placeholder="t('picker.search')"
+          class="h-[52px] w-full rounded-full bg-background ps-12 pe-4 text-base outline-none transition duration-200 ease-rpos focus:bg-surface focus:ring-2 focus:ring-primary/30"
+        >
+      </div>
+    </div>
 
     <!-- Search wins over whatever else is on screen. -->
     <div
       v-if="search.trim()"
-      class="grid flex-1 auto-rows-min grid-cols-2 gap-2 overflow-y-auto sm:grid-cols-3"
+      class="grid auto-rows-min grid-cols-2 gap-2.5 overflow-y-auto sm:grid-cols-3 2xl:grid-cols-4"
     >
       <button
         v-for="item in searchResults"
         :key="item.item_code"
         type="button"
-        class="flex min-h-tap flex-col items-start rounded-rpos bg-surface p-3 text-start shadow-sm disabled:opacity-50"
+        class="flex min-h-[5.5rem] flex-col justify-between rounded-rpos border border-line bg-surface p-3 text-start transition duration-200 ease-rpos hover:-translate-y-px hover:border-primary/40 hover:shadow-card disabled:cursor-not-allowed disabled:opacity-40"
         :disabled="priceOf(item) === null || disabled"
         @click="pick(item)"
       >
-        <span class="text-sm font-medium">{{ itemName(item) }}</span>
+        <span class="line-clamp-2 font-semibold leading-snug">{{ itemName(item) }}</span>
         <span
           v-if="priceOf(item) !== null"
-          class="rpos-numeric text-xs text-muted"
-        >
-          {{ formatNumber(priceOf(item)!, 2) }}
-        </span>
+          class="rpos-numeric font-bold text-primary"
+        >{{ formatNumber(priceOf(item)!, 2) }}</span>
         <span
           v-else
-          class="text-xs text-danger"
+          class="text-sm text-danger"
         >{{ t("picker.noPrice") }}</span>
       </button>
       <p
         v-if="!searchResults.length"
-        class="col-span-full p-4 text-center text-muted"
+        class="col-span-full p-6 text-center text-muted"
       >
         {{ t("picker.noResults") }}
       </p>
@@ -177,53 +190,57 @@ function priceOf(item: CatalogItem): number | null {
     <!-- A group was opened from a layout button or the fallback browser. -->
     <div
       v-else-if="activeGroup"
-      class="flex flex-1 flex-col gap-2 overflow-hidden"
+      class="grid min-h-0 grid-rows-[auto_minmax(0,1fr)] gap-2.5"
     >
       <button
         type="button"
-        class="self-start rounded-rpos px-3 text-sm text-primary"
+        class="flex min-h-tap items-center gap-1.5 self-start rounded-rpos px-3 text-sm font-medium text-primary transition duration-200 ease-rpos hover:bg-primary/10"
         @click="activeGroup = null"
       >
-        ← {{ t("action.back") }}
+        <AppIcon
+          name="back"
+          class="rpos-flip"
+          :size="18"
+        />
+        {{ t("action.back") }}
       </button>
-      <div class="grid flex-1 auto-rows-min grid-cols-2 gap-2 overflow-y-auto sm:grid-cols-3">
+      <div class="grid auto-rows-min grid-cols-2 gap-2.5 overflow-y-auto sm:grid-cols-3 2xl:grid-cols-4">
         <button
           v-for="item in groupItems"
           :key="item.item_code"
           type="button"
-          class="flex min-h-[5rem] flex-col items-start rounded-rpos bg-surface p-3 text-start shadow-sm disabled:opacity-50"
+          class="flex min-h-[5.5rem] flex-col justify-between rounded-rpos border border-line bg-surface p-3 text-start transition duration-200 ease-rpos hover:-translate-y-px hover:border-primary/40 hover:shadow-card disabled:cursor-not-allowed disabled:opacity-40"
           :disabled="priceOf(item) === null || disabled"
           @click="pick(item)"
         >
-          <span class="text-sm font-medium">{{ itemName(item) }}</span>
+          <span class="line-clamp-2 font-semibold leading-snug">{{ itemName(item) }}</span>
           <span
             v-if="priceOf(item) !== null"
-            class="rpos-numeric text-xs text-muted"
-          >
-            {{ formatNumber(priceOf(item)!, 2) }}
-          </span>
+            class="rpos-numeric font-bold text-primary"
+          >{{ formatNumber(priceOf(item)!, 2) }}</span>
           <span
             v-else
-            class="text-xs text-danger"
+            class="text-sm text-danger"
           >{{ t("picker.noPrice") }}</span>
         </button>
       </div>
     </div>
 
-    <!-- The configured layout (FR-3.1). -->
+    <!-- The configured layout (FR-3.1). Its colours come from the designer, so
+         they are inline styles rather than tokens. -->
     <div
       v-else-if="layout"
-      class="grid flex-1 gap-2 overflow-y-auto"
+      class="grid gap-2.5 overflow-y-auto"
       :style="{
         gridTemplateColumns: `repeat(${layout.grid_columns}, minmax(0, 1fr))`,
-        gridAutoRows: 'minmax(4.5rem, auto)',
+        gridAutoRows: 'minmax(5.5rem, auto)',
       }"
     >
       <button
         v-for="button in layout.buttons"
         :key="button.idx"
         type="button"
-        class="flex items-center justify-center rounded-rpos bg-surface p-2 text-center text-sm font-medium shadow-sm disabled:opacity-50"
+        class="flex items-center justify-center rounded-rpos border border-line bg-surface p-3 text-center font-semibold transition duration-200 ease-rpos hover:-translate-y-px hover:shadow-card disabled:cursor-not-allowed disabled:opacity-40"
         :style="buttonStyle(button)"
         :disabled="disabled || !isUsable(button)"
         @click="onLayoutButton(button)"
@@ -235,20 +252,20 @@ function priceOf(item: CatalogItem): number | null {
     <!-- No layout configured: browse by group. -->
     <div
       v-else
-      class="grid flex-1 auto-rows-min grid-cols-2 gap-2 overflow-y-auto sm:grid-cols-3"
+      class="grid auto-rows-min grid-cols-2 gap-2.5 overflow-y-auto sm:grid-cols-3 2xl:grid-cols-4"
     >
       <button
         v-for="group in groups"
         :key="group.name"
         type="button"
-        class="min-h-[5rem] rounded-rpos bg-surface p-3 text-sm font-medium shadow-sm"
+        class="flex min-h-[5.5rem] items-center justify-center rounded-rpos border border-line bg-surface p-3 text-center font-semibold transition duration-200 ease-rpos hover:-translate-y-px hover:border-primary/40 hover:shadow-card"
         @click="activeGroup = group.name"
       >
         {{ group.item_group_name }}
       </button>
       <p
         v-if="!groups.length"
-        class="col-span-full p-4 text-center text-muted"
+        class="col-span-full p-6 text-center text-muted"
       >
         {{ t("picker.empty") }}
       </p>

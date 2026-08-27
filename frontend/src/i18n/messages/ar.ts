@@ -116,6 +116,8 @@ const messages: Catalogue["messages"] = {
   "order.voidItem": "إلغاء الصنف",
   "order.cancelBody": "سيُلغى الطلب بالكامل، وسيُبلَّغ المطبخ بما أُرسل إليه.",
   "order.confirmCancel": "تأكيد الإلغاء",
+  "order.title": "الطلب",
+  "order.save": "حفظ",
   "order.pendingSync": "محفوظ على هذا الجهاز — بانتظار الاتصال ليصل الخادم.",
 
   // Order panel
@@ -123,6 +125,7 @@ const messages: Catalogue["messages"] = {
   "panel.inKitchen": "في المطبخ",
   "panel.addSame": "إضافة مثله",
   "panel.empty": "لم تُضف أصناف بعد.",
+  "panel.count": "أصناف هذا الطلب",
   "totals.subtotal": "المجموع",
   "totals.discount": "الخصم",
   "totals.tax": "الضريبة",

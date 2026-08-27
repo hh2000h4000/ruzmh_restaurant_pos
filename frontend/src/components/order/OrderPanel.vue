@@ -19,6 +19,7 @@ defineProps<{ order: OrderDetail; lines: OrderLine[]; busy?: boolean }>();
 const emit = defineEmits<{
   void: [line: OrderLine];
   repeat: [line: OrderLine];
+  inspect: [line: OrderLine];
 }>();
 
 /** A line already with the kitchen cannot be quietly re-tapped away (BR-013). */
@@ -74,9 +75,18 @@ function money(value: number): string {
       <li
         v-for="line in lines"
         :key="line.idx"
-        class="p-4"
+        class="relative p-4 transition duration-200 ease-rpos hover:bg-background/60"
       >
-        <div class="flex items-start justify-between gap-3">
+        <!-- The whole line opens its details; the two buttons below stay for
+             the fast path a busy cashier already knows. -->
+        <button
+          type="button"
+          class="absolute inset-0"
+          :aria-label="line.item_name"
+          @click="emit('inspect', line)"
+        />
+
+        <div class="pointer-events-none flex items-start justify-between gap-3">
           <div class="min-w-0">
             <p class="truncate font-semibold">
               {{ line.item_name }}
@@ -122,7 +132,7 @@ function money(value: number): string {
           </div>
         </div>
 
-        <div class="mt-3 flex items-center gap-2">
+        <div class="relative mt-3 flex items-center gap-2">
           <button
             type="button"
             class="ms-auto flex min-h-tap items-center gap-1.5 rounded-rpos px-3 text-sm font-medium text-primary transition duration-200 ease-rpos hover:bg-primary/10 disabled:opacity-40"

@@ -110,6 +110,20 @@ export function addItem(payload: {
   return mutate("order.add_item", payload);
 }
 
+/**
+ * Change how many of a line, before the kitchen has it.
+ *
+ * Not deferrable, for the same reason as `addItem`: the number has to change
+ * on screen and on the server together.
+ */
+export function setItemQty(payload: {
+  order_name: string;
+  item_idx: number;
+  qty: number;
+}): Promise<OrderSummary & { item_idx: number; qty: number; amount: number }> {
+  return mutate("order.set_item_qty", payload);
+}
+
 /** Not deferrable yet, for the same reason as `addItem`. */
 export function voidItem(payload: {
   order_name: string;

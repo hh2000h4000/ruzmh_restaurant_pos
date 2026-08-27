@@ -100,6 +100,15 @@ export const useOrderStore = defineStore("order", () => {
     if (done) await open(orderName);
   }
 
+  /** FR-2.2 — the server decides the new amount; the screen re-reads it. */
+  async function setQty(idx: number, qty: number): Promise<void> {
+    if (!order.value) return;
+
+    const orderName = order.value.order_name;
+    const done = await run(() => orderApi.setItemQty({ order_name: orderName, item_idx: idx, qty }));
+    if (done) await open(orderName);
+  }
+
   async function voidLine(idx: number, reason: string): Promise<void> {
     if (!order.value) return;
 
@@ -167,6 +176,7 @@ export const useOrderStore = defineStore("order", () => {
     open,
     create,
     addItem,
+    setQty,
     voidLine,
     cancel,
     sendToKitchen,

@@ -123,6 +123,28 @@ def add_item(
 
 
 @frappe.whitelist()
+def set_item_qty(
+	order_name: str,
+	item_idx: int,
+	qty: float,
+	queue_id: str | None = None,
+) -> dict:
+	"""Change how many of a line, before it goes to the kitchen (FR-2.2)."""
+	replay = idempotency.previous_result(queue_id)
+	if replay is not None:
+		return replay
+
+	order = _load(order_name)
+	outcome = service.set_item_qty(order, item_idx=item_idx, qty=qty)
+
+	result = dict(_summary(order), **outcome)
+	idempotency.remember(
+		queue_id, "set_item_qty", result, reference_doctype="Restaurant Order", reference_name=order.name
+	)
+	return result
+
+
+@frappe.whitelist()
 def void_item(
 	order_name: str,
 	item_idx: int,

@@ -463,6 +463,49 @@ def _resolve_modifiers(item: str, selected: list | None) -> tuple[list, float]:
 	return resolved, delta
 
 
+def set_item_qty(order, *, item_idx: int, qty: float) -> dict:
+	"""Change a line's quantity, before the kitchen has it (FR-2.2).
+
+	**Only a line still ``pending``.** Once a ticket is printed, quietly
+	changing the number would leave the kitchen cooking one thing and the
+	customer paying for another; the way to reduce a sent line is a void, which
+	withdraws it on paper too (BR-013).
+
+	Not audited, deliberately: adding a line is not audited either, and this is
+	the same act — arranging an order nobody has acted on yet. What is audited
+	is the moment that stops being true, which is the void.
+	"""
+	assert_mutable(order)
+
+	if flt(qty) <= 0:
+		frappe.throw(_("Quantity must be greater than zero."))
+
+	row = next((line for line in order.items if line.idx == cint(item_idx)), None)
+	if not row:
+		frappe.throw(_("Row #{0} is not on this order.").format(item_idx))
+
+	if row.status != "pending":
+		frappe.throw(
+			_("Row #{0} has already gone to the kitchen. Void it instead.").format(item_idx),
+			frappe.ValidationError,
+		)
+
+	before = flt(row.qty)
+
+	# The modifiers were priced when the line was added, and re-resolving them
+	# now would silently re-price the options at today's amounts. Recover the
+	# per-unit delta from what was stored instead.
+	delta_per_unit = (flt(row.amount) / before) - flt(row.rate) if before else 0.0
+
+	row.qty = flt(qty)
+	row.amount = totals.line_amount(flt(row.rate), qty, delta_per_unit)
+
+	totals.calculate(order)
+	order.save(ignore_permissions=True)
+
+	return {"item_idx": row.idx, "qty": flt(row.qty), "amount": flt(row.amount)}
+
+
 def void_item(order, *, item_idx: int, reason: str, override_token: str | None = None) -> dict:
 	"""Void one line (FR-2.5, BR-013)."""
 	assert_mutable(order)

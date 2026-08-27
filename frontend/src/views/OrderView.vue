@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 
 import type { ModifierChoice, OrderLine } from "@/api/order";
 import AppIcon from "@/components/AppIcon.vue";
 import BaseDialog from "@/components/BaseDialog.vue";
 import ItemPicker from "@/components/order/ItemPicker.vue";
+import LineDetailDialog from "@/components/order/LineDetailDialog.vue";
 import ModifierDialog from "@/components/order/ModifierDialog.vue";
 import OrderPanel from "@/components/order/OrderPanel.vue";
 import { pick, t } from "@/i18n";
@@ -139,6 +140,31 @@ function clearPending(): void {
 
 function repeat(line: OrderLine): void {
   void orders.addItem(line.item, { qty: 1 });
+}
+
+/** Tapping a line opens everything known about it (06 Screen 3). */
+const inspecting = ref<OrderLine | null>(null);
+
+function inspect(line: OrderLine): void {
+  inspecting.value = line;
+}
+
+/** Keep the open dialog pointing at the line as the order is re-read. */
+watch(
+  () => orders.lines,
+  (lines) => {
+    if (!inspecting.value) return;
+    inspecting.value = lines.find((line) => line.idx === inspecting.value?.idx) ?? null;
+  },
+);
+
+async function changeQty(idx: number, qty: number): Promise<void> {
+  await orders.setQty(idx, qty);
+}
+
+function voidFromDetail(line: OrderLine): void {
+  inspecting.value = null;
+  askVoid(line);
 }
 
 function askVoid(line: OrderLine): void {
@@ -283,6 +309,7 @@ async function send(): Promise<void> {
           :busy="locked"
           @void="askVoid"
           @repeat="repeat"
+          @inspect="inspect"
         />
       </div>
     </div>
@@ -333,6 +360,14 @@ async function send(): Promise<void> {
         {{ t("order.cancelOrder") }}
       </button>
     </nav>
+
+    <LineDetailDialog
+      :line="inspecting"
+      :busy="locked"
+      @close="inspecting = null"
+      @set-qty="changeQty"
+      @void="voidFromDetail"
+    />
 
     <ModifierDialog
       :item="pendingItem"

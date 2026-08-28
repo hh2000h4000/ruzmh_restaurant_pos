@@ -377,6 +377,10 @@ class TestTotals(FrappeTestCase):
 		``round_based_on_smallest_currency_fraction`` does, and matching the
 		invoice matters more than which way the half goes (D-023).
 		"""
+		# The two exact halves below (10.025, and 47.125 by another route) are
+		# decided by `System Settings.rounding_method`, not by BR-024, which is
+		# silent on a bill landing between two steps. `setup/test_fixtures`
+		# pins it to Banker's Rounding so this table means something.
 		cases = {
 			10.00: 10.00,
 			10.01: 10.00,

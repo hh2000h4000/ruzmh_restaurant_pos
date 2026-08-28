@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import type { OpenOrder } from "@/api/order";
+import type { OpenOrder, OrderView } from "@/api/order";
 import AppIcon from "@/components/AppIcon.vue";
 import OpenOrderCard from "@/components/pos/OpenOrderCard.vue";
 import OpenOrderRow from "@/components/pos/OpenOrderRow.vue";
-import { formatNumber, t } from "@/i18n";
+import { formatNumber, t, type MessageKey } from "@/i18n";
 
 /**
  * The floor: every order still open, in the shape the cashier asked for.
@@ -18,16 +18,32 @@ defineProps<{
   searching: boolean;
   /** `null` when this user may not see anyone else's orders. */
   scope: "mine" | "all" | null;
+  /** `null` on the till screen, which only ever shows the open floor. */
+  view?: OrderView | null;
 }>();
 
 const emit = defineEmits<{
   open: [order: OpenOrder];
   floorPlan: [];
   "update:scope": [scope: "mine" | "all"];
+  "update:view": [view: OrderView];
 }>();
 
-const view = defineModel<"list" | "grid">("view", { default: "list" });
+const layout = defineModel<"list" | "grid">("layout", { default: "list" });
 
+/**
+ * The four questions this pane can ask the server (D-042).
+ *
+ * Tabs, not a filter over what is already here: today's closed orders were
+ * never fetched, so switching is a new request. Ordered from the one a cashier
+ * lives in to the one they visit.
+ */
+const VIEWS: { key: OrderView; label: MessageKey }[] = [
+  { key: "open", label: "orders.viewOpen" },
+  { key: "draft", label: "orders.viewDraft" },
+  { key: "closed", label: "orders.viewClosed" },
+  { key: "all", label: "orders.viewAll" },
+];
 </script>
 
 <template>
@@ -82,11 +98,11 @@ const view = defineModel<"list" | "grid">("view", { default: "list" });
               :key="option"
               type="button"
               class="grid flex-1 place-items-center rounded-[0.75rem] transition duration-200 ease-rpos"
-              :class="view === option ? 'bg-primary text-primary-contrast shadow-card' : 'text-muted'"
-              :aria-pressed="view === option"
+              :class="layout === option ? 'bg-primary text-primary-contrast shadow-card' : 'text-muted'"
+              :aria-pressed="layout === option"
               :aria-label="option === 'grid' ? t('home.viewGrid') : t('home.viewList')"
               :title="option === 'grid' ? t('home.viewGrid') : t('home.viewList')"
-              @click="view = option"
+              @click="layout = option"
             >
               <AppIcon
                 :name="option"
@@ -95,6 +111,31 @@ const view = defineModel<"list" | "grid">("view", { default: "list" });
             </button>
           </div>
         </div>
+      </div>
+
+      <!-- Which orders, asked of the server. Only where more than the open
+           floor is on offer (D-042). -->
+      <div
+        v-if="view"
+        class="mb-4 flex flex-wrap gap-2"
+        role="tablist"
+      >
+        <button
+          v-for="option in VIEWS"
+          :key="option.key"
+          type="button"
+          role="tab"
+          class="min-h-tap rounded-rpos px-5 text-sm font-semibold transition duration-200 ease-rpos"
+          :class="
+            view === option.key
+              ? 'bg-primary text-primary-contrast shadow-card'
+              : 'bg-background text-muted hover:text-content'
+          "
+          :aria-selected="view === option.key"
+          @click="emit('update:view', option.key)"
+        >
+          {{ t(option.label) }}
+        </button>
       </div>
 
       <p
@@ -108,7 +149,7 @@ const view = defineModel<"list" | "grid">("view", { default: "list" });
 
     <div class="min-h-0 overflow-y-auto">
       <div
-        v-if="orders.length && view === 'list'"
+        v-if="orders.length && layout === 'list'"
         class="flex flex-col gap-3.5"
       >
         <OpenOrderRow

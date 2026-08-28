@@ -28,6 +28,9 @@ COMPANY_ABBR_FALLBACK = "RTC"
 #: Enough to seat the table tests, and few enough to read in a failure message.
 TABLE_COUNT = 6
 
+#: The item every money assertion is written against (``tests/test_order.py``).
+TEST_ITEM = "RPOS-TEST-BURGER"
+
 
 def before_tests():
 	"""Called by Frappe before the suite runs (``hooks.py``).
@@ -56,12 +59,62 @@ def before_tests():
 	create_default_data()
 
 	company = _company()
-	branch = _branch()
+	branch = _branch(company)
 	section = _section(branch)
 	_tables(section)
 	_pos_profile(company, section)
+	_test_item()
+
+	_pin_rounding()
+
+	# BR-024 rounds to the nearest 0.05, and the step is read from the Currency
+	# record. `create_default_data` has just written it; the cached copy this
+	# process already read has not caught up, and a stale zero rounds every bill
+	# to whole riyals.
+	frappe.clear_cache()
 
 	frappe.db.commit()
+
+
+def _pin_rounding() -> None:
+	"""Decide the tie, so a money assertion is not at the mercy of a setting.
+
+	BR-024 rounds to the nearest 0.05 and says nothing about a bill that lands
+	exactly halfway — 10.025 is 2.5 halalas from both neighbours. Frappe decides
+	that with ``System Settings.rounding_method``, and the two sites we run on
+	answered differently: one gave 10.00, the other 10.05.
+
+	Neither is wrong, and it cannot make the screen disagree with the invoice —
+	both go through the same helper. But a test that asserts a figure has to
+	know which answer it is asserting, so the suite pins it. A restaurant is
+	free to set the other; what it must not do is have the two disagree.
+	"""
+	frappe.db.set_single_value("System Settings", "rounding_method", "Banker's Rounding")
+
+
+def _test_item() -> str:
+	"""The one item the suite sells.
+
+	Its price is not set here: ``tests/test_order.py`` owns the price list and
+	the rate, so an assertion about arithmetic never depends on a fixture.
+	"""
+	if frappe.db.exists("Item", TEST_ITEM):
+		return TEST_ITEM
+
+	frappe.get_doc(
+		{
+			"doctype": "Item",
+			"item_code": TEST_ITEM,
+			"item_name": "RPOS Test Burger",
+			"pos_display_name_ar": "برغر الاختبار",
+			"item_group": frappe.db.get_value("Item Group", {"is_group": 0}, "name"),
+			"stock_uom": "Nos",
+			"is_stock_item": 0,
+			"is_sales_item": 1,
+			"include_item_in_manufacturing": 0,
+		}
+	).insert(ignore_permissions=True)
+	return TEST_ITEM
 
 
 def _enable_all_roles_for_admin() -> None:
@@ -83,9 +136,26 @@ def _company() -> str:
 	return company
 
 
-def _branch() -> str:
-	if not frappe.db.exists("Branch", BRANCH):
-		frappe.get_doc({"doctype": "Branch", "branch": BRANCH}).insert(ignore_permissions=True)
+def _branch(company: str) -> str:
+	"""A branch, with the fields ``setup/install.py`` makes mandatory on it.
+
+	`Branch` is ERPNext's, extended by our custom fields — so a fixture cannot
+	just name it; it has to answer for the warehouse and cost centre the branch
+	sells and books through, the same as a real one.
+	"""
+	if frappe.db.exists("Branch", BRANCH):
+		return BRANCH
+
+	abbr = frappe.db.get_value("Company", company, "abbr") or COMPANY_ABBR_FALLBACK
+	frappe.get_doc(
+		{
+			"doctype": "Branch",
+			"branch": BRANCH,
+			"company": company,
+			"default_warehouse": _warehouse(company),
+			"default_cost_center": _cost_center(company, abbr),
+		}
+	).insert(ignore_permissions=True)
 	return BRANCH
 
 

@@ -45,7 +45,13 @@ export interface OrderDetail extends OrderSummary {
   items: OrderLine[];
 }
 
-export type OpenOrderStatus = "draft" | "active" | "in_kitchen" | "pending_payment";
+export type OpenOrderStatus =
+  | "draft"
+  | "active"
+  | "in_kitchen"
+  | "pending_payment"
+  | "closed"
+  | "cancelled";
 
 /** One card on the home screen (06 Screen 1). */
 export interface OpenOrder {
@@ -73,9 +79,12 @@ export interface ModifierChoice {
   option: string;
 }
 
+/** Which orders the pane is asking for (06 Screen 3). */
+export type OrderView = "open" | "draft" | "closed" | "all";
+
 /** Branch-wide, not terminal-wide — see the docstring on the endpoint. */
-export function getOpenOrders(posProfile: string): Promise<OpenOrder[]> {
-  return query<OpenOrder[]>("order.get_open_orders", { pos_profile: posProfile });
+export function listOrders(posProfile: string, view: OrderView = "open"): Promise<OpenOrder[]> {
+  return query<OpenOrder[]>("order.list_orders", { pos_profile: posProfile, view });
 }
 
 /**

@@ -24,6 +24,9 @@ const STATUS_TEXT: Record<OpenOrder["status"], string> = {
   active: "text-order-active",
   in_kitchen: "text-order-in_kitchen",
   pending_payment: "text-order-pending_payment",
+  // History, since the orders pane can ask for today's closed bills (D-042).
+  closed: "text-order-closed",
+  cancelled: "text-order-cancelled",
 };
 
 function whereLabel(order: OpenOrder): string {

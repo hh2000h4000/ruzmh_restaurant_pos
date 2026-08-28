@@ -1,6 +1,6 @@
-import { computed, onMounted, onUnmounted, ref } from "vue";
+import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 
-import { getOpenOrders, type OpenOrder } from "@/api/order";
+import { listOrders, type OpenOrder, type OrderView } from "@/api/order";
 import { t } from "@/i18n";
 import { useSessionStore } from "@/stores/session";
 
@@ -24,6 +24,9 @@ export function useOpenOrders() {
 
   const search = ref("");
   const sort = ref<OrderSort>("oldest");
+
+  /** Which orders to ask for: open, drafts, today's history, or everything. */
+  const view = ref<OrderView>("open");
 
   /** "Mine" is the default even for a supervisor: the smaller list is the calmer one. */
   const scope = ref<OrderScope>("mine");
@@ -66,7 +69,7 @@ export function useOpenOrders() {
 
     loading.value = true;
     try {
-      rows.value = await getOpenOrders(profile);
+      rows.value = await listOrders(profile, view.value);
       error.value = null;
     } catch (cause) {
       // The list is a convenience; a failure here must not blank the screen or
@@ -84,6 +87,10 @@ export function useOpenOrders() {
   function onVisibilityChange(): void {
     if (document.visibilityState === "visible") void refresh();
   }
+
+  // Changing the tab is a different question for the server, not a filter over
+  // what is already here: today's closed orders were never fetched.
+  watch(view, () => void refresh());
 
   onMounted(() => {
     void refresh();
@@ -105,6 +112,7 @@ export function useOpenOrders() {
     search,
     searching: computed(() => Boolean(search.value.trim())),
     sort,
+    view,
     visible,
   };
 }

@@ -63,7 +63,7 @@ const {
   visible: visibleOrders,
 } = useOpenOrders();
 
-const view = ref<"list" | "grid">("list");
+const layout = ref<"list" | "grid">("list");
 const sortOpen = ref(false);
 
 function resume(order: OpenOrder): void {
@@ -204,7 +204,7 @@ const SORT_OPTIONS = [
 
       <div class="grid min-h-0 grid-rows-[minmax(0,1fr)] p-5 ps-0">
         <OpenOrdersPanel
-          v-model:view="view"
+          v-model:layout="layout"
           :orders="visibleOrders"
           :loading="loadingOrders"
           :error="ordersError"

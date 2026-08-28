@@ -11,13 +11,16 @@ import ModifierDialog from "@/components/order/ModifierDialog.vue";
 import OrderActionBar, { type OrderAction } from "@/components/order/OrderActionBar.vue";
 import OrderPanel from "@/components/order/OrderPanel.vue";
 import OrderTypeChangeDialog from "@/components/order/OrderTypeChangeDialog.vue";
-import WorkPaneTabs, { type WorkPane } from "@/components/order/WorkPaneTabs.vue";
+import FloorPane from "@/components/order/FloorPane.vue";
+import NewOrderPane from "@/components/order/NewOrderPane.vue";
+import OrderBottomNav, { type NavEntry } from "@/components/order/OrderBottomNav.vue";
 import OpenOrdersPanel from "@/components/pos/OpenOrdersPanel.vue";
 import { useOpenOrders } from "@/composables/useOpenOrders";
 import { t } from "@/i18n";
 import { useOrderStore } from "@/stores/order";
 import { useSessionStore } from "@/stores/session";
-import type { CatalogItem } from "@/types/session";
+import type { FloorTable } from "@/api/table";
+import type { CatalogItem, OrderType } from "@/types/session";
 
 /**
  * Screen 3 — the screen a cashier spends the whole shift on.
@@ -93,30 +96,99 @@ onMounted(async () => {
  * two applications. Here the order in hand is never put down.
  */
 const pane = ref("items");
-const floorView = ref<"list" | "grid">("list");
+const floorLayout = ref<"list" | "grid">("list");
 const {
   error: floorError,
   loading: floorLoading,
   maySeeEveryone: floorMaySeeEveryone,
   scope: floorScope,
   searching: floorSearching,
+  view: floorView,
   visible: floorOrders,
 } = useOpenOrders();
 
-const panes = computed<WorkPane[]>(() => [
+/**
+ * The four places, along the bottom (D-042).
+ *
+ * "New" is marked as the way forward rather than a place, because it is the one
+ * entry that changes something: it leaves the order in hand open — it has been
+ * a real record on the server since it was created — and starts another.
+ */
+const navEntries = computed<NavEntry[]>(() => [
   { key: "items", label: "order.paneItems", icon: "grid" },
   {
     key: "orders",
-    label: "home.openOrders",
+    label: "nav.orders",
     icon: "document",
-    count: floorOrders.value.length,
+    count: floorView.value === "open" ? floorOrders.value.length : 0,
   },
+  { key: "tables", label: "nav.tables", icon: "floorPlan" },
+  { key: "new", label: "nav.new", icon: "plus", primary: true },
 ]);
 
-/** The floor plan is a screen of its own; this is the one way out of here. */
-function showFloorPlan(): void {
-  const type = orders.order?.order_type ?? "";
-  void router.push({ name: "tables", params: { orderType: type } });
+function onNavigate(key: string): void {
+  if (key === "home") void router.push({ name: "home" });
+  else pane.value = key;
+}
+
+/**
+ * Start another order and leave this one open (D-042).
+ *
+ * Nothing is "held": the order in hand is already a `Restaurant Order` on the
+ * server, and the cashier finds it again under **الطلبات**. A customer who
+ * takes their time paying stops blocking the queue, and no new concept was
+ * needed to allow it.
+ */
+async function startAnother(orderType: OrderType): Promise<void> {
+  if (orderType.requires_table) {
+    // A type that seats people picks the table first, so the order is never
+    // created and then refused (FR-2.1 step 3).
+    pane.value = "tables";
+    seatingType.value = orderType;
+    return;
+  }
+
+  const created = await orders.create({
+    order_type: orderType.name,
+    pos_profile: session.profile!.name,
+  });
+
+  if (created) {
+    pane.value = "items";
+    await router.replace({ name: "order", params: { orderName: created } });
+  }
+}
+
+/**
+ * The type waiting for a table, when the cashier came here from **New**.
+ *
+ * `null` means the floor is just being looked at, and tapping a free table
+ * seats whichever type this terminal uses for table service.
+ */
+const seatingType = ref<OrderType | null>(null);
+
+/** The type this terminal seats tables with — the data decides, not a name. */
+const tableTypes = computed(() => session.orderTypes.filter((type) => type.requires_table));
+
+async function seat(table: FloorTable): Promise<void> {
+  const type = seatingType.value ?? tableTypes.value[0] ?? null;
+  if (!type) {
+    startupError.value = t("order.noTableType");
+    return;
+  }
+
+  const created = await orders.create({
+    order_type: type.name,
+    pos_profile: session.profile!.name,
+    table: table.name,
+    cover_count: type.requires_cover_count ? table.capacity || 2 : null,
+  });
+
+  seatingType.value = null;
+  if (created) {
+    pane.value = "items";
+    await router.replace({ name: "order", params: { orderName: created } });
+  }
 }
 
 /**
@@ -126,9 +198,13 @@ function showFloorPlan(): void {
  * cashier is actually looking at — and the watch below does the reading.
  */
 function switchTo(order: OpenOrder): void {
+  openOrder(order.name);
+}
+
+function openOrder(orderName: string): void {
   pane.value = "items";
-  if (order.name === orders.order?.order_name) return;
-  void router.replace({ name: "order", params: { orderName: order.name } });
+  if (orderName === orders.order?.order_name) return;
+  void router.replace({ name: "order", params: { orderName } });
 }
 
 watch(
@@ -336,7 +412,7 @@ async function send(): Promise<void> {
     order's number, state, type and customer are on the bill; the way back is
     the button beside the tabs.
   -->
-  <main class="grid h-full grid-rows-[minmax(0,1fr)] bg-background">
+  <main class="grid h-full grid-rows-[minmax(0,1fr)_auto] bg-background">
     <div class="grid min-h-0 grid-rows-[minmax(0,1fr)] p-5">
       <p
         v-if="startupError"
@@ -351,42 +427,13 @@ async function send(): Promise<void> {
         class="grid min-h-0 gap-4 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]"
       >
         <div class="grid min-h-0 grid-rows-[auto_auto_minmax(0,1fr)] gap-3">
-          <!-- What the column shows, then what the order can do. The bill
-               beside it is untouched by either. -->
-          <div class="flex flex-wrap items-center justify-between gap-3">
-            <div class="flex items-center gap-2.5">
-              <RouterLink
-                :to="{ name: 'home' }"
-                class="grid h-[50px] w-[50px] shrink-0 place-items-center rounded-rpos bg-surface text-primary shadow-card transition duration-200 ease-rpos hover:-translate-y-px hover:shadow-lift"
-                :aria-label="t('action.back')"
-                :title="t('action.back')"
-              >
-                <AppIcon
-                  v-if="orders.busy"
-                  name="refresh"
-                  class="animate-spin text-muted"
-                  :size="24"
-                />
-                <AppIcon
-                  v-else
-                  name="back"
-                  class="rpos-flip"
-                  :size="24"
-                />
-              </RouterLink>
-
-              <WorkPaneTabs
-                v-model:active="pane"
-                :panes="panes"
-              />
-            </div>
-
-            <OrderActionBar
-              :actions="rowActions"
-              :more="moreActions"
-              @select="onAction"
-            />
-          </div>
+          <!-- What the order can do. Where the cashier goes is the bar along
+               the bottom; the two never mix (D-042). -->
+          <OrderActionBar
+            :actions="rowActions"
+            :more="moreActions"
+            @select="onAction"
+          />
 
           <div class="flex flex-col gap-2 empty:hidden">
             <p
@@ -432,18 +479,32 @@ async function send(): Promise<void> {
           </div>
 
           <!-- The same list as the till screen, in the same component: one
-               place decides what an open order looks like. -->
+               place decides what an order looks like. Here it can also be asked
+               for drafts and for today's history (D-042). -->
           <OpenOrdersPanel
-            v-else
-            v-model:view="floorView"
+            v-else-if="pane === 'orders'"
+            v-model:layout="floorLayout"
             :orders="floorOrders"
             :loading="floorLoading"
             :error="floorError"
             :searching="floorSearching"
             :scope="floorMaySeeEveryone ? floorScope : null"
+            :view="floorView"
             @open="switchTo"
-            @floor-plan="showFloorPlan"
+            @floor-plan="pane = 'tables'"
             @update:scope="floorScope = $event"
+            @update:view="floorView = $event"
+          />
+
+          <FloorPane
+            v-else-if="pane === 'tables'"
+            @seat="seat"
+            @open="openOrder"
+          />
+
+          <NewOrderPane
+            v-else
+            @open="startAnother"
           />
         </div>
 
@@ -459,6 +520,12 @@ async function send(): Promise<void> {
         />
       </div>
     </div>
+
+    <OrderBottomNav
+      :entries="navEntries"
+      :active="pane"
+      @select="onNavigate"
+    />
 
     <LineDetailDialog
       :line="inspecting"

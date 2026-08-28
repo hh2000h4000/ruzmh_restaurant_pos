@@ -11,7 +11,8 @@ Refs: 07_API_Design.md §3, FR-2.1..FR-2.8
 """
 
 import frappe
-from frappe.utils import now_datetime, time_diff_in_seconds
+from frappe import _
+from frappe.utils import get_datetime, now_datetime, nowdate, time_diff_in_seconds
 
 from restaurant_pos.utils import idempotency
 from restaurant_pos.utils import order as service
@@ -248,25 +249,49 @@ def cancel_order(
 #: An order the cashier can still act on. Anything else belongs to history.
 OPEN_STATUSES = ("draft", "active", "in_kitchen", "pending_payment")
 
+#: What each tab of the orders pane asks for (06 Screen 3, D-042).
+VIEWS = {
+	"open": OPEN_STATUSES,
+	"draft": ("draft",),
+	"closed": ("closed", "cancelled"),
+	"all": (*OPEN_STATUSES, "closed", "cancelled"),
+}
+
+#: A day's history is what a till needs — a reprint, a return, "what did table
+#: four have". Anything older is a report, and a report is not this list.
+CLOSED_LIMIT = 200
+
 
 @frappe.whitelist()
-def get_open_orders(pos_profile: str) -> list[dict]:
-	"""Every order still on the floor, for the home screen (06 Screen 1).
+def list_orders(pos_profile: str, view: str = "open") -> list[dict]:
+	"""The orders this till may look at, in one of four views (06 Screen 3).
 
 	Scoped to the **branch**, not the terminal. An order opened on the waiter's
 	tablet has to be payable at the till, and a takeaway opened by the cashier
 	who just went on break has to be findable by the one taking over. Scoping
 	this to ``pos_profile`` would hide both and strand the order.
 
-	Oldest first: the card that has been waiting longest is the one that needs
-	attention (06 §Screen 1 behaviour).
+	Open orders come oldest first: the one that has been waiting longest is the
+	one that needs attention (06 §Screen 1 behaviour). History comes newest
+	first and only for today, because what a cashier wants from a closed order
+	is the one they just closed.
 	"""
+	statuses = VIEWS.get(view)
+	if not statuses:
+		frappe.throw(_("Unknown order view {0}.").format(view))
+
 	# A POS Profile has no branch of its own; it inherits one from the section
 	# it serves, the same way `session._profile` resolves it.
 	section = frappe.db.get_value("POS Profile", pos_profile, "restaurant_section")
 	branch = frappe.db.get_value("Restaurant Section", section, "branch") if section else None
 
-	filters: dict = {"status": ("in", OPEN_STATUSES)}
+	filters: dict = {"status": ("in", statuses)}
+
+	# History is bounded by the day, so the list cannot grow without limit and a
+	# cashier is never scrolling through last month to reprint this morning.
+	history_only = view == "closed"
+	if history_only:
+		filters["opened_at"] = (">=", get_datetime(f"{nowdate()} 00:00:00"))
 
 	# FR-12.x — whose orders this cashier may see is a permission, enforced
 	# here and not by hiding a button. A till without the right must not be
@@ -297,7 +322,8 @@ def get_open_orders(pos_profile: str) -> list[dict]:
 			"total_amount",
 			"opened_at",
 		],
-		order_by="opened_at asc",
+		order_by="opened_at desc" if history_only else "opened_at asc",
+		limit=CLOSED_LIMIT if history_only else 0,
 	)
 	if not orders:
 		return []

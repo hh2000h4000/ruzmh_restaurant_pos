@@ -15,7 +15,7 @@ from restaurant_pos.utils import order as service
 
 class TestOpenOrders(OrderTestBase):
 	def _names(self):
-		return {row["name"] for row in api.get_open_orders(self.profile)}
+		return {row["name"] for row in api.list_orders(self.profile)}
 
 	def test_a_new_order_appears(self):
 		order = self._order()
@@ -31,7 +31,7 @@ class TestOpenOrders(OrderTestBase):
 		order = self._order()
 		service.add_item(order, item=ITEM, qty=2)
 
-		row = next(entry for entry in api.get_open_orders(self.profile) if entry["name"] == order.name)
+		row = next(entry for entry in api.list_orders(self.profile) if entry["name"] == order.name)
 
 		self.assertEqual(row["item_count"], 1)
 		self.assertEqual(row["status"], order.status)
@@ -44,7 +44,7 @@ class TestOpenOrders(OrderTestBase):
 		service.add_item(order, item=ITEM, qty=1)
 		service.void_item(order, item_idx=1, reason="RPOS test")
 
-		row = next(entry for entry in api.get_open_orders(self.profile) if entry["name"] == order.name)
+		row = next(entry for entry in api.list_orders(self.profile) if entry["name"] == order.name)
 		self.assertEqual(row["item_count"], 0)
 
 	def test_the_oldest_order_comes_first(self):
@@ -52,7 +52,7 @@ class TestOpenOrders(OrderTestBase):
 		first = self._order()
 		second = self._order()
 
-		listed = [row["name"] for row in api.get_open_orders(self.profile)]
+		listed = [row["name"] for row in api.list_orders(self.profile)]
 		self.assertLess(listed.index(first.name), listed.index(second.name))
 
 	def test_an_order_from_another_terminal_is_still_listed(self):
@@ -70,14 +70,14 @@ class TestOpenOrders(OrderTestBase):
 			self.skipTest("this site has only one POS Profile in the section")
 
 		order = self._order()
-		listed = {row["name"] for row in api.get_open_orders(other)}
+		listed = {row["name"] for row in api.list_orders(other)}
 		self.assertIn(order.name, listed)
 
 	def test_a_card_names_the_cashier_who_opened_it(self):
 		"""06 Screen 1 — whoever takes over a shift has to tell the tables apart."""
 		order = self._order()
 
-		row = next(entry for entry in api.get_open_orders(self.profile) if entry["name"] == order.name)
+		row = next(entry for entry in api.list_orders(self.profile) if entry["name"] == order.name)
 		self.assertTrue(row["cashier_name"])
 
 	def test_a_cashier_without_the_right_sees_only_their_own(self):
@@ -92,7 +92,7 @@ class TestOpenOrders(OrderTestBase):
 		frappe.set_user(cashier)
 		frappe.local.rpos_permission_cache = {}
 		try:
-			listed = {row["name"] for row in api.get_open_orders(self.profile)}
+			listed = {row["name"] for row in api.list_orders(self.profile)}
 		finally:
 			frappe.set_user("Administrator")
 			frappe.local.rpos_permission_cache = {}
@@ -113,7 +113,7 @@ class TestOpenOrders(OrderTestBase):
 
 		frappe.get_all = counting
 		try:
-			api.get_open_orders(self.profile)
+			api.list_orders(self.profile)
 			baseline = calls
 		finally:
 			frappe.get_all = real_get_all
@@ -124,9 +124,55 @@ class TestOpenOrders(OrderTestBase):
 		calls = 0
 		frappe.get_all = counting
 		try:
-			api.get_open_orders(self.profile)
+			api.list_orders(self.profile)
 			after = calls
 		finally:
 			frappe.get_all = real_get_all
 
 		self.assertEqual(after, baseline, "get_open_orders issued more queries for more orders")
+
+
+class TestOrderViews(OrderTestBase):
+	"""D-042 — the orders pane asks the server four different questions."""
+
+	def test_an_unknown_view_is_refused(self):
+		with self.assertRaises(frappe.ValidationError):
+			api.list_orders(self.profile, view="everything")
+
+	def test_drafts_are_only_the_untouched_ones(self):
+		draft = self._order()
+		started = self._order()
+		service.add_item(started, item=self.item, qty=1)
+
+		listed = {row["name"] for row in api.list_orders(self.profile, view="draft")}
+
+		self.assertIn(draft.name, listed)
+		self.assertNotIn(started.name, listed, "an order with items is no longer a draft")
+
+	def test_history_holds_what_the_floor_does_not(self):
+		order = self._order()
+		service.add_item(order, item=self.item, qty=1)
+		service.cancel_order(order, reason="test")
+
+		self.assertNotIn(order.name, {row["name"] for row in api.list_orders(self.profile)})
+		self.assertIn(order.name, {row["name"] for row in api.list_orders(self.profile, view="closed")})
+
+	def test_all_is_both(self):
+		open_order = self._order()
+		closed = self._order()
+		service.add_item(closed, item=self.item, qty=1)
+		service.cancel_order(closed, reason="test")
+
+		listed = {row["name"] for row in api.list_orders(self.profile, view="all")}
+
+		self.assertIn(open_order.name, listed)
+		self.assertIn(closed.name, listed)
+
+	def test_history_is_newest_first(self):
+		"""What a cashier wants from a closed order is the one they just closed."""
+		rows = api.list_orders(self.profile, view="closed")
+		if len(rows) < 2:
+			self.skipTest("fewer than two closed orders today")
+
+		opened = [row["opened_at"] for row in rows]
+		self.assertEqual(opened, sorted(opened, reverse=True))

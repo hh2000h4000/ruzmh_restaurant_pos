@@ -14,7 +14,7 @@ import OrderTypeChangeDialog from "@/components/order/OrderTypeChangeDialog.vue"
 import WorkPaneTabs, { type WorkPane } from "@/components/order/WorkPaneTabs.vue";
 import OpenOrdersPanel from "@/components/pos/OpenOrdersPanel.vue";
 import { useOpenOrders } from "@/composables/useOpenOrders";
-import { pick, t } from "@/i18n";
+import { t } from "@/i18n";
 import { useOrderStore } from "@/stores/order";
 import { useSessionStore } from "@/stores/session";
 import type { CatalogItem } from "@/types/session";
@@ -43,21 +43,7 @@ const orderType = computed(
   () => session.orderTypes.find((type) => type.name === orders.order?.order_type) ?? null,
 );
 
-const title = computed(() => {
-  const type = pick(orderType.value?.title_ar, orderType.value?.title);
-  const table = orders.order?.table ? ` · ${orders.order.table}` : "";
-  return `${type}${table}`;
-});
-
 const locked = computed(() => orders.busy || orders.isClosed);
-
-/** Which hall this till is standing in — the same line the home screen shows. */
-const sectionTitle = computed(
-  () =>
-    pick(session.data?.restaurant_section?.title_ar, session.data?.restaurant_section?.title) ||
-    session.branch ||
-    "",
-);
 
 onMounted(async () => {
   const existing = route.params.orderName as string | undefined;
@@ -344,53 +330,13 @@ async function send(): Promise<void> {
 
 <template>
   <!--
-    The same three rows as the till screen: identity, the work, the actions.
-    `minmax(0, 1fr)` on the middle row is what lets both panels scroll inside it
-    instead of growing the page (06 Screen 3).
+    No title bar. A till screen is read from across a counter, and ninety pixels
+    of chrome repeating what the bill already says is ninety pixels of menu the
+    cashier does not get. Everything that lived up there has a better home: the
+    order's number, state, type and customer are on the bill; the way back is
+    the button beside the tabs.
   -->
-  <main class="grid h-full grid-rows-[auto_minmax(0,1fr)_auto] bg-background">
-    <header class="flex h-[90px] shrink-0 items-center gap-4 border-b border-line bg-surface px-6">
-      <RouterLink
-        :to="{ name: 'home' }"
-        class="grid h-11 w-11 shrink-0 place-items-center rounded-full text-primary transition duration-200 ease-rpos hover:bg-background"
-        :aria-label="t('action.back')"
-      >
-        <AppIcon
-          name="back"
-          class="rpos-flip"
-          :size="24"
-        />
-      </RouterLink>
-
-      <div class="min-w-0">
-        <h1 class="truncate text-xl font-bold leading-tight">
-          {{ title || t("order.title") }}
-        </h1>
-        <p class="truncate text-sm text-muted">
-          {{ sectionTitle }}
-        </p>
-      </div>
-
-      <!--
-        The order's number and state moved onto the bill itself, where a cashier
-        reads them from (06 Screen 3). Repeating them here would only make the
-        screen say the same thing twice.
-      -->
-      <div class="ms-auto flex shrink-0 items-center gap-3">
-        <span
-          v-if="orders.busy"
-          class="text-muted"
-          :title="t('common.loading')"
-        >
-          <AppIcon
-            name="refresh"
-            class="animate-spin"
-            :size="22"
-          />
-        </span>
-      </div>
-    </header>
-
+  <main class="grid h-full grid-rows-[minmax(0,1fr)] bg-background">
     <div class="grid min-h-0 grid-rows-[minmax(0,1fr)] p-5">
       <p
         v-if="startupError"
@@ -408,10 +354,32 @@ async function send(): Promise<void> {
           <!-- What the column shows, then what the order can do. The bill
                beside it is untouched by either. -->
           <div class="flex flex-wrap items-center justify-between gap-3">
-            <WorkPaneTabs
-              v-model:active="pane"
-              :panes="panes"
-            />
+            <div class="flex items-center gap-2.5">
+              <RouterLink
+                :to="{ name: 'home' }"
+                class="grid h-[50px] w-[50px] shrink-0 place-items-center rounded-rpos bg-surface text-primary shadow-card transition duration-200 ease-rpos hover:-translate-y-px hover:shadow-lift"
+                :aria-label="t('action.back')"
+                :title="t('action.back')"
+              >
+                <AppIcon
+                  v-if="orders.busy"
+                  name="refresh"
+                  class="animate-spin text-muted"
+                  :size="24"
+                />
+                <AppIcon
+                  v-else
+                  name="back"
+                  class="rpos-flip"
+                  :size="24"
+                />
+              </RouterLink>
+
+              <WorkPaneTabs
+                v-model:active="pane"
+                :panes="panes"
+              />
+            </div>
 
             <OrderActionBar
               :actions="rowActions"

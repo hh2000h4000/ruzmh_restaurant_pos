@@ -44,6 +44,49 @@ def _make_cashier() -> str:
 	return CASHIER
 
 
+#: The suite's own price list, so a money assertion never depends on what the
+#: site happens to be selling from.
+TEST_PRICE_LIST = "RPOS Test Selling"
+TEST_ITEM_RATE = 25
+
+
+def _ensure_test_price_list() -> str:
+	"""The list the suite sells from, with the test item at a known rate.
+
+	The rate is *set*, not merely created: an earlier run — or the demo loader —
+	may already have priced this item at something else, and an assertion about
+	arithmetic must not depend on which ran last.
+	"""
+	if not frappe.db.exists("Price List", TEST_PRICE_LIST):
+		frappe.get_doc(
+			{
+				"doctype": "Price List",
+				"price_list_name": TEST_PRICE_LIST,
+				"currency": "SAR",
+				"selling": 1,
+				"enabled": 1,
+			}
+		).insert(ignore_permissions=True)
+
+	existing = frappe.db.get_value(
+		"Item Price", {"item_code": ITEM, "price_list": TEST_PRICE_LIST}, "name"
+	)
+	if existing:
+		frappe.db.set_value("Item Price", existing, "price_list_rate", TEST_ITEM_RATE)
+	else:
+		frappe.get_doc(
+			{
+				"doctype": "Item Price",
+				"item_code": ITEM,
+				"price_list": TEST_PRICE_LIST,
+				"selling": 1,
+				"price_list_rate": TEST_ITEM_RATE,
+			}
+		).insert(ignore_permissions=True)
+
+	return TEST_PRICE_LIST
+
+
 def _ensure_shift(profile: str) -> str:
 	shift = frappe.db.get_value("Restaurant Shift", {"branch": BRANCH, "status": "open"}, "name")
 	if not shift:
@@ -79,44 +122,30 @@ class OrderTestBase(FrappeTestCase):
 		cls.item = ITEM
 		_ensure_shift(cls.profile)
 
-		# A known price, so the assertions are about our arithmetic and not
-		# about whether the site happens to have a price list configured.
-		price_list = frappe.db.get_value("POS Profile", cls.profile, "selling_price_list")
-		if not price_list:
-			price_list = frappe.db.get_value("Price List", {"selling": 1, "enabled": 1}, "name")
+		# The suite owns its price list outright rather than borrowing whatever
+		# the site happens to have. Borrowing coupled every money assertion to
+		# the demo data: the demo priced this burger at 10 and half the suite
+		# started failing on `10.0 != 25`.
+		cls.price_list = _ensure_test_price_list()
 
-		if not price_list:
-			# install_fixtures() creates masters but not price lists; those come
-			# from the setup wizard, which this test site never ran (D-012).
-			price_list = (
-				frappe.get_doc(
-					{
-						"doctype": "Price List",
-						"price_list_name": "RPOS Test Selling",
-						"currency": "SAR",
-						"selling": 1,
-						"enabled": 1,
-					}
-				)
-				.insert(ignore_permissions=True)
-				.name
-			)
-
-		frappe.db.set_value("POS Profile", cls.profile, "selling_price_list", price_list)
-
-		cls.price_list = price_list
-		if not frappe.db.exists("Item Price", {"item_code": ITEM, "price_list": price_list}):
-			frappe.get_doc(
-				{
-					"doctype": "Item Price",
-					"item_code": ITEM,
-					"price_list": price_list,
-					"selling": 1,
-					"price_list_rate": 25,
-				}
-			).insert(ignore_permissions=True)
+		# And it gives the terminal back afterwards (tearDownClass). Leaving it
+		# pointed at a list the tests invented is how a demo site ends up with a
+		# menu that has no prices at all: the dishes are priced in one list and
+		# the till reads another.
+		cls.original_price_list = frappe.db.get_value("POS Profile", cls.profile, "selling_price_list")
+		frappe.db.set_value("POS Profile", cls.profile, "selling_price_list", cls.price_list)
 
 		frappe.db.commit()
+
+	@classmethod
+	def tearDownClass(cls):
+		if getattr(cls, "original_price_list", None):
+			frappe.db.set_value(
+				"POS Profile", cls.profile, "selling_price_list", cls.original_price_list
+			)
+			frappe.db.commit()
+
+		super().tearDownClass()
 
 	def _order(self, **kwargs):
 		return service.create_order(

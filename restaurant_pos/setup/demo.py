@@ -20,6 +20,8 @@ groups wired to the dishes that need them, twelve tables, and a screen layout
 the cashier actually uses.
 """
 
+import hashlib
+
 import frappe
 from frappe import _
 
@@ -193,11 +195,14 @@ def create_demo_data(pos_profile: str | None = None) -> dict:
 	profile = _profile(pos_profile)
 	branch = frappe.db.get_value("Restaurant Section", profile.restaurant_section, "branch")
 
+	price_list = _price_list(profile)
+
 	created = {
+		"price_list": [price_list],
 		"printers": _printers(branch),
 		"production_centers": _production_centers(branch),
 		"item_groups": _item_groups(),
-		"items": _items(profile),
+		"items": _items(price_list),
 		"routing_rules": _routing_rules(branch),
 		"modifier_groups": _modifier_groups(),
 		"tables": _tables(profile.restaurant_section),
@@ -208,6 +213,30 @@ def create_demo_data(pos_profile: str | None = None) -> dict:
 	return created
 
 
+#: The demo prices its own menu rather than borrowing whatever list happens to
+#: be on the terminal. A site that never ran ERPNext's setup wizard has no
+#: selling price list at all (D-012), and the test suite creates and assigns its
+#: own — so "whatever the profile points at" is not something to build on.
+DEMO_PRICE_LIST = "RPOS Demo Selling"
+
+
+def _price_list(profile) -> str:
+	"""Create the demo's price list and point the terminal at it."""
+	if not frappe.db.exists("Price List", DEMO_PRICE_LIST):
+		frappe.get_doc(
+			{
+				"doctype": "Price List",
+				"price_list_name": DEMO_PRICE_LIST,
+				"currency": profile.currency or "SAR",
+				"selling": 1,
+				"enabled": 1,
+			}
+		).insert(ignore_permissions=True)
+
+	frappe.db.set_value("POS Profile", profile.name, "selling_price_list", DEMO_PRICE_LIST)
+	return DEMO_PRICE_LIST
+
+
 def _profile(pos_profile: str | None) -> frappe._dict:
 	name = pos_profile or frappe.db.get_value("POS Profile", {}, "name")
 	if not name:
@@ -216,7 +245,7 @@ def _profile(pos_profile: str | None) -> frappe._dict:
 	profile = frappe.db.get_value(
 		"POS Profile",
 		name,
-		["name", "restaurant_section", "selling_price_list", "company"],
+		["name", "restaurant_section", "selling_price_list", "company", "currency"],
 		as_dict=True,
 	)
 	if not profile.restaurant_section:
@@ -305,7 +334,7 @@ def _item_groups() -> list[str]:
 	return created
 
 
-def _items(profile) -> list[str]:
+def _items(price_list: str) -> list[str]:
 	"""Dishes with Arabic names and prices.
 
 	``is_stock_item = 0``: a prepared dish is not stock. Recipe-level depletion
@@ -333,14 +362,12 @@ def _items(profile) -> list[str]:
 				).insert(ignore_permissions=True)
 				created.append(code)
 
-			if not frappe.db.exists(
-				"Item Price", {"item_code": code, "price_list": profile.selling_price_list}
-			):
+			if not frappe.db.exists("Item Price", {"item_code": code, "price_list": price_list}):
 				frappe.get_doc(
 					{
 						"doctype": "Item Price",
 						"item_code": code,
-						"price_list": profile.selling_price_list,
+						"price_list": price_list,
 						"selling": 1,
 						"price_list_rate": price,
 					}
@@ -350,9 +377,16 @@ def _items(profile) -> list[str]:
 
 
 def _item_code(group: str, arabic_name: str) -> str:
-	"""A stable ASCII code, because an item code is a key not a label."""
-	slug = str(abs(hash(arabic_name)) % 10_000).zfill(4)
-	return f"{PREFIX}-{group[:3].upper()}-{slug}"
+	"""A stable ASCII code, because an item code is a key and not a label.
+
+	`hash()` was the obvious choice and the wrong one: Python randomises string
+	hashing per process, so every run of this loader invented a fresh set of
+	codes and created the whole menu again. The site ended up with several
+	copies of every dish, only the newest of them priced — which is exactly how
+	a menu comes up saying "no price" for everything.
+	"""
+	digest = hashlib.md5(arabic_name.encode("utf-8")).hexdigest()  # noqa: S324 - a key, not a secret
+	return f"{PREFIX}-{group[:3].upper()}-{digest[:6].upper()}"
 
 
 def _routing_rules(branch: str) -> list[str]:

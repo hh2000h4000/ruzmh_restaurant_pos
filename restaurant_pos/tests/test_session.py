@@ -12,9 +12,31 @@ from restaurant_pos.api import session
 from restaurant_pos.tests.test_order import ITEM, OrderTestBase
 
 
+#: Items these tests invent. They are sellable, so anything left behind turns up
+#: on the cashier's menu — the suite and the demo share one site.
+SCRATCH_ITEMS = ["RPOS-TEST-UNPRICED"] + [f"RPOS-TEST-BULK-{index}" for index in range(10)]
+
+
 class TestLoadPosSession(OrderTestBase):
 	def setUp(self):
 		frappe.local.rpos_permission_cache = {}
+
+	@classmethod
+	def tearDownClass(cls):
+		"""Take the scratch items off the menu again.
+
+		A test that adds ten items to prove the catalogue does not go O(n) has
+		to remove them, or the next person to open the till sees ten dishes
+		called RPOS-TEST-BULK-3.
+		"""
+		for code in SCRATCH_ITEMS:
+			if frappe.db.exists("Item", code):
+				for price in frappe.get_all("Item Price", filters={"item_code": code}, pluck="name"):
+					frappe.delete_doc("Item Price", price, force=True, ignore_permissions=True)
+				frappe.delete_doc("Item", code, force=True, ignore_permissions=True)
+
+		frappe.db.commit()
+		super().tearDownClass()
 
 	def _load(self):
 		return session.load_pos_session(self.profile)

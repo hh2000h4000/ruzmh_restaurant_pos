@@ -121,6 +121,8 @@ export const messages = {
   "order.confirmCancel": "Confirm the cancellation",
   "order.title": "Order",
   "order.save": "Save",
+  "order.more": "More",
+  "order.payWithTotal": "Pay {total}",
   "order.pendingSync": "Saved on this device — waiting for the connection to reach the server.",
 
   // Order panel

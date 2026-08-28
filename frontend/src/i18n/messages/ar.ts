@@ -118,6 +118,8 @@ const messages: Catalogue["messages"] = {
   "order.confirmCancel": "تأكيد الإلغاء",
   "order.title": "الطلب",
   "order.save": "حفظ",
+  "order.more": "المزيد",
+  "order.payWithTotal": "دفع {total}",
   "order.pendingSync": "محفوظ على هذا الجهاز — بانتظار الاتصال ليصل الخادم.",
 
   // Order panel

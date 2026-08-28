@@ -14,12 +14,19 @@ import { formatNumber, pick, t, timeOnly } from "@/i18n";
  * column (`CLAUDE.md` §5.1); if it did, the customer could be told one number
  * and charged another.
  */
-defineProps<{ order: OrderDetail; lines: OrderLine[]; busy?: boolean }>();
+defineProps<{
+  order: OrderDetail;
+  lines: OrderLine[];
+  busy?: boolean;
+  /** `false` while the order is empty, locked, or already closed. */
+  canPay?: boolean;
+}>();
 
 const emit = defineEmits<{
   void: [line: OrderLine];
   repeat: [line: OrderLine];
   inspect: [line: OrderLine];
+  pay: [];
 }>();
 
 /** A line already with the kitchen cannot be quietly re-tapped away (BR-013). */
@@ -207,6 +214,21 @@ function money(value: number): string {
           {{ money(order.total_amount) }}
         </dd>
       </div>
+
+      <!-- The action the whole screen exists to reach, under the figure the
+           customer is being told, where the cashier is already looking. -->
+      <button
+        type="button"
+        class="mt-2 flex h-16 w-full items-center justify-center gap-3 rounded-rpos bg-primary text-lg font-bold text-primary-contrast shadow-card transition duration-200 ease-rpos hover:shadow-lift disabled:cursor-not-allowed disabled:opacity-40"
+        :disabled="!canPay"
+        @click="emit('pay')"
+      >
+        <AppIcon
+          name="card"
+          :size="24"
+        />
+        {{ t("order.payWithTotal", { total: money(order.total_amount) }) }}
+      </button>
     </dl>
   </section>
 </template>

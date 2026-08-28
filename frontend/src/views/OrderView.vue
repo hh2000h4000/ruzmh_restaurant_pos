@@ -8,6 +8,7 @@ import BaseDialog from "@/components/BaseDialog.vue";
 import ItemPicker from "@/components/order/ItemPicker.vue";
 import LineDetailDialog from "@/components/order/LineDetailDialog.vue";
 import ModifierDialog from "@/components/order/ModifierDialog.vue";
+import OrderActionBar, { type OrderAction } from "@/components/order/OrderActionBar.vue";
 import OrderPanel from "@/components/order/OrderPanel.vue";
 import { pick, t } from "@/i18n";
 import { useOrderStore } from "@/stores/order";
@@ -188,6 +189,68 @@ async function confirmCancel(): Promise<void> {
   if (done) await router.push({ name: "home" });
 }
 
+// --------------------------------------------------------------------------
+// The action row (06 Screen 3, D-037)
+// --------------------------------------------------------------------------
+
+/**
+ * What a cashier reaches for without looking. Kept short on purpose: the row
+ * has to stay one line at 1280px and shrink cleanly when a permission removes
+ * an entry.
+ */
+const rowActions = computed<OrderAction[]>(() => [
+  {
+    key: "kitchen",
+    label: "order.sendToKitchen",
+    icon: "kitchen",
+    disabled: locked.value || !orders.hasUnsent,
+  },
+  {
+    key: "refresh",
+    label: "action.refresh",
+    icon: "refresh",
+    disabled: orders.busy,
+  },
+]);
+
+/**
+ * Everything else, one deliberate tap further away.
+ *
+ * Cancelling is here rather than in the row because the row is where a busy
+ * hand lands without looking, and this one cannot be taken back.
+ */
+const moreActions = computed<OrderAction[]>(() => {
+  const entries: OrderAction[] = [];
+
+  if (session.can("can_cancel_order")) {
+    entries.push({
+      key: "cancel",
+      label: "order.cancelOrder",
+      icon: "ban",
+      disabled: locked.value,
+      destructive: true,
+    });
+  }
+
+  return entries;
+});
+
+function onAction(action: OrderAction): void {
+  if (action.key === "kitchen") void send();
+  else if (action.key === "refresh") void reload();
+  else if (action.key === "cancel") cancelling.value = true;
+}
+
+/** Another till may have added to this order; re-read rather than guess. */
+async function reload(): Promise<void> {
+  if (orders.order) await orders.open(orders.order.order_name);
+}
+
+function goToPayment(): void {
+  if (!orders.order) return;
+  void router.push({ name: "payment", params: { orderName: orders.order.order_name } });
+}
+
 async function send(): Promise<void> {
   await orders.sendToKitchen();
 }
@@ -261,7 +324,15 @@ async function send(): Promise<void> {
         v-else-if="orders.order"
         class="grid min-h-0 gap-4 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]"
       >
-        <div class="grid min-h-0 grid-rows-[auto_minmax(0,1fr)] gap-3">
+        <div class="grid min-h-0 grid-rows-[auto_auto_minmax(0,1fr)] gap-3">
+          <!-- The order's actions sit over the menu, the way the reference
+               system puts them: the bill stays a bill. -->
+          <OrderActionBar
+            :actions="rowActions"
+            :more="moreActions"
+            @select="onAction"
+          />
+
           <div class="flex flex-col gap-2 empty:hidden">
             <p
               v-if="orders.error"
@@ -307,59 +378,14 @@ async function send(): Promise<void> {
           :order="orders.order"
           :lines="orders.lines"
           :busy="locked"
+          :can-pay="!locked && !orders.isEmpty"
           @void="askVoid"
           @repeat="repeat"
           @inspect="inspect"
+          @pay="goToPayment"
         />
       </div>
     </div>
-
-    <nav
-      v-if="orders.order && !orders.isClosed"
-      class="flex items-center gap-3 border-t border-line bg-surface px-5 py-3 shadow-bar"
-    >
-      <button
-        type="button"
-        class="flex h-[70px] flex-1 flex-col items-center justify-center gap-1 rounded-rpos bg-accent-amber/10 text-sm font-semibold text-accent-amber transition duration-200 ease-rpos hover:bg-accent-amber/20 disabled:cursor-not-allowed disabled:opacity-40"
-        :disabled="locked || !orders.hasUnsent"
-        @click="send"
-      >
-        <AppIcon
-          name="kitchen"
-          :size="24"
-        />
-        {{ t("order.sendToKitchen") }}
-      </button>
-
-      <!-- The one action this whole screen exists to reach, so it is the only
-           solid surface on the bar. -->
-      <button
-        type="button"
-        class="flex h-[70px] flex-[2] flex-col items-center justify-center gap-1 rounded-rpos bg-primary text-base font-bold text-primary-contrast shadow-card transition duration-200 ease-rpos disabled:cursor-not-allowed disabled:opacity-40"
-        :disabled="locked || orders.isEmpty"
-        @click="router.push({ name: 'payment', params: { orderName: orders.order.order_name } })"
-      >
-        <AppIcon
-          name="card"
-          :size="24"
-        />
-        {{ t("order.pay") }}
-      </button>
-
-      <button
-        v-if="session.can('can_cancel_order')"
-        type="button"
-        class="flex h-[70px] flex-1 flex-col items-center justify-center gap-1 rounded-rpos bg-accent-rose/10 text-sm font-semibold text-accent-rose transition duration-200 ease-rpos hover:bg-accent-rose/20 disabled:cursor-not-allowed disabled:opacity-40"
-        :disabled="locked"
-        @click="cancelling = true"
-      >
-        <AppIcon
-          name="ban"
-          :size="24"
-        />
-        {{ t("order.cancelOrder") }}
-      </button>
-    </nav>
 
     <LineDetailDialog
       :line="inspecting"

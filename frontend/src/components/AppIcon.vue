@@ -26,6 +26,7 @@ const PATHS = {
   floorPlan: "M5 10h14M5 10a2 2 0 012-2h10a2 2 0 012 2M7 14v4M17 14v4M5 10v2a2 2 0 002 2h10a2 2 0 002-2v-2",
   sort: "M8 4v16M8 20l-3-3M8 4l3 3M16 20V4M16 4l-3 3M16 20l3-3",
   more: "M12 6h.01M12 12h.01M12 18h.01",
+  moreHorizontal: "M6 12h.01M12 12h.01M18 12h.01",
   user: "M12 12a4 4 0 100-8 4 4 0 000 8zM6 20a6 6 0 0112 0",
   document: "M14 3v5h5M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8z",
   clock: "M12 7v5l3 2M21 12a9 9 0 11-18 0 9 9 0 0118 0z",

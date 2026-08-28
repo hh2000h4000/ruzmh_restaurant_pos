@@ -14,6 +14,10 @@ required_apps = ["frappe/erpnext"]
 # Installation
 # ---------------------------------------------------------------------------
 after_install = "restaurant_pos.setup.install.after_install"
+
+# The suite builds the restaurant it needs rather than borrowing a site's own
+# data, so it can run on a throwaway site and leave the demo alone (D-041).
+before_tests = "restaurant_pos.setup.test_fixtures.before_tests"
 after_migrate = "restaurant_pos.setup.install.after_migrate"
 
 # ---------------------------------------------------------------------------

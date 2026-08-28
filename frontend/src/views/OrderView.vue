@@ -2,7 +2,7 @@
 import { computed, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 
-import type { ModifierChoice, OrderLine } from "@/api/order";
+import type { ModifierChoice, OpenOrder, OrderLine } from "@/api/order";
 import AppIcon from "@/components/AppIcon.vue";
 import BaseDialog from "@/components/BaseDialog.vue";
 import ItemPicker from "@/components/order/ItemPicker.vue";
@@ -10,6 +10,9 @@ import LineDetailDialog from "@/components/order/LineDetailDialog.vue";
 import ModifierDialog from "@/components/order/ModifierDialog.vue";
 import OrderActionBar, { type OrderAction } from "@/components/order/OrderActionBar.vue";
 import OrderPanel from "@/components/order/OrderPanel.vue";
+import WorkPaneTabs, { type WorkPane } from "@/components/order/WorkPaneTabs.vue";
+import OpenOrdersPanel from "@/components/pos/OpenOrdersPanel.vue";
+import { useOpenOrders } from "@/composables/useOpenOrders";
 import { pick, t } from "@/i18n";
 import { useOrderStore } from "@/stores/order";
 import { useSessionStore } from "@/stores/session";
@@ -108,6 +111,65 @@ onMounted(async () => {
     await router.replace({ name: "order", params: { orderName: created } });
   }
 });
+
+// --------------------------------------------------------------------------
+// The working column (D-039)
+// --------------------------------------------------------------------------
+
+/**
+ * The bill stays; only this column changes.
+ *
+ * Leaving the screen to look at the floor is what made the old flow feel like
+ * two applications. Here the order in hand is never put down.
+ */
+const pane = ref("items");
+const floorView = ref<"list" | "grid">("list");
+const {
+  error: floorError,
+  loading: floorLoading,
+  maySeeEveryone: floorMaySeeEveryone,
+  scope: floorScope,
+  searching: floorSearching,
+  visible: floorOrders,
+} = useOpenOrders();
+
+const panes = computed<WorkPane[]>(() => [
+  { key: "items", label: "order.paneItems", icon: "grid" },
+  {
+    key: "orders",
+    label: "home.openOrders",
+    icon: "document",
+    count: floorOrders.value.length,
+  },
+]);
+
+/** The floor plan is a screen of its own; this is the one way out of here. */
+function showFloorPlan(): void {
+  const type = orders.order?.order_type ?? "";
+  void router.push({ name: "tables", params: { orderType: type } });
+}
+
+/**
+ * Switch the screen to another open order without unmounting it.
+ *
+ * `router.replace` keeps the address honest — a reload lands on the order the
+ * cashier is actually looking at — and the watch below does the reading.
+ */
+function switchTo(order: OpenOrder): void {
+  pane.value = "items";
+  if (order.name === orders.order?.order_name) return;
+  void router.replace({ name: "order", params: { orderName: order.name } });
+}
+
+watch(
+  () => route.params.orderName,
+  (name) => {
+    if (typeof name === "string" && name && name !== orders.order?.order_name) {
+      void orders.open(name);
+    }
+  },
+);
+
 
 /** FR-2.2 — an item with modifier groups opens the popup first. */
 function onPick(item: CatalogItem, qty: number): void {
@@ -325,13 +387,20 @@ async function send(): Promise<void> {
         class="grid min-h-0 gap-4 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]"
       >
         <div class="grid min-h-0 grid-rows-[auto_auto_minmax(0,1fr)] gap-3">
-          <!-- The order's actions sit over the menu, the way the reference
-               system puts them: the bill stays a bill. -->
-          <OrderActionBar
-            :actions="rowActions"
-            :more="moreActions"
-            @select="onAction"
-          />
+          <!-- What the column shows, then what the order can do. The bill
+               beside it is untouched by either. -->
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <WorkPaneTabs
+              v-model:active="pane"
+              :panes="panes"
+            />
+
+            <OrderActionBar
+              :actions="rowActions"
+              :more="moreActions"
+              @select="onAction"
+            />
+          </div>
 
           <div class="flex flex-col gap-2 empty:hidden">
             <p
@@ -365,13 +434,31 @@ async function send(): Promise<void> {
             </p>
           </div>
 
-          <div class="grid min-h-0 grid-rows-[minmax(0,1fr)] rounded-rpos bg-surface p-4 shadow-card">
+          <div
+            v-if="pane === 'items'"
+            class="grid min-h-0 grid-rows-[minmax(0,1fr)] rounded-rpos bg-surface p-4 shadow-card"
+          >
             <ItemPicker
               :order-type="orderType"
               :disabled="locked"
               @pick="onPick"
             />
           </div>
+
+          <!-- The same list as the till screen, in the same component: one
+               place decides what an open order looks like. -->
+          <OpenOrdersPanel
+            v-else
+            v-model:view="floorView"
+            :orders="floorOrders"
+            :loading="floorLoading"
+            :error="floorError"
+            :searching="floorSearching"
+            :scope="floorMaySeeEveryone ? floorScope : null"
+            @open="switchTo"
+            @floor-plan="showFloorPlan"
+            @update:scope="floorScope = $event"
+          />
         </div>
 
         <OrderPanel

@@ -120,6 +120,7 @@ export const messages = {
   "order.cancelBody": "The whole order will be cancelled, and the kitchen told about anything already sent.",
   "order.confirmCancel": "Confirm the cancellation",
   "order.title": "Order",
+  "order.paneItems": "Menu",
   "order.save": "Save",
   "order.more": "More",
   "order.payWithTotal": "Pay {total}",

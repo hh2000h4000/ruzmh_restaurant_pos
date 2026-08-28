@@ -1,13 +1,14 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from "vue";
+import { computed, ref } from "vue";
 import { useRouter } from "vue-router";
 
-import { getOpenOrders, type OpenOrder } from "@/api/order";
+import type { OpenOrder } from "@/api/order";
 import BaseDialog from "@/components/BaseDialog.vue";
 import OpenOrdersPanel from "@/components/pos/OpenOrdersPanel.vue";
 import OrderTypeSidebar from "@/components/pos/OrderTypeSidebar.vue";
 import PosBottomBar, { type BottomAction } from "@/components/pos/PosBottomBar.vue";
 import PosHeader from "@/components/pos/PosHeader.vue";
+import { useOpenOrders } from "@/composables/useOpenOrders";
 import { pick, t } from "@/i18n";
 import { useSessionStore } from "@/stores/session";
 import type { OrderType } from "@/types/session";
@@ -50,86 +51,20 @@ function open(orderType: OrderType): void {
 // The floor
 // --------------------------------------------------------------------------
 
-const openOrders = ref<OpenOrder[]>([]);
-const ordersError = ref<string | null>(null);
-const loadingOrders = ref(false);
-const search = ref("");
+const {
+  error: ordersError,
+  loading: loadingOrders,
+  maySeeEveryone,
+  refresh,
+  scope,
+  search,
+  searching,
+  sort,
+  visible: visibleOrders,
+} = useOpenOrders();
+
 const view = ref<"list" | "grid">("list");
-
-type SortKey = "oldest" | "newest" | "amount";
-const sort = ref<SortKey>("oldest");
 const sortOpen = ref(false);
-
-/** "Mine" is the default even for a supervisor: the smaller list is the calmer one. */
-const scope = ref<"mine" | "all">("mine");
-
-/**
- * `null` hides the switch entirely. The backend enforces the same rule — without
- * the right it does not return other people's orders — so this only decides
- * whether an empty tab is worth offering.
- */
-const maySeeEveryone = computed(() => session.can("can_view_all_orders"));
-
-const visibleOrders = computed(() => {
-  let rows = openOrders.value;
-
-  if (maySeeEveryone.value && scope.value === "mine") {
-    rows = rows.filter((order) => order.cashier === session.data?.user);
-  }
-
-  const needle = search.value.trim().toLowerCase();
-  if (needle) {
-    rows = rows.filter((order) =>
-      [order.name, order.table_number, order.cashier_name, order.order_type_title_ar]
-        .filter(Boolean)
-        .some((field) => String(field).toLowerCase().includes(needle)),
-    );
-  }
-
-  // A copy: sorting in place would mutate what the fetch returned and make the
-  // next comparison depend on the last render.
-  return [...rows].sort((a, b) => {
-    if (sort.value === "amount") return b.total_amount - a.total_amount;
-    const direction = sort.value === "newest" ? -1 : 1;
-    return direction * a.opened_at.localeCompare(b.opened_at);
-  });
-});
-
-/** Cheap enough to poll, and a stale row sends a cashier to the wrong table. */
-const REFRESH_MS = 15_000;
-let timer: number | undefined;
-
-async function refresh(): Promise<void> {
-  const profile = session.profile?.name;
-  if (!profile) return;
-
-  loadingOrders.value = true;
-  try {
-    openOrders.value = await getOpenOrders(profile);
-    ordersError.value = null;
-  } catch (cause) {
-    // The list is a convenience; a failure here must not blank the screen or
-    // stop a cashier opening a new order.
-    ordersError.value = cause instanceof Error ? cause.message : t("home.openOrdersFailed");
-  } finally {
-    loadingOrders.value = false;
-  }
-}
-
-function onVisibilityChange(): void {
-  if (document.visibilityState === "visible") void refresh();
-}
-
-onMounted(() => {
-  void refresh();
-  timer = window.setInterval(refresh, REFRESH_MS);
-  document.addEventListener("visibilitychange", onVisibilityChange);
-});
-
-onUnmounted(() => {
-  window.clearInterval(timer);
-  document.removeEventListener("visibilitychange", onVisibilityChange);
-});
 
 function resume(order: OpenOrder): void {
   void router.push({ name: "order", params: { orderName: order.name } });
@@ -273,7 +208,7 @@ const SORT_OPTIONS = [
           :orders="visibleOrders"
           :loading="loadingOrders"
           :error="ordersError"
-          :searching="Boolean(search.trim())"
+          :searching="searching"
           :scope="maySeeEveryone ? scope : null"
           @open="resume"
           @floor-plan="showFloorPlan"

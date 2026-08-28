@@ -116,6 +116,7 @@ const messages: Catalogue["messages"] = {
   "order.voidItem": "إلغاء الصنف",
   "order.cancelBody": "سيُلغى الطلب بالكامل، وسيُبلَّغ المطبخ بما أُرسل إليه.",
   "order.confirmCancel": "تأكيد الإلغاء",
+  "order.paneItems": "الأصناف",
   "order.title": "الطلب",
   "order.save": "حفظ",
   "order.more": "المزيد",

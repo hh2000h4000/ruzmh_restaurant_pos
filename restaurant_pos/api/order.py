@@ -170,6 +170,60 @@ def void_item(
 
 
 @frappe.whitelist()
+def preview_order_type_change(order_name: str, order_type: str) -> dict:
+	"""What the bill would become under another order type (D-038).
+
+	Read-only, so it takes no ``queue_id``: the cashier is being shown a figure,
+	not committing to it. A total already read out to a customer does not change
+	without them hearing it first.
+	"""
+	return service.preview_order_type_change(_load(order_name), order_type=order_type)
+
+
+@frappe.whitelist()
+def change_order_type(
+	order_name: str,
+	order_type: str,
+	table: str | None = None,
+	cover_count: int | None = None,
+	order_type_data: dict | str | None = None,
+	manager_override_token: str | None = None,
+	queue_id: str | None = None,
+) -> dict:
+	"""Turn an open order into another type, re-pricing it (D-038).
+
+	Only between two types billed to the customer standing there. An app or
+	corporate order is owed by somebody else and is refused in the service layer,
+	not here — the same rule has to hold for a queued replay.
+	"""
+	replay = idempotency.previous_result(queue_id)
+	if replay is not None:
+		return replay
+
+	order = _load(order_name)
+	outcome = service.change_order_type(
+		order,
+		order_type=order_type,
+		table=table,
+		cover_count=cover_count,
+		order_type_data=frappe.parse_json(order_type_data)
+		if isinstance(order_type_data, str)
+		else order_type_data,
+		override_token=manager_override_token,
+	)
+
+	result = dict(_summary(order), **outcome)
+	idempotency.remember(
+		queue_id,
+		"change_order_type",
+		result,
+		reference_doctype="Restaurant Order",
+		reference_name=order.name,
+	)
+	return result
+
+
+@frappe.whitelist()
 def cancel_order(
 	order_name: str,
 	reason: str,

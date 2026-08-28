@@ -46,7 +46,7 @@
    "in_list_view": 1,
    "in_standard_filter": 1,
    "label": "Action Type",
-   "options": "void_item\nvoid_order\ncancel_order\ndiscount_applied\ndiscount_override\nprice_change\nmanager_override\npayment_method_override\nreturn_created\norder_reopened\nreprint_receipt\nshift_opened\nshift_closed",
+   "options": "void_item\nvoid_order\ncancel_order\ndiscount_applied\ndiscount_override\nprice_change\nmanager_override\npayment_method_override\nreturn_created\norder_reopened\nreprint_receipt\nshift_opened\nshift_closed\norder_type_changed",
    "reqd": 1
   },
   {

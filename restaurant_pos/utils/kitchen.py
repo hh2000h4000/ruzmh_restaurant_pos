@@ -232,3 +232,45 @@ def _announce(kot, *, reprint: bool = False) -> None:
 		},
 		room=f"rpos:pc:{kot.production_center}",
 	)
+
+
+def restamp_order(order, previous_title: str | None = None) -> list[dict]:
+	"""Correct the tickets a station already holds after the order changed type.
+
+	A dine-in plate that becomes a takeaway leaves the kitchen in a bag, and the
+	ticket on the rail still says otherwise. The header is corrected in place and
+	the station is told, so a KDS re-renders and a reprint shows the truth.
+
+	No new ticket: nothing about the food changed, and a second ticket for the
+	same items is how a kitchen cooks an order twice (BR-073). A printed notice
+	on paper belongs with the rest of Phase 3.
+	"""
+	header = _header(order)
+
+	tickets = frappe.get_all(
+		"Kitchen Order Ticket",
+		filters={"restaurant_order": order.name, "kot_type": ("!=", "void")},
+		fields=["name", "production_center"],
+	)
+
+	for ticket in tickets:
+		frappe.db.set_value(
+			"Kitchen Order Ticket",
+			ticket.name,
+			{"order_type_title": header.order_type_title, "table": header.table},
+			update_modified=False,
+		)
+
+		frappe.publish_realtime(
+			event="rpos:kot_updated",
+			message={
+				"kot": ticket.name,
+				"restaurant_order": order.name,
+				"table": header.table,
+				"order_type_title": header.order_type_title,
+				"was_order_type_title": previous_title,
+			},
+			room=f"rpos:pc:{ticket.production_center}",
+		)
+
+	return [{"kot_name": ticket.name, "production_center": ticket.production_center} for ticket in tickets]

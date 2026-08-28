@@ -329,6 +329,10 @@ def _order_types(profile) -> list[dict]:
 				"requires_table": config.requires_table,
 				"requires_cover_count": config.requires_cover_count,
 				"customer_mode": config.customer_mode,
+				# D-038 — who owes the money, and so whether an open order may be
+				# turned into this type. The screen greys the rest out with the
+				# reason; the server refuses them regardless.
+				"counterparty": config.counterparty,
 				"send_to_kitchen_on": config.send_to_kitchen_on,
 				"sort_order": config.sort_order,
 				# FR-1.6 — a delivery platform's menu is priced above the dining

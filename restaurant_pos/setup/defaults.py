@@ -31,6 +31,7 @@ _CASHIER = {
 	"can_void_item": 1,
 	"can_void_order": 0,
 	"can_cancel_order": 0,
+	"can_change_order_type": 0,
 	"can_transfer_table": 1,
 	"can_merge_tables": 0,
 	"can_reopen_closed_order": 0,
@@ -50,6 +51,9 @@ _SENIOR_CASHIER = _CASHIER | {
 	"max_order_discount_pct": 10,
 	"can_manual_promotion": 1,
 	"can_create_return": 1,
+	# Turning a takeaway into a dine-in changes nothing about who pays, and it
+	# happens at the counter all day (D-038).
+	"can_change_order_type": 1,
 }
 
 _POS_MANAGER = _SENIOR_CASHIER | {
@@ -57,6 +61,7 @@ _POS_MANAGER = _SENIOR_CASHIER | {
 	"max_order_discount_pct": 50,
 	"can_void_order": 1,
 	"can_cancel_order": 1,
+	"can_change_order_type": 1,
 	"can_merge_tables": 1,
 	"can_reopen_closed_order": 1,
 	"can_change_item_price": 1,
@@ -88,6 +93,11 @@ PERMISSION_SETS = {
 # Visibility tables are left empty on purpose: empty means "every branch,
 # section, POS profile and role", so the defaults work before any branch
 # exists.
+#
+# ``counterparty`` says who owes the money, and it is what decides whether an
+# order may be turned into another type (D-038). The three below are all
+# ``walk_in``: the customer is standing there, and only the way the food is
+# served differs between them.
 
 ORDER_TYPES = [
 	{
@@ -97,6 +107,7 @@ ORDER_TYPES = [
 		"color": "#1D4ED8",
 		"requires_table": 1,
 		"requires_cover_count": 1,
+		"counterparty": "walk_in",
 		"customer_mode": "optional",
 		"send_to_kitchen_on": "manual",
 		"sort_order": 1,
@@ -108,6 +119,7 @@ ORDER_TYPES = [
 		"color": "#F59E0B",
 		"requires_table": 0,
 		"requires_cover_count": 0,
+		"counterparty": "walk_in",
 		"customer_mode": "optional",
 		"send_to_kitchen_on": "payment",
 		"sort_order": 2,
@@ -119,6 +131,7 @@ ORDER_TYPES = [
 		"color": "#22C55E",
 		"requires_table": 0,
 		"requires_cover_count": 0,
+		"counterparty": "walk_in",
 		"customer_mode": "required",
 		"send_to_kitchen_on": "save",
 		"sort_order": 3,
@@ -169,6 +182,9 @@ APP_ORDER_TYPES = [
 		"color": app["color"],
 		"requires_table": 0,
 		"requires_cover_count": 0,
+		# The platform owes the money and holds its own order number: this can
+		# never become a walk-in sale, nor another app's (D-038).
+		"counterparty": "account",
 		"customer_mode": "pre_set",
 		"send_to_kitchen_on": "save",
 		"sort_order": app["sort_order"],
@@ -187,6 +203,7 @@ CORPORATE_ORDER_TYPE = {
 	"color": "#6B7280",
 	"requires_table": 0,
 	"requires_cover_count": 0,
+	"counterparty": "account",
 	"customer_mode": "required",
 	"send_to_kitchen_on": "manual",
 	"sort_order": 7,

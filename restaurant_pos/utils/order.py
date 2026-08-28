@@ -105,7 +105,12 @@ def create_order(
 	config = _load_order_type(order_type)
 
 	validate_branch_access(profile.branch)
-	_assert_order_type_allowed(config, profile)
+
+	# The hall comes from the table, so it has to be known before the order type
+	# is judged: a type restricted to the family hall must be allowed on a till
+	# that sits in the men's hall but is seating a family table (D-040).
+	section = section_of_table(table, profile)
+	_assert_order_type_allowed(config, profile, section)
 
 	shift = _open_shift_for(profile)
 
@@ -115,7 +120,7 @@ def create_order(
 			"order_type": order_type,
 			"status": "draft",
 			"branch": profile.branch,
-			"section": profile.restaurant_section,
+			"section": section,
 			"pos_profile": pos_profile,
 			"restaurant_shift": shift,
 			"cashier": frappe.session.user,
@@ -166,11 +171,16 @@ def _load_order_type(order_type: str):
 	return config
 
 
-def is_order_type_allowed(config, profile, user: str | None = None) -> bool:
+def is_order_type_allowed(config, profile, section: str | None = None, user: str | None = None) -> bool:
 	"""BR-003 / FR-1.3 — may this order type be used on this terminal, by this user?
 
 	An empty visibility table means "no restriction", so a fresh install works
 	before any branch exists.
+
+	``section`` is the hall the order will actually sit in — the table's, not the
+	terminal's, once one has been picked (D-040). It falls back to the terminal's
+	own hall, which is what the home screen has to judge by before any table is
+	chosen.
 
 	The same rule decides which buttons the home screen shows and whether an
 	order may actually be created, so both go through here. If they diverged, a
@@ -178,7 +188,7 @@ def is_order_type_allowed(config, profile, user: str | None = None) -> bool:
 	"""
 	checks = (
 		("allowed_branches", "branch", profile.branch),
-		("allowed_sections", "section", profile.restaurant_section),
+		("allowed_sections", "section", section or profile.restaurant_section),
 		("allowed_pos_profiles", "pos_profile", profile.name),
 	)
 	for table_field, row_field, value in checks:
@@ -193,8 +203,8 @@ def is_order_type_allowed(config, profile, user: str | None = None) -> bool:
 	return True
 
 
-def _assert_order_type_allowed(config, profile) -> None:
-	if not is_order_type_allowed(config, profile):
+def _assert_order_type_allowed(config, profile, section: str | None = None) -> None:
+	if not is_order_type_allowed(config, profile, section):
 		frappe.throw(
 			_("Order type {0} is not available here.").format(config.title),
 			frappe.PermissionError,
@@ -225,13 +235,32 @@ def _apply_table(order, config, table: str | None, profile) -> None:
 	if not state.is_active:
 		frappe.throw(_("Table {0} is out of service.").format(table))
 
-	if state.section != profile.restaurant_section:
-		frappe.throw(_("Table {0} is not in this section.").format(table))
+	# The **branch**, not the terminal's own hall. A restaurant with a men's
+	# hall and a family hall often runs one till at the door for both, and
+	# refusing every table outside the terminal's section would force a second
+	# terminal on it for no reason (D-040).
+	if table_section_branch(state.section) != profile.branch:
+		frappe.throw(_("Table {0} is not in this branch.").format(table))
 
 	if state.status not in ("available", "reserved"):
 		frappe.throw(_("Table {0} is {1}.").format(table, _(state.status)))
 
 	order.table = table
+
+
+def table_section_branch(section: str | None) -> str | None:
+	return frappe.db.get_value("Restaurant Section", section, "branch") if section else None
+
+
+def section_of_table(table: str | None, profile) -> str | None:
+	"""Which hall an order belongs to.
+
+	The table decides it when there is one; the terminal's own section is only
+	the fallback for an order that never sits down (D-040).
+	"""
+	if table:
+		return frappe.db.get_value("Restaurant Table", table, "section") or profile.restaurant_section
+	return profile.restaurant_section
 
 
 def _apply_customer(order, config, customer: str | None) -> None:
@@ -623,3 +652,231 @@ def set_table_status(table: str, status: str, order_name: str | None) -> None:
 		message={"table": table, "status": status, "order": order_name},
 		room=f"rpos:branch:{branch}",
 	)
+
+
+# --------------------------------------------------------------------------- #
+# Changing the type
+# --------------------------------------------------------------------------- #
+
+
+def assert_convertible(current, target) -> None:
+	"""D-038 — an order changes type only when the parties to the sale do not.
+
+	Dine in, takeaway and the restaurant's own delivery all bill the customer
+	standing there; only the way the food is served differs, and a customer
+	changes their mind about that at the counter every day.
+
+	An app or a corporate order is owed by somebody else. Converting it would
+	move the debt onto a party that ordered nothing, and it would strand the
+	platform's own order number — the evidence for the monthly statement — on a
+	sale that no longer refers to it. That is not an edit; it is a different
+	order.
+	"""
+	for config in (current, target):
+		if config.counterparty != "walk_in":
+			frappe.throw(
+				_("{0} is billed to an account and cannot be converted.").format(config.title),
+				frappe.ValidationError,
+			)
+
+
+def preview_order_type_change(order, *, order_type: str) -> dict:
+	"""What the bill would become, without changing anything (D-038).
+
+	A total already read out to a customer does not change silently, so the
+	cashier sees both figures before confirming. This runs the real repricing on
+	a copy the caller never saves.
+	"""
+	target = _load_order_type(order_type)
+	current = frappe.get_cached_doc("Restaurant Order Type", order.order_type)
+	assert_convertible(current, target)
+
+	before = flt(order.total_amount)
+
+	# A fresh copy: mutating the caller's document here would leave a half-changed
+	# order behind if the cashier says no.
+	draft = frappe.get_doc("Restaurant Order", order.name)
+	draft.order_type = order_type
+	changed = _reprice_lines(draft)
+	totals.calculate(draft)
+
+	return {
+		"order_type": order_type,
+		"price_list": price_list_for(order_type, order.pos_profile),
+		"total_before": before,
+		"total_after": flt(draft.total_amount),
+		"changed_lines": changed,
+		"requires_table": bool(target.requires_table),
+		"requires_cover_count": bool(target.requires_cover_count),
+	}
+
+
+def change_order_type(
+	order,
+	*,
+	order_type: str,
+	table: str | None = None,
+	cover_count: int | None = None,
+	order_type_data: dict | None = None,
+	override_token: str | None = None,
+) -> dict:
+	"""Turn an open order into another type, re-pricing it (D-038, FR-2.1).
+
+	Allowed after the kitchen has the order: the customer is entitled to change
+	their mind, and a restaurant does it anyway. Dine in becoming takeaway
+	changes the packing, so the stations that already hold a ticket are told.
+	"""
+	assert_mutable(order)
+
+	if order.order_type == order_type:
+		return {"order_type": order_type, "changed": False}
+
+	target = _load_order_type(order_type)
+	current = frappe.get_cached_doc("Restaurant Order Type", order.order_type)
+	assert_convertible(current, target)
+
+	approved_by = authorise("can_change_order_type", override_token)
+
+	profile = _load_profile(order.pos_profile)
+	validate_branch_access(order.branch)
+
+	seat = table or order.table
+	section = section_of_table(seat if target.requires_table else None, profile)
+	_assert_order_type_allowed(target, profile, section)
+
+	before = {
+		"order_type": order.order_type,
+		"price_list": price_list_for(order.order_type, order.pos_profile),
+		"total_amount": flt(order.total_amount),
+		"table": order.table,
+	}
+
+	released = _move_table(order, target, table)
+	order.order_type = order_type
+	order.section = section
+
+	_apply_cover_count(order, target, cover_count if cover_count is not None else order.cover_count)
+	order.order_type_data = _validated_order_type_data(target, order_type_data, moment="on_open")
+
+	changed = _reprice_lines(order)
+	totals.calculate(order)
+	order.save(ignore_permissions=True)
+
+	if released:
+		set_table_status(released, "available", None)
+	if order.table and order.table != before["table"]:
+		set_table_status(order.table, "occupied", order.name)
+
+	# Unlike a quantity change, this one decides what the customer pays and how
+	# the food leaves the kitchen. It is audited (08 §5).
+	log_audit(
+		"order_type_changed",
+		branch=order.branch,
+		pos_profile=order.pos_profile,
+		restaurant_order=order.name,
+		approved_by=approved_by,
+		details={
+			"from": before,
+			"to": {
+				"order_type": order_type,
+				"price_list": price_list_for(order_type, order.pos_profile),
+				"total_amount": flt(order.total_amount),
+				"table": order.table,
+			},
+			"repriced_lines": changed,
+		},
+	)
+
+	# A station holding a ticket for a dine-in plate has to hear that it is now
+	# going into a bag.
+	was_title = frappe.db.get_value("Restaurant Order Type", before["order_type"], "title_ar")
+	tickets = kitchen.restamp_order(order, was_title) if _has_sent_lines(order) else []
+
+	return {
+		"order_type": order_type,
+		"changed": True,
+		"total_amount": flt(order.total_amount),
+		"repriced_lines": changed,
+		"kots": tickets,
+	}
+
+
+def _has_sent_lines(order) -> bool:
+	return any(row.status == "sent" for row in order.items or [])
+
+
+def _move_table(order, target, table: str | None) -> str | None:
+	"""Seat or unseat the order for its new type.
+
+	Returns the table to free, if the order is leaving one. Freeing it is left
+	to the caller so that nothing is released before the save succeeds.
+	"""
+	if not target.requires_table:
+		leaving = order.table
+		order.table = None
+		return leaving
+
+	seat = table or order.table
+	if not seat:
+		frappe.throw(_("Order type {0} requires a table.").format(target.title))
+
+	if seat == order.table:
+		return None
+
+	leaving = order.table
+	_apply_table(order, target, seat, _load_profile(order.pos_profile))
+	return leaving
+
+
+def _reprice_lines(order) -> list[dict]:
+	"""Put every unvoided line on the new type's price list (FR-1.6, D-036).
+
+	A delivery platform's menu is priced above the dining room's, so the list
+	the order sells from is part of what the type *means* — leaving the old
+	rates behind would sell at the wrong price and hide it in the total.
+
+	Modifier effects are **not** re-read. An option's price effect is a fixed
+	amount on the option itself, not a price-list row, so the stored per-unit
+	delta is carried across exactly as ``set_item_qty`` carries it.
+	"""
+	changed: list[dict] = []
+
+	for row in order.items or []:
+		if row.status == "void":
+			continue
+
+		qty = flt(row.qty)
+		delta_per_unit = (flt(row.amount) / qty) - flt(row.rate) if qty else 0.0
+
+		listed = _listed_rate(order, row.item)
+		if listed == flt(row.rate):
+			continue
+
+		changed.append(
+			{"item": row.item, "item_name": row.item_name, "was": flt(row.rate), "now": listed}
+		)
+		row.rate = listed
+		row.amount = totals.line_amount(listed, qty, delta_per_unit)
+
+	return changed
+
+
+def _listed_rate(order, item: str) -> float:
+	"""The item's price on the order's current price list.
+
+	A price missing from the target list is refused rather than treated as
+	zero: converting an order must never quietly make an item free.
+	"""
+	price_list = price_list_for(order.order_type, order.pos_profile)
+	if not price_list:
+		frappe.throw(_("POS Profile {0} has no selling price list.").format(order.pos_profile))
+
+	listed = frappe.db.get_value(
+		"Item Price",
+		{"item_code": item, "price_list": price_list, "selling": 1},
+		"price_list_rate",
+	)
+	if listed is None:
+		frappe.throw(_("No price is configured for {0} in price list {1}.").format(item, price_list))
+
+	return totals.money(flt(listed))

@@ -22,6 +22,7 @@
   "behaviour_cb",
   "send_to_kitchen_on",
   "customer_section",
+  "counterparty",
   "customer_mode",
   "customer_cb",
   "pre_set_customer",
@@ -130,6 +131,16 @@
    "fieldname": "customer_section",
    "fieldtype": "Section Break",
    "label": "Customer"
+  },
+  {
+   "default": "walk_in",
+   "description": "Who owes the money. An order changes type only between two 'walk_in' types: converting across counterparties would move the debt to somebody who ordered nothing (D-038).",
+   "fieldname": "counterparty",
+   "fieldtype": "Select",
+   "in_standard_filter": 1,
+   "label": "Counterparty",
+   "options": "walk_in\naccount",
+   "reqd": 1
   },
   {
    "default": "optional",

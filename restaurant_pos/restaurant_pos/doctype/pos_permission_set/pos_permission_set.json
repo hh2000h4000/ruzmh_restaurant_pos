@@ -17,6 +17,7 @@
   "can_void_item",
   "can_void_order",
   "can_cancel_order",
+  "can_change_order_type",
   "can_reopen_closed_order",
   "order_actions_cb",
   "can_transfer_table",
@@ -93,6 +94,11 @@
    "fieldname": "can_cancel_order",
    "fieldtype": "Check",
    "label": "Can Cancel Order"
+  },
+  {
+   "fieldname": "can_change_order_type",
+   "fieldtype": "Check",
+   "label": "Can Change Order Type"
   },
   {
    "fieldname": "can_reopen_closed_order",

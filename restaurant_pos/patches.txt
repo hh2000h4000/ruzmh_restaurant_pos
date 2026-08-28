@@ -6,3 +6,4 @@
 restaurant_pos.patches.v1_0.move_manager_pin_to_user
 restaurant_pos.patches.v1_0.mark_delivery_apps_as_credit
 restaurant_pos.patches.v1_0.use_icon_names_on_order_types
+restaurant_pos.patches.v1_0.set_order_type_counterparty

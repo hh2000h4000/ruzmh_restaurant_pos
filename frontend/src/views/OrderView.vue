@@ -51,30 +51,13 @@ const title = computed(() => {
 
 const locked = computed(() => orders.busy || orders.isClosed);
 
-/**
- * The order's own state, shown in the header where the cashier already looks.
- *
- * Colour follows the lifecycle and never carries the meaning alone: the pill
- * always spells the status out (06 §Accessibility).
- */
-const STATUS_CLASS: Record<string, string> = {
-  draft: "bg-order-draft/10 text-order-draft",
-  active: "bg-order-active/10 text-order-active",
-  in_kitchen: "bg-order-in_kitchen/10 text-order-in_kitchen",
-  pending_payment: "bg-order-pending_payment/10 text-order-pending_payment",
-  closed: "bg-order-closed/10 text-order-closed",
-  cancelled: "bg-order-cancelled/10 text-order-cancelled",
-};
-
-const KNOWN_STATUSES = ["draft", "active", "in_kitchen", "pending_payment"] as const;
-
-const statusLabel = computed(() => {
-  const status = orders.order?.status;
-  if (!status) return "";
-
-  const known = KNOWN_STATUSES.find((candidate) => candidate === status);
-  return known ? t(`status.${known}`) : status;
-});
+/** Which hall this till is standing in — the same line the home screen shows. */
+const sectionTitle = computed(
+  () =>
+    pick(session.data?.restaurant_section?.title_ar, session.data?.restaurant_section?.title) ||
+    session.branch ||
+    "",
+);
 
 onMounted(async () => {
   const existing = route.params.orderName as string | undefined;
@@ -383,14 +366,16 @@ async function send(): Promise<void> {
         <h1 class="truncate text-xl font-bold leading-tight">
           {{ title || t("order.title") }}
         </h1>
-        <p
-          v-if="orders.order"
-          class="rpos-numeric truncate text-sm text-muted"
-        >
-          {{ orders.order.order_name }}
+        <p class="truncate text-sm text-muted">
+          {{ sectionTitle }}
         </p>
       </div>
 
+      <!--
+        The order's number and state moved onto the bill itself, where a cashier
+        reads them from (06 Screen 3). Repeating them here would only make the
+        screen say the same thing twice.
+      -->
       <div class="ms-auto flex shrink-0 items-center gap-3">
         <span
           v-if="orders.busy"
@@ -402,14 +387,6 @@ async function send(): Promise<void> {
             class="animate-spin"
             :size="22"
           />
-        </span>
-
-        <span
-          v-if="orders.order"
-          class="rounded-full px-4 py-2 text-sm font-semibold"
-          :class="STATUS_CLASS[orders.order.status] ?? 'bg-background text-muted'"
-        >
-          {{ statusLabel }}
         </span>
       </div>
     </header>

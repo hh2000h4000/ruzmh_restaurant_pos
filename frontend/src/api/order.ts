@@ -35,7 +35,11 @@ export interface OrderLine {
 export interface OrderDetail extends OrderSummary {
   order_type: string;
   table: string | null;
+  /** What the table is called on the floor, not its record id. */
+  table_number: string | null;
   customer: string | null;
+  /** The bill names the customer, and a Customer's id is not their name. */
+  customer_name: string | null;
   cover_count: number;
   opened_at: string;
   items: OrderLine[];

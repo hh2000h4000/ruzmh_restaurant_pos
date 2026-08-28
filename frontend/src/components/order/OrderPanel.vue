@@ -1,20 +1,30 @@
 <script setup lang="ts">
+import { computed } from "vue";
+
 import type { OrderDetail, OrderLine } from "@/api/order";
 import AppIcon from "@/components/AppIcon.vue";
-import { formatNumber, pick, t, timeOnly } from "@/i18n";
+import OrderLineRow from "@/components/order/OrderLineRow.vue";
+import { formatNumber, pick, t } from "@/i18n";
+import { useSessionStore } from "@/stores/session";
 
 /**
- * The order side of Screen 3: the lines, then the totals.
+ * The order side of Screen 3: who this bill belongs to, the lines, the totals.
  *
- * Three rows — heading, a list that scrolls, totals pinned at the foot — so the
- * total never leaves the screen no matter how long the order gets. That is the
- * figure the customer is being told.
+ * Three rows — the identity strip, a list that scrolls, totals pinned at the
+ * foot — so the total never leaves the screen no matter how long the order
+ * gets. That is the figure the customer is being told.
+ *
+ * **The bill names itself.** The reference system puts the order number, the
+ * status, the type and the customer at the head of the bill rather than in the
+ * window's title bar, and it is right: when a cashier reads a number out or
+ * hands the screen round, they are looking at the bill, not at the chrome
+ * above it.
  *
  * Every figure here came from the server. Nothing on this screen adds up a
  * column (`CLAUDE.md` §5.1); if it did, the customer could be told one number
  * and charged another.
  */
-defineProps<{
+const props = defineProps<{
   order: OrderDetail;
   lines: OrderLine[];
   busy?: boolean;
@@ -29,10 +39,48 @@ const emit = defineEmits<{
   pay: [];
 }>();
 
-/** A line already with the kitchen cannot be quietly re-tapped away (BR-013). */
-function isSent(line: OrderLine): boolean {
-  return line.status === "sent";
-}
+const session = useSessionStore();
+
+/**
+ * The short number a cashier says out loud.
+ *
+ * `RO-2026-08-00042` is what the record is called; "42" is what gets called
+ * across a counter. Both are on the strip — the short one large, the full one
+ * beneath it — because the short one is ambiguous across months and the long
+ * one is what a search will find.
+ */
+const shortNumber = computed(() => {
+  const tail = props.order.order_name.split("-").pop() ?? "";
+  const digits = tail.replace(/^0+/, "");
+  return digits || tail;
+});
+
+const orderType = computed(
+  () => session.orderTypes.find((type) => type.name === props.order.order_type) ?? null,
+);
+
+const typeLabel = computed(() => pick(orderType.value?.title_ar, orderType.value?.title));
+
+/** Where this order is: the table if it sits at one, else nothing to say. */
+const seat = computed(() =>
+  props.order.table_number ? t("card.table", { number: props.order.table_number }) : "",
+);
+
+const STATUS_CLASS: Record<string, string> = {
+  draft: "text-order-draft",
+  active: "text-order-active",
+  in_kitchen: "text-order-in_kitchen",
+  pending_payment: "text-order-pending_payment",
+  closed: "text-order-closed",
+  cancelled: "text-order-cancelled",
+};
+
+const KNOWN_STATUSES = ["draft", "active", "in_kitchen", "pending_payment"] as const;
+
+const statusLabel = computed(() => {
+  const known = KNOWN_STATUSES.find((candidate) => candidate === props.order.status);
+  return known ? t(`status.${known}`) : props.order.status;
+});
 
 /** Bare figures: the currency is stated once, on the total. */
 function money(value: number): string {
@@ -42,131 +90,70 @@ function money(value: number): string {
 
 <template>
   <section
-    class="grid min-h-0 grid-rows-[auto_minmax(0,1fr)_auto] rounded-rpos bg-surface shadow-card"
+    class="grid min-h-0 grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden rounded-rpos bg-surface shadow-card"
   >
-    <header class="flex items-center justify-between gap-3 border-b border-line px-5 py-4">
-      <h2 class="flex items-center gap-2 text-lg font-bold">
-        <AppIcon
-          name="receipt"
-          :size="22"
-        />
-        {{ t("panel.title") }}
-      </h2>
-      <div class="flex items-center gap-3">
-        <p
-          v-if="order.cover_count"
-          class="text-sm text-muted"
-        >
-          <span class="rpos-numeric font-semibold text-content">{{
-            formatNumber(order.cover_count)
-          }}</span>
-          {{ t("panel.covers") }}
+    <!--
+      Two lines, the way the reference reads: the number and the state, then
+      what kind of sale it is and who it is for.
+    -->
+    <header class="border-b border-line px-5 py-4">
+      <div class="flex items-baseline justify-between gap-3">
+        <p class="rpos-numeric text-2xl font-bold leading-none">
+          {{ formatNumber(Number(shortNumber) || 0) }}
         </p>
         <p
-          v-if="order.opened_at"
-          class="rpos-numeric text-sm text-muted"
+          class="text-sm font-bold uppercase tracking-wide"
+          :class="STATUS_CLASS[order.status] ?? 'text-muted'"
         >
-          {{ timeOnly(order.opened_at) }}
+          {{ statusLabel }}
         </p>
-        <span
-          class="rpos-numeric grid h-9 min-w-[2.25rem] place-items-center rounded-full bg-primary/10 px-2 font-bold text-primary"
-          :aria-label="t('panel.count')"
-        >{{ formatNumber(lines.length) }}</span>
       </div>
+
+      <div class="mt-1.5 flex items-center justify-between gap-3">
+        <p class="flex min-w-0 items-center gap-2 truncate text-sm font-semibold text-muted">
+          <span
+            v-if="orderType?.color"
+            class="h-2.5 w-2.5 shrink-0 rounded-full"
+            :style="{ backgroundColor: orderType.color }"
+          />
+          {{ typeLabel }}
+          <span
+            v-if="seat"
+            class="truncate font-normal"
+          >· {{ seat }}</span>
+          <span
+            v-if="order.cover_count"
+            class="rpos-numeric shrink-0 font-normal"
+          >· {{ formatNumber(order.cover_count) }} {{ t("panel.covers") }}</span>
+        </p>
+
+        <!-- Only when there is a customer to name (06 Screen 3). -->
+        <p
+          v-if="order.customer_name || order.customer"
+          class="min-w-0 shrink-0 truncate text-sm font-semibold text-primary"
+        >
+          {{ order.customer_name || order.customer }}
+        </p>
+      </div>
+
+      <p class="rpos-numeric mt-1 truncate text-xs text-muted">
+        {{ order.order_name }}
+      </p>
     </header>
 
     <ul
       class="min-h-0 divide-y divide-line overflow-y-auto"
       :aria-label="t('panel.title')"
     >
-      <li
+      <OrderLineRow
         v-for="line in lines"
         :key="line.idx"
-        class="relative p-4 transition duration-200 ease-rpos hover:bg-background/60"
-      >
-        <!-- The whole line opens its details; the two buttons below stay for
-             the fast path a busy cashier already knows. -->
-        <button
-          type="button"
-          class="absolute inset-0"
-          :aria-label="line.item_name"
-          @click="emit('inspect', line)"
-        />
-
-        <div class="pointer-events-none flex items-start justify-between gap-3">
-          <div class="min-w-0">
-            <p class="truncate font-semibold">
-              {{ line.item_name }}
-            </p>
-
-            <p
-              v-if="line.modifiers?.length"
-              class="truncate text-sm text-muted"
-            >
-              {{
-                line.modifiers
-                  .map((modifier) => pick(modifier.option_ar, modifier.option))
-                  .join(t("common.listSeparator"))
-              }}
-            </p>
-            <p
-              v-if="line.notes"
-              class="flex items-center gap-1.5 truncate text-sm text-muted"
-            >
-              <AppIcon
-                name="note"
-                :size="14"
-              />
-              {{ line.notes }}
-            </p>
-
-            <!-- Status is never colour alone (06 §Accessibility). -->
-            <p
-              v-if="isSent(line)"
-              class="mt-1.5 inline-block rounded-full bg-order-in_kitchen/10 px-2.5 py-0.5 text-xs font-medium text-order-in_kitchen"
-            >
-              {{ t("panel.inKitchen") }}
-            </p>
-          </div>
-
-          <div class="shrink-0 text-end">
-            <p class="rpos-numeric text-lg font-bold">
-              {{ money(line.amount) }}
-            </p>
-            <p class="rpos-numeric text-sm text-muted">
-              {{ formatNumber(line.qty) }} × {{ money(line.rate) }}
-            </p>
-          </div>
-        </div>
-
-        <div class="relative mt-3 flex items-center gap-2">
-          <button
-            type="button"
-            class="ms-auto flex min-h-tap items-center gap-1.5 rounded-rpos px-3 text-sm font-medium text-primary transition duration-200 ease-rpos hover:bg-primary/10 disabled:opacity-40"
-            :disabled="busy"
-            @click="emit('repeat', line)"
-          >
-            <AppIcon
-              name="plus"
-              :size="18"
-            />
-            {{ t("panel.addSame") }}
-          </button>
-
-          <button
-            type="button"
-            class="flex min-h-tap items-center gap-1.5 rounded-rpos px-3 text-sm font-medium text-danger transition duration-200 ease-rpos hover:bg-danger/10 disabled:opacity-40"
-            :disabled="busy"
-            @click="emit('void', line)"
-          >
-            <AppIcon
-              name="trash"
-              :size="18"
-            />
-            {{ t("action.cancel") }}
-          </button>
-        </div>
-      </li>
+        :line="line"
+        :busy="busy"
+        @void="emit('void', line)"
+        @repeat="emit('repeat', line)"
+        @inspect="emit('inspect', line)"
+      />
 
       <li
         v-if="!lines.length"
@@ -180,6 +167,9 @@ function money(value: number): string {
         </span>
         <p class="text-muted">
           {{ t("panel.empty") }}
+        </p>
+        <p class="mt-1 text-xs text-muted">
+          {{ t("panel.swipeHint") }}
         </p>
       </li>
     </ul>

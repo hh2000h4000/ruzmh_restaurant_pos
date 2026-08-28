@@ -142,6 +142,7 @@ export const messages = {
   "panel.inKitchen": "In kitchen",
   "panel.addSame": "Add another",
   "panel.empty": "No items added yet.",
+  "panel.swipeHint": "Swipe a line aside to remove it.",
   "panel.count": "Items on this order",
   "panel.opened": "Opened",
   "panel.covers": "Guests",

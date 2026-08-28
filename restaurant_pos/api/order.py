@@ -376,7 +376,15 @@ def get_order(order_name: str) -> dict:
 		**_summary(order),
 		"order_type": order.order_type,
 		"table": order.table,
+		"table_number": frappe.db.get_value("Restaurant Table", order.table, "table_number")
+		if order.table
+		else None,
 		"customer": order.customer,
+		# The bill names the customer, and a Customer's id is not their name
+		# (06 Screen 3).
+		"customer_name": frappe.db.get_value("Customer", order.customer, "customer_name")
+		if order.customer
+		else None,
 		"cover_count": order.cover_count,
 		"opened_at": order.opened_at,
 		"items": [

@@ -10,6 +10,7 @@ import LineDetailDialog from "@/components/order/LineDetailDialog.vue";
 import ModifierDialog from "@/components/order/ModifierDialog.vue";
 import OrderActionBar, { type OrderAction } from "@/components/order/OrderActionBar.vue";
 import OrderPanel from "@/components/order/OrderPanel.vue";
+import OrderTypeChangeDialog from "@/components/order/OrderTypeChangeDialog.vue";
 import WorkPaneTabs, { type WorkPane } from "@/components/order/WorkPaneTabs.vue";
 import OpenOrdersPanel from "@/components/pos/OpenOrdersPanel.vue";
 import { useOpenOrders } from "@/composables/useOpenOrders";
@@ -284,6 +285,17 @@ const rowActions = computed<OrderAction[]>(() => [
 const moreActions = computed<OrderAction[]>(() => {
   const entries: OrderAction[] = [];
 
+  // D-038 — offered only where a conversion is possible at all: an app order
+  // is billed to the platform and can never become a walk-in sale.
+  if (session.can("can_change_order_type") && orderType.value?.counterparty === "walk_in") {
+    entries.push({
+      key: "convert",
+      label: "convert.action",
+      icon: "swap",
+      disabled: locked.value,
+    });
+  }
+
   if (session.can("can_cancel_order")) {
     entries.push({
       key: "cancel",
@@ -300,7 +312,36 @@ const moreActions = computed<OrderAction[]>(() => {
 function onAction(action: OrderAction): void {
   if (action.key === "kitchen") void send();
   else if (action.key === "refresh") void reload();
+  else if (action.key === "convert") converting.value = true;
   else if (action.key === "cancel") cancelling.value = true;
+}
+
+// --------------------------------------------------------------------------
+// Changing the type (D-038)
+// --------------------------------------------------------------------------
+
+const converting = ref(false);
+
+async function convert(orderType: string): Promise<void> {
+  converting.value = false;
+  await orders.changeType(orderType);
+}
+
+/**
+ * A type that seats people needs a table, and the dialog is not a floor plan.
+ *
+ * The floor plan is told which order is being converted, so it seats this one
+ * instead of opening a second.
+ */
+function convertWithTable(orderType: string): void {
+  converting.value = false;
+  if (!orders.order) return;
+
+  void router.push({
+    name: "tables",
+    params: { orderType },
+    query: { convert: orders.order.order_name },
+  });
 }
 
 /** Another till may have added to this order; re-read rather than guess. */
@@ -480,6 +521,17 @@ async function send(): Promise<void> {
       @close="inspecting = null"
       @set-qty="changeQty"
       @void="voidFromDetail"
+    />
+
+    <OrderTypeChangeDialog
+      v-if="orders.order"
+      :open="converting"
+      :order-name="orders.order.order_name"
+      :current-type="orders.order.order_type"
+      :busy="orders.busy"
+      @close="converting = false"
+      @confirm="convert"
+      @pick-table="convertWithTable"
     />
 
     <ModifierDialog

@@ -759,7 +759,13 @@ def change_order_type(
 	order.order_type_data = _validated_order_type_data(target, order_type_data, moment="on_open")
 
 	changed = _reprice_lines(order)
+	_reroute_pending_lines(order)
 	totals.calculate(order)
+
+	# The controller refuses a type change it did not come through, so that a
+	# stray write cannot leave an order priced from a list it no longer sells
+	# from. This is that one path.
+	order.flags.rpos_order_type_change = True
 	order.save(ignore_permissions=True)
 
 	if released:
@@ -799,6 +805,27 @@ def change_order_type(
 		"repriced_lines": changed,
 		"kots": tickets,
 	}
+
+
+def _reroute_pending_lines(order) -> None:
+	"""Send the not-yet-printed lines to the stations the new type routes to.
+
+	A routing rule may name an order type (``POS Printer Routing Rule``), so a
+	delivery order's fryer work can go to a different station than the dining
+	room's. Lines the kitchen already holds keep their station: they are being
+	cooked there, and re-pointing the row would only make the audit trail lie.
+	"""
+	for row in order.items or []:
+		if row.status != "pending":
+			continue
+
+		route = routing.resolve_route(
+			row.item,
+			branch=order.branch,
+			order_type=order.order_type,
+			pos_profile=order.pos_profile,
+		)
+		row.production_center = route.production_center
 
 
 def _has_sent_lines(order) -> bool:
@@ -852,9 +879,7 @@ def _reprice_lines(order) -> list[dict]:
 		if listed == flt(row.rate):
 			continue
 
-		changed.append(
-			{"item": row.item, "item_name": row.item_name, "was": flt(row.rate), "now": listed}
-		)
+		changed.append({"item": row.item, "item_name": row.item_name, "was": flt(row.rate), "now": listed})
 		row.rate = listed
 		row.amount = totals.line_amount(listed, qty, delta_per_unit)
 

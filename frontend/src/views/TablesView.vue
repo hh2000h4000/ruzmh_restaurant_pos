@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 
 import { getFloorPlan, type FloorTable } from "@/api/table";
@@ -53,6 +53,29 @@ const orderType = computed(
   () => session.orderTypes.find((type) => type.name === orderTypeName) ?? null,
 );
 
+/**
+ * The order this screen is seating, when it already exists (D-038).
+ *
+ * A conversion into a table-service type comes here to pick the table rather
+ * than opening a second order. Without this the cashier would end up with two
+ * bills for one customer.
+ */
+const converting = computed(() => (route.query.convert as string | undefined) ?? null);
+
+// --------------------------------------------------------------------------
+// The halls (D-040)
+// --------------------------------------------------------------------------
+
+/**
+ * Every hall in the branch, not only the terminal's own.
+ *
+ * A restaurant with a men's hall and a family hall usually runs one till at the
+ * door for both, so the screen offers them as tabs and the backend judges a
+ * table by its branch.
+ */
+const sections = computed(() => session.data?.sections ?? []);
+const activeSection = ref(session.data?.restaurant_section?.name ?? "");
+
 const counts = computed(() => {
   const tally: Record<string, number> = {};
   for (const table of tables.value) {
@@ -64,7 +87,7 @@ const counts = computed(() => {
 onMounted(load);
 
 async function load(): Promise<void> {
-  const section = session.data?.restaurant_section?.name;
+  const section = activeSection.value || session.data?.restaurant_section?.name;
   if (!section) {
     failure.value = t("tables.noSection");
     loading.value = false;
@@ -82,6 +105,12 @@ async function load(): Promise<void> {
     loading.value = false;
   }
 }
+
+/** Switching halls re-reads the floor; nothing else about the screen changes. */
+watch(activeSection, () => {
+  chosen.value = null;
+  void load();
+});
 
 /** FR-5.2 — free table starts an order, occupied table opens the one it has. */
 async function onTable(table: FloorTable): Promise<void> {
@@ -103,6 +132,24 @@ async function startOrder(): Promise<void> {
 
   creating.value = true;
   try {
+    // An order already exists: this is a conversion picking its table, not a
+    // new sale (D-038).
+    if (converting.value) {
+      const done = await orders.changeType(type.name, {
+        table: table.name,
+        coverCount: coverCount.value,
+      });
+
+      if (done) {
+        await router.replace({ name: "order", params: { orderName: converting.value } });
+      } else {
+        failure.value = orders.error;
+        chosen.value = null;
+        await load();
+      }
+      return;
+    }
+
     const created = await orders.create({
       order_type: type.name,
       pos_profile: session.profile!.name,
@@ -134,10 +181,7 @@ async function startOrder(): Promise<void> {
       </RouterLink>
       <div class="flex-1">
         <h1 class="font-semibold">
-          {{
-            pick(session.data?.restaurant_section?.title_ar, session.data?.restaurant_section?.title) ||
-              t("tables.title")
-          }}
+          {{ t("tables.title") }}
         </h1>
         <p class="text-xs text-muted">
           {{ pick(orderType?.title_ar, orderType?.title) }}
@@ -152,6 +196,30 @@ async function startOrder(): Promise<void> {
         🔄 {{ t("action.refresh") }}
       </button>
     </header>
+
+    <!-- One till, every hall (D-040). Hidden when there is only one to show. -->
+    <div
+      v-if="sections.length > 1"
+      class="mb-4 flex flex-wrap gap-2"
+      role="tablist"
+    >
+      <button
+        v-for="section in sections"
+        :key="section.name"
+        type="button"
+        role="tab"
+        class="min-h-tap rounded-rpos px-4 text-sm font-semibold transition duration-200 ease-rpos"
+        :class="
+          activeSection === section.name
+            ? 'bg-primary text-primary-contrast shadow-card'
+            : 'bg-surface text-muted shadow-card hover:text-content'
+        "
+        :aria-selected="activeSection === section.name"
+        @click="activeSection = section.name"
+      >
+        {{ pick(section.title_ar, section.title) }}
+      </button>
+    </div>
 
     <p
       v-if="failure"

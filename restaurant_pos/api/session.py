@@ -176,6 +176,9 @@ def load_pos_session(pos_profile: str) -> dict:
 	return {
 		"pos_profile": profile,
 		"restaurant_section": section,
+		# D-040 — a till at the door serves every hall, so the floor plan offers
+		# all of them and the section on an order comes from its table.
+		"sections": _sections(profile.branch),
 		"branch": _branch(profile.branch),
 		"screen_layout": _screen_layout(profile.screen_layout),
 		"order_types": order_types,
@@ -193,6 +196,24 @@ def load_pos_session(pos_profile: str) -> dict:
 		"user_name": frappe.db.get_value("User", frappe.session.user, "full_name"),
 		"server_time": now_datetime(),
 	}
+
+
+def _sections(branch: str | None) -> list[dict]:
+	"""Every hall in this branch a table can be seated in (D-040).
+
+	Not only the terminal's own: a restaurant with a men's hall and a family
+	hall usually runs one till at the door for both, and the backend now judges
+	a table by its branch.
+	"""
+	if not branch:
+		return []
+
+	return frappe.get_all(
+		"Restaurant Section",
+		filters={"branch": branch, "is_active": 1, "has_tables": 1},
+		fields=["name", "title", "title_ar", "section_type"],
+		order_by="sort_order asc, title asc",
+	)
 
 
 def _lang() -> str:

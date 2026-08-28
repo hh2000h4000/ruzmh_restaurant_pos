@@ -99,6 +99,15 @@ export interface OrderType {
   requires_table: 0 | 1;
   requires_cover_count: 0 | 1;
   customer_mode: "optional" | "required" | "pre_set";
+  /**
+   * Who owes the money (D-038).
+   *
+   * `walk_in` is the customer standing there; `account` is a delivery platform
+   * or a company that settles on a statement. An open order changes type only
+   * between two `walk_in` types — converting across would move the debt to
+   * somebody who ordered nothing.
+   */
+  counterparty: "walk_in" | "account";
   send_to_kitchen_on: "manual" | "save" | "payment";
   sort_order: number;
   /** Overrides the terminal's price list for this type (FR-1.6). */
@@ -167,9 +176,20 @@ export interface PosPermissions {
   roles?: string[];
 }
 
+/** A hall the till may seat a table in — every one in the branch (D-040). */
+export interface SectionOption {
+  name: string;
+  title: string;
+  title_ar: string;
+  section_type: RestaurantSection["section_type"];
+}
+
 export interface PosSession {
   pos_profile: PosProfile;
+  /** The till's own hall: where a table-less order belongs, and the default tab. */
   restaurant_section: RestaurantSection | null;
+  /** Every hall in the branch that has tables, in display order. */
+  sections: SectionOption[];
   branch: Branch | null;
   screen_layout: ScreenLayout | null;
   order_types: OrderType[];

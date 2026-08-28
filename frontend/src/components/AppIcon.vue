@@ -16,6 +16,8 @@ const PATHS = {
   search: "M21 21l-4.35-4.35M17 11a6 6 0 11-12 0 6 6 0 0112 0z",
   bell: "M15 17h5l-1.4-1.4A2 2 0 0118 14.2V11a6 6 0 10-12 0v3.2c0 .5-.2 1-.6 1.4L4 17h5m6 0a3 3 0 11-6 0m6 0H9",
   chevronDown: "M6 9l6 6 6-6",
+  check: "M5 13l4 4L19 7",
+  swap: "M7 4L3 8l4 4M3 8h13a4 4 0 014 4M17 20l4-4-4-4M21 16H8a4 4 0 01-4-4",
   grid: "M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z",
   list: "M4 6h16M4 12h16M4 18h16",
   refresh: "M20 11a8 8 0 10-2.3 6.3M20 5v6h-6",

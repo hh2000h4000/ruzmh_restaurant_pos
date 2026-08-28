@@ -146,3 +146,38 @@ export function cancelOrder(payload: {
 }): Promise<OrderSummary | Queued> {
   return mutateOrQueue("order.cancel_order", payload);
 }
+
+/** What the bill would become under another type — read-only (D-038). */
+export interface OrderTypeChangePreview {
+  order_type: string;
+  price_list: string | null;
+  total_before: number;
+  total_after: number;
+  changed_lines: { item: string; item_name: string; was: number; now: number }[];
+  requires_table: 0 | 1 | boolean;
+  requires_cover_count: 0 | 1 | boolean;
+}
+
+export function previewOrderTypeChange(payload: {
+  order_name: string;
+  order_type: string;
+}): Promise<OrderTypeChangePreview> {
+  return query<OrderTypeChangePreview>("order.preview_order_type_change", payload);
+}
+
+/**
+ * Turn an open order into another type (D-038).
+ *
+ * Not deferrable. The new total is the server's answer — the price list may
+ * differ — and a screen that showed a converted bill before the server agreed
+ * would be reading the customer a number nobody has computed.
+ */
+export function changeOrderType(payload: {
+  order_name: string;
+  order_type: string;
+  table?: string | null;
+  cover_count?: number | null;
+  manager_override_token?: string | null;
+}): Promise<OrderSummary & { order_type: string; changed: boolean }> {
+  return mutate("order.change_order_type", payload);
+}

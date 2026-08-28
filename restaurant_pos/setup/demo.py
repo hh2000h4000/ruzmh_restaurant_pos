@@ -385,7 +385,7 @@ def _item_code(group: str, arabic_name: str) -> str:
 	copies of every dish, only the newest of them priced — which is exactly how
 	a menu comes up saying "no price" for everything.
 	"""
-	digest = hashlib.md5(arabic_name.encode("utf-8")).hexdigest()  # noqa: S324 - a key, not a secret
+	digest = hashlib.md5(arabic_name.encode("utf-8")).hexdigest()
 	return f"{PREFIX}-{group[:3].upper()}-{digest[:6].upper()}"
 
 

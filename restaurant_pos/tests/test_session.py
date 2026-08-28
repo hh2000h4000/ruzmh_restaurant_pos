@@ -11,7 +11,6 @@ import frappe
 from restaurant_pos.api import session
 from restaurant_pos.tests.test_order import ITEM, OrderTestBase
 
-
 #: Items these tests invent. They are sellable, so anything left behind turns up
 #: on the cashier's menu — the suite and the demo share one site.
 SCRATCH_ITEMS = ["RPOS-TEST-UNPRICED"] + [f"RPOS-TEST-BULK-{index}" for index in range(10)]

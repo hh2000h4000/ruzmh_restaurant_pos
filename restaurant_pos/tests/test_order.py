@@ -68,9 +68,7 @@ def _ensure_test_price_list() -> str:
 			}
 		).insert(ignore_permissions=True)
 
-	existing = frappe.db.get_value(
-		"Item Price", {"item_code": ITEM, "price_list": TEST_PRICE_LIST}, "name"
-	)
+	existing = frappe.db.get_value("Item Price", {"item_code": ITEM, "price_list": TEST_PRICE_LIST}, "name")
 	if existing:
 		frappe.db.set_value("Item Price", existing, "price_list_rate", TEST_ITEM_RATE)
 	else:
@@ -140,9 +138,7 @@ class OrderTestBase(FrappeTestCase):
 	@classmethod
 	def tearDownClass(cls):
 		if getattr(cls, "original_price_list", None):
-			frappe.db.set_value(
-				"POS Profile", cls.profile, "selling_price_list", cls.original_price_list
-			)
+			frappe.db.set_value("POS Profile", cls.profile, "selling_price_list", cls.original_price_list)
 			frappe.db.commit()
 
 		super().tearDownClass()

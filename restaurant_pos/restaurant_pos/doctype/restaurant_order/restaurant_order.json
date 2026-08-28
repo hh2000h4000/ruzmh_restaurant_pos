@@ -76,8 +76,7 @@
    "in_standard_filter": 1,
    "label": "Order Type",
    "options": "Restaurant Order Type",
-   "reqd": 1,
-   "set_only_once": 1
+   "reqd": 1
   },
   {
    "default": "draft",

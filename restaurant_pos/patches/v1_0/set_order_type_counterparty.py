@@ -32,6 +32,4 @@ def execute():
 		if frappe.db.get_value("Restaurant Order Type", name, "counterparty") == "account":
 			continue
 
-		frappe.db.set_value(
-			"Restaurant Order Type", name, "counterparty", "account", update_modified=False
-		)
+		frappe.db.set_value("Restaurant Order Type", name, "counterparty", "account", update_modified=False)

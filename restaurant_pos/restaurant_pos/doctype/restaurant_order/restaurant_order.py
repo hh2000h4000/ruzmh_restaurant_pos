@@ -9,10 +9,31 @@ from frappe.utils import cint, flt, get_datetime
 
 class RestaurantOrder(Document):
 	def validate(self):
+		self.validate_order_type_change()
 		self.validate_cover_count()
 		self.validate_discount()
 		self.validate_items()
 		self.validate_lifecycle()
+
+	def validate_order_type_change(self):
+		"""The type may change, but only through the one path that handles it.
+
+		``order_type`` used to be ``set_only_once``, which stopped a cashier
+		turning a takeaway into a dine-in — something a restaurant does all day
+		(D-038). The guard moves here rather than disappearing: the type decides
+		the price list, the kitchen routing and the payment methods, so a stray
+		``db.set_value`` elsewhere would leave an order priced from a list it no
+		longer sells from. ``utils/order.change_order_type`` sets the flag after
+		it has re-priced and re-routed.
+		"""
+		if self.is_new() or self.flags.rpos_order_type_change:
+			return
+
+		if self.has_value_changed("order_type"):
+			frappe.throw(
+				_("An order's type is changed through the order screen, not by editing it."),
+				frappe.ValidationError,
+			)
 
 	def validate_cover_count(self):
 		if cint(self.cover_count) < 0:

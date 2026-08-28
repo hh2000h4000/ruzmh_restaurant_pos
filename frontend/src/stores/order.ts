@@ -119,6 +119,34 @@ export const useOrderStore = defineStore("order", () => {
     if (done) await open(orderName);
   }
 
+  /**
+   * Turn this order into another type (D-038).
+   *
+   * The whole order is re-read afterwards: the price list may differ, so every
+   * line's rate can have moved, and patching the totals alone would leave the
+   * lines showing yesterday's prices under today's figure.
+   */
+  async function changeType(
+    orderType: string,
+    options: { table?: string | null; coverCount?: number | null } = {},
+  ): Promise<boolean> {
+    if (!order.value) return false;
+
+    const orderName = order.value.order_name;
+    const done = await run(() =>
+      orderApi.changeOrderType({
+        order_name: orderName,
+        order_type: orderType,
+        table: options.table ?? null,
+        cover_count: options.coverCount ?? null,
+      }),
+    );
+
+    if (!done) return false;
+    await open(orderName);
+    return true;
+  }
+
   async function cancel(reason: string): Promise<boolean> {
     if (!order.value) return false;
 
@@ -177,6 +205,7 @@ export const useOrderStore = defineStore("order", () => {
     create,
     addItem,
     setQty,
+    changeType,
     voidLine,
     cancel,
     sendToKitchen,

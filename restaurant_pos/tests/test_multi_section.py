@@ -96,3 +96,28 @@ class TestTablesOutsideTheTerminalSection(OrderTestBase):
 
 		with self.assertRaises(frappe.ValidationError):
 			self._order(order_type=self.dine_in, table=table, cover_count=2)
+
+
+class TestSessionOffersEveryHall(OrderTestBase):
+	def test_the_payload_lists_the_branch_s_sections(self):
+		"""The floor plan needs them all to offer tabs (D-040)."""
+		from restaurant_pos.api import session as session_api
+
+		payload = session_api.load_pos_session(self.profile)
+		names = {row["name"] for row in payload["sections"]}
+
+		self.assertIn(self.section, names, "the terminal's own hall is missing")
+		self.assertTrue(
+			all(frappe.db.get_value("Restaurant Section", name, "branch") == BRANCH for name in names),
+			"a hall from another branch was offered",
+		)
+
+	def test_every_order_type_says_who_owes_the_money(self):
+		"""D-038 — the screen greys out what it cannot convert to."""
+		from restaurant_pos.api import session as session_api
+
+		payload = session_api.load_pos_session(self.profile)
+		self.assertTrue(payload["order_types"], "no order types in the payload")
+
+		for row in payload["order_types"]:
+			self.assertIn(row["counterparty"], ("walk_in", "account"), row["title"])

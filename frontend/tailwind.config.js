@@ -95,6 +95,11 @@ export default {
       minHeight: {
         tap: "var(--rpos-tap-target)",
       },
+      // A control sized *exactly* to the minimum, for a strip whose whole job
+      // is to stay out of the way — the nav bar under the menu (06 Screen 3).
+      height: {
+        tap: "var(--rpos-tap-target)",
+      },
       fontFamily: {
         // Cairo and Tajawal first, used when the terminal already has them.
         // Nothing is fetched from a CDN: this app has to start during an

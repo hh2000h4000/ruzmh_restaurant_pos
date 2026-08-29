@@ -409,9 +409,9 @@ function onAction(action: OrderAction): void {
 
 const converting = ref(false);
 
-async function convert(orderType: string): Promise<void> {
+async function convert(orderType: string, coverCount: number | null): Promise<void> {
   converting.value = false;
-  await orders.changeType(orderType);
+  await orders.changeType(orderType, { coverCount });
 }
 
 /**
@@ -660,6 +660,7 @@ async function send(): Promise<void> {
       :open="converting"
       :order-name="orders.order.order_name"
       :current-type="orders.order.order_type"
+      :cover-count="orders.order.cover_count"
       :busy="orders.busy"
       @close="converting = false"
       @confirm="convert"

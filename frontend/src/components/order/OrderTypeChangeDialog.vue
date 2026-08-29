@@ -25,13 +25,15 @@ const props = defineProps<{
   open: boolean;
   orderName: string;
   currentType: string;
+  /** What the order already records, so a type that wants a count may not ask. */
+  coverCount: number;
   busy?: boolean;
 }>();
 
 const emit = defineEmits<{
   close: [];
   /** The cashier confirmed a type this order can take as it stands. */
-  confirm: [orderType: string];
+  confirm: [orderType: string, coverCount: number | null];
   /** The target seats people; the order has to pick a table first. */
   pickTable: [orderType: string];
 }>();
@@ -99,12 +101,26 @@ const priceChanged = computed(
 /** A type that seats people needs a table, and this dialog is not a floor plan. */
 const needsTable = computed(() => Boolean(preview.value?.requires_table));
 
+/**
+ * BR-064 — the new type counts guests and this order has never been asked.
+ *
+ * Only where no table is involved: seating the order supplies the number from
+ * the table's capacity. Without this the conversion was refused in red for a
+ * figure the dialog knew it needed and never offered a way to give.
+ */
+const needsCovers = computed(
+  () =>
+    Boolean(preview.value?.requires_cover_count) && !needsTable.value && props.coverCount < 1,
+);
+
+const covers = ref(2);
+
 function confirm(): void {
   const type = chosen.value;
   if (!type || loading.value) return;
 
   if (needsTable.value) emit("pickTable", type.name);
-  else emit("confirm", type.name);
+  else emit("confirm", type.name, needsCovers.value ? covers.value : null);
 }
 
 /** Reopening must not show the answer to the last question. */
@@ -115,6 +131,7 @@ watch(
     chosen.value = null;
     preview.value = null;
     failure.value = null;
+    covers.value = 2;
   },
 );
 
@@ -240,6 +257,46 @@ function money(value: number): string {
         />
         {{ t("convert.needsTable") }}
       </p>
+    </div>
+
+    <!-- BR-064 — asked here rather than refused later (FR-2.1a). -->
+    <div
+      v-if="preview && needsCovers"
+      class="mb-4 rounded-rpos bg-background p-4"
+    >
+      <p class="mb-3 text-sm font-semibold">
+        {{ t("covers.title") }}
+      </p>
+      <div class="flex items-center justify-center gap-4">
+        <button
+          type="button"
+          class="grid h-12 w-12 place-items-center rounded-full bg-surface text-muted transition duration-200 ease-rpos hover:text-primary disabled:opacity-40"
+          :disabled="covers <= 1"
+          :aria-label="t('picker.qtyLess')"
+          @click="covers = Math.max(1, covers - 1)"
+        >
+          <AppIcon
+            name="minus"
+            :size="22"
+          />
+        </button>
+
+        <span class="rpos-numeric w-14 text-center text-2xl font-bold">{{
+          formatNumber(covers)
+        }}</span>
+
+        <button
+          type="button"
+          class="grid h-12 w-12 place-items-center rounded-full bg-surface text-muted transition duration-200 ease-rpos hover:text-primary"
+          :aria-label="t('picker.qtyMore')"
+          @click="covers = covers + 1"
+        >
+          <AppIcon
+            name="plus"
+            :size="22"
+          />
+        </button>
+      </div>
     </div>
 
     <div class="flex gap-2">

@@ -242,3 +242,61 @@ class TestConversionIsAudited(OrderTypeChangeBase):
 		details = frappe.parse_json(entry[0].details)
 		self.assertEqual(details["from"]["order_type"], self.order_type)
 		self.assertEqual(details["to"]["order_type"], self.dine_in)
+
+
+class TestConversionAsksForWhatItNeeds(OrderTypeChangeBase):
+	"""FR-2.1a — a target that counts guests must be given a number.
+
+	The screen asks for it in the dialog; the server refuses without it. Both
+	halves matter: the dialog knowing is what stops the cashier meeting a red
+	message with nowhere to answer it.
+	"""
+
+	def setUp(self):
+		super().setUp()
+		self.original = frappe.db.get_value(
+			"Restaurant Order Type", self.dine_in, ["requires_table", "requires_cover_count"], as_dict=True
+		)
+		frappe.db.set_value(
+			"Restaurant Order Type", self.dine_in, {"requires_table": 0, "requires_cover_count": 1}
+		)
+		frappe.clear_cache(doctype="Restaurant Order Type")
+
+	def tearDown(self):
+		frappe.db.set_value("Restaurant Order Type", self.dine_in, dict(self.original))
+		frappe.clear_cache(doctype="Restaurant Order Type")
+
+	def test_the_preview_says_a_count_is_wanted(self):
+		"""What the dialog reads to decide whether to ask."""
+		order = self._order()
+		service.add_item(order, item=self.item, qty=1)
+
+		preview = service.preview_order_type_change(order, order_type=self.dine_in)
+
+		self.assertTrue(preview["requires_cover_count"])
+		self.assertFalse(preview["requires_table"])
+
+	def test_converting_without_a_count_is_refused(self):
+		order = self._order()
+		service.add_item(order, item=self.item, qty=1)
+
+		with self.assertRaises(frappe.ValidationError):
+			service.change_order_type(order, order_type=self.dine_in)
+
+	def test_converting_with_a_count_is_accepted(self):
+		order = self._order()
+		service.add_item(order, item=self.item, qty=1)
+
+		service.change_order_type(order, order_type=self.dine_in, cover_count=3)
+
+		self.assertEqual(order.order_type, self.dine_in)
+		self.assertEqual(order.cover_count, 3)
+
+	def test_a_count_already_on_the_order_is_kept(self):
+		"""An order that was seated once does not get asked twice."""
+		order = self._order(cover_count=5)
+		service.add_item(order, item=self.item, qty=1)
+
+		service.change_order_type(order, order_type=self.dine_in)
+
+		self.assertEqual(order.cover_count, 5)

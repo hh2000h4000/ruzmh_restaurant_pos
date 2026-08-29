@@ -14,6 +14,8 @@
   "production_center",
   "context_cb",
   "table",
+  "daily_number",
+  "call_name",
   "order_type_title",
   "cashier_name",
   "order_notes",
@@ -80,6 +82,20 @@
    "fieldtype": "Link",
    "label": "Table",
    "options": "Restaurant Table"
+  },
+  {
+   "description": "The number shouted across the counter (FR-2.10).",
+   "fieldname": "daily_number",
+   "fieldtype": "Int",
+   "label": "Order Number",
+   "read_only": 1
+  },
+  {
+   "description": "Who to call when it is ready (FR-2.11).",
+   "fieldname": "call_name",
+   "fieldtype": "Data",
+   "label": "Call Name",
+   "read_only": 1
   },
   {
    "fieldname": "order_type_title",

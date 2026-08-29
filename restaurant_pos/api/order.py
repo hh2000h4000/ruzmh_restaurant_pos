@@ -47,6 +47,7 @@ def create_order(
 	waiter: str | None = None,
 	order_type_data: dict | str | None = None,
 	notes: str | None = None,
+	call_name: str | None = None,
 	queue_id: str | None = None,
 ) -> dict:
 	"""Open an order (FR-2.1)."""
@@ -71,6 +72,7 @@ def create_order(
 		if isinstance(order_type_data, str)
 		else order_type_data,
 		notes=notes,
+		call_name=call_name,
 		offline_queue_id=queue_id,
 	)
 
@@ -163,6 +165,27 @@ def set_item_notes(
 	result = dict(_summary(order), **outcome)
 	idempotency.remember(
 		queue_id, "set_item_notes", result, reference_doctype="Restaurant Order", reference_name=order.name
+	)
+	return result
+
+
+@frappe.whitelist()
+def remove_item(order_name: str, item_idx: int, queue_id: str | None = None) -> dict:
+	"""Take a line off before the kitchen sees it (FR-2.5).
+
+	No reason and no permission: until the ticket prints this is composing an
+	order, not withdrawing food.
+	"""
+	replay = idempotency.previous_result(queue_id)
+	if replay is not None:
+		return replay
+
+	order = _load(order_name)
+	outcome = service.remove_item(order, item_idx=item_idx)
+
+	result = dict(_summary(order), **outcome)
+	idempotency.remember(
+		queue_id, "remove_item", result, reference_doctype="Restaurant Order", reference_name=order.name
 	)
 	return result
 
@@ -279,6 +302,27 @@ def set_order_table(
 
 
 @frappe.whitelist()
+def set_call_name(
+	order_name: str,
+	call_name: str | None = None,
+	queue_id: str | None = None,
+) -> dict:
+	"""Name the order for calling out — not a Customer (FR-2.11)."""
+	replay = idempotency.previous_result(queue_id)
+	if replay is not None:
+		return replay
+
+	order = _load(order_name)
+	outcome = service.set_call_name(order, call_name=call_name)
+
+	result = dict(_summary(order), **outcome)
+	idempotency.remember(
+		queue_id, "set_call_name", result, reference_doctype="Restaurant Order", reference_name=order.name
+	)
+	return result
+
+
+@frappe.whitelist()
 def set_order_notes(
 	order_name: str,
 	notes: str | None = None,
@@ -388,6 +432,9 @@ def list_orders(pos_profile: str, view: str = "open") -> list[dict]:
 		filters=filters,
 		fields=[
 			"name",
+			# What the cashier reads on a card and says out loud (FR-2.10).
+			"daily_number",
+			"call_name",
 			"order_type",
 			"status",
 			"table",
@@ -481,6 +528,8 @@ def get_order(order_name: str) -> dict:
 		if order.table
 		else None,
 		"customer": order.customer,
+		"call_name": order.call_name,
+		"daily_number": order.daily_number,
 		# The bill names the customer, and a Customer's id is not their name
 		# (06 Screen 3).
 		"customer_name": frappe.db.get_value("Customer", order.customer, "customer_name")

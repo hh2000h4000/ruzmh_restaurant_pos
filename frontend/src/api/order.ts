@@ -33,6 +33,10 @@ export interface OrderLine {
 }
 
 export interface OrderDetail extends OrderSummary {
+  /** The short number the customer is told; `order_name` is the record id. */
+  daily_number: number;
+  /** A name to call out — not a Customer (FR-2.11). */
+  call_name: string | null;
   order_type: string;
   table: string | null;
   /** What the table is called on the floor, not its record id. */
@@ -58,6 +62,8 @@ export type OpenOrderStatus =
 /** One card on the home screen (06 Screen 1). */
 export interface OpenOrder {
   name: string;
+  daily_number: number;
+  call_name: string | null;
   order_type: string;
   order_type_title: string;
   order_type_title_ar: string;
@@ -238,4 +244,26 @@ export function setItemNotes(payload: {
   notes: string | null;
 }): Promise<OrderSummary & { item_idx: number; notes: string | null; changed: boolean }> {
   return mutate("order.set_item_notes", payload);
+}
+
+/**
+ * Take a line off before the kitchen has seen it (FR-2.5).
+ *
+ * Distinct from `voidItem` on purpose: no reason, no permission, no trail.
+ * Until the ticket prints, this is composing an order rather than withdrawing
+ * food, and a reason box on every mis-tap costs seconds at every till.
+ */
+export function removeItem(payload: {
+  order_name: string;
+  item_idx: number;
+}): Promise<OrderSummary & { removed: number }> {
+  return mutate("order.remove_item", payload);
+}
+
+/** Name the order for calling out — not a Customer (FR-2.11). */
+export function setCallName(payload: {
+  order_name: string;
+  call_name: string | null;
+}): Promise<OrderSummary & { call_name: string | null; changed: boolean }> {
+  return mutate("order.set_call_name", payload);
 }

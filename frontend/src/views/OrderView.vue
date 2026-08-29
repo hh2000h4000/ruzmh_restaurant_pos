@@ -400,7 +400,21 @@ function voidFromDetail(line: OrderLine): void {
   askVoid(line);
 }
 
+/**
+ * FR-2.5 — the two are different acts, and only one asks a question.
+ *
+ * Before the ticket prints, a line coming off is a mis-tap: the customer said
+ * rice and meant bulgur, or the finger landed one button over. Demanding a
+ * written reason there costs seconds at every till and teaches cashiers to type
+ * "x" to get past the box. Once the kitchen has it, the food is being made and
+ * somebody has to answer for it.
+ */
 function askVoid(line: OrderLine): void {
+  if (line.status === "pending") {
+    void orders.removeLine(line.idx);
+    return;
+  }
+
   voidTarget.value = line;
   voidReason.value = "";
 }
@@ -473,6 +487,15 @@ const moreActions = computed<OrderAction[]>(() => {
     });
   }
 
+  // FR-2.11 — a name to shout, not a Customer. In the menu rather than the
+  // row: most orders never need one.
+  entries.push({
+    key: "callName",
+    label: "call.action",
+    icon: "user",
+    disabled: locked.value,
+  });
+
   if (session.can("can_cancel_order")) {
     entries.push({
       key: "cancel",
@@ -490,8 +513,26 @@ function onAction(action: OrderAction): void {
   if (action.key === "kitchen") void send();
   else if (action.key === "refresh") void reload();
   else if (action.key === "notes") openNotes();
+  else if (action.key === "callName") openCallName();
   else if (action.key === "convert") converting.value = true;
   else if (action.key === "cancel") cancelling.value = true;
+}
+
+// --------------------------------------------------------------------------
+// The name to call out (FR-2.11)
+// --------------------------------------------------------------------------
+
+const editingCallName = ref(false);
+const draftCallName = ref("");
+
+function openCallName(): void {
+  draftCallName.value = orders.order?.call_name ?? "";
+  editingCallName.value = true;
+}
+
+async function saveCallName(): Promise<void> {
+  editingCallName.value = false;
+  await orders.setCallName(draftCallName.value.trim() || null);
 }
 
 // --------------------------------------------------------------------------
@@ -694,6 +735,44 @@ async function send(): Promise<void> {
         />
       </div>
     </div>
+
+    <!-- FR-2.11 — written on the ticket so the counter knows who to call. -->
+    <BaseDialog
+      :open="editingCallName"
+      :title="t('call.title')"
+      :dismissible="true"
+      @close="editingCallName = false"
+    >
+      <p class="mb-3 text-sm text-muted">
+        {{ t("call.body") }}
+      </p>
+
+      <input
+        v-model="draftCallName"
+        type="text"
+        class="mb-4 min-h-tap w-full rounded-rpos border border-line bg-background px-3 text-lg"
+        :placeholder="t('call.placeholder')"
+        @keyup.enter="saveCallName"
+      >
+
+      <div class="flex gap-2">
+        <button
+          type="button"
+          class="min-h-tap flex-1 rounded-rpos border border-line"
+          @click="editingCallName = false"
+        >
+          {{ t("action.undo") }}
+        </button>
+        <button
+          type="button"
+          class="min-h-tap flex-1 rounded-rpos bg-primary font-medium text-primary-contrast disabled:opacity-40"
+          :disabled="orders.busy"
+          @click="saveCallName"
+        >
+          {{ t("action.save") }}
+        </button>
+      </div>
+    </BaseDialog>
 
     <!-- FR-2.9 — printed on the header of every station's ticket. -->
     <BaseDialog

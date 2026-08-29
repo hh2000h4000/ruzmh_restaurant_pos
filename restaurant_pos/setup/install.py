@@ -86,10 +86,23 @@ CUSTOM_FIELDS = {
 			"insert_after": "default_cost_center",
 		},
 		{
+			"fieldname": "order_number_reset",
+			"fieldtype": "Select",
+			"options": "daily\nshift\nweekly\nmonthly\nnever",
+			"default": "daily",
+			"label": "Order Number Resets",
+			"description": (
+				"How often the short number a customer is told goes back to 1. "
+				"Daily is what most restaurants use; the record id is unaffected "
+				"and stays unique forever (FR-2.10)."
+			),
+			"insert_after": "shift_type",
+		},
+		{
 			"fieldname": "settlement_required",
 			"fieldtype": "Check",
 			"label": "Settlement Required",
-			"insert_after": "shift_type",
+			"insert_after": "order_number_reset",
 		},
 		{
 			"fieldname": "is_active",

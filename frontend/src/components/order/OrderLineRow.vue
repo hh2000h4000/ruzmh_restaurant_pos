@@ -155,7 +155,7 @@ function money(value: number): string {
     </div>
 
     <div
-      class="relative touch-pan-y bg-surface p-4"
+      class="relative touch-pan-y bg-surface px-4 py-2.5"
       :style="{
         transform: `translateX(${offset}px)`,
         transition: dragging ? 'none' : 'transform 200ms cubic-bezier(0.2, 0, 0, 1)',
@@ -216,37 +216,45 @@ function money(value: number): string {
           </div>
         </div>
 
-        <p class="rpos-numeric shrink-0 text-lg font-bold">
-          {{ money(line.amount) }}
-        </p>
-      </div>
+        <!--
+          Amount and the two actions in one column at the end. Labelled buttons
+          on a row of their own doubled every line's height, so four items
+          filled the bill — and the labels earned nothing a trash can and a plus
+          do not already say.
+        -->
+        <div class="pointer-events-auto relative flex shrink-0 items-center gap-1">
+          <p class="rpos-numeric text-lg font-bold">
+            {{ money(line.amount) }}
+          </p>
 
-      <div class="relative mt-3 flex items-center gap-2">
-        <button
-          type="button"
-          class="ms-auto flex min-h-tap items-center gap-1.5 rounded-rpos px-3 text-sm font-medium text-primary transition duration-200 ease-rpos hover:bg-primary/10 disabled:opacity-40"
-          :disabled="busy"
-          @click="emit('repeat')"
-        >
-          <AppIcon
-            name="plus"
-            :size="18"
-          />
-          {{ t("panel.addSame") }}
-        </button>
+          <button
+            type="button"
+            class="grid h-10 w-10 place-items-center rounded-full text-primary transition duration-200 ease-rpos hover:bg-primary/10 disabled:opacity-40"
+            :disabled="busy"
+            :aria-label="t('panel.addSame')"
+            :title="t('panel.addSame')"
+            @click="emit('repeat')"
+          >
+            <AppIcon
+              name="plus"
+              :size="18"
+            />
+          </button>
 
-        <button
-          type="button"
-          class="flex min-h-tap items-center gap-1.5 rounded-rpos px-3 text-sm font-medium text-danger transition duration-200 ease-rpos hover:bg-danger/10 disabled:opacity-40"
-          :disabled="busy"
-          @click="emit('void')"
-        >
-          <AppIcon
-            name="trash"
-            :size="18"
-          />
-          {{ t("action.cancel") }}
-        </button>
+          <button
+            type="button"
+            class="grid h-10 w-10 place-items-center rounded-full text-danger transition duration-200 ease-rpos hover:bg-danger/10 disabled:opacity-40"
+            :disabled="busy"
+            :aria-label="t('action.remove')"
+            :title="t('action.remove')"
+            @click="emit('void')"
+          >
+            <AppIcon
+              name="trash"
+              :size="18"
+            />
+          </button>
+        </div>
       </div>
     </div>
   </li>

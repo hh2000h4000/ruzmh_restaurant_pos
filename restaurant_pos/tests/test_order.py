@@ -588,3 +588,69 @@ class TestCoverCountIsItsOwnSetting(OrderTestBase):
 
 		self.assertEqual(order.cover_count, 0)
 		self.assertIsNone(order.table)
+
+
+class TestRemovingBeforeTheKitchenSeesIt(OrderTestBase):
+	"""FR-2.5 — a mis-tap is not a void.
+
+	The customer says rice and means bulgur, or the finger lands one button
+	over. Until the ticket prints that is composing an order, and a reason box
+	on every correction costs seconds at every till in the shop.
+	"""
+
+	def test_a_pending_line_comes_off_with_no_reason(self):
+		order = self._order()
+		service.add_item(order, item=self.item, qty=1)
+
+		service.remove_item(order, item_idx=1)
+
+		self.assertEqual(len(order.items), 0)
+
+	def test_the_total_follows(self):
+		order = self._order()
+		service.add_item(order, item=self.item, qty=1)
+		service.add_item(order, item=self.item, qty=1)
+		both = order.total_amount
+
+		service.remove_item(order, item_idx=2)
+
+		self.assertEqual(len(order.items), 1)
+		self.assertLess(order.total_amount, both)
+
+	def test_it_leaves_no_trail(self):
+		"""Adding a line is not audited either; this is the same act."""
+		order = self._order()
+		service.add_item(order, item=self.item, qty=1)
+
+		service.remove_item(order, item_idx=1)
+
+		entries = frappe.get_all("POS Audit Log", filters={"restaurant_order": order.name})
+		self.assertFalse(entries, entries)
+
+	def test_a_sent_line_is_refused_and_pointed_at_the_void(self):
+		order = self._order()
+		row = service.add_item(order, item=self.item, qty=1)
+		row.status = "sent"
+		order.save(ignore_permissions=True)
+
+		with self.assertRaises(frappe.ValidationError):
+			service.remove_item(order, item_idx=1)
+
+	def test_a_closed_order_is_refused(self):
+		order = self._order()
+		service.add_item(order, item=self.item, qty=1)
+		frappe.db.set_value("Restaurant Order", order.name, "status", "closed")
+		order.reload()
+
+		with self.assertRaises(frappe.ValidationError):
+			service.remove_item(order, item_idx=1)
+
+	def test_voiding_a_sent_line_still_wants_a_reason(self):
+		"""The rule did not go away; it moved to where the food is real."""
+		order = self._order()
+		row = service.add_item(order, item=self.item, qty=1)
+		row.status = "sent"
+		order.save(ignore_permissions=True)
+
+		with self.assertRaises(frappe.ValidationError):
+			service.void_item(order, item_idx=1, reason="")

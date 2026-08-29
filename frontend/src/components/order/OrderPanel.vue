@@ -42,18 +42,14 @@ const emit = defineEmits<{
 const session = useSessionStore();
 
 /**
- * The short number a cashier says out loud.
+ * The number a cashier says out loud (FR-2.10).
  *
- * `RO-2026-08-00042` is what the record is called; "42" is what gets called
- * across a counter. Both are on the strip — the short one large, the full one
- * beneath it — because the short one is ambiguous across months and the long
- * one is what a search will find.
+ * Assigned per branch and restarted on the branch's own cycle, so it stays a
+ * number a person can hear. `order_name` is the record id and is printed small
+ * beneath it: the short one repeats every day, and the long one is what a
+ * search or a refund is traced by.
  */
-const shortNumber = computed(() => {
-  const tail = props.order.order_name.split("-").pop() ?? "";
-  const digits = tail.replace(/^0+/, "");
-  return digits || tail;
-});
+const shortNumber = computed(() => props.order.daily_number || 0);
 
 const orderType = computed(
   () => session.orderTypes.find((type) => type.name === props.order.order_type) ?? null,
@@ -99,7 +95,7 @@ function money(value: number): string {
     <header class="border-b border-line px-5 py-4">
       <div class="flex items-baseline justify-between gap-3">
         <p class="rpos-numeric text-2xl font-bold leading-none">
-          {{ formatNumber(Number(shortNumber) || 0) }}
+          {{ formatNumber(shortNumber) }}
         </p>
         <p
           class="text-sm font-bold uppercase tracking-wide"
@@ -127,12 +123,16 @@ function money(value: number): string {
           >· {{ formatNumber(order.cover_count) }} {{ t("panel.covers") }}</span>
         </p>
 
-        <!-- Only when there is a customer to name (06 Screen 3). -->
+        <!--
+          Whoever this bill is for: the name to call out if one was written
+          (FR-2.11), else the Customer if one was chosen. Both at once would
+          only make the cashier read two names for one order.
+        -->
         <p
-          v-if="order.customer_name || order.customer"
+          v-if="order.call_name || order.customer_name || order.customer"
           class="min-w-0 shrink-0 truncate text-sm font-semibold text-primary"
         >
-          {{ order.customer_name || order.customer }}
+          {{ order.call_name || order.customer_name || order.customer }}
         </p>
       </div>
 

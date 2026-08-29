@@ -109,6 +109,34 @@ export const useOrderStore = defineStore("order", () => {
     if (done) await open(orderName);
   }
 
+  /**
+   * FR-2.5 — take a line off before the kitchen has it.
+   *
+   * The screen decides which of the two to call from `line.status`, because
+   * only one of them asks the cashier a question.
+   */
+  async function removeLine(idx: number): Promise<void> {
+    if (!order.value) return;
+
+    const orderName = order.value.order_name;
+    const done = await run(() => orderApi.removeItem({ order_name: orderName, item_idx: idx }));
+    if (done) await open(orderName);
+  }
+
+  /** FR-2.11 — a name to shout, not a Customer. */
+  async function setCallName(callName: string | null): Promise<boolean> {
+    if (!order.value) return false;
+
+    const orderName = order.value.order_name;
+    const done = await run(() =>
+      orderApi.setCallName({ order_name: orderName, call_name: callName }),
+    );
+
+    if (!done) return false;
+    await open(orderName);
+    return true;
+  }
+
   async function voidLine(idx: number, reason: string): Promise<void> {
     if (!order.value) return;
 
@@ -258,6 +286,8 @@ export const useOrderStore = defineStore("order", () => {
     seat,
     setNotes,
     setLineNotes,
+    setCallName,
+    removeLine,
     voidLine,
     cancel,
     sendToKitchen,

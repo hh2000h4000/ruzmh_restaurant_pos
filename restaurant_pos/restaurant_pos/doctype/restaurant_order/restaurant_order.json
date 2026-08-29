@@ -9,6 +9,7 @@
  "field_order": [
   "naming_series",
   "context_section",
+  "daily_number",
   "order_type",
   "status",
   "branch",
@@ -20,6 +21,7 @@
   "cover_count",
   "people_section",
   "customer",
+  "call_name",
   "cashier",
   "people_cb",
   "waiter",
@@ -68,6 +70,15 @@
    "fieldname": "context_section",
    "fieldtype": "Section Break",
    "label": "Context"
+  },
+  {
+   "description": "The short number a customer is told and a counter calls out. Assigned per branch and reset on the branch's own cycle; `name` stays the permanent record id (FR-2.10).",
+   "fieldname": "daily_number",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Order Number",
+   "read_only": 1
   },
   {
    "fieldname": "order_type",
@@ -144,6 +155,12 @@
    "fieldtype": "Link",
    "label": "Customer",
    "options": "Customer"
+  },
+  {
+   "description": "A name to call out — not a Customer record. 'Hamza' waiting for a takeaway is not somebody to file (FR-2.11).",
+   "fieldname": "call_name",
+   "fieldtype": "Data",
+   "label": "Call Name"
   },
   {
    "fieldname": "cashier",

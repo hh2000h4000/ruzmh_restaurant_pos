@@ -169,6 +169,9 @@ def _header(order) -> frappe._dict:
 		order_type_title=frappe.db.get_value("Restaurant Order Type", order.order_type, "title_ar"),
 		cashier_name=frappe.db.get_value("User", order.cashier, "full_name"),
 		table=order.table,
+		# What the counter shouts when it is ready (FR-2.10, FR-2.11).
+		daily_number=order.daily_number,
+		call_name=order.call_name,
 		# On **every** station's ticket, not one of them. An allergy, or a "rush
 		# this", that reached only the grill is exactly the case an item note
 		# cannot cover — and the reason order-level notes exist (FR-2.9).
@@ -198,6 +201,8 @@ def _create_kot(order, *, kot_type, production_center, rows, header, action):
 			"kot_type": kot_type,
 			"production_center": production_center,
 			"table": header.table,
+			"daily_number": header.daily_number,
+			"call_name": header.call_name,
 			"order_type_title": header.order_type_title,
 			"cashier_name": header.cashier_name,
 			"order_notes": header.order_notes,
@@ -265,6 +270,7 @@ def restamp_order(order, previous_title: str | None = None) -> list[dict]:
 			{
 				"order_type_title": header.order_type_title,
 				"table": header.table,
+				"call_name": header.call_name,
 				"order_notes": header.order_notes,
 			},
 			update_modified=False,

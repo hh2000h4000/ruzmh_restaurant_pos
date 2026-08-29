@@ -19,7 +19,7 @@ import frappe
 from frappe import _
 from frappe.utils import cint, flt, now_datetime
 
-from restaurant_pos.utils import kitchen, routing, totals
+from restaurant_pos.utils import kitchen, numbering, routing, totals
 from restaurant_pos.utils.audit import log_audit
 from restaurant_pos.utils.permissions import (
 	assert_permission,
@@ -98,6 +98,7 @@ def create_order(
 	waiter: str | None = None,
 	order_type_data: dict | None = None,
 	notes: str | None = None,
+	call_name: str | None = None,
 	offline_queue_id: str | None = None,
 ) -> "frappe.Document":
 	"""Open a new order (FR-2.1)."""
@@ -125,6 +126,11 @@ def create_order(
 			"restaurant_shift": shift,
 			"cashier": frappe.session.user,
 			"waiter": waiter,
+			# A name to call across a counter, not a Customer record (FR-2.11).
+			"call_name": (call_name or "").strip() or None,
+			# The short number the customer is told, restarted on the branch's
+			# own cycle. `name` stays the permanent id (FR-2.10).
+			"daily_number": numbering.next_order_number(branch=profile.branch, shift=shift),
 			"opened_at": now_datetime(),
 			"notes": notes,
 			"offline_queue_id": offline_queue_id,
@@ -548,8 +554,46 @@ def set_item_qty(order, *, item_idx: int, qty: float) -> dict:
 	return {"item_idx": row.idx, "qty": flt(row.qty), "amount": flt(row.amount)}
 
 
+def remove_item(order, *, item_idx: int) -> dict:
+	"""Take a line off an order the kitchen has not seen (FR-2.5).
+
+	**No reason, no permission, no trail.** A cashier taps rice, the customer
+	says bulgur, or the finger lands one button over — and until the ticket is
+	printed that is not a void, it is composing an order nobody has acted on.
+	Demanding a written reason for a mis-tap costs seconds at every till in the
+	shop and teaches cashiers to type "x" to get past the box, which is worse
+	than no reason at all.
+
+	The same reasoning as ``set_item_qty``: adding a line is not audited either,
+	and this is the same act. What *is* audited is the moment that stops being
+	true — the line reaching a station — and from there it is ``void_item``.
+	"""
+	assert_mutable(order)
+
+	row = next((line for line in order.items if line.idx == cint(item_idx)), None)
+	if not row:
+		frappe.throw(_("Row #{0} is not on this order.").format(item_idx))
+
+	if row.status != "pending":
+		frappe.throw(
+			_("Row #{0} has already gone to the kitchen. Void it instead.").format(item_idx),
+			frappe.ValidationError,
+		)
+
+	order.remove(row)
+	totals.calculate(order)
+	order.save(ignore_permissions=True)
+
+	return {"removed": cint(item_idx)}
+
+
 def void_item(order, *, item_idx: int, reason: str, override_token: str | None = None) -> dict:
-	"""Void one line (FR-2.5, BR-013)."""
+	"""Withdraw a line the kitchen has (FR-2.5, BR-013).
+
+	A reason is required here and nowhere else: the food is being made, or was
+	made, and somebody has to be able to answer for it later. Removing a line
+	before the ticket printed is ``remove_item`` and asks nothing.
+	"""
 	assert_mutable(order)
 
 	if not (reason or "").strip():
@@ -983,6 +1027,27 @@ def seat_order(
 		)
 
 	return {"table": table, "changed": True, "moved_from": leaving}
+
+
+def set_call_name(order, *, call_name: str | None) -> dict:
+	"""Name the order for calling out (FR-2.11).
+
+	Not a Customer. "Hamza" waiting on a takeaway is somebody to shout at, not
+	somebody to file — and making the cashier create a customer record to write
+	a name down is how a database fills with people nobody meant to keep.
+	"""
+	assert_mutable(order)
+
+	cleaned = (call_name or "").strip() or None
+	if cleaned == order.call_name:
+		return {"call_name": order.call_name, "changed": False}
+
+	order.call_name = cleaned
+	order.save(ignore_permissions=True)
+
+	# The counter shouts the name, so a ticket already at a station needs it.
+	tickets = kitchen.restamp_order(order) if _has_sent_lines(order) else []
+	return {"call_name": order.call_name, "changed": True, "kots": tickets}
 
 
 def set_order_notes(order, *, notes: str | None) -> dict:

@@ -225,6 +225,38 @@ def change_order_type(
 
 
 @frappe.whitelist()
+def set_order_table(
+	order_name: str,
+	table: str,
+	cover_count: int | None = None,
+	manager_override_token: str | None = None,
+	queue_id: str | None = None,
+) -> dict:
+	"""Seat an open order at a table, or move it to another one (BR-061).
+
+	Moving an order that already has a table needs ``can_transfer_table`` and is
+	audited; seating one that has none is the ordinary flow.
+	"""
+	replay = idempotency.previous_result(queue_id)
+	if replay is not None:
+		return replay
+
+	order = _load(order_name)
+	outcome = service.seat_order(
+		order,
+		table=table,
+		cover_count=cover_count,
+		override_token=manager_override_token,
+	)
+
+	result = dict(_summary(order), **outcome)
+	idempotency.remember(
+		queue_id, "set_order_table", result, reference_doctype="Restaurant Order", reference_name=order.name
+	)
+	return result
+
+
+@frappe.whitelist()
 def cancel_order(
 	order_name: str,
 	reason: str,

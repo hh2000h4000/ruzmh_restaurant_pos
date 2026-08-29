@@ -240,6 +240,14 @@ const pendingTable = ref<FloorTable | null>(null);
 const tableTypes = computed(() => session.orderTypes.filter((type) => type.requires_table));
 
 async function seat(table: FloorTable): Promise<void> {
+  // A bill already in hand is almost always the one the cashier means to put
+  // on this table — they rang items up and *then* decided where the customer
+  // sits. Opening a second order here would take their work off the screen.
+  if (orders.order && !orders.isClosed && !seatingType.value) {
+    seatHere.value = table;
+    return;
+  }
+
   // One candidate is an answer. None — because no type demands a table — and
   // several are both guesses, and guessing here opens the wrong kind of order
   // on a real table.
@@ -252,6 +260,36 @@ async function seat(table: FloorTable): Promise<void> {
   }
 
   await openAt(table, type);
+}
+
+/**
+ * The table tapped while an order was open, waiting for the cashier to say
+ * which of the two things they meant (BR-061).
+ */
+const seatHere = ref<FloorTable | null>(null);
+
+/** Put the order in hand on that table. */
+async function seatCurrent(): Promise<void> {
+  const table = seatHere.value;
+  seatHere.value = null;
+  if (!table) return;
+
+  const done = await orders.seat(table.name);
+  if (done) pane.value = "items";
+}
+
+/** Leave the order in hand open and start another one on that table. */
+async function openAnotherHere(): Promise<void> {
+  const table = seatHere.value;
+  seatHere.value = null;
+  if (!table) return;
+
+  const type = tableTypes.value.length === 1 ? tableTypes.value[0] : null;
+  if (type) await openAt(table, type);
+  else {
+    pendingTable.value = table;
+    pane.value = "new";
+  }
 }
 
 /** Open an order of this type, seated at this table. */
@@ -624,6 +662,48 @@ async function send(): Promise<void> {
         />
       </div>
     </div>
+
+    <!--
+      BR-061 — two honest readings of one tap, so neither is guessed. The order
+      in hand is never closed by either answer: "another order" leaves it open
+      under الطلبات, the way New does.
+    -->
+    <BaseDialog
+      :open="Boolean(seatHere)"
+      :title="t('tables.seatTitle', { number: seatHere?.table_number ?? '' })"
+      :dismissible="true"
+      @close="seatHere = null"
+    >
+      <p class="mb-4 text-sm text-muted">
+        {{ t("tables.seatBody") }}
+      </p>
+
+      <div class="flex flex-col gap-2">
+        <button
+          type="button"
+          class="min-h-tap w-full rounded-rpos bg-primary font-medium text-primary-contrast disabled:opacity-40"
+          :disabled="orders.busy"
+          @click="seatCurrent"
+        >
+          {{ t("tables.seatCurrent") }}
+        </button>
+        <button
+          type="button"
+          class="min-h-tap w-full rounded-rpos border border-line font-medium"
+          :disabled="orders.busy"
+          @click="openAnotherHere"
+        >
+          {{ t("tables.seatNew") }}
+        </button>
+        <button
+          type="button"
+          class="min-h-tap w-full rounded-rpos text-muted"
+          @click="seatHere = null"
+        >
+          {{ t("action.undo") }}
+        </button>
+      </div>
+    </BaseDialog>
 
     <!-- BR-064 — only where the order type asks for it (FR-2.1a). -->
     <BaseDialog

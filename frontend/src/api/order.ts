@@ -194,3 +194,18 @@ export function changeOrderType(payload: {
 }): Promise<OrderSummary & { order_type: string; changed: boolean }> {
   return mutate("order.change_order_type", payload);
 }
+
+/**
+ * Seat an open order at a table, or move it to another one (BR-061).
+ *
+ * Not deferrable. A table is shared state — two tills seating different orders
+ * on table four must not both be told yes — so the server decides.
+ */
+export function setOrderTable(payload: {
+  order_name: string;
+  table: string;
+  cover_count?: number | null;
+  manager_override_token?: string | null;
+}): Promise<OrderSummary & { table: string; changed: boolean; moved_from?: string | null }> {
+  return mutate("order.set_order_table", payload);
+}

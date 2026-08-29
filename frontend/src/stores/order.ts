@@ -147,6 +147,29 @@ export const useOrderStore = defineStore("order", () => {
     return true;
   }
 
+  /**
+   * Seat this order at a table, or move it to another (BR-061).
+   *
+   * Re-read afterwards: the hall follows the table (D-040) and the guest count
+   * may have been filled in from its capacity, so more changed than the totals.
+   */
+  async function seat(table: string, coverCount?: number | null): Promise<boolean> {
+    if (!order.value) return false;
+
+    const orderName = order.value.order_name;
+    const done = await run(() =>
+      orderApi.setOrderTable({
+        order_name: orderName,
+        table,
+        cover_count: coverCount ?? null,
+      }),
+    );
+
+    if (!done) return false;
+    await open(orderName);
+    return true;
+  }
+
   async function cancel(reason: string): Promise<boolean> {
     if (!order.value) return false;
 
@@ -206,6 +229,7 @@ export const useOrderStore = defineStore("order", () => {
     addItem,
     setQty,
     changeType,
+    seat,
     voidLine,
     cancel,
     sendToKitchen,

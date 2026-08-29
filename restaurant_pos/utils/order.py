@@ -228,7 +228,20 @@ def _apply_table(order, config, table: str | None, profile) -> None:
 	if not table:
 		frappe.throw(_("Order type {0} requires a table.").format(config.title))
 
-	state = frappe.db.get_value("Restaurant Table", table, ["section", "status", "is_active"], as_dict=True)
+	assert_table_free(table, profile.branch)
+	order.table = table
+
+
+def assert_table_free(table: str, branch: str | None) -> frappe._dict:
+	"""Raise unless this table exists, works, and can take an order right now.
+
+	Shared by the two ways an order reaches a table — created at one, or seated
+	at one later (``seat_order``) — because a rule enforced in one place and not
+	the other is how two orders end up on table four.
+	"""
+	state = frappe.db.get_value(
+		"Restaurant Table", table, ["section", "status", "is_active", "capacity"], as_dict=True
+	)
 	if not state:
 		frappe.throw(_("Table {0} does not exist.").format(table))
 
@@ -239,13 +252,13 @@ def _apply_table(order, config, table: str | None, profile) -> None:
 	# hall and a family hall often runs one till at the door for both, and
 	# refusing every table outside the terminal's section would force a second
 	# terminal on it for no reason (D-040).
-	if table_section_branch(state.section) != profile.branch:
+	if table_section_branch(state.section) != branch:
 		frappe.throw(_("Table {0} is not in this branch.").format(table))
 
 	if state.status not in ("available", "reserved"):
 		frappe.throw(_("Table {0} is {1}.").format(table, _(state.status)))
 
-	order.table = table
+	return state
 
 
 def table_section_branch(section: str | None) -> str | None:
@@ -905,3 +918,68 @@ def _listed_rate(order, item: str) -> float:
 		frappe.throw(_("No price is configured for {0} in price list {1}.").format(item, price_list))
 
 	return totals.money(flt(listed))
+
+
+# --------------------------------------------------------------------------- #
+# Seating
+# --------------------------------------------------------------------------- #
+
+
+def seat_order(
+	order,
+	*,
+	table: str,
+	cover_count: int | None = None,
+	override_token: str | None = None,
+) -> dict:
+	"""Put an open order on a table, or move it to another one (BR-061).
+
+	A cashier rings up a few items and *then* decides where the customer sits —
+	which the app could not express at all: a table was attached when the order
+	was created and never afterwards. Tapping a table with a bill in hand had to
+	either abandon the bill or open a second one.
+
+	**Moving is a different act from seating.** An order with no table is simply
+	being placed; one already on a table is being *moved*, which is what
+	``can_transfer_table`` has always been for, and which is audited — two bills
+	swapping tables is how a customer is handed somebody else's food.
+	"""
+	assert_mutable(order)
+
+	if order.table == table:
+		return {"table": table, "changed": False}
+
+	profile = _load_profile(order.pos_profile)
+	validate_branch_access(order.branch)
+
+	leaving = order.table
+	approved_by = authorise("can_transfer_table", override_token) if leaving else None
+
+	state = assert_table_free(table, order.branch)
+
+	config = frappe.get_cached_doc("Restaurant Order Type", order.order_type)
+	wanted = cover_count if cover_count is not None else (order.cover_count or state.capacity)
+	_apply_cover_count(order, config, wanted)
+
+	order.table = table
+	# The hall follows the table, the same as it does at creation (D-040).
+	order.section = state.section or profile.restaurant_section
+	order.save(ignore_permissions=True)
+
+	# Released only after the save: a table freed for an order that then failed
+	# to save is a table the floor plan says is empty and the kitchen does not.
+	if leaving:
+		set_table_status(leaving, "available", None)
+	set_table_status(table, "occupied", order.name)
+
+	if leaving:
+		log_audit(
+			"table_changed",
+			branch=order.branch,
+			pos_profile=order.pos_profile,
+			restaurant_order=order.name,
+			approved_by=approved_by,
+			details={"from": leaving, "to": table},
+		)
+
+	return {"table": table, "changed": True, "moved_from": leaving}

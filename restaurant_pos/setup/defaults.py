@@ -195,6 +195,37 @@ APP_ORDER_TYPES = [
 	for app in DELIVERY_APPS
 ]
 
+# --------------------------------------------------------------------------- #
+# Quick notes — FR-2.9
+# --------------------------------------------------------------------------- #
+# The notes a kitchen hears every day, so the feature is useful before anybody
+# configures anything. A restaurant edits the list; nothing here is special.
+#
+# `scope` decides where a note may be used: an **item** note travels with its
+# line to the one station that cooks it, an **order** note is printed on the
+# header of every station's ticket.
+
+QUICK_NOTES = [
+	{"title": "No onion", "title_ar": "بدون بصل", "scope": "item", "sort_order": 1},
+	{"title": "No pickles", "title_ar": "بدون مخلل", "scope": "item", "sort_order": 2},
+	{"title": "No sauce", "title_ar": "بدون صوص", "scope": "item", "sort_order": 3},
+	{"title": "Extra spicy", "title_ar": "حار زيادة", "scope": "item", "sort_order": 4},
+	{"title": "Not spicy", "title_ar": "بدون حار", "scope": "item", "sort_order": 5},
+	{"title": "Well done", "title_ar": "استواء تام", "scope": "item", "sort_order": 6},
+	{"title": "On the side", "title_ar": "على جنب", "scope": "item", "sort_order": 7},
+	{"title": "Rush this order", "title_ar": "الطلب مستعجل", "scope": "order", "sort_order": 20},
+	{"title": "Serve together", "title_ar": "يُقدّم كله مع بعض", "scope": "order", "sort_order": 21},
+	{
+		"title": "Allergy — ask the cashier",
+		"title_ar": "حساسية — راجع الكاشير",
+		"scope": "order",
+		"sort_order": 22,
+	},
+	{"title": "Cutlery included", "title_ar": "مع أدوات المائدة", "scope": "both", "sort_order": 30},
+	{"title": "No cutlery", "title_ar": "بدون أدوات مائدة", "scope": "both", "sort_order": 31},
+]
+
+
 #: 02 §3 — billed to the company, settled on a statement like the apps.
 CORPORATE_ORDER_TYPE = {
 	"title": "Corporate",
@@ -249,6 +280,7 @@ def create_default_data():
 		"permission_sets": _create_permission_sets(),
 		"order_types": _create_order_types(),
 		"promotions": _create_sample_promotion(),
+		"quick_notes": _create_quick_notes(),
 	}
 	frappe.db.commit()
 	return created
@@ -283,6 +315,23 @@ def _create_permission_sets():
 		doc = frappe.get_doc({"doctype": "POS Permission Set", "role": role} | values)
 		doc.insert(ignore_permissions=True)
 		created.append(doc.name)
+
+	return created
+
+
+def _create_quick_notes():
+	"""FR-2.9 — a starter list, skipped once a title exists.
+
+	Matched on the English title, which is the record's name: a restaurant that
+	renamed or deleted one keeps its decision.
+	"""
+	created = []
+	for values in QUICK_NOTES:
+		if frappe.db.exists("POS Quick Note", values["title"]):
+			continue
+
+		frappe.get_doc(dict(doctype="POS Quick Note", is_active=1, **values)).insert(ignore_permissions=True)
+		created.append(values["title"])
 
 	return created
 

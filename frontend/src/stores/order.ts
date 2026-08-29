@@ -170,6 +170,18 @@ export const useOrderStore = defineStore("order", () => {
     return true;
   }
 
+  /** FR-2.9 — the note every station reads. */
+  async function setNotes(notes: string | null): Promise<boolean> {
+    if (!order.value) return false;
+
+    const orderName = order.value.order_name;
+    const done = await run(() => orderApi.setOrderNotes({ order_name: orderName, notes }));
+
+    if (!done) return false;
+    await open(orderName);
+    return true;
+  }
+
   async function cancel(reason: string): Promise<boolean> {
     if (!order.value) return false;
 
@@ -230,6 +242,7 @@ export const useOrderStore = defineStore("order", () => {
     setQty,
     changeType,
     seat,
+    setNotes,
     voidLine,
     cancel,
     sendToKitchen,

@@ -4,6 +4,7 @@ import { computed, ref, watch } from "vue";
 import { getModifierGroups, type ModifierGroup } from "@/api/modifiers";
 import type { ModifierChoice } from "@/api/order";
 import BaseDialog from "@/components/BaseDialog.vue";
+import NoteEditor from "@/components/order/NoteEditor.vue";
 import { formatNumber, pick, t } from "@/i18n";
 import type { CatalogItem } from "@/types/session";
 
@@ -180,15 +181,14 @@ function confirm(): void {
         </div>
       </section>
 
-      <label
-        for="line-notes"
-        class="mb-1.5 block text-sm font-medium"
-      >{{ t("mod.note") }}</label>
-      <textarea
-        id="line-notes"
+      <p class="mb-1.5 text-sm font-medium">
+        {{ t("mod.note") }}
+      </p>
+      <!-- FR-2.9 — this note reaches the one station that cooks this dish. -->
+      <NoteEditor
         v-model="notes"
-        rows="2"
-        class="mb-4 w-full rounded-rpos border border-line bg-background p-2 text-base focus:outline-none focus:ring-2 focus:ring-primary"
+        class="mb-4"
+        scope="item"
       />
 
       <p

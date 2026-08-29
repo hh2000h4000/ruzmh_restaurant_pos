@@ -983,3 +983,27 @@ def seat_order(
 		)
 
 	return {"table": table, "changed": True, "moved_from": leaving}
+
+
+def set_order_notes(order, *, notes: str | None) -> dict:
+	"""Set the note that goes to every station (FR-2.9).
+
+	Editable after the fact on purpose: a customer says "make it quick" once the
+	order is already in, and a field that could only be filled at creation would
+	be a field nobody uses.
+
+	Stations that already hold a ticket are re-stamped, or the note would reach
+	only the dishes rung up after it — which is the failure this note exists to
+	prevent.
+	"""
+	assert_mutable(order)
+
+	cleaned = (notes or "").strip() or None
+	if cleaned == order.notes:
+		return {"notes": order.notes, "changed": False}
+
+	order.notes = cleaned
+	order.save(ignore_permissions=True)
+
+	tickets = kitchen.restamp_order(order) if _has_sent_lines(order) else []
+	return {"notes": order.notes, "changed": True, "kots": tickets}

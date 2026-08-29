@@ -9,6 +9,7 @@ import ItemPicker from "@/components/order/ItemPicker.vue";
 import LineDetailDialog from "@/components/order/LineDetailDialog.vue";
 import ModifierDialog from "@/components/order/ModifierDialog.vue";
 import OrderActionBar, { type OrderAction } from "@/components/order/OrderActionBar.vue";
+import NoteEditor from "@/components/order/NoteEditor.vue";
 import OrderPanel from "@/components/order/OrderPanel.vue";
 import OrderTypeChangeDialog from "@/components/order/OrderTypeChangeDialog.vue";
 import FloorPane from "@/components/order/FloorPane.vue";
@@ -432,6 +433,14 @@ const rowActions = computed<OrderAction[]>(() => [
     disabled: locked.value || !orders.hasUnsent,
   },
   {
+    // FR-2.9 — the note every station reads. In the row, not the menu: an
+    // allergy is not something to go looking for.
+    key: "notes",
+    label: "note.orderAction",
+    icon: "note",
+    disabled: locked.value,
+  },
+  {
     key: "refresh",
     label: "action.refresh",
     icon: "refresh",
@@ -475,8 +484,26 @@ const moreActions = computed<OrderAction[]>(() => {
 function onAction(action: OrderAction): void {
   if (action.key === "kitchen") void send();
   else if (action.key === "refresh") void reload();
+  else if (action.key === "notes") openNotes();
   else if (action.key === "convert") converting.value = true;
   else if (action.key === "cancel") cancelling.value = true;
+}
+
+// --------------------------------------------------------------------------
+// The order's own note (FR-2.9)
+// --------------------------------------------------------------------------
+
+const editingNotes = ref(false);
+const draftNotes = ref("");
+
+function openNotes(): void {
+  draftNotes.value = orders.order?.notes ?? "";
+  editingNotes.value = true;
+}
+
+async function saveNotes(): Promise<void> {
+  editingNotes.value = false;
+  await orders.setNotes(draftNotes.value.trim() || null);
 }
 
 // --------------------------------------------------------------------------
@@ -662,6 +689,42 @@ async function send(): Promise<void> {
         />
       </div>
     </div>
+
+    <!-- FR-2.9 — printed on the header of every station's ticket. -->
+    <BaseDialog
+      :open="editingNotes"
+      :title="t('note.orderTitle')"
+      :dismissible="true"
+      @close="editingNotes = false"
+    >
+      <p class="mb-3 text-sm text-muted">
+        {{ t("note.orderBody") }}
+      </p>
+
+      <NoteEditor
+        v-model="draftNotes"
+        class="mb-4"
+        scope="order"
+      />
+
+      <div class="flex gap-2">
+        <button
+          type="button"
+          class="min-h-tap flex-1 rounded-rpos border border-line"
+          @click="editingNotes = false"
+        >
+          {{ t("action.undo") }}
+        </button>
+        <button
+          type="button"
+          class="min-h-tap flex-1 rounded-rpos bg-primary font-medium text-primary-contrast disabled:opacity-40"
+          :disabled="orders.busy"
+          @click="saveNotes"
+        >
+          {{ t("action.save") }}
+        </button>
+      </div>
+    </BaseDialog>
 
     <!--
       BR-061 — two honest readings of one tap, so neither is guessed. The order

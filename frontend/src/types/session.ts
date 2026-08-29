@@ -176,6 +176,20 @@ export interface PosPermissions {
   roles?: string[];
 }
 
+/**
+ * A note a cashier taps instead of typing (FR-2.9).
+ *
+ * `item` travels with a line to the one station that cooks it; `order` is
+ * printed on the header of every station's ticket; `both` may be used either
+ * way.
+ */
+export interface QuickNote {
+  name: string;
+  title: string;
+  title_ar: string;
+  scope: "item" | "order" | "both";
+}
+
 /** A hall the till may seat a table in — every one in the branch (D-040). */
 export interface SectionOption {
   name: string;
@@ -198,6 +212,7 @@ export interface PosSession {
   items: CatalogItem[];
   item_groups: ItemGroup[];
   promotions: Promotion[];
+  quick_notes: QuickNote[];
   permissions: PosPermissions;
   theme: ThemeTokens;
   /** The signed-in user's ERPNext language, narrowed to what the app ships. */

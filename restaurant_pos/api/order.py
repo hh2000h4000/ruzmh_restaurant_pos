@@ -257,6 +257,27 @@ def set_order_table(
 
 
 @frappe.whitelist()
+def set_order_notes(
+	order_name: str,
+	notes: str | None = None,
+	queue_id: str | None = None,
+) -> dict:
+	"""Set the note printed on every station's ticket (FR-2.9)."""
+	replay = idempotency.previous_result(queue_id)
+	if replay is not None:
+		return replay
+
+	order = _load(order_name)
+	outcome = service.set_order_notes(order, notes=notes)
+
+	result = dict(_summary(order), **outcome)
+	idempotency.remember(
+		queue_id, "set_order_notes", result, reference_doctype="Restaurant Order", reference_name=order.name
+	)
+	return result
+
+
+@frappe.whitelist()
 def cancel_order(
 	order_name: str,
 	reason: str,
@@ -444,6 +465,7 @@ def get_order(order_name: str) -> dict:
 		if order.customer
 		else None,
 		"cover_count": order.cover_count,
+		"notes": order.notes,
 		"opened_at": order.opened_at,
 		"items": [
 			{

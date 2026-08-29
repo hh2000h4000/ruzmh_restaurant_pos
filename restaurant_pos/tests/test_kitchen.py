@@ -223,3 +223,85 @@ class TestKitchenIdempotency(KitchenTestBase):
 		api.send_to_kitchen(order.name, queue_id=queue_id)
 
 		self.assertEqual(frappe.db.count("Kitchen Order Ticket", {"restaurant_order": order.name}), 1)
+
+
+class TestOrderNoteReachesEveryStation(KitchenTestBase):
+	"""FR-2.9 — the case an item note cannot cover.
+
+	An item note travels with its line to the one station that cooks it. An
+	allergy, or "rush this", has to reach them all — and reaching only the grill
+	is the failure this note exists to prevent.
+	"""
+
+	def test_every_station_gets_it(self):
+		"""Two stations, one note, printed on both tickets."""
+		order = self._order_with((ITEM, self.grill), (ITEM_DRINK, self.fryer))
+		orders.set_order_notes(order, notes="حساسية — بدون فول سوداني")
+
+		service.send_to_kitchen(order)
+
+		tickets = frappe.get_all(
+			"Kitchen Order Ticket",
+			filters={"restaurant_order": order.name},
+			fields=["production_center", "order_notes"],
+		)
+		self.assertEqual(len(tickets), 2, "expected one ticket per station")
+		for ticket in tickets:
+			self.assertEqual(ticket.order_notes, "حساسية — بدون فول سوداني", ticket.production_center)
+
+	def test_a_note_added_afterwards_reaches_a_ticket_already_sent(self):
+		"""The customer says "make it quick" after ordering, which is the norm."""
+		order = self._order_with((ITEM, self.grill), (ITEM_DRINK, self.fryer))
+		service.send_to_kitchen(order)
+
+		orders.set_order_notes(order, notes="مستعجل")
+
+		notes = frappe.get_all(
+			"Kitchen Order Ticket",
+			filters={"restaurant_order": order.name, "kot_type": ("!=", "void")},
+			pluck="order_notes",
+		)
+		self.assertTrue(notes)
+		self.assertTrue(all(note == "مستعجل" for note in notes), notes)
+
+	def test_clearing_the_note_clears_it_on_the_ticket(self):
+		order = self._order_with((ITEM, self.grill))
+		orders.set_order_notes(order, notes="مستعجل")
+		service.send_to_kitchen(order)
+
+		orders.set_order_notes(order, notes="")
+
+		self.assertIsNone(order.notes)
+		notes = frappe.get_all(
+			"Kitchen Order Ticket",
+			filters={"restaurant_order": order.name, "kot_type": ("!=", "void")},
+			pluck="order_notes",
+		)
+		self.assertTrue(all(not note for note in notes), notes)
+
+	def test_an_item_note_stays_on_its_own_line(self):
+		"""The two scopes are not interchangeable.
+
+		The line note goes to the grill's ticket and nowhere else; the fryer's
+		ticket carries its own line, with no note.
+		"""
+		order = self._order()
+		row = orders.add_item(order, item=ITEM, qty=1, notes="بدون بصل")
+		row.production_center = self.grill
+		other = orders.add_item(order, item=ITEM_DRINK, qty=1)
+		other.production_center = self.fryer
+		order.save(ignore_permissions=True)
+
+		service.send_to_kitchen(order)
+
+		seen = {}
+		for ticket in frappe.get_all(
+			"Kitchen Order Ticket",
+			filters={"restaurant_order": order.name},
+			fields=["name", "production_center"],
+		):
+			rows = frappe.get_all("KOT Item", filters={"parent": ticket.name}, fields=["item", "notes"])
+			seen[ticket.production_center] = {row.item: row.notes for row in rows}
+
+		self.assertEqual(seen[self.grill][ITEM], "بدون بصل")
+		self.assertIsNone(seen[self.fryer][ITEM_DRINK])

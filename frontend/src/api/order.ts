@@ -41,6 +41,8 @@ export interface OrderDetail extends OrderSummary {
   /** The bill names the customer, and a Customer's id is not their name. */
   customer_name: string | null;
   cover_count: number;
+  /** Printed on every station's ticket, unlike a line's own note (FR-2.9). */
+  notes: string | null;
   opened_at: string;
   items: OrderLine[];
 }
@@ -208,4 +210,17 @@ export function setOrderTable(payload: {
   manager_override_token?: string | null;
 }): Promise<OrderSummary & { table: string; changed: boolean; moved_from?: string | null }> {
   return mutate("order.set_order_table", payload);
+}
+
+/**
+ * Set the note printed on every station's ticket (FR-2.9).
+ *
+ * Not deferrable. A note the kitchen has not been told is a note that did not
+ * happen, and this one exists for allergies.
+ */
+export function setOrderNotes(payload: {
+  order_name: string;
+  notes: string | null;
+}): Promise<OrderSummary & { notes: string | null; changed: boolean }> {
+  return mutate("order.set_order_notes", payload);
 }

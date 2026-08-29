@@ -187,6 +187,9 @@ def load_pos_session(pos_profile: str) -> dict:
 		"items": items,
 		"item_groups": item_groups,
 		"promotions": _promotions(profile.branch),
+		# FR-2.9 — typing Arabic on a touch screen mid-rush is the slowest thing
+		# a cashier does, and these are the notes a kitchen hears every day.
+		"quick_notes": _quick_notes(),
 		"permissions": get_pos_permission_set(),
 		"theme": DEFAULT_THEME,
 		"lang": _lang(),
@@ -196,6 +199,21 @@ def load_pos_session(pos_profile: str) -> dict:
 		"user_name": frappe.db.get_value("User", frappe.session.user, "full_name"),
 		"server_time": now_datetime(),
 	}
+
+
+def _quick_notes() -> list[dict]:
+	"""The notes a cashier taps instead of typing (FR-2.9).
+
+	Both scopes in one list, tagged, because the screen shows item notes in one
+	dialog and order notes in another and a second query would tell it nothing
+	new.
+	"""
+	return frappe.get_all(
+		"POS Quick Note",
+		filters={"is_active": 1},
+		fields=["name", "title", "title_ar", "scope"],
+		order_by="sort_order asc, title asc",
+	)
 
 
 def _sections(branch: str | None) -> list[dict]:

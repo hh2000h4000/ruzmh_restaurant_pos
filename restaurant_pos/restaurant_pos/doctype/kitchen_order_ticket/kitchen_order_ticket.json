@@ -16,6 +16,7 @@
   "table",
   "order_type_title",
   "cashier_name",
+  "order_notes",
   "items_section",
   "items",
   "print_section",
@@ -90,6 +91,13 @@
    "fieldname": "cashier_name",
    "fieldtype": "Data",
    "label": "Cashier",
+   "read_only": 1
+  },
+  {
+   "description": "The order's own note, copied onto every station's ticket. An item note reaches one station; this reaches them all (FR-2.9).",
+   "fieldname": "order_notes",
+   "fieldtype": "Small Text",
+   "label": "Order Notes",
    "read_only": 1
   },
   {

@@ -56,7 +56,6 @@ const typing = ref<string | null>(null);
 
 function onKeypad(value: string): void {
   if (typing.value) counted.value[typing.value] = value;
-  typing.value = null;
 }
 
 const tillRows = computed(() => report.value?.by_method.filter((row) => row.kind === "till") ?? []);
@@ -99,17 +98,31 @@ function money(value: number): string {
 <template>
   <BaseDialog
     :open="open"
-    :title="typing ? t('keypad.title', { method: typing }) : t('shift.closeTillTitle')"
+    :title="t('shift.closeTillTitle')"
     :dismissible="true"
     @close="emit('close')"
   >
-    <!-- The keypad takes the dialog over while a figure is being counted. -->
-    <AmountKeypad
-      v-if="typing"
-      :value="counted[typing] || '0'"
-      @close="typing = null"
-      @confirm="onKeypad"
-    />
+    <!--
+      The keypad takes the dialog over while one method is being counted. Here
+      the list stays a step of its own — unlike opening a shift, the figures
+      being entered are compared against what was expected, one per method, and
+      there is nothing to compare on a bare keypad.
+    -->
+    <div v-if="typing">
+      <AmountKeypad
+        class="mb-4"
+        :label="typing"
+        :value="counted[typing] || '0'"
+        @update="onKeypad"
+      />
+      <button
+        type="button"
+        class="min-h-tap w-full rounded-rpos bg-primary font-bold text-primary-contrast"
+        @click="typing = null"
+      >
+        {{ t("keypad.done") }}
+      </button>
+    </div>
 
     <p
       v-else-if="!report"

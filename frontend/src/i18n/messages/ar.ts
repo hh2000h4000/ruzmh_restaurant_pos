@@ -178,7 +178,6 @@ const messages: Catalogue["messages"] = {
   "keypad.done": "تم",
   "keypad.clear": "مسح",
   "keypad.back": "حذف",
-  "keypad.title": "مبلغ {method}",
   "order.paneItems": "الأصناف",
   "order.title": "الطلب",
   "order.save": "حفظ",

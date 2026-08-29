@@ -181,7 +181,6 @@ export const messages = {
   "keypad.done": "Done",
   "keypad.clear": "Clear",
   "keypad.back": "Delete",
-  "keypad.title": "Amount for {method}",
   "order.title": "Order",
   "order.paneItems": "Menu",
   "order.save": "Save",

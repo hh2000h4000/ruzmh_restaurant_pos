@@ -5,35 +5,43 @@ import AppIcon from "@/components/AppIcon.vue";
 import { formatNumber, t } from "@/i18n";
 
 /**
- * Typing money with a finger (06 §Design Principles).
+ * Typing money with a finger (06 §Design Principles, D-049).
  *
- * A till is a touch screen. A `<input type="number">` there depends on the
- * device raising a keyboard — which a kiosk in kiosk mode does not, and which
- * on a tablet covers half the dialog when it does. So the digits are on screen,
- * at tap size, where the hand already is.
+ * A till is a touch screen. An `<input type="number">` there waits on the device
+ * raising a keyboard — which a tablet in kiosk mode does not, and which when it
+ * does appear covers half the dialog it was summoned from. So the digits are on
+ * screen, at tap size, where the hand already is.
  *
- * **Digits are Latin, always.** `formatNumber` renders Arabic numerals in
- * Latin script on purpose (`FR-17`), and a keypad that showed ٤ while the field
- * showed 4 would be two alphabets for one number.
+ * **A panel, not a dialog.** It sits inside whatever asked for it and reports
+ * every change, so there is one screen and no confirm step of its own. Making it
+ * a second dialog meant the same figure was asked for twice, and two stacked
+ * dialogs both answer Escape — one key would have closed the keypad *and* the
+ * dialog behind it, losing what had been entered.
  *
- * **A panel, not a dialog.** It replaces the body of the dialog that summoned
- * it rather than opening on top: two stacked `BaseDialog`s both listen for
- * Escape, so one key would close the keypad and the shift dialog behind it.
+ * **The pad runs left to right, always.** A calculator keypad reads 1-2-3 from
+ * the left in every locale; laid out by the page direction it would come out
+ * 3-2-1 in Arabic, which is not a keypad anybody has used. The figures are Latin
+ * for the same reason (`FR-17`).
  */
 const props = defineProps<{
-  /** Starting value, as typed — not formatted. */
+  /** The value being edited, as typed — not formatted. */
   value: string;
+  /** What is being counted, shown over the figure. */
+  label?: string;
 }>();
 
-const emit = defineEmits<{ close: []; confirm: [value: string] }>();
+const emit = defineEmits<{ update: [value: string] }>();
 
-/** What has been tapped so far. A string, because "1." is a real halfway state. */
+/** What has been tapped. A string, because "1." is a real halfway state. */
 const draft = ref(props.value === "0" ? "" : props.value);
 
 watch(
   () => props.value,
   (value) => {
-    draft.value = value === "0" ? "" : value;
+    // Only when the owner changed it — otherwise every keystroke echoes back.
+    if ((Number(value) || 0) !== (Number(draft.value) || 0)) {
+      draft.value = value === "0" ? "" : value;
+    }
   },
 );
 
@@ -42,48 +50,59 @@ const KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9"] as const;
 /** Two decimals is the currency's precision; more is a typo, not an amount. */
 const decimals = computed(() => draft.value.split(".")[1]?.length ?? 0);
 
+function set(next: string): void {
+  draft.value = next;
+  emit("update", next || "0");
+}
+
 function press(key: string): void {
   if (key === "." && draft.value.includes(".")) return;
   if (key !== "." && decimals.value >= 2) return;
   if (key === "." && !draft.value) {
-    draft.value = "0.";
+    set("0.");
     return;
   }
 
-  draft.value += key;
+  set(draft.value + key);
 }
 
-/** One tap back, then a long list of taps forward — so clear is one key. */
 function clear(): void {
-  draft.value = "";
+  set("");
 }
 
 function back(): void {
-  draft.value = draft.value.slice(0, -1);
+  set(draft.value.slice(0, -1));
 }
 
 const preview = computed(() => formatNumber(Number(draft.value) || 0, 2));
-
-function confirm(): void {
-  emit("confirm", draft.value || "0");
-}
 </script>
 
 <template>
   <div>
     <p
-      class="rpos-numeric mb-4 rounded-rpos bg-background px-4 py-4 text-center text-3xl font-bold"
+      v-if="label"
+      class="mb-1.5 text-sm font-semibold text-muted"
+    >
+      {{ label }}
+    </p>
+
+    <p
+      class="rpos-numeric mb-3 rounded-rpos bg-background px-4 py-4 text-center text-3xl font-bold"
       dir="ltr"
     >
       {{ preview }}
     </p>
 
-    <div class="mb-4 grid grid-cols-3 gap-2">
+    <!-- `dir="ltr"` is the point: a keypad is 1-2-3 from the left, everywhere. -->
+    <div
+      class="grid grid-cols-3 gap-2"
+      dir="ltr"
+    >
       <button
         v-for="key in KEYS"
         :key="key"
         type="button"
-        class="rpos-numeric h-16 rounded-rpos bg-background text-2xl font-bold transition duration-200 ease-rpos hover:bg-primary/10 hover:text-primary"
+        class="rpos-numeric h-14 rounded-rpos bg-background text-2xl font-bold transition duration-200 ease-rpos hover:bg-primary/10 hover:text-primary"
         @click="press(key)"
       >
         {{ key }}
@@ -91,7 +110,7 @@ function confirm(): void {
 
       <button
         type="button"
-        class="grid h-16 place-items-center rounded-rpos bg-background text-muted transition duration-200 ease-rpos hover:bg-danger/10 hover:text-danger"
+        class="h-14 rounded-rpos bg-background text-lg font-bold text-danger transition duration-200 ease-rpos hover:bg-danger/10"
         :aria-label="t('keypad.clear')"
         @click="clear"
       >
@@ -99,46 +118,21 @@ function confirm(): void {
       </button>
       <button
         type="button"
-        class="rpos-numeric h-16 rounded-rpos bg-background text-2xl font-bold transition duration-200 ease-rpos hover:bg-primary/10 hover:text-primary"
+        class="rpos-numeric h-14 rounded-rpos bg-background text-2xl font-bold transition duration-200 ease-rpos hover:bg-primary/10 hover:text-primary"
         @click="press('0')"
       >
         0
       </button>
       <button
         type="button"
-        class="rpos-numeric h-16 rounded-rpos bg-background text-2xl font-bold transition duration-200 ease-rpos hover:bg-primary/10 hover:text-primary"
-        @click="press('.')"
-      >
-        .
-      </button>
-    </div>
-
-    <div class="flex gap-2">
-      <button
-        type="button"
-        class="grid min-h-tap w-16 place-items-center rounded-rpos border border-line"
+        class="grid h-14 place-items-center rounded-rpos bg-background text-muted transition duration-200 ease-rpos hover:bg-primary/10 hover:text-primary"
         :aria-label="t('keypad.back')"
         @click="back"
       >
         <AppIcon
           name="back"
-          class="rpos-flip"
-          :size="20"
+          :size="22"
         />
-      </button>
-      <button
-        type="button"
-        class="min-h-tap flex-1 rounded-rpos border border-line"
-        @click="emit('close')"
-      >
-        {{ t("action.undo") }}
-      </button>
-      <button
-        type="button"
-        class="min-h-tap flex-1 rounded-rpos bg-primary font-bold text-primary-contrast"
-        @click="confirm"
-      >
-        {{ t("keypad.done") }}
       </button>
     </div>
   </div>

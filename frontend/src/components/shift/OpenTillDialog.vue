@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 
-import AppIcon from "@/components/AppIcon.vue";
 import BaseDialog from "@/components/BaseDialog.vue";
 import AmountKeypad from "@/components/shift/AmountKeypad.vue";
 import { formatNumber, t } from "@/i18n";
@@ -9,16 +8,21 @@ import { useSessionStore } from "@/stores/session";
 import { useShiftStore } from "@/stores/shift";
 
 /**
- * Taking the drawer, and saying what is already in it (FR-8.1 step 3).
+ * Opening a shift, and saying what is in the till (FR-8.1 step 3).
  *
- * The float is what the close is measured against: money that was in the drawer
- * before a riyal was taken. Leave it at zero and the count still works — it is
- * simply expected to hold only what was sold.
+ * **One screen.** It was two — a row reading "Cash 0.00", then a keypad behind
+ * a tap on it. For a shop with a single cash float that is the same figure
+ * asked for twice. The keypad *is* the dialog now; the method is a chip above
+ * it, and only when there is more than one to choose between.
  *
- * **Credit methods are not offered.** A platform never puts anything in a
- * drawer, so a float against one would inflate an expected figure for cash that
- * does not exist (D-029). The server refuses them too; this keeps the field off
- * the screen so nobody wonders why.
+ * The float is what the close is measured against: money in the till before a
+ * riyal was taken. Zero is a fine answer — the till is then expected to hold
+ * only what was sold.
+ *
+ * **Credit methods are not offered.** A platform never puts anything in a till,
+ * so a float against one would inflate an expected figure for cash that does
+ * not exist (D-029). The server refuses them too; keeping them off the screen
+ * saves the cashier wondering why.
  */
 const props = defineProps<{ open: boolean }>();
 const emit = defineEmits<{ close: [] }>();
@@ -27,45 +31,35 @@ const session = useSessionStore();
 const shift = useShiftStore();
 
 /**
- * The terminal's own methods, minus anything settled on account.
+ * The terminal's own methods.
  *
- * `payment_methods` on the session is what this POS Profile accepts; the
- * `is_credit` flag lives on the Mode of Payment, which the payload does not
+ * The `is_credit` flag lives on the Mode of Payment, which this payload does not
  * carry — so the server does the filtering and this list is a convenience, not
  * the rule.
  */
-const methods = computed(() => session.data?.payment_methods ?? []);
+const methods = computed(() =>
+  (session.data?.payment_methods ?? []).map((row) => row.mode_of_payment),
+);
 
 const floats = ref<Record<string, string>>({});
+const active = ref("");
 
 watch(
   () => props.open,
   (isOpen) => {
     if (!isOpen) return;
-    floats.value = Object.fromEntries(methods.value.map((row) => [row.mode_of_payment, ""]));
+    floats.value = Object.fromEntries(methods.value.map((method) => [method, "0"]));
+    active.value = methods.value[0] ?? "";
   },
 );
-
-/**
- * Which method is being typed, if any.
- *
- * A till is a touch screen and a number field there waits on a keyboard that
- * may never come, so the amount opens a keypad instead (D-049).
- */
-const typing = ref<string | null>(null);
-
-function amountOf(method: string): string {
-  return floats.value[method] || "0";
-}
-
-function onKeypad(value: string): void {
-  if (typing.value) floats.value[typing.value] = value === "0" ? "" : value;
-  typing.value = null;
-}
 
 const total = computed(() =>
   Object.values(floats.value).reduce((sum, value) => sum + (Number(value) || 0), 0),
 );
+
+function onKeypad(value: string): void {
+  if (active.value) floats.value[active.value] = value;
+}
 
 async function confirm(): Promise<void> {
   const opening: Record<string, number> = {};
@@ -82,77 +76,77 @@ async function confirm(): Promise<void> {
 <template>
   <BaseDialog
     :open="open"
-    :title="typing ? t('keypad.title', { method: typing }) : t('shift.openTillTitle')"
+    :title="t('shift.openTillTitle')"
     :dismissible="true"
     @close="emit('close')"
   >
-    <!-- The keypad takes the dialog over while a figure is being typed. -->
+    <p class="mb-3 text-sm text-muted">
+      {{ t("shift.openTillBody") }}
+    </p>
+
+    <!-- Only where there is a choice to make. One method needs no tabs. -->
+    <div
+      v-if="methods.length > 1"
+      class="mb-3 flex flex-wrap gap-2"
+      role="tablist"
+    >
+      <button
+        v-for="method in methods"
+        :key="method"
+        type="button"
+        class="min-h-tap rounded-full px-4 text-sm font-semibold transition duration-200 ease-rpos"
+        :class="active === method ? 'bg-primary text-primary-contrast' : 'bg-background text-muted'"
+        :aria-selected="active === method"
+        @click="active = method"
+      >
+        {{ method }}
+        <span
+          v-if="Number(floats[method]) > 0"
+          class="rpos-numeric ms-1 opacity-80"
+        >{{ formatNumber(Number(floats[method]), 2) }}</span>
+      </button>
+    </div>
+
     <AmountKeypad
-      v-if="typing"
-      :value="amountOf(typing)"
-      @close="typing = null"
-      @confirm="onKeypad"
+      v-if="active"
+      class="mb-4"
+      :label="active"
+      :value="floats[active] ?? '0'"
+      @update="onKeypad"
     />
 
-    <template v-else>
-      <p class="mb-4 text-sm text-muted">
-        {{ t("shift.openTillBody") }}
-      </p>
+    <p
+      v-if="methods.length > 1 && total"
+      class="mb-4 flex items-center justify-between rounded-rpos bg-background p-3 text-sm"
+    >
+      <span class="text-muted">{{ t("shift.openingTotal") }}</span>
+      <span class="rpos-numeric font-bold">{{ formatNumber(total, 2) }}</span>
+    </p>
 
-      <div class="mb-4 space-y-2">
-        <div
-          v-for="row in methods"
-          :key="row.mode_of_payment"
-          class="flex items-center gap-3"
-        >
-          <span class="min-w-0 flex-1 truncate text-sm font-medium">{{ row.mode_of_payment }}</span>
-          <button
-            type="button"
-            class="rpos-numeric min-h-tap w-32 rounded-rpos border border-line bg-background px-3 text-end text-lg font-semibold transition duration-200 ease-rpos hover:border-primary"
-            @click="typing = row.mode_of_payment"
-          >
-            {{ formatNumber(Number(floats[row.mode_of_payment]) || 0, 2) }}
-          </button>
-        </div>
-      </div>
+    <p
+      v-if="shift.error"
+      role="alert"
+      class="mb-4 rounded-rpos bg-danger/10 p-3 text-sm text-danger"
+    >
+      {{ shift.error }}
+    </p>
 
-      <p
-        v-if="total"
-        class="mb-4 flex items-center justify-between rounded-rpos bg-background p-3 text-sm"
+    <div class="flex gap-2">
+      <button
+        type="button"
+        class="min-h-tap flex-1 rounded-rpos border border-line"
+        @click="emit('close')"
       >
-        <span class="text-muted">{{ t("shift.openingTotal") }}</span>
-        <span class="rpos-numeric font-bold">{{ formatNumber(total, 2) }}</span>
-      </p>
-
-      <p
-        v-if="shift.error"
-        role="alert"
-        class="mb-4 rounded-rpos bg-danger/10 p-3 text-sm text-danger"
+        {{ t("action.undo") }}
+      </button>
+      <button
+        type="button"
+        class="min-h-tap flex-1 rounded-rpos bg-primary font-bold text-primary-contrast disabled:opacity-40"
+        :disabled="shift.busy"
+        @click="confirm"
       >
-        {{ shift.error }}
-      </p>
-
-      <div class="flex gap-2">
-        <button
-          type="button"
-          class="min-h-tap flex-1 rounded-rpos border border-line"
-          @click="emit('close')"
-        >
-          {{ t("action.undo") }}
-        </button>
-        <button
-          type="button"
-          class="flex min-h-tap flex-1 items-center justify-center gap-2 rounded-rpos bg-primary font-medium text-primary-contrast disabled:opacity-40"
-          :disabled="shift.busy"
-          @click="confirm"
-        >
-          <AppIcon
-            name="card"
-            :size="20"
-          />
-          {{ t("shift.openTill") }}
-        </button>
-      </div>
-    </template>
+        {{ t("shift.openTill") }}
+      </button>
+    </div>
   </BaseDialog>
 </template>

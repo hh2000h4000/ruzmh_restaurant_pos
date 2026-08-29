@@ -43,6 +43,7 @@ def create_order(
 	pos_profile: str,
 	table: str | None = None,
 	customer: str | None = None,
+	delivery_address: str | None = None,
 	cover_count: int | None = None,
 	waiter: str | None = None,
 	order_type_data: dict | str | None = None,
@@ -66,6 +67,7 @@ def create_order(
 		pos_profile=pos_profile,
 		table=table,
 		customer=customer,
+		delivery_address=delivery_address,
 		cover_count=cover_count,
 		waiter=waiter,
 		order_type_data=frappe.parse_json(order_type_data)
@@ -302,6 +304,32 @@ def set_order_table(
 
 
 @frappe.whitelist()
+def set_order_customer(
+	order_name: str,
+	customer: str | None = None,
+	delivery_address: str | None = None,
+	queue_id: str | None = None,
+) -> dict:
+	"""Attach a customer to an open order, or change it (FR-2.1 step 4)."""
+	replay = idempotency.previous_result(queue_id)
+	if replay is not None:
+		return replay
+
+	order = _load(order_name)
+	outcome = service.set_customer(order, customer=customer, delivery_address=delivery_address)
+
+	result = dict(_summary(order), **outcome)
+	idempotency.remember(
+		queue_id,
+		"set_order_customer",
+		result,
+		reference_doctype="Restaurant Order",
+		reference_name=order.name,
+	)
+	return result
+
+
+@frappe.whitelist()
 def set_call_name(
 	order_name: str,
 	call_name: str | None = None,
@@ -530,6 +558,10 @@ def get_order(order_name: str) -> dict:
 		"customer": order.customer,
 		"call_name": order.call_name,
 		"daily_number": order.daily_number,
+		"delivery_address": order.delivery_address,
+		"customer_mobile": frappe.db.get_value("Customer", order.customer, "mobile_no")
+		if order.customer
+		else None,
 		# The bill names the customer, and a Customer's id is not their name
 		# (06 Screen 3).
 		"customer_name": frappe.db.get_value("Customer", order.customer, "customer_name")

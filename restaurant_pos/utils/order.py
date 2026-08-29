@@ -94,6 +94,7 @@ def create_order(
 	pos_profile: str,
 	table: str | None = None,
 	customer: str | None = None,
+	delivery_address: str | None = None,
 	cover_count: int | None = None,
 	waiter: str | None = None,
 	order_type_data: dict | None = None,
@@ -140,6 +141,7 @@ def create_order(
 
 	_apply_table(order, config, table, profile)
 	_apply_customer(order, config, customer)
+	_apply_address(order, delivery_address)
 	_apply_cover_count(order, config, cover_count)
 	order.order_type_data = _validated_order_type_data(config, order_type_data, moment="on_open")
 
@@ -292,6 +294,66 @@ def _apply_customer(order, config, customer: str | None) -> None:
 		frappe.throw(_("Order type {0} requires a customer.").format(config.title))
 
 	order.customer = customer
+
+
+def _apply_address(order, delivery_address: str | None) -> None:
+	"""Where the order goes, when it goes anywhere (FR-2.1 step 4).
+
+	Checked against the customer it belongs to: an address linked to somebody
+	else is either a mistake or a way to read a stranger's home.
+	"""
+	if not delivery_address:
+		order.delivery_address = None
+		return
+
+	if not order.customer:
+		frappe.throw(_("An address needs a customer."))
+
+	owned = frappe.get_all(
+		"Dynamic Link",
+		filters={
+			"parent": delivery_address,
+			"parenttype": "Address",
+			"link_doctype": "Customer",
+			"link_name": order.customer,
+		},
+		limit=1,
+	)
+	if not owned:
+		frappe.throw(_("That address does not belong to this customer."))
+
+	order.delivery_address = delivery_address
+
+
+def set_customer(order, *, customer: str | None, delivery_address: str | None = None) -> dict:
+	"""Attach a customer, or change which one (FR-2.1 step 4).
+
+	Editable after the order opens because a cashier rings items first and asks
+	for the number while the food is being made — and a delivery type that could
+	only be given a customer at creation would have to be cancelled and rung
+	again when the number came out wrong.
+	"""
+	assert_mutable(order)
+
+	config = frappe.get_cached_doc("Restaurant Order Type", order.order_type)
+
+	if not customer and config.customer_mode == "required":
+		frappe.throw(_("Order type {0} needs a customer.").format(config.title))
+
+	if config.customer_mode == "pre_set":
+		frappe.throw(
+			_("Order type {0} decides its own customer.").format(config.title),
+			frappe.ValidationError,
+		)
+
+	if customer and not frappe.db.exists("Customer", customer):
+		frappe.throw(_("Customer {0} does not exist.").format(customer))
+
+	order.customer = customer or None
+	_apply_address(order, delivery_address if customer else None)
+	order.save(ignore_permissions=True)
+
+	return {"customer": order.customer, "delivery_address": order.delivery_address}
 
 
 def _apply_cover_count(order, config, cover_count) -> None:

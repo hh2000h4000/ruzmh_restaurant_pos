@@ -1,16 +1,19 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 
 import type { OpenOrder } from "@/api/order";
+import AppIcon from "@/components/AppIcon.vue";
 import BaseDialog from "@/components/BaseDialog.vue";
 import OpenOrdersPanel from "@/components/pos/OpenOrdersPanel.vue";
 import OrderTypeSidebar from "@/components/pos/OrderTypeSidebar.vue";
 import PosBottomBar, { type BottomAction } from "@/components/pos/PosBottomBar.vue";
 import PosHeader from "@/components/pos/PosHeader.vue";
+import OpenTillDialog from "@/components/shift/OpenTillDialog.vue";
 import { useOpenOrders } from "@/composables/useOpenOrders";
 import { pick, t } from "@/i18n";
 import { useSessionStore } from "@/stores/session";
+import { useShiftStore } from "@/stores/shift";
 import type { OrderType } from "@/types/session";
 
 /**
@@ -24,6 +27,7 @@ import type { OrderType } from "@/types/session";
  * Refs: 06 Screen 1, D-033
  */
 const session = useSessionStore();
+const shift = useShiftStore();
 const router = useRouter();
 
 const sectionTitle = computed(
@@ -131,6 +135,13 @@ const bottomActions = computed<BottomAction[]>(() => [
 
 const signingOut = ref(false);
 
+/** FR-8.1 — the first thing a terminal needs in the morning. */
+const openingTill = ref(false);
+
+// BR-044 gates this whole screen on there being an open day, so it is read
+// before anything else is drawn.
+onMounted(() => void shift.refresh());
+
 function showFloorPlan(): void {
   void router.push({ name: "tables", params: { orderType: orderTypes.value[0]?.name ?? "" } });
 }
@@ -174,18 +185,34 @@ const SORT_OPTIONS = [
       :subtitle="sectionTitle"
     />
 
-    <!-- BR-044: no order can be created without an open shift, so say so
-         instead of showing buttons that will be refused. -->
+    <!--
+      BR-044 — no order without an open day, so the screen offers to open one
+      rather than describing a task somebody must do in the ERPNext desk. That
+      text was written before the shift API existed.
+    -->
     <section
       v-if="!session.hasOpenShift"
       class="m-auto max-w-md self-center justify-self-center rounded-rpos bg-surface p-10 text-center shadow-card"
     >
+      <span class="mb-3 inline-block text-muted opacity-40">
+        <AppIcon
+          name="card"
+          :size="44"
+        />
+      </span>
       <p class="mb-2 text-lg font-semibold">
         {{ t("home.shiftRequired") }}
       </p>
-      <p class="text-sm text-muted">
-        {{ t("home.shiftFromDesk") }}
+      <p class="mb-5 text-sm text-muted">
+        {{ t("shift.openTillBody") }}
       </p>
+      <button
+        type="button"
+        class="min-h-tap w-full rounded-rpos bg-primary font-bold text-primary-contrast shadow-card transition duration-200 ease-rpos hover:shadow-lift"
+        @click="openingTill = true"
+      >
+        {{ t("shift.openTill") }}
+      </button>
     </section>
 
     <!--
@@ -240,6 +267,11 @@ const SORT_OPTIONS = [
         @select="onAction"
       />
     </div>
+
+    <OpenTillDialog
+      :open="openingTill"
+      @close="openingTill = false"
+    />
 
     <!-- Signing out by accident mid-shift is a real annoyance at a till. -->
     <BaseDialog

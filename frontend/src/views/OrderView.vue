@@ -12,6 +12,10 @@ import OrderActionBar, { type OrderAction } from "@/components/order/OrderAction
 import NoteEditor from "@/components/order/NoteEditor.vue";
 import OrderPanel from "@/components/order/OrderPanel.vue";
 import OrderTypeChangeDialog from "@/components/order/OrderTypeChangeDialog.vue";
+import CloseDayDialog from "@/components/shift/CloseDayDialog.vue";
+import CloseTillDialog from "@/components/shift/CloseTillDialog.vue";
+import OpenTillDialog from "@/components/shift/OpenTillDialog.vue";
+import ShiftMenu from "@/components/shift/ShiftMenu.vue";
 import FloorPane from "@/components/order/FloorPane.vue";
 import NewOrderPane from "@/components/order/NewOrderPane.vue";
 import OrderBottomNav, { type NavEntry } from "@/components/order/OrderBottomNav.vue";
@@ -20,6 +24,7 @@ import { useOpenOrders } from "@/composables/useOpenOrders";
 import { formatNumber, t } from "@/i18n";
 import { useOrderStore } from "@/stores/order";
 import { useSessionStore } from "@/stores/session";
+import { useShiftStore } from "@/stores/shift";
 import type { FloorTable } from "@/api/table";
 import type { CatalogItem, OrderType } from "@/types/session";
 
@@ -34,6 +39,7 @@ const route = useRoute();
 const router = useRouter();
 const session = useSessionStore();
 const orders = useOrderStore();
+const shift = useShiftStore();
 
 const startupError = ref<string | null>(null);
 const pendingItem = ref<CatalogItem | null>(null);
@@ -50,6 +56,9 @@ const orderType = computed(
 const locked = computed(() => orders.busy || orders.isClosed);
 
 onMounted(async () => {
+  // The menu offers what the shift allows, so it has to know the shift.
+  void shift.refresh();
+
   const existing = route.params.orderName as string | undefined;
   if (existing) {
     await orders.open(existing);
@@ -125,6 +134,9 @@ const navEntries = computed<NavEntry[]>(() => [
   },
   { key: "tables", label: "nav.tables", icon: "floorPlan" },
   { key: "new", label: "nav.new", icon: "plus" },
+  // D-048 — the till's occasional operations, and the way home. A menu rather
+  // than four more places nobody visits during a rush.
+  { key: "menu", label: "nav.menu", icon: "more" },
 ]);
 
 function onNavigate(key: string): void {
@@ -132,8 +144,31 @@ function onNavigate(key: string): void {
   // would seat the next type the cashier taps for an unrelated reason.
   if (key !== "new") pendingTable.value = null;
 
+  if (key === "menu") {
+    menuOpen.value = !menuOpen.value;
+    return;
+  }
+
+  menuOpen.value = false;
+  pane.value = key;
+}
+
+// --------------------------------------------------------------------------
+// The till menu (D-048)
+// --------------------------------------------------------------------------
+
+const menuOpen = ref(false);
+const openingTill = ref(false);
+const closingTill = ref(false);
+const closingDay = ref(false);
+
+function onMenu(key: string): void {
+  menuOpen.value = false;
+
   if (key === "home") void router.push({ name: "home" });
-  else pane.value = key;
+  else if (key === "openTill") openingTill.value = true;
+  else if (key === "closeTill") closingTill.value = true;
+  else if (key === "closeDay") closingDay.value = true;
 }
 
 /**
@@ -716,11 +751,20 @@ async function send(): Promise<void> {
 
           <!-- Under the working column, so the bill beside it keeps the full
                height of the screen (06 Screen 3). -->
-          <OrderBottomNav
-            :entries="navEntries"
-            :active="pane"
-            @select="onNavigate"
-          />
+          <!-- `relative` anchors the menu sheet above the bar. -->
+          <div class="relative">
+            <ShiftMenu
+              :open="menuOpen"
+              @select="onMenu"
+              @close="menuOpen = false"
+            />
+
+            <OrderBottomNav
+              :entries="navEntries"
+              :active="menuOpen ? 'menu' : pane"
+              @select="onNavigate"
+            />
+          </div>
         </div>
 
         <OrderPanel
@@ -912,6 +956,22 @@ async function send(): Promise<void> {
         </button>
       </div>
     </BaseDialog>
+
+    <OpenTillDialog
+      :open="openingTill"
+      @close="openingTill = false"
+    />
+
+    <CloseTillDialog
+      :open="closingTill"
+      :settlement-required="Boolean(shift.state?.settlement_required)"
+      @close="closingTill = false"
+    />
+
+    <CloseDayDialog
+      :open="closingDay"
+      @close="closingDay = false"
+    />
 
     <LineDetailDialog
       :line="inspecting"

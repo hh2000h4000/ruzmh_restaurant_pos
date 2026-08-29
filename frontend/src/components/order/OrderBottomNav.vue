@@ -18,6 +18,11 @@ import { formatNumber, t, type MessageKey } from "@/i18n";
  * the full height beside it: it is the tallest thing on the screen because it
  * is the thing being read. A bar spanning both columns would cut the bill off
  * at the ankles to make room for a control that has nothing to do with it.
+ *
+ * Buttons are 56px, not the 70px of the till screen's action bar. That bar
+ * carries the day's work and earns the weight; this one is a signpost, and a
+ * signpost that shouts takes room from the menu. 56 still clears the 48px
+ * minimum a finger needs (`--rpos-tap-target`) with room to spare.
  */
 export interface NavEntry {
   key: string;
@@ -34,12 +39,12 @@ const emit = defineEmits<{ select: [key: string] }>();
 </script>
 
 <template>
-  <nav class="flex shrink-0 items-center gap-2 rounded-rpos bg-surface px-3 py-2 shadow-card">
+  <nav class="flex shrink-0 items-center gap-1.5 rounded-rpos bg-surface p-1.5 shadow-card">
     <button
       v-for="entry in entries"
       :key="entry.key"
       type="button"
-      class="flex h-[70px] flex-1 flex-col items-center justify-center gap-1 rounded-rpos text-sm font-semibold transition duration-200 ease-rpos"
+      class="flex h-[56px] flex-1 flex-col items-center justify-center gap-0.5 rounded-[0.75rem] text-xs font-semibold transition duration-200 ease-rpos"
       :class="[
         entry.primary
           ? 'bg-primary text-primary-contrast shadow-card hover:shadow-lift'
@@ -53,11 +58,11 @@ const emit = defineEmits<{ select: [key: string] }>();
       <span class="relative">
         <AppIcon
           :name="entry.icon"
-          :size="26"
+          :size="22"
         />
         <span
           v-if="entry.count"
-          class="rpos-numeric absolute -top-1.5 grid h-5 min-w-[1.25rem] place-items-center rounded-full bg-primary px-1 text-[11px] font-bold text-primary-contrast start-full -ms-2"
+          class="rpos-numeric absolute -top-1 grid h-4 min-w-[1rem] place-items-center rounded-full bg-primary px-1 text-[10px] font-bold text-primary-contrast start-full -ms-1.5"
         >{{ formatNumber(entry.count) }}</span>
       </span>
       {{ t(entry.label) }}

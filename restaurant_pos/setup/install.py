@@ -18,6 +18,28 @@ from restaurant_pos.setup.defaults import create_default_data
 # ``Restaurant Branch`` in the database design is the ERPNext ``Branch`` DocType
 # extended with restaurant configuration (see 10_Implementation_Plan.md, Phase 1).
 CUSTOM_FIELDS = {
+	# The till session is ERPNext's own POS Opening Entry (D-047); all it lacks
+	# is which business day it was taken in, because ERPNext has no such thing.
+	"POS Opening Entry": [
+		{
+			"fieldname": "rpos_restaurant_shift",
+			"fieldtype": "Link",
+			"options": "Restaurant Shift",
+			"label": "Business Day",
+			"read_only": 1,
+			"insert_after": "pos_profile",
+		},
+	],
+	# BR-043 — a difference has to be answered for, and ERPNext's closing entry
+	# has nowhere to write the answer.
+	"POS Closing Entry": [
+		{
+			"fieldname": "rpos_variance_reason",
+			"fieldtype": "Small Text",
+			"label": "Variance Reason",
+			"insert_after": "user",
+		},
+	],
 	"Branch": [
 		{
 			"fieldname": "rpos_settings_section",

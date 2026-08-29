@@ -1,27 +1,41 @@
 # Copyright (c) 2026, RPOS and contributors
 # For license information, please see license.txt
 
-"""Opening and closing a shift (FR-8.1..8.3, BR-040..045).
+"""The business day, and the tills that work inside it (FR-8.1..8.3, D-047).
 
-Nothing sells without one: ``utils/order._open_shift_for`` refuses every order
-whose terminal is not pointed at an open ``Restaurant Shift`` (BR-044). Until
-now the only way to open one was by hand in the desk, which meant a restaurant
-could not start its day from the till it works on.
+**Two levels, because they answer two questions.**
 
-**The count and the credit.** A shift is reconciled against what is *in the
-drawer*. A delivery platform has already taken the customer's money and a
-corporate account will pay on a statement — neither puts a riyal in the till
-(``DECISIONS.md`` D-029). Counting them into the expected cash would show a
-shortfall the size of the day's app orders, every single day, and teach the
-cashier that the variance figure means nothing. So credit methods are reported
-and **excluded from the reconciliation**.
+* A **till session** is one cashier, one terminal, one drawer. It answers *who
+  had the money and what is the difference*. Several in a day.
+* A **business day** is the branch. It answers *what did we take today* — the
+  revenue, the tax, the Z-report. One per branch per day.
 
-Refs: FR-8.1, FR-8.2, FR-8.3, BR-040..BR-045, D-029
+Merging them fails in one direction or the other. Day only, and two cashiers
+share a single count so a shortage cannot be pinned on anybody. Till only, and
+three cashiers make three "days" with no boundary for the books.
+
+**The till session is ERPNext's, not ours.** ``POS Opening Entry`` and
+``POS Closing Entry`` are keyed on ``pos_profile`` + ``user``, and
+``POS Closing Entry Detail`` is literally *mode of payment · opening · expected
+· closing · difference*. That is a till session field for field, so there is
+nothing to invent: our till session **is** the opening entry, with a link back
+to the day it belongs to. The count then shows up in ERPNext's own POS reports.
+
+ERPNext has no business-day document for POS — its day is a posting date — so
+that level stays ``Restaurant Shift``.
+
+**Credit never enters the count** (``D-029``, ``D-046``). A delivery platform
+has already taken the customer's money; nothing of it is in the drawer. It is
+reported and excluded from the reconciliation, or every close would show a
+shortfall the size of the day's app orders and the variance figure would come
+to mean nothing.
+
+Refs: FR-8.1, FR-8.2, FR-8.3, BR-040..BR-045, D-029, D-046, D-047
 """
 
 import frappe
 from frappe import _
-from frappe.utils import cint, flt, now_datetime, nowdate
+from frappe.utils import cint, flt, now_datetime, nowdate, nowtime
 
 from restaurant_pos.utils.payment import is_credit_method
 from restaurant_pos.utils.permissions import assert_permission, validate_branch_access
@@ -32,65 +46,362 @@ OPEN_ORDER_STATUSES = ("draft", "active", "in_kitchen", "pending_payment")
 
 
 # --------------------------------------------------------------------------- #
-# Reading
+# What the screen asks first
 # --------------------------------------------------------------------------- #
 
 
 def shift_state(pos_profile: str) -> dict:
-	"""What the till needs to know before it can sell (FR-8.1).
-
-	Answers three questions in one call, because the screen asks all three at
-	once: is a shift open, is it mine, and may I close it.
-	"""
+	"""Both levels in one answer, because the screen shows both at once."""
 	profile = _profile(pos_profile)
 	validate_branch_access(profile.branch)
 
-	shift = _open_shift(profile)
-	if not shift:
-		return {"open": False, "branch": profile.branch, "shift_type": profile.branch_shift_type}
+	day = _open_day(profile)
+	till = _open_till(profile)
 
 	return {
-		"open": True,
 		"branch": profile.branch,
 		"shift_type": profile.branch_shift_type,
-		"shift": shift.name,
-		"title": shift.title,
-		"opened_by": shift.opened_by,
-		"opened_by_name": frappe.db.get_value("User", shift.opened_by, "full_name"),
-		"opened_at": shift.opened_at,
-		"is_mine": shift.opened_by == frappe.session.user,
 		"settlement_required": bool(profile.settlement_required),
+		"day": _day_state(day),
+		"till": _till_state(till),
 	}
 
 
-def summarise(shift_name: str) -> dict:
-	"""The shift report (FR-8.3), and what closing it will be measured against.
+def _day_state(day) -> dict:
+	if not day:
+		return {"open": False}
 
-	Read-only: the same figures back a screen, a printed report and the closing
-	comparison, so the three can never tell different stories.
+	return {
+		"open": True,
+		"shift": day.name,
+		"title": day.title,
+		"opened_by": day.opened_by,
+		"opened_by_name": frappe.db.get_value("User", day.opened_by, "full_name"),
+		"opened_at": day.opened_at,
+		"is_mine": day.opened_by == frappe.session.user,
+	}
+
+
+def _till_state(till) -> dict:
+	if not till:
+		return {"open": False}
+
+	return {
+		"open": True,
+		"entry": till.name,
+		"user": till.user,
+		"user_name": frappe.db.get_value("User", till.user, "full_name"),
+		"opened_at": till.period_start_date,
+		"is_mine": till.user == frappe.session.user,
+	}
+
+
+# --------------------------------------------------------------------------- #
+# The business day
+# --------------------------------------------------------------------------- #
+
+
+def open_day(*, pos_profile: str, title: str | None = None) -> dict:
+	"""Start the branch's day (FR-8.1, BR-040).
+
+	One per branch: a second would split the day's takings across two reports,
+	neither of which balances. A terminal arriving later joins the open one.
 	"""
-	shift = frappe.get_doc("Restaurant Shift", shift_name)
-	validate_branch_access(shift.branch)
+	assert_permission("can_open_shift")
+
+	profile = _profile(pos_profile)
+	validate_branch_access(profile.branch)
+
+	existing = _open_day(profile)
+	if existing:
+		_point_terminal_at(pos_profile, existing.name)
+		return {"shift": existing.name, "joined": True}
+
+	day = frappe.get_doc(
+		{
+			"doctype": "Restaurant Shift",
+			"title": title or _("Day {0}").format(nowdate()),
+			"branch": profile.branch,
+			"shift_date": nowdate(),
+			"shift_type": "full_day",
+			"status": "open",
+			"opened_by": frappe.session.user,
+			"opened_at": now_datetime(),
+		}
+	)
+	day.insert(ignore_permissions=True)
+
+	_point_terminal_at(pos_profile, day.name)
+	return {"shift": day.name, "joined": False}
+
+
+def close_day(*, shift_name: str, force: bool = False) -> dict:
+	"""End of day (FR-8.2, BR-043, BR-045).
+
+	Any till still open under it is closed first, at its expected figures. A day
+	that ended while a drawer was open would leave a count nobody ever made, and
+	the cashier who left is not coming back to make it.
+	"""
+	day = frappe.get_doc("Restaurant Shift", shift_name)
+	validate_branch_access(day.branch)
+
+	if day.status == "closed":
+		frappe.throw(_("Day {0} is already closed.").format(shift_name))
+
+	assert_permission("can_close_shift")
+	# BR-045 — somebody else's day is not yours to end.
+	if day.opened_by != frappe.session.user:
+		assert_permission("can_close_others_shift")
+
+	report = summarise(shift_name)
+	if report["orders"]["still_open"] and not force:
+		frappe.throw(
+			_("{0} orders are still open on this day.").format(report["orders"]["still_open"]),
+			frappe.ValidationError,
+		)
+
+	closed_tills = []
+	for entry in _tills_of(shift_name, status="Open"):
+		closed_tills.append(close_till(opening_entry=entry, closing_the_day=True)["closing_entry"])
+
+	# Re-read: closing the tills is what settled their counts.
+	report = summarise(shift_name)
+
+	day.status = "closed"
+	day.closed_by = frappe.session.user
+	day.closed_at = now_datetime()
+	day.total_sales = report["sales"]
+	day.total_orders = report["orders"]["closed"]
+	day.total_voids = report["voids"]
+	day.settlement_data = frappe.as_json({"report": report, "tills": closed_tills})
+	day.save(ignore_permissions=True)
+
+	# The terminal stops selling the moment the day ends (BR-044).
+	for profile in frappe.get_all("POS Profile", filters={"restaurant_shift": shift_name}, pluck="name"):
+		frappe.db.set_value("POS Profile", profile, "restaurant_shift", None, update_modified=False)
+
+	return {"shift": day.name, "report": report, "closed_tills": closed_tills}
+
+
+# --------------------------------------------------------------------------- #
+# The till session
+# --------------------------------------------------------------------------- #
+
+
+def open_till(*, pos_profile: str, opening_floats: dict | None = None) -> dict:
+	"""Take the drawer (FR-8.1 step 3).
+
+	Opens the day too if nobody has: the first cashier of the morning should
+	press one button, not two, and the day is implied by there being a till.
+
+	``Branch.shift_type`` decides whether a second drawer may be open at once —
+	``multi`` gives every cashier their own, ``single`` shares one and the next
+	cashier joins it (BR-041).
+	"""
+	assert_permission("can_open_shift")
+
+	profile = _profile(pos_profile)
+	validate_branch_access(profile.branch)
+
+	day = _open_day(profile)
+	if not day:
+		opened = open_day(pos_profile=pos_profile)
+		day = frappe.db.get_value(
+			"Restaurant Shift", opened["shift"], ["name", "branch", "opened_by"], as_dict=True
+		)
+	else:
+		_point_terminal_at(pos_profile, day.name)
+
+	existing = _open_till(profile)
+	if existing:
+		if profile.branch_shift_type == "single" or existing.user == frappe.session.user:
+			return {"entry": existing.name, "shift": day.name, "joined": True}
+
+		frappe.throw(
+			_("{0} still has the till open. Close it before taking over.").format(
+				frappe.db.get_value("User", existing.user, "full_name") or existing.user
+			)
+		)
+
+	entry = frappe.get_doc(
+		{
+			"doctype": "POS Opening Entry",
+			"period_start_date": now_datetime(),
+			"posting_date": nowdate(),
+			"company": profile.company,
+			"pos_profile": pos_profile,
+			"user": frappe.session.user,
+			"rpos_restaurant_shift": day.name,
+			"balance_details": [
+				{"mode_of_payment": method, "opening_amount": amount}
+				for method, amount in _clean_floats(opening_floats).items()
+			]
+			# The child table is mandatory, so a shop that keeps no float still
+			# says so rather than being unable to open a drawer at all.
+			or [{"mode_of_payment": _default_method(pos_profile), "opening_amount": 0}],
+		}
+	)
+	entry.insert(ignore_permissions=True)
+	entry.submit()
+
+	return {"entry": entry.name, "shift": day.name, "joined": False}
+
+
+def close_till(
+	*,
+	opening_entry: str,
+	counted: dict | None = None,
+	variance_reason: str | None = None,
+	closing_the_day: bool = False,
+) -> dict:
+	"""Hand the drawer back, and account for it (FR-8.2, BR-042, BR-043).
+
+	``closing_the_day`` is the end-of-day sweep closing a drawer its cashier
+	left open: it settles at the expected figures rather than demanding a count
+	from somebody who is not there.
+	"""
+	entry = frappe.get_doc("POS Opening Entry", opening_entry)
+	profile = _profile(entry.pos_profile)
+	validate_branch_access(profile.branch)
+
+	if entry.status != "Open":
+		frappe.throw(_("This till session is already closed."))
+
+	if not closing_the_day:
+		assert_permission("can_close_shift")
+		# BR-045 — a drawer that was not in your hands is not yours to count.
+		if entry.user != frappe.session.user:
+			assert_permission("can_close_others_shift")
+
+	report = summarise_till(opening_entry)
+	settlement = _reconcile(
+		report, counted, wants_count=bool(profile.settlement_required) and not closing_the_day
+	)
+
+	if settlement["variance"] and not (variance_reason or "").strip():
+		frappe.throw(_("Enter a reason for the difference before closing."))
+
+	closing = frappe.get_doc(
+		{
+			"doctype": "POS Closing Entry",
+			"period_start_date": entry.period_start_date,
+			"period_end_date": now_datetime(),
+			"posting_date": nowdate(),
+			"posting_time": nowtime(),
+			"company": entry.company,
+			"pos_profile": entry.pos_profile,
+			"user": entry.user,
+			"pos_opening_entry": entry.name,
+			"payment_reconciliation": [
+				{
+					"mode_of_payment": row["method"],
+					"opening_amount": row["opening"],
+					"expected_amount": row["expected"],
+					"closing_amount": row["counted"] if row["counted"] is not None else row["expected"],
+					"difference": row["variance"] or 0,
+				}
+				for row in settlement["methods"]
+			],
+			# Deliberately empty: our sales are Sales Invoices with `is_pos`, not
+			# POS Invoices (D-022), so there is nothing for ERPNext to
+			# consolidate — they are submitted and settled already. Verified that
+			# ERPNext submits the entry without them.
+			"pos_transactions": [],
+			"grand_total": report["sales"],
+			"net_total": report["sales"],
+			"total_quantity": 0,
+		}
+	)
+	closing.insert(ignore_permissions=True)
+	closing.submit()
+
+	if (variance_reason or "").strip():
+		# Written after submit rather than before: ERPNext's closing entry has no
+		# field of its own for it, so this is our custom field (BR-043).
+		frappe.db.set_value(
+			"POS Closing Entry",
+			closing.name,
+			"rpos_variance_reason",
+			variance_reason.strip(),
+			update_modified=False,
+		)
+
+	return {
+		"closing_entry": closing.name,
+		"opening_entry": entry.name,
+		"settlement": settlement,
+		"report": report,
+	}
+
+
+# --------------------------------------------------------------------------- #
+# Reporting
+# --------------------------------------------------------------------------- #
+
+
+def summarise(shift_name: str) -> dict:
+	"""The day's report (FR-8.3).
+
+	Read-only, and the single source for the screen, the printed report and the
+	closing comparison — three tellings of one day must not differ.
+	"""
+	day = frappe.get_doc("Restaurant Shift", shift_name)
+	validate_branch_access(day.branch)
 
 	orders = frappe.get_all(
 		"Restaurant Order",
 		filters={"restaurant_shift": shift_name},
 		fields=["name", "order_type", "status", "total_amount", "discount_amount", "sales_invoice"],
 	)
+	return _report(day, orders, opening={})
 
+
+def summarise_till(opening_entry: str) -> dict:
+	"""One drawer's takings (FR-8.3).
+
+	**Attributed by cashier and time**, which is how ERPNext scopes a closing
+	entry too: the orders this user settled on this terminal since the drawer was
+	taken. An order carries no link to the session — it is created before anybody
+	knows which drawer will settle it.
+	"""
+	entry = frappe.get_doc("POS Opening Entry", opening_entry)
+	day = frappe.db.get_value(
+		"Restaurant Shift",
+		entry.get("rpos_restaurant_shift"),
+		["name", "branch", "status", "opened_by", "opened_at", "closed_at"],
+		as_dict=True,
+	)
+
+	filters = {
+		"pos_profile": entry.pos_profile,
+		"cashier": entry.user,
+		"opened_at": (">=", entry.period_start_date),
+	}
+	if day:
+		filters["restaurant_shift"] = day.name
+
+	orders = frappe.get_all(
+		"Restaurant Order",
+		filters=filters,
+		fields=["name", "order_type", "status", "total_amount", "discount_amount", "sales_invoice"],
+	)
+
+	opening = {row.mode_of_payment: flt(row.opening_amount) for row in entry.balance_details}
+	report = _report(day or frappe._dict(name=None, branch=None, status=None), orders, opening)
+	report["entry"] = entry.name
+	report["user"] = entry.user
+	report["opened_at"] = entry.period_start_date
+	return report
+
+
+def _report(day, orders: list, opening: dict) -> dict:
 	closed = [row for row in orders if row.status == "closed"]
-	names = [row.name for row in closed]
-
-	opening = _opening_floats(shift)
 	methods = _by_method([row.sales_invoice for row in closed if row.sales_invoice], opening)
 
 	return {
-		"shift": shift.name,
-		"branch": shift.branch,
-		"status": shift.status,
-		"opened_by": shift.opened_by,
-		"opened_at": shift.opened_at,
-		"closed_at": shift.closed_at,
+		"shift": day.name,
+		"branch": day.branch,
+		"status": day.status,
 		"orders": {
 			"total": len(orders),
 			"closed": len(closed),
@@ -99,7 +410,7 @@ def summarise(shift_name: str) -> dict:
 		},
 		"by_order_type": _by_order_type(closed),
 		"by_method": methods,
-		"voids": _void_count(names),
+		"voids": _void_count([row.name for row in closed]),
 		"sales": money(sum(flt(row.total_amount) for row in closed)),
 		"discounts": money(sum(flt(row.discount_amount) for row in closed)),
 		# D-029 — what the drawer should hold, credit deliberately absent.
@@ -109,7 +420,7 @@ def summarise(shift_name: str) -> dict:
 
 
 def _by_order_type(closed: list) -> list[dict]:
-	"""FR-8.3 — how the day split between dine in, takeaway and the platforms."""
+	"""FR-8.3 — how the takings split between dine in, takeaway and the platforms."""
 	tally: dict[str, dict] = {}
 	for row in closed:
 		entry = tally.setdefault(row.order_type, {"order_type": row.order_type, "count": 0, "sales": 0.0})
@@ -127,12 +438,12 @@ def _by_method(invoices: list[str], opening: dict) -> list[dict]:
 	"""FR-8.3 — takings per payment method, and what each one means.
 
 	Read from the **Sales Invoice**, which is where a payment is recorded: the
-	order carries no payment rows of its own (D-022). One query for the shift
-	rather than one per order — a busy day is three hundred invoices.
+	order carries no payment rows of its own (D-022). One query for the whole
+	period rather than one per order — a busy day is three hundred invoices.
 
-	``kind`` is the whole point: ``till`` is money to count, ``credit`` is money
-	owed by a platform or a company. Reporting them in one list and totalling
-	them separately is what keeps the variance figure honest (D-029).
+	``kind`` is the point: ``till`` is money to count, ``credit`` is money owed
+	by a platform or a company. Listing both and totalling them apart is what
+	keeps the variance figure honest (D-029).
 	"""
 	rows = (
 		frappe.get_all(
@@ -153,7 +464,7 @@ def _by_method(invoices: list[str], opening: dict) -> list[dict]:
 		)
 		entry["sales"] += flt(row.amount)
 
-	# A float was put in a drawer even if nothing was sold through it.
+	# A float went into a drawer even if nothing was sold through that method.
 	for method, amount in opening.items():
 		entry = tally.setdefault(
 			method,
@@ -183,151 +494,14 @@ def _void_count(order_names: list[str]) -> int:
 	)
 
 
-def _opening_floats(shift) -> dict:
-	data = frappe.parse_json(shift.settlement_data) if shift.settlement_data else {}
-	return data.get("opening") or {}
-
-
-# --------------------------------------------------------------------------- #
-# Opening
-# --------------------------------------------------------------------------- #
-
-
-def open_shift(*, pos_profile: str, opening_floats: dict | None = None, title: str | None = None) -> dict:
-	"""Start selling (FR-8.1, BR-040).
-
-	**Single-shift branches join rather than multiply.** BR-041 says one shift
-	covers the day and several cashiers work under it; creating a second would
-	split one day's takings across two reports that neither balances.
-	"""
-	assert_permission("can_open_shift")
-
-	profile = _profile(pos_profile)
-	validate_branch_access(profile.branch)
-
-	existing = _open_shift(profile)
-	if existing:
-		if profile.branch_shift_type == "multi" and existing.opened_by != frappe.session.user:
-			frappe.throw(
-				_("{0} has a shift open on this branch. Close it before opening another.").format(
-					frappe.db.get_value("User", existing.opened_by, "full_name") or existing.opened_by
-				)
-			)
-
-		_point_terminal_at(pos_profile, existing.name)
-		return {"shift": existing.name, "joined": True}
-
-	shift = frappe.get_doc(
-		{
-			"doctype": "Restaurant Shift",
-			"title": title or _("Shift {0}").format(nowdate()),
-			"branch": profile.branch,
-			"shift_date": nowdate(),
-			"shift_type": "full_day",
-			"status": "open",
-			"opened_by": frappe.session.user,
-			"opened_at": now_datetime(),
-			# FR-8.1 step 3 — what was in each drawer before a riyal was taken.
-			"settlement_data": frappe.as_json({"opening": _clean_floats(opening_floats)}),
-		}
-	)
-	shift.insert(ignore_permissions=True)
-
-	_point_terminal_at(pos_profile, shift.name)
-	return {"shift": shift.name, "joined": False}
-
-
-def _clean_floats(opening_floats: dict | None) -> dict:
-	"""Only real methods, only real amounts.
-
-	A float typed against a credit method would be counted into an expected
-	drawer that has nothing in it.
-	"""
-	cleaned = {}
-	for method, amount in (opening_floats or {}).items():
-		if not frappe.db.exists("Mode of Payment", method):
-			frappe.throw(_("Payment method {0} does not exist.").format(method))
-		if is_credit_method(method):
-			continue
-		if flt(amount):
-			cleaned[method] = money(amount)
-
-	return cleaned
-
-
-def _point_terminal_at(pos_profile: str, shift: str) -> None:
-	frappe.db.set_value("POS Profile", pos_profile, "restaurant_shift", shift, update_modified=False)
-
-
-# --------------------------------------------------------------------------- #
-# Closing
-# --------------------------------------------------------------------------- #
-
-
-def close_shift(
-	*,
-	shift_name: str,
-	counted: dict | None = None,
-	variance_reason: str | None = None,
-	force: bool = False,
-) -> dict:
-	"""Finish the day and reconcile the drawer (FR-8.2, BR-042, BR-043, BR-045).
-
-	Refuses over an order still on the floor unless ``force``: closing across
-	one strands a bill in a report that says the day is done. The screen shows
-	the count and lets a manager decide.
-	"""
-	shift = frappe.get_doc("Restaurant Shift", shift_name)
-	validate_branch_access(shift.branch)
-
-	if shift.status == "closed":
-		frappe.throw(_("Shift {0} is already closed.").format(shift_name))
-
-	assert_permission("can_close_shift")
-	# BR-045 — somebody else's day is not yours to end.
-	if shift.opened_by != frappe.session.user:
-		assert_permission("can_close_others_shift")
-
-	report = summarise(shift_name)
-	if report["orders"]["still_open"] and not force:
-		frappe.throw(
-			_("{0} orders are still open on this shift.").format(report["orders"]["still_open"]),
-			frappe.ValidationError,
-		)
-
-	settlement = _reconcile(shift, report, counted)
-
-	if settlement["variance"] and not (variance_reason or "").strip():
-		frappe.throw(_("Enter a reason for the difference before closing."))
-
-	shift.status = "closed"
-	shift.closed_by = frappe.session.user
-	shift.closed_at = now_datetime()
-	shift.total_sales = report["sales"]
-	shift.total_orders = report["orders"]["closed"]
-	shift.total_voids = report["voids"]
-	shift.variance_reason = (variance_reason or "").strip() or None
-	shift.settlement_data = frappe.as_json(
-		{"opening": _opening_floats(shift), "report": report, "settlement": settlement}
-	)
-	shift.save(ignore_permissions=True)
-
-	# The terminal stops selling the moment its shift ends (BR-044).
-	for profile in frappe.get_all("POS Profile", filters={"restaurant_shift": shift_name}, pluck="name"):
-		frappe.db.set_value("POS Profile", profile, "restaurant_shift", None, update_modified=False)
-
-	return {"shift": shift.name, "settlement": settlement, "report": report}
-
-
-def _reconcile(shift, report: dict, counted: dict | None) -> dict:
+def _reconcile(report: dict, counted: dict | None, *, wants_count: bool) -> dict:
 	"""Expected against counted, for the drawer only (BR-042, D-029).
 
 	When the branch does not ask for a count, the expected figure stands as the
 	counted one and the variance is zero — a shop that does not count has no
-	difference to explain, and inventing one would put a reason box in front of
-	a cashier for a number nobody measured.
+	difference to explain, and inventing one would put a mandatory reason box in
+	front of a cashier for a number nobody measured.
 	"""
-	wants_count = bool(frappe.db.get_value("Branch", shift.branch, "settlement_required"))
 	counted = counted or {}
 
 	lines = []
@@ -361,9 +535,48 @@ def _reconcile(shift, report: dict, counted: dict | None) -> dict:
 # --------------------------------------------------------------------------- #
 
 
+def _clean_floats(opening_floats: dict | None) -> dict:
+	"""Only real methods, only real amounts.
+
+	A float typed against a credit method would inflate an expected drawer that
+	holds nothing.
+	"""
+	cleaned = {}
+	for method, amount in (opening_floats or {}).items():
+		if not frappe.db.exists("Mode of Payment", method):
+			frappe.throw(_("Payment method {0} does not exist.").format(method))
+		if is_credit_method(method):
+			continue
+		if flt(amount):
+			cleaned[method] = money(amount)
+
+	return cleaned
+
+
+def _default_method(pos_profile: str) -> str:
+	row = frappe.get_all(
+		"POS Payment Method",
+		filters={"parent": pos_profile, "parenttype": "POS Profile"},
+		fields=["mode_of_payment"],
+		order_by="`default` desc, idx asc",
+		limit=1,
+	)
+	if row:
+		return row[0].mode_of_payment
+
+	frappe.throw(_("POS Profile {0} has no payment method configured.").format(pos_profile))
+
+
+def _point_terminal_at(pos_profile: str, shift: str) -> None:
+	frappe.db.set_value("POS Profile", pos_profile, "restaurant_shift", shift, update_modified=False)
+
+
 def _profile(pos_profile: str) -> frappe._dict:
 	profile = frappe.db.get_value(
-		"POS Profile", pos_profile, ["name", "restaurant_section", "restaurant_shift"], as_dict=True
+		"POS Profile",
+		pos_profile,
+		["name", "restaurant_section", "restaurant_shift", "company"],
+		as_dict=True,
 	)
 	if not profile:
 		frappe.throw(_("POS Profile {0} does not exist.").format(pos_profile))
@@ -384,11 +597,11 @@ def _profile(pos_profile: str) -> frappe._dict:
 	return profile
 
 
-def _open_shift(profile) -> frappe._dict | None:
-	"""The shift this terminal would sell under.
+def _open_day(profile) -> frappe._dict | None:
+	"""The day this terminal sells under.
 
 	Its own if it still points at an open one; otherwise the branch's, which is
-	what lets a second till join a single-shift day without opening a rival.
+	what lets a second terminal join the morning's day without opening a rival.
 	"""
 	if profile.restaurant_shift:
 		current = frappe.db.get_value(
@@ -405,4 +618,35 @@ def _open_shift(profile) -> frappe._dict | None:
 		{"branch": profile.branch, "status": "open"},
 		["name", "title", "status", "opened_by", "opened_at", "branch"],
 		as_dict=True,
+	)
+
+
+def _open_till(profile) -> frappe._dict | None:
+	"""The drawer open on this terminal — this user's first, then anyone's.
+
+	A ``single`` branch shares one drawer, so the second cashier finds the one
+	already open rather than a locked screen.
+	"""
+	mine = frappe.db.get_value(
+		"POS Opening Entry",
+		{"pos_profile": profile.name, "user": frappe.session.user, "status": "Open", "docstatus": 1},
+		["name", "user", "period_start_date"],
+		as_dict=True,
+	)
+	if mine:
+		return mine
+
+	return frappe.db.get_value(
+		"POS Opening Entry",
+		{"pos_profile": profile.name, "status": "Open", "docstatus": 1},
+		["name", "user", "period_start_date"],
+		as_dict=True,
+	)
+
+
+def _tills_of(shift_name: str, *, status: str) -> list[str]:
+	return frappe.get_all(
+		"POS Opening Entry",
+		filters={"rpos_restaurant_shift": shift_name, "status": status, "docstatus": 1},
+		pluck="name",
 	)

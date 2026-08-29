@@ -168,9 +168,8 @@ class TestAttachingToAnOrder(CustomerTestBase):
 			address={"address_line1": "شارع الملك فهد", "city": "الرياض"},
 		)
 		order = self._order()
-		orders.set_customer(
-			order, customer=created["name"], delivery_address=created["addresses"][0]["name"]
-		)
+		address = created["addresses"][0]["name"]
+		orders.set_customer(order, customer=created["name"], delivery_address=address)
 
 		line = order_api.get_order(order.name)["delivery_address_line"]
 

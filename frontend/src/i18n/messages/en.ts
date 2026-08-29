@@ -98,6 +98,8 @@ export const messages = {
   // Tables
   "tables.title": "Tables",
   "tables.table": "Table",
+  "tables.seatWhat": "Table {number} — which kind of order?",
+  "tables.seatHint": "No order type asks for a table, so the choice is yours.",
   "tables.noSection": "This device is not linked to a section.",
   "tables.empty": "No tables in this section.",
   "tables.covers": "Number of guests",
@@ -140,7 +142,6 @@ export const messages = {
   "orders.viewDraft": "Drafts",
   "orders.viewClosed": "Closed today",
   "orders.viewAll": "All",
-  "order.noTableType": "This device has no table-service order type.",
   "covers.title": "How many guests?",
   "covers.body": "This order type records the number of guests.",
   "order.title": "Order",

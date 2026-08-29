@@ -95,6 +95,8 @@ const messages: Catalogue["messages"] = {
   // Tables
   "tables.title": "الطاولات",
   "tables.table": "طاولة",
+  "tables.seatWhat": "طاولة {number} — أي نوع طلب؟",
+  "tables.seatHint": "لا يوجد نوع طلب يطلب طاولة، فالاختيار لك.",
   "tables.noSection": "هذا الجهاز غير مرتبط بقسم.",
   "tables.empty": "لا توجد طاولات في هذا القسم.",
   "tables.covers": "عدد الضيوف",
@@ -137,7 +139,6 @@ const messages: Catalogue["messages"] = {
   "orders.viewDraft": "مسودّات",
   "orders.viewClosed": "مغلقة اليوم",
   "orders.viewAll": "الكل",
-  "order.noTableType": "لا يوجد نوع طلب بطاولات على هذا الجهاز.",
   "covers.title": "كم عدد الضيوف؟",
   "covers.body": "هذا النوع من الطلبات يسجّل عدد الضيوف.",
   "order.paneItems": "الأصناف",

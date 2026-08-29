@@ -18,6 +18,12 @@ import type { OrderType } from "@/types/session";
  * that is `requires_table` on the type, because plenty of restaurants run
  * dine-in with no table plan at all and the customer simply takes a seat.
  */
+/**
+ * The table this pane is choosing a type for, when it was reached from the
+ * floor (FR-2.1a). `null` on the ordinary "start another order" path.
+ */
+defineProps<{ seating?: string | null }>();
+
 const emit = defineEmits<{ open: [orderType: OrderType] }>();
 
 const session = useSessionStore();
@@ -81,13 +87,13 @@ function available(orderType: OrderType): boolean {
     <div class="mb-4">
       <h2 class="flex items-center gap-2 text-xl font-bold">
         <AppIcon
-          name="plus"
+          :name="seating ? 'floorPlan' : 'plus'"
           :size="24"
         />
-        {{ t("home.newOrder") }}
+        {{ seating ? t("tables.seatWhat", { number: seating }) : t("home.newOrder") }}
       </h2>
       <p class="mt-1 text-sm text-muted">
-        {{ t("nav.newHint") }}
+        {{ seating ? t("tables.seatHint") : t("nav.newHint") }}
       </p>
     </div>
 

@@ -127,6 +127,10 @@ const navEntries = computed<NavEntry[]>(() => [
 ]);
 
 function onNavigate(key: string): void {
+  // Walking away from the question cancels it; a table still marked "waiting"
+  // would seat the next type the cashier taps for an unrelated reason.
+  if (key !== "new") pendingTable.value = null;
+
   if (key === "home") void router.push({ name: "home" });
   else pane.value = key;
 }
@@ -143,6 +147,14 @@ async function startAnother(orderType: OrderType): Promise<void> {
   // FR-2.1 step 4 — its own flow, and it does not exist yet. The pane already
   // greys these out; this is the guard behind the guard.
   if (orderType.customer_mode === "required") return;
+
+  // The cashier came here from a table they had already tapped: this answers
+  // the question the floor could not.
+  const waiting = pendingTable.value;
+  if (waiting) {
+    await openAt(waiting, orderType);
+    return;
+  }
 
   // **Only** when the type says so. A restaurant with no table plan opens
   // dine-in and the customer takes a seat; `requires_table` is what decides,
@@ -209,16 +221,41 @@ async function confirmCovers(): Promise<void> {
  */
 const seatingType = ref<OrderType | null>(null);
 
-/** The type this terminal seats tables with — the data decides, not a name. */
+/**
+ * A table waiting for the cashier to say what kind of order to open on it.
+ *
+ * `null` means nothing is waiting. Set when tapping a free table could not
+ * settle the type on its own — see `seat`.
+ */
+const pendingTable = ref<FloorTable | null>(null);
+
+/**
+ * Types this terminal would open *by* picking a table first.
+ *
+ * A hint, not the rule. `requires_table` answers "must a table be chosen
+ * before the order opens" — a workflow question — and a restaurant that turns
+ * it off still has tables and still seats people at them (FR-2.1a). So when it
+ * settles the question it is used, and when it does not the cashier is asked.
+ */
 const tableTypes = computed(() => session.orderTypes.filter((type) => type.requires_table));
 
 async function seat(table: FloorTable): Promise<void> {
-  const type = seatingType.value ?? tableTypes.value[0] ?? null;
+  // One candidate is an answer. None — because no type demands a table — and
+  // several are both guesses, and guessing here opens the wrong kind of order
+  // on a real table.
+  const type = seatingType.value ?? (tableTypes.value.length === 1 ? tableTypes.value[0] : null);
+
   if (!type) {
-    startupError.value = t("order.noTableType");
+    pendingTable.value = table;
+    pane.value = "new";
     return;
   }
 
+  await openAt(table, type);
+}
+
+/** Open an order of this type, seated at this table. */
+async function openAt(table: FloorTable, type: OrderType): Promise<void> {
   const created = await orders.create({
     order_type: type.name,
     pos_profile: session.profile!.name,
@@ -227,6 +264,7 @@ async function seat(table: FloorTable): Promise<void> {
   });
 
   seatingType.value = null;
+  pendingTable.value = null;
   if (created) {
     pane.value = "items";
     await router.replace({ name: "order", params: { orderName: created } });
@@ -561,6 +599,7 @@ async function send(): Promise<void> {
           <NewOrderPane
             v-else
             class="min-h-0 flex-1"
+            :seating="pendingTable?.table_number ?? null"
             @open="startAnother"
           />
 

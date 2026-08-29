@@ -48,7 +48,7 @@ export const messages = {
   "home.noOrderTypes": "No order type is available on this device.",
   "home.shiftOpen": "Shift open",
   "home.shiftClosed": "No open shift",
-  "home.shiftRequired": "Open a shift before taking orders.",
+  "home.shiftRequired": "Open a shift before adding items or taking orders.",
   "home.shiftFromDesk": "A shift is opened from the Restaurant Shift screen for now.",
   "home.openOrders": "Open orders",
   "home.openOrdersUnit": "open orders",

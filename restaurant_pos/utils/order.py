@@ -114,7 +114,7 @@ def create_order(
 	section = section_of_table(table, profile)
 	_assert_order_type_allowed(config, profile, section)
 
-	shift = _open_shift_for(profile)
+	shift = assert_shift_open(profile.restaurant_shift)
 
 	order = frappe.get_doc(
 		{
@@ -219,9 +219,15 @@ def _assert_order_type_allowed(config, profile, section: str | None = None) -> N
 		)
 
 
-def _open_shift_for(profile) -> str:
-	"""BR-044 — no sales without an open shift."""
-	shift = profile.restaurant_shift
+def assert_shift_open(shift: str | None) -> str:
+	"""BR-044 — the one place that decides a terminal may sell.
+
+	Both halves of the rule come through here: the terminal must point at an
+	open day before an order exists, and the order's own day must still be open
+	before anything more goes on the bill. A bill that kept growing after the
+	day closed would leave the shift report short by whatever was rung up after
+	the count — money taken that no close accounted for.
+	"""
 	if shift and frappe.db.get_value("Restaurant Shift", shift, "status") == "open":
 		return shift
 
@@ -400,6 +406,8 @@ def add_item(
 ) -> "frappe.Document":
 	"""Add a line to an open order (FR-2.2)."""
 	assert_mutable(order)
+	# BR-044 — the bill stops growing when the day it belongs to closes.
+	assert_shift_open(order.restaurant_shift)
 
 	if flt(qty) <= 0:
 		frappe.throw(_("Quantity must be greater than zero."))
@@ -586,6 +594,8 @@ def set_item_qty(order, *, item_idx: int, qty: float) -> dict:
 	is the moment that stops being true, which is the void.
 	"""
 	assert_mutable(order)
+	# BR-044 — raising a quantity is adding food, and it obeys the same rule.
+	assert_shift_open(order.restaurant_shift)
 
 	if flt(qty) <= 0:
 		frappe.throw(_("Quantity must be greater than zero."))

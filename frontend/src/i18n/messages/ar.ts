@@ -43,10 +43,11 @@ const messages: Catalogue["messages"] = {
   // Home
   "home.newOrder": "افتح طلباً جديداً",
   "home.noOrderTypes": "لا توجد أنواع طلبات متاحة على هذا الجهاز.",
-  "home.shiftOpen": "الوردية مفتوحة",
-  "home.shiftClosed": "لا توجد وردية مفتوحة",
-  "home.shiftRequired": "افتح وردية قبل استقبال الطلبات.",
-  "home.shiftFromDesk": "تُفتح الوردية حالياً من شاشة Restaurant Shift في النظام.",
+  // «المناوبة» لا «الوردية» — الكلمة التي يستعملها المستخدم (D-049).
+  "home.shiftOpen": "المناوبة مفتوحة",
+  "home.shiftClosed": "لا توجد مناوبة مفتوحة",
+  "home.shiftRequired": "افتح المناوبة قبل إضافة أصناف أو استقبال الطلبات.",
+  "home.shiftFromDesk": "تُفتح المناوبة حالياً من شاشة Restaurant Shift في النظام.",
   "home.openOrders": "الطلبات المفتوحة",
   "home.openOrdersUnit": "طلب مفتوح",
   "type.hintTable": "يبدأ باختيار طاولة",

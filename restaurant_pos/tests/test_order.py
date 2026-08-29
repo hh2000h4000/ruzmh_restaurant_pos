@@ -203,6 +203,29 @@ class TestOrderCreation(OrderTestBase):
 		finally:
 			frappe.db.set_value("Restaurant Shift", shift, "status", "open")
 
+	def test_a_bill_stops_growing_when_the_shift_closes(self):
+		"""BR-044 — the other half of the rule.
+
+		Refusing to *open* an order was never enough: a bill opened while the day
+		was live could keep taking items after the count, and the shift report
+		would be short by exactly what was rung up afterwards.
+		"""
+		order = self._order()
+		# A real line first, so the quantity check below fails on the shift and
+		# not on a row that was never there.
+		service.add_item(order, item=self.item)
+
+		shift = frappe.db.get_value("POS Profile", self.profile, "restaurant_shift")
+		frappe.db.set_value("Restaurant Shift", shift, "status", "closed")
+		try:
+			with self.assertRaises(frappe.ValidationError):
+				service.add_item(order, item=self.item)
+
+			with self.assertRaises(frappe.ValidationError):
+				service.set_item_qty(order, item_idx=1, qty=3)
+		finally:
+			frappe.db.set_value("Restaurant Shift", shift, "status", "open")
+
 	def test_an_inactive_order_type_is_refused(self):
 		frappe.db.set_value("Restaurant Order Type", self.order_type, "is_active", 0)
 		frappe.clear_cache(doctype="Restaurant Order Type")

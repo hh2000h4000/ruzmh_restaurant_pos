@@ -56,9 +56,21 @@ const orderType = computed(
 
 const locked = computed(() => orders.busy || orders.isClosed);
 
-onMounted(async () => {
+onMounted(() => {
   // The menu offers what the shift allows, so it has to know the shift.
   void shift.refresh();
+  void startFromRoute();
+});
+
+/**
+ * Do what the address asked for: open that order, or create one of that type.
+ *
+ * Its own function because it is run again after a shift is opened from the
+ * stop below — otherwise the cashier would fix the thing that blocked them and
+ * still be looking at the message saying they were blocked.
+ */
+async function startFromRoute(): Promise<void> {
+  startupError.value = null;
 
   const existing = route.params.orderName as string | undefined;
   if (existing) {
@@ -70,6 +82,14 @@ onMounted(async () => {
   const type = session.orderTypes.find((candidate) => candidate.name === typeName);
   if (!type) {
     startupError.value = t("order.typeUnavailable");
+    return;
+  }
+
+  // BR-044 — and say so on the screen as well as in the dialog, so dismissing
+  // it does not leave a blank page with nothing on it to explain why.
+  if (!session.hasOpenShift) {
+    startupError.value = t("home.shiftRequired");
+    askingForShift.value = true;
     return;
   }
 
@@ -98,7 +118,7 @@ onMounted(async () => {
   if (created) {
     await router.replace({ name: "order", params: { orderName: created } });
   }
-});
+}
 
 // --------------------------------------------------------------------------
 // The working column (D-039)
@@ -187,6 +207,10 @@ function onMenu(key: string): void {
  * needed to allow it.
  */
 async function startAnother(orderType: OrderType): Promise<void> {
+  // BR-044 — before any of the questions below, because none of them matter
+  // if the order cannot be created at the end of them.
+  if (!maySell()) return;
+
   // The cashier came here from a table they had already tapped: this answers
   // the question the floor could not.
   const waiting = pendingTable.value;
@@ -443,8 +467,52 @@ watch(
 );
 
 
+// --------------------------------------------------------------------------
+// BR-044 — nothing goes on a bill without an open shift
+// --------------------------------------------------------------------------
+
+/**
+ * Stop, and offer the way out.
+ *
+ * The server refuses this either way (`utils/order.assert_shift_open`); what
+ * the screen adds is the reason and a button, instead of a raw error after the
+ * item was already tapped. The tiles stay live on purpose — a greyed-out menu
+ * explains nothing, and "why can I not sell" is the question being answered.
+ *
+ * `session.hasOpenShift` is the flag the server itself gates on — the
+ * terminal's `restaurant_shift` — so the two cannot disagree.
+ */
+const askingForShift = ref(false);
+
+function maySell(): boolean {
+  if (session.hasOpenShift) return true;
+
+  askingForShift.value = true;
+  return false;
+}
+
+function openShiftFromNotice(): void {
+  askingForShift.value = false;
+  openingTill.value = true;
+}
+
+/**
+ * The shift dialog closed — opened or abandoned, it does not say which.
+ *
+ * If a shift is open now and the screen is still showing the message that it
+ * was not, the address never got what it asked for: create the order it was
+ * sent here to create, rather than leaving the cashier looking at a complaint
+ * about something they have just fixed.
+ */
+function onTillOpened(): void {
+  openingTill.value = false;
+  if (session.hasOpenShift && startupError.value) void startFromRoute();
+}
+
 /** FR-2.2 — an item with modifier groups opens the popup first. */
 function onPick(item: CatalogItem, qty: number): void {
+  if (!maySell()) return;
+
   if (item.modifier_groups.length) {
     // The quantity has to survive the detour, or six coffees with extra milk
     // arrive as one.
@@ -474,6 +542,7 @@ function clearPending(): void {
 }
 
 function repeat(line: OrderLine): void {
+  if (!maySell()) return;
   void orders.addItem(line.item, { qty: 1 });
 }
 
@@ -494,6 +563,14 @@ watch(
 );
 
 async function changeQty(idx: number, qty: number): Promise<void> {
+  // The detail dialog closes first: two stacked dialogs both answer Escape,
+  // and one key would dismiss both (D-049).
+  if (!session.hasOpenShift) {
+    inspecting.value = null;
+    maySell();
+    return;
+  }
+
   await orders.setQty(idx, qty);
 }
 
@@ -1042,6 +1119,40 @@ async function send(): Promise<void> {
       </div>
     </BaseDialog>
 
+    <!--
+      BR-044 — the stop, and the way past it. Two buttons and no more: the
+      cashier tapped an item and wants to keep selling, not read a page.
+      Opening a shift is offered only to whoever may (D-053).
+    -->
+    <BaseDialog
+      :open="askingForShift"
+      :title="t('home.shiftClosed')"
+      :dismissible="true"
+      @close="askingForShift = false"
+    >
+      <p class="mb-4 text-sm text-muted">
+        {{ t("home.shiftRequired") }}
+      </p>
+
+      <div class="flex gap-2">
+        <button
+          type="button"
+          class="min-h-tap flex-1 rounded-rpos border border-line"
+          @click="askingForShift = false"
+        >
+          {{ t("action.undo") }}
+        </button>
+        <button
+          v-if="session.can('can_open_shift')"
+          type="button"
+          class="min-h-tap flex-1 rounded-rpos bg-primary font-bold text-primary-contrast"
+          @click="openShiftFromNotice"
+        >
+          {{ t("shift.openTill") }}
+        </button>
+      </div>
+    </BaseDialog>
+
     <!-- FR-2.1 step 4 — found by number, created from the same box (D-050). -->
     <CustomerDialog
       :open="pickingCustomer"
@@ -1055,7 +1166,7 @@ async function send(): Promise<void> {
 
     <OpenTillDialog
       :open="openingTill"
-      @close="openingTill = false"
+      @close="onTillOpened"
     />
 
     <CloseTillDialog

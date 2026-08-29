@@ -61,22 +61,17 @@ function glyph(orderType: OrderType): string | null {
   return NAMES.has(configured) ? null : configured || null;
 }
 
+/**
+ * What tapping this type will ask for first.
+ *
+ * A promise, not a warning: a type that needs a customer opens the picker and
+ * then the order, the way a type that needs a table opens the floor. Neither is
+ * a reason to grey the tile out — the tile is the way in.
+ */
 function subtitle(orderType: OrderType): string {
-  if (!available(orderType)) return t("order.customerPending");
+  if (orderType.customer_mode === "required") return t("type.hintCustomer");
   if (orderType.requires_table) return t("type.hintTable");
   return t("type.hintQuick");
-}
-
-/**
- * A type that needs a customer cannot be opened until the customer picker
- * exists (FR-2.1 step 4).
- *
- * Shown disabled with the reason rather than hidden: the manager configured it,
- * so a cashier who cannot find it will ask whether the system is broken. The
- * server refuses it either way — this only saves the cashier a raw error.
- */
-function available(orderType: OrderType): boolean {
-  return orderType.customer_mode !== "required";
 }
 </script>
 
@@ -103,8 +98,7 @@ function available(orderType: OrderType): boolean {
           v-for="orderType in session.orderTypes"
           :key="orderType.name"
           type="button"
-          class="flex h-[94px] items-center gap-4 rounded-rpos border border-line bg-surface px-4 text-start transition duration-200 ease-rpos enabled:hover:-translate-y-px enabled:hover:border-primary/40 enabled:hover:shadow-card disabled:cursor-not-allowed disabled:opacity-50"
-          :disabled="!available(orderType)"
+          class="flex h-[94px] items-center gap-4 rounded-rpos border border-line bg-surface px-4 text-start transition duration-200 ease-rpos hover:-translate-y-px hover:border-primary/40 hover:shadow-card"
           @click="emit('open', orderType)"
         >
           <span class="relative grid h-16 w-16 shrink-0 place-items-center overflow-hidden rounded-full">

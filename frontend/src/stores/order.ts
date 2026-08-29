@@ -137,6 +137,33 @@ export const useOrderStore = defineStore("order", () => {
     return true;
   }
 
+  /**
+   * FR-2.1 step 4 — who the bill is for, and where it goes.
+   *
+   * Re-read afterwards rather than patched: the customer carries a name, a
+   * number and an address the bill shows, and `applySummary` only knows about
+   * totals.
+   */
+  async function setCustomer(
+    customer: string | null,
+    deliveryAddress: string | null = null,
+  ): Promise<boolean> {
+    if (!order.value) return false;
+
+    const orderName = order.value.order_name;
+    const done = await run(() =>
+      orderApi.setOrderCustomer({
+        order_name: orderName,
+        customer,
+        delivery_address: deliveryAddress,
+      }),
+    );
+
+    if (!done) return false;
+    await open(orderName);
+    return true;
+  }
+
   async function voidLine(idx: number, reason: string): Promise<void> {
     if (!order.value) return;
 
@@ -287,6 +314,7 @@ export const useOrderStore = defineStore("order", () => {
     setNotes,
     setLineNotes,
     setCallName,
+    setCustomer,
     removeLine,
     voidLine,
     cancel,

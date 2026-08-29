@@ -44,6 +44,10 @@ export interface OrderDetail extends OrderSummary {
   customer: string | null;
   /** The bill names the customer, and a Customer's id is not their name. */
   customer_name: string | null;
+  customer_mobile: string | null;
+  delivery_address: string | null;
+  /** The address in words — a driver cannot read `ADDR-00012`. */
+  delivery_address_line: string | null;
   cover_count: number;
   /** Printed on every station's ticket, unlike a line's own note (FR-2.9). */
   notes: string | null;
@@ -105,6 +109,7 @@ export function createOrder(payload: {
   pos_profile: string;
   table?: string | null;
   customer?: string | null;
+  delivery_address?: string | null;
   cover_count?: number | null;
   order_type_data?: Record<string, unknown>;
 }): Promise<OrderSummary> {
@@ -258,6 +263,21 @@ export function removeItem(payload: {
   item_idx: number;
 }): Promise<OrderSummary & { removed: number }> {
   return mutate("order.remove_item", payload);
+}
+
+/**
+ * Attach a customer to an open order, or take one off (FR-2.1 step 4).
+ *
+ * Not deferrable. Which customer a bill belongs to decides the price list, the
+ * VAT number on the invoice and where a delivery goes — a screen that showed a
+ * customer the server never accepted would be reading a bill nobody has filed.
+ */
+export function setOrderCustomer(payload: {
+  order_name: string;
+  customer?: string | null;
+  delivery_address?: string | null;
+}): Promise<OrderSummary & { customer: string | null; delivery_address: string | null }> {
+  return mutate("order.set_order_customer", payload);
 }
 
 /** Name the order for calling out — not a Customer (FR-2.11). */

@@ -14,6 +14,7 @@ Refs: FR-2.1 step 4, FR-2.11, D-050
 
 import frappe
 
+from restaurant_pos.api import order as order_api
 from restaurant_pos.tests.test_order import OrderTestBase
 from restaurant_pos.utils import customer as service
 from restaurant_pos.utils import order as orders
@@ -158,6 +159,26 @@ class TestAttachingToAnOrder(CustomerTestBase):
 
 		self.assertIsNone(order.customer)
 		self.assertIsNone(order.delivery_address)
+
+	def test_the_bill_names_the_address_rather_than_its_id(self):
+		"""A driver cannot read `ADDR-00012`, and the screen shows one line."""
+		created = service.create(
+			phone=PHONE,
+			customer_name=NAME,
+			address={"address_line1": "شارع الملك فهد", "city": "الرياض"},
+		)
+		order = self._order()
+		orders.set_customer(
+			order, customer=created["name"], delivery_address=created["addresses"][0]["name"]
+		)
+
+		line = order_api.get_order(order.name)["delivery_address_line"]
+
+		self.assertIn("شارع الملك فهد", line)
+		self.assertIn("الرياض", line)
+
+	def test_an_order_going_nowhere_says_nothing(self):
+		self.assertIsNone(order_api.get_order(self._order().name)["delivery_address_line"])
 
 	def test_a_type_that_needs_a_customer_refuses_to_lose_one(self):
 		"""FR-2.1 — the requirement does not lapse once the order is open."""

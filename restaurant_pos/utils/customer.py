@@ -139,6 +139,22 @@ def addresses_of(customer: str) -> list[dict]:
 	)
 
 
+def address_label(address: str | None) -> str | None:
+	"""One line naming an address, for a screen that has room for one line.
+
+	The bill shows where a delivery goes, and ``ADDR-00012`` tells a driver
+	nothing. Kept beside ``addresses_of`` so both read the address the same way.
+	"""
+	if not address:
+		return None
+
+	row = frappe.db.get_value("Address", address, ["address_line1", "city"], as_dict=True)
+	if not row:
+		return None
+
+	return ", ".join(part for part in (row.address_line1, row.city) if part) or None
+
+
 def create(
 	*,
 	phone: str,

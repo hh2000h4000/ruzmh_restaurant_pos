@@ -5,6 +5,7 @@ import { useRoute, useRouter } from "vue-router";
 import type { ModifierChoice, OpenOrder, OrderLine } from "@/api/order";
 import AppIcon from "@/components/AppIcon.vue";
 import BaseDialog from "@/components/BaseDialog.vue";
+import CustomerDialog from "@/components/order/CustomerDialog.vue";
 import ItemPicker from "@/components/order/ItemPicker.vue";
 import LineDetailDialog from "@/components/order/LineDetailDialog.vue";
 import ModifierDialog from "@/components/order/ModifierDialog.vue";
@@ -79,9 +80,13 @@ onMounted(async () => {
     return;
   }
 
-  // The customer picker is its own flow (FR-2.1 step 4) and does not exist yet.
+  // FR-2.1 step 4 — the same detour a table type makes to the floor. The
+  // message is set as well as the dialog opened, so dismissing the picker
+  // leaves a screen that explains itself rather than an empty one.
   if (type.customer_mode === "required") {
-    startupError.value = t("order.customerPending");
+    startupError.value = t("customer.needed");
+    customerFor.value = type;
+    pickingCustomer.value = true;
     return;
   }
 
@@ -182,10 +187,6 @@ function onMenu(key: string): void {
  * needed to allow it.
  */
 async function startAnother(orderType: OrderType): Promise<void> {
-  // FR-2.1 step 4 — its own flow, and it does not exist yet. The pane already
-  // greys these out; this is the guard behind the guard.
-  if (orderType.customer_mode === "required") return;
-
   // The cashier came here from a table they had already tapped: this answers
   // the question the floor could not.
   const waiting = pendingTable.value;
@@ -202,6 +203,15 @@ async function startAnother(orderType: OrderType): Promise<void> {
     // created and then refused (FR-2.1 step 3).
     pane.value = "tables";
     seatingType.value = orderType;
+    return;
+  }
+
+  // FR-2.1 step 4 — asked before the order exists, for the same reason a table
+  // is: an order created and then refused for a missing customer is an order
+  // the cashier has to cancel and ring again.
+  if (orderType.customer_mode === "required") {
+    customerFor.value = orderType;
+    pickingCustomer.value = true;
     return;
   }
 
@@ -223,6 +233,66 @@ async function startAnother(orderType: OrderType): Promise<void> {
     pane.value = "items";
     await router.replace({ name: "order", params: { orderName: created } });
   }
+}
+
+// --------------------------------------------------------------------------
+// Who the order is for (FR-2.1 step 4, D-050)
+// --------------------------------------------------------------------------
+
+const pickingCustomer = ref(false);
+
+/**
+ * The type waiting for a customer, when it cannot be opened without one.
+ *
+ * `null` means an order already exists and the picker is only changing who it
+ * belongs to — the two paths end differently, so the difference is held here
+ * rather than guessed from whether an order happens to be loaded.
+ */
+const customerFor = ref<OrderType | null>(null);
+
+/** The type the picker is answering for: the one waiting, else the one in hand. */
+const customerType = computed(() => customerFor.value ?? orderType.value);
+
+/**
+ * Show the address step.
+ *
+ * Inferred from `customer_mode`, because no order type carries a "requires an
+ * address" flag — a type that insists on a customer is a type where the
+ * customer's details are the point, which in a restaurant means delivery. The
+ * step is skippable, so nothing is demanded that the server does not demand.
+ */
+const customerWithAddress = computed(() => customerType.value?.customer_mode === "required");
+
+async function onCustomerPicked(payload: {
+  customer: string;
+  deliveryAddress: string | null;
+}): Promise<void> {
+  pickingCustomer.value = false;
+
+  const waiting = customerFor.value;
+  if (!waiting) {
+    await orders.setCustomer(payload.customer, payload.deliveryAddress);
+    return;
+  }
+
+  customerFor.value = null;
+  const created = await orders.create({
+    order_type: waiting.name,
+    pos_profile: session.profile!.name,
+    customer: payload.customer,
+    delivery_address: payload.deliveryAddress,
+  });
+
+  if (!created) return;
+
+  startupError.value = null;
+  pane.value = "items";
+  await router.replace({ name: "order", params: { orderName: created } });
+}
+
+async function onCustomerCleared(): Promise<void> {
+  pickingCustomer.value = false;
+  await orders.setCustomer(null, null);
 }
 
 /**
@@ -533,6 +603,18 @@ const moreActions = computed<OrderAction[]>(() => {
     disabled: locked.value,
   });
 
+  // FR-2.1 step 4 — a real Customer, with a number and an address. Not offered
+  // on a type that decides its own: an app order is billed to the platform, and
+  // the server refuses to change it (D-038).
+  if (orderType.value?.customer_mode !== "pre_set") {
+    entries.push({
+      key: "customer",
+      label: orders.order?.customer ? "customer.change" : "customer.action",
+      icon: "users",
+      disabled: locked.value,
+    });
+  }
+
   if (session.can("can_cancel_order")) {
     entries.push({
       key: "cancel",
@@ -551,6 +633,7 @@ function onAction(action: OrderAction): void {
   else if (action.key === "refresh") void reload();
   else if (action.key === "notes") openNotes();
   else if (action.key === "callName") openCallName();
+  else if (action.key === "customer") pickingCustomer.value = true;
   else if (action.key === "convert") converting.value = true;
   else if (action.key === "cancel") cancelling.value = true;
 }
@@ -958,6 +1041,17 @@ async function send(): Promise<void> {
         </button>
       </div>
     </BaseDialog>
+
+    <!-- FR-2.1 step 4 — found by number, created from the same box (D-050). -->
+    <CustomerDialog
+      :open="pickingCustomer"
+      :customer="orders.order?.customer ?? null"
+      :with-address="customerWithAddress"
+      :required="customerType?.customer_mode === 'required'"
+      @close="pickingCustomer = false"
+      @select="onCustomerPicked"
+      @clear="onCustomerCleared"
+    />
 
     <OpenTillDialog
       :open="openingTill"

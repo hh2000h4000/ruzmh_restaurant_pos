@@ -14,6 +14,7 @@ import frappe
 from frappe import _
 from frappe.utils import get_datetime, now_datetime, nowdate, time_diff_in_seconds
 
+from restaurant_pos.utils import customer as customer_service
 from restaurant_pos.utils import idempotency
 from restaurant_pos.utils import order as service
 from restaurant_pos.utils.permissions import get_pos_permission_set, validate_branch_access
@@ -559,6 +560,8 @@ def get_order(order_name: str) -> dict:
 		"call_name": order.call_name,
 		"daily_number": order.daily_number,
 		"delivery_address": order.delivery_address,
+		# Where it goes, in words. A driver cannot read `ADDR-00012`.
+		"delivery_address_line": customer_service.address_label(order.delivery_address),
 		"customer_mobile": frappe.db.get_value("Customer", order.customer, "mobile_no")
 		if order.customer
 		else None,

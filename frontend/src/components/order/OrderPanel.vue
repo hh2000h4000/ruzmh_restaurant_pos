@@ -136,6 +136,20 @@ function money(value: number): string {
         </p>
       </div>
 
+      <!-- FR-2.1 step 4 — where it goes, when it goes anywhere. On the bill
+           rather than behind the customer dialog: a driver reads this. -->
+      <p
+        v-if="order.delivery_address_line"
+        class="mt-1 flex items-center gap-1.5 truncate text-xs text-muted"
+      >
+        <AppIcon
+          name="home"
+          :size="14"
+          class="shrink-0"
+        />
+        <span class="truncate">{{ order.delivery_address_line }}</span>
+      </p>
+
       <p class="rpos-numeric mt-1 truncate text-xs text-muted">
         {{ order.order_name }}
       </p>

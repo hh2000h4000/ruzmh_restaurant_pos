@@ -141,6 +141,8 @@ export const messages = {
   "orders.viewClosed": "Closed today",
   "orders.viewAll": "All",
   "order.noTableType": "This device has no table-service order type.",
+  "covers.title": "How many guests?",
+  "covers.body": "This order type records the number of guests.",
   "order.title": "Order",
   "order.paneItems": "Menu",
   "order.save": "Save",

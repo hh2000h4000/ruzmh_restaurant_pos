@@ -138,6 +138,8 @@ const messages: Catalogue["messages"] = {
   "orders.viewClosed": "مغلقة اليوم",
   "orders.viewAll": "الكل",
   "order.noTableType": "لا يوجد نوع طلب بطاولات على هذا الجهاز.",
+  "covers.title": "كم عدد الضيوف؟",
+  "covers.body": "هذا النوع من الطلبات يسجّل عدد الضيوف.",
   "order.paneItems": "الأصناف",
   "order.title": "الطلب",
   "order.save": "حفظ",

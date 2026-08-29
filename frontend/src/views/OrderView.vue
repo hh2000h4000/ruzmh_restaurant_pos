@@ -16,7 +16,7 @@ import NewOrderPane from "@/components/order/NewOrderPane.vue";
 import OrderBottomNav, { type NavEntry } from "@/components/order/OrderBottomNav.vue";
 import OpenOrdersPanel from "@/components/pos/OpenOrdersPanel.vue";
 import { useOpenOrders } from "@/composables/useOpenOrders";
-import { t } from "@/i18n";
+import { formatNumber, t } from "@/i18n";
 import { useOrderStore } from "@/stores/order";
 import { useSessionStore } from "@/stores/session";
 import type { FloorTable } from "@/api/table";
@@ -155,9 +155,44 @@ async function startAnother(orderType: OrderType): Promise<void> {
     return;
   }
 
+  // BR-064 — the guest count is its own setting, and a type can want one
+  // without seating anybody. Ask, rather than send an order the server will
+  // refuse for a number nobody was offered the chance to give.
+  if (orderType.requires_cover_count) {
+    countingType.value = orderType;
+    covers.value = 2;
+    return;
+  }
+
   const created = await orders.create({
     order_type: orderType.name,
     pos_profile: session.profile!.name,
+  });
+
+  if (created) {
+    pane.value = "items";
+    await router.replace({ name: "order", params: { orderName: created } });
+  }
+}
+
+/**
+ * The type waiting for a guest count, when it wants one and seats nobody.
+ *
+ * `null` closes the prompt. Two is the opening guess: two is the commonest
+ * party in any restaurant that counts covers at all.
+ */
+const countingType = ref<OrderType | null>(null);
+const covers = ref(2);
+
+async function confirmCovers(): Promise<void> {
+  const orderType = countingType.value;
+  if (!orderType || covers.value < 1) return;
+
+  countingType.value = null;
+  const created = await orders.create({
+    order_type: orderType.name,
+    pos_profile: session.profile!.name,
+    cover_count: covers.value,
   });
 
   if (created) {
@@ -550,6 +585,67 @@ async function send(): Promise<void> {
         />
       </div>
     </div>
+
+    <!-- BR-064 — only where the order type asks for it (FR-2.1a). -->
+    <BaseDialog
+      :open="Boolean(countingType)"
+      :title="t('covers.title')"
+      :dismissible="true"
+      @close="countingType = null"
+    >
+      <p class="mb-4 text-sm text-muted">
+        {{ t("covers.body") }}
+      </p>
+
+      <div class="mb-5 flex items-center justify-center gap-4">
+        <button
+          type="button"
+          class="grid h-14 w-14 place-items-center rounded-full bg-background text-muted transition duration-200 ease-rpos hover:bg-primary/10 hover:text-primary disabled:opacity-40"
+          :disabled="covers <= 1"
+          :aria-label="t('picker.qtyLess')"
+          @click="covers = Math.max(1, covers - 1)"
+        >
+          <AppIcon
+            name="minus"
+            :size="24"
+          />
+        </button>
+
+        <span class="rpos-numeric w-16 text-center text-3xl font-bold">{{
+          formatNumber(covers)
+        }}</span>
+
+        <button
+          type="button"
+          class="grid h-14 w-14 place-items-center rounded-full bg-background text-muted transition duration-200 ease-rpos hover:bg-primary/10 hover:text-primary"
+          :aria-label="t('picker.qtyMore')"
+          @click="covers = covers + 1"
+        >
+          <AppIcon
+            name="plus"
+            :size="24"
+          />
+        </button>
+      </div>
+
+      <div class="flex gap-2">
+        <button
+          type="button"
+          class="min-h-tap flex-1 rounded-rpos border border-line"
+          @click="countingType = null"
+        >
+          {{ t("action.undo") }}
+        </button>
+        <button
+          type="button"
+          class="min-h-tap flex-1 rounded-rpos bg-primary font-medium text-primary-contrast disabled:opacity-40"
+          :disabled="orders.busy"
+          @click="confirmCovers"
+        >
+          {{ t("home.newOrder") }}
+        </button>
+      </div>
+    </BaseDialog>
 
     <LineDetailDialog
       :line="inspecting"

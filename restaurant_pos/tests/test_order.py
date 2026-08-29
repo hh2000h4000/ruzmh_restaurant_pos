@@ -542,3 +542,49 @@ class TestTableIsPerOrderType(OrderTestBase):
 		order = self._order(order_type=self.dine_in, table=table)
 
 		self.assertEqual(order.table, table)
+
+
+class TestCoverCountIsItsOwnSetting(OrderTestBase):
+	"""BR-064 / FR-2.1a — counting guests is not the same question as seating them.
+
+	Plenty of restaurants seat people without counting them, and the two flags
+	move independently. Coupling them meant a dine-in type with tables switched
+	off still refused every order for a guest count nobody was asked for.
+	"""
+
+	def setUp(self):
+		self.original = frappe.db.get_value(
+			"Restaurant Order Type", self.dine_in, ["requires_table", "requires_cover_count"], as_dict=True
+		)
+		frappe.db.set_value("Restaurant Order Type", self.dine_in, "requires_table", 0)
+		frappe.clear_cache(doctype="Restaurant Order Type")
+
+	def tearDown(self):
+		frappe.db.set_value("Restaurant Order Type", self.dine_in, dict(self.original))
+		frappe.clear_cache(doctype="Restaurant Order Type")
+
+	def _covers(self, wanted: int) -> None:
+		frappe.db.set_value("Restaurant Order Type", self.dine_in, "requires_cover_count", wanted)
+		frappe.clear_cache(doctype="Restaurant Order Type")
+
+	def test_no_table_but_still_counting_guests_asks_for_a_number(self):
+		self._covers(1)
+
+		with self.assertRaises(frappe.ValidationError):
+			self._order(order_type=self.dine_in)
+
+	def test_the_number_is_accepted_without_a_table(self):
+		self._covers(1)
+
+		order = self._order(order_type=self.dine_in, cover_count=4)
+
+		self.assertEqual(order.cover_count, 4)
+		self.assertIsNone(order.table)
+
+	def test_neither_setting_means_neither_question(self):
+		self._covers(0)
+
+		order = self._order(order_type=self.dine_in)
+
+		self.assertEqual(order.cover_count, 0)
+		self.assertIsNone(order.table)

@@ -2,7 +2,7 @@
 import { computed, ref, watch } from "vue";
 
 import AppIcon from "@/components/AppIcon.vue";
-import { formatNumber, t } from "@/i18n";
+import { t } from "@/i18n";
 
 /**
  * Typing money with a finger (06 §Design Principles, D-049).
@@ -17,6 +17,11 @@ import { formatNumber, t } from "@/i18n";
  * a second dialog meant the same figure was asked for twice, and two stacked
  * dialogs both answer Escape — one key would have closed the keypad *and* the
  * dialog behind it, losing what had been entered.
+ *
+ * **Ten digits and a point.** Halalas are real money — 200.50 is an amount, and
+ * BR-024 rounds to the nearest 0.05 — so the decimal point is a key, not an
+ * optional extra. Backspace sits beside the figure instead, where a calculator
+ * app puts it.
  *
  * **The pad runs left to right, always.** A calculator keypad reads 1-2-3 from
  * the left in every locale; laid out by the page direction it would come out
@@ -74,7 +79,15 @@ function back(): void {
   set(draft.value.slice(0, -1));
 }
 
-const preview = computed(() => formatNumber(Number(draft.value) || 0, 2));
+/**
+ * What was typed, not what it rounds to.
+ *
+ * Formatting to two places on every keystroke meant pressing the decimal point
+ * changed nothing on screen — "200" and "200." both read 200.00 — so the key
+ * looked broken. The figure is formatted where it is *stored*; here it echoes
+ * the hand.
+ */
+const preview = computed(() => draft.value || "0");
 </script>
 
 <template>
@@ -86,12 +99,32 @@ const preview = computed(() => formatNumber(Number(draft.value) || 0, 2));
       {{ label }}
     </p>
 
-    <p
-      class="rpos-numeric mb-3 rounded-rpos bg-background px-4 py-4 text-center text-3xl font-bold"
+    <!--
+      Backspace lives with the figure, not in the pad. The pad is ten digits and
+      a decimal point — a calculator's shape, which a hand already knows — and
+      taking a key out of it to make room is how the point went missing.
+    -->
+    <div
+      class="mb-3 flex items-center gap-2 rounded-rpos bg-background px-3 py-3"
       dir="ltr"
     >
-      {{ preview }}
-    </p>
+      <p class="rpos-numeric flex-1 text-center text-3xl font-bold">
+        {{ preview }}
+      </p>
+      <button
+        type="button"
+        class="grid h-11 w-11 shrink-0 place-items-center rounded-rpos text-muted transition duration-200 ease-rpos hover:bg-surface hover:text-content disabled:opacity-30"
+        :disabled="!draft"
+        :aria-label="t('keypad.back')"
+        @click="back"
+      >
+        <AppIcon
+          name="back"
+          class="rpos-flip"
+          :size="22"
+        />
+      </button>
+    </div>
 
     <!-- `dir="ltr"` is the point: a keypad is 1-2-3 from the left, everywhere. -->
     <div
@@ -125,14 +158,11 @@ const preview = computed(() => formatNumber(Number(draft.value) || 0, 2));
       </button>
       <button
         type="button"
-        class="grid h-14 place-items-center rounded-rpos bg-background text-muted transition duration-200 ease-rpos hover:bg-primary/10 hover:text-primary"
-        :aria-label="t('keypad.back')"
-        @click="back"
+        class="rpos-numeric h-14 rounded-rpos bg-background text-2xl font-bold transition duration-200 ease-rpos hover:bg-primary/10 hover:text-primary"
+        :aria-label="t('keypad.decimal')"
+        @click="press('.')"
       >
-        <AppIcon
-          name="back"
-          :size="22"
-        />
+        .
       </button>
     </div>
   </div>

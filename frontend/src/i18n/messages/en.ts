@@ -178,6 +178,7 @@ export const messages = {
   "shift.varianceReason": "Why is there a difference?",
   "shift.stillOpen": "{count} orders are still open. Close the day anyway.",
   "shift.heldBy": "{name} has the shift open",
+  "keypad.decimal": "Decimal point",
   "keypad.done": "Done",
   "keypad.clear": "Clear",
   "keypad.back": "Delete",

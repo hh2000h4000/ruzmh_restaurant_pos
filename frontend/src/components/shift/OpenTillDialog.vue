@@ -2,7 +2,7 @@
 import { computed, ref, watch } from "vue";
 
 import BaseDialog from "@/components/BaseDialog.vue";
-import AmountKeypad from "@/components/shift/AmountKeypad.vue";
+import TillCount, { type CountRow } from "@/components/shift/TillCount.vue";
 import { formatNumber, t } from "@/i18n";
 import { useSessionStore } from "@/stores/session";
 import { useShiftStore } from "@/stores/shift";
@@ -12,8 +12,11 @@ import { useShiftStore } from "@/stores/shift";
  *
  * **One screen.** It was two — a row reading "Cash 0.00", then a keypad behind
  * a tap on it. For a shop with a single cash float that is the same figure
- * asked for twice. The keypad *is* the dialog now; the method is a chip above
- * it, and only when there is more than one to choose between.
+ * asked for twice. The keypad *is* the dialog now, and `TillCount` puts the
+ * methods above it only when there is more than one to choose between.
+ *
+ * Counting is `TillCount`'s job, shared with closing (D-052): the two screens
+ * ask the same question and must not answer it in two shapes.
  *
  * The float is what the close is measured against: money in the till before a
  * riyal was taken. Zero is a fine answer — the till is then expected to hold
@@ -41,15 +44,16 @@ const methods = computed(() =>
   (session.data?.payment_methods ?? []).map((row) => row.mode_of_payment),
 );
 
+/** Nothing is owed at the start of a shift, so no row carries an expected. */
+const rows = computed<CountRow[]>(() => methods.value.map((method) => ({ method })));
+
 const floats = ref<Record<string, string>>({});
-const active = ref("");
 
 watch(
   () => props.open,
   (isOpen) => {
     if (!isOpen) return;
     floats.value = Object.fromEntries(methods.value.map((method) => [method, "0"]));
-    active.value = methods.value[0] ?? "";
   },
 );
 
@@ -57,8 +61,8 @@ const total = computed(() =>
   Object.values(floats.value).reduce((sum, value) => sum + (Number(value) || 0), 0),
 );
 
-function onKeypad(value: string): void {
-  if (active.value) floats.value[active.value] = value;
+function onCount(method: string, value: string): void {
+  floats.value[method] = value;
 }
 
 async function confirm(): Promise<void> {
@@ -84,35 +88,11 @@ async function confirm(): Promise<void> {
       {{ t("shift.openTillBody") }}
     </p>
 
-    <!-- Only where there is a choice to make. One method needs no tabs. -->
-    <div
-      v-if="methods.length > 1"
-      class="mb-3 flex flex-wrap gap-2"
-      role="tablist"
-    >
-      <button
-        v-for="method in methods"
-        :key="method"
-        type="button"
-        class="min-h-tap rounded-full px-4 text-sm font-semibold transition duration-200 ease-rpos"
-        :class="active === method ? 'bg-primary text-primary-contrast' : 'bg-background text-muted'"
-        :aria-selected="active === method"
-        @click="active = method"
-      >
-        {{ method }}
-        <span
-          v-if="Number(floats[method]) > 0"
-          class="rpos-numeric ms-1 opacity-80"
-        >{{ formatNumber(Number(floats[method]), 2) }}</span>
-      </button>
-    </div>
-
-    <AmountKeypad
-      v-if="active"
+    <TillCount
       class="mb-4"
-      :label="active"
-      :value="floats[active] ?? '0'"
-      @update="onKeypad"
+      :rows="rows"
+      :values="floats"
+      @update="onCount"
     />
 
     <p

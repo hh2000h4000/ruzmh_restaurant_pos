@@ -4,7 +4,7 @@ import { computed, ref, watch } from "vue";
 import type { ShiftReport } from "@/api/shift";
 import AppIcon from "@/components/AppIcon.vue";
 import BaseDialog from "@/components/BaseDialog.vue";
-import AmountKeypad from "@/components/shift/AmountKeypad.vue";
+import TillCount, { type CountRow } from "@/components/shift/TillCount.vue";
 import { formatNumber, t } from "@/i18n";
 import { useShiftStore } from "@/stores/shift";
 
@@ -20,6 +20,12 @@ import { useShiftStore } from "@/stores/shift";
  * The variance shown here is arithmetic on figures the server gave, so the
  * cashier sees the consequence before confirming — the server computes it again
  * and is the one that decides (`CLAUDE.md` §5.1).
+ *
+ * **Counting is `TillCount`'s job, shared with opening** (D-052). It used to
+ * hide the keypad behind a tap on each figure and then take the whole dialog
+ * over, while opening a shift showed the keypad straight away — the same
+ * question in two shapes, so a cashier who learned one screen did not know the
+ * other.
  */
 const props = defineProps<{ open: boolean; settlementRequired: boolean }>();
 const emit = defineEmits<{ close: [] }>();
@@ -51,14 +57,16 @@ watch(
   },
 );
 
-/** Which method is being counted, if any — the keypad's subject (D-049). */
-const typing = ref<string | null>(null);
-
-function onKeypad(value: string): void {
-  if (typing.value) counted.value[typing.value] = value;
+function onCount(method: string, value: string): void {
+  counted.value[method] = value;
 }
 
 const tillRows = computed(() => report.value?.by_method.filter((row) => row.kind === "till") ?? []);
+
+/** What `TillCount` needs: a method and the figure it is measured against. */
+const countRows = computed<CountRow[]>(() =>
+  tillRows.value.map((row) => ({ method: row.method, expected: row.expected })),
+);
 const creditRows = computed(
   () => report.value?.by_method.filter((row) => row.kind === "credit") ?? [],
 );
@@ -102,30 +110,8 @@ function money(value: number): string {
     :dismissible="true"
     @close="emit('close')"
   >
-    <!--
-      The keypad takes the dialog over while one method is being counted. Here
-      the list stays a step of its own — unlike opening a shift, the figures
-      being entered are compared against what was expected, one per method, and
-      there is nothing to compare on a bare keypad.
-    -->
-    <div v-if="typing">
-      <AmountKeypad
-        class="mb-4"
-        :label="typing"
-        :value="counted[typing] || '0'"
-        @update="onKeypad"
-      />
-      <button
-        type="button"
-        class="min-h-tap w-full rounded-rpos bg-primary font-bold text-primary-contrast"
-        @click="typing = null"
-      >
-        {{ t("keypad.done") }}
-      </button>
-    </div>
-
     <p
-      v-else-if="!report"
+      v-if="!report"
       class="flex items-center gap-2 text-sm text-muted"
     >
       <AppIcon
@@ -153,34 +139,13 @@ function money(value: number): string {
         </dd>
       </dl>
 
-      <div class="mb-4 space-y-2">
-        <div
-          v-for="row in tillRows"
-          :key="row.method"
-        >
-          <div class="flex items-center gap-3">
-            <span class="min-w-0 flex-1 truncate text-sm font-medium">{{ row.method }}</span>
-            <span class="rpos-numeric w-24 text-end text-sm text-muted">{{
-              money(row.expected)
-            }}</span>
-            <button
-              type="button"
-              class="rpos-numeric min-h-tap w-28 rounded-rpos border border-line bg-background px-3 text-end text-lg font-semibold transition duration-200 ease-rpos enabled:hover:border-primary disabled:opacity-50"
-              :disabled="!settlementRequired"
-              @click="typing = row.method"
-            >
-              {{ money(Number(counted[row.method]) || 0) }}
-            </button>
-          </div>
-          <p
-            v-if="settlementRequired && Math.abs(varianceOf(row.method, row.expected)) >= 0.005"
-            class="rpos-numeric mt-1 text-end text-xs"
-            :class="varianceOf(row.method, row.expected) < 0 ? 'text-danger' : 'text-status-available'"
-          >
-            {{ money(varianceOf(row.method, row.expected)) }}
-          </p>
-        </div>
-      </div>
+      <TillCount
+        class="mb-4"
+        :rows="countRows"
+        :values="counted"
+        :readonly="!settlementRequired"
+        @update="onCount"
+      />
 
       <!--
         D-029 — reported, never reconciled. The platform has the money; the

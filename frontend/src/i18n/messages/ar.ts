@@ -198,7 +198,7 @@ const messages: Catalogue["messages"] = {
   "shift.stillOpen": "{count} فواتير ما زالت مفتوحة. أقفل اليوم رغم ذلك.",
   "shift.heldBy": "المناوبة مفتوحة باسم {name}",
   "keypad.decimal": "فاصلة عشرية",
-  "keypad.done": "تم",
+  "shift.expected": "المتوقَّع",
   "keypad.clear": "مسح",
   "keypad.back": "حذف",
   "order.paneItems": "الأصناف",

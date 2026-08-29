@@ -201,7 +201,8 @@ export const messages = {
   "shift.stillOpen": "{count} orders are still open. Close the day anyway.",
   "shift.heldBy": "{name} has the shift open",
   "keypad.decimal": "Decimal point",
-  "keypad.done": "Done",
+  /** The compact row label; `shift.tillExpected` is the summary line's. */
+  "shift.expected": "Expected",
   "keypad.clear": "Clear",
   "keypad.back": "Delete",
   "order.title": "Order",

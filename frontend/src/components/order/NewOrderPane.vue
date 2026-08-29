@@ -14,7 +14,9 @@ import type { OrderType } from "@/types/session";
  * cashier finds it again under **الطلبات**.
  *
  * The types are data, filtered by role, terminal and branch before they arrive
- * (FR-1.3). Nothing here is hardcoded.
+ * (FR-1.3). Nothing here is hardcoded — including whether a type seats people:
+ * that is `requires_table` on the type, because plenty of restaurants run
+ * dine-in with no table plan at all and the customer simply takes a seat.
  */
 const emit = defineEmits<{ open: [orderType: OrderType] }>();
 
@@ -54,9 +56,21 @@ function glyph(orderType: OrderType): string | null {
 }
 
 function subtitle(orderType: OrderType): string {
+  if (!available(orderType)) return t("order.customerPending");
   if (orderType.requires_table) return t("type.hintTable");
-  if (orderType.customer_mode === "required") return t("type.hintCustomer");
   return t("type.hintQuick");
+}
+
+/**
+ * A type that needs a customer cannot be opened until the customer picker
+ * exists (FR-2.1 step 4).
+ *
+ * Shown disabled with the reason rather than hidden: the manager configured it,
+ * so a cashier who cannot find it will ask whether the system is broken. The
+ * server refuses it either way — this only saves the cashier a raw error.
+ */
+function available(orderType: OrderType): boolean {
+  return orderType.customer_mode !== "required";
 }
 </script>
 
@@ -83,7 +97,8 @@ function subtitle(orderType: OrderType): string {
           v-for="orderType in session.orderTypes"
           :key="orderType.name"
           type="button"
-          class="flex h-[94px] items-center gap-4 rounded-rpos border border-line bg-surface px-4 text-start transition duration-200 ease-rpos hover:-translate-y-px hover:border-primary/40 hover:shadow-card"
+          class="flex h-[94px] items-center gap-4 rounded-rpos border border-line bg-surface px-4 text-start transition duration-200 ease-rpos enabled:hover:-translate-y-px enabled:hover:border-primary/40 enabled:hover:shadow-card disabled:cursor-not-allowed disabled:opacity-50"
+          :disabled="!available(orderType)"
           @click="emit('open', orderType)"
         >
           <span class="relative grid h-16 w-16 shrink-0 place-items-center overflow-hidden rounded-full">

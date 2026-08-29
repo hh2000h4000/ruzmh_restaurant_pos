@@ -494,3 +494,51 @@ class TestIdempotency(OrderTestBase):
 
 		order = frappe.get_doc("Restaurant Order", created["order_name"])
 		self.assertEqual(len(order.items), 2)
+
+
+class TestTableIsPerOrderType(OrderTestBase):
+	"""`requires_table` is a setting, not a rule about dine-in.
+
+	Plenty of restaurants run dine-in with no table plan: the customer takes a
+	seat and the cashier rings it up. Forcing a table on every dine-in order
+	would make the app unusable for them.
+	"""
+
+	def setUp(self):
+		self.original = frappe.db.get_value("Restaurant Order Type", self.dine_in, "requires_table")
+
+	def tearDown(self):
+		frappe.db.set_value("Restaurant Order Type", self.dine_in, "requires_table", self.original)
+		frappe.db.set_value("Restaurant Order Type", self.dine_in, "requires_cover_count", 1)
+		frappe.clear_cache(doctype="Restaurant Order Type")
+
+	def _seat_nobody(self):
+		frappe.db.set_value("Restaurant Order Type", self.dine_in, "requires_table", 0)
+		frappe.db.set_value("Restaurant Order Type", self.dine_in, "requires_cover_count", 0)
+		frappe.clear_cache(doctype="Restaurant Order Type")
+
+	def test_dine_in_without_tables_opens_straight_away(self):
+		self._seat_nobody()
+
+		order = self._order(order_type=self.dine_in)
+
+		self.assertIsNone(order.table)
+		self.assertEqual(order.status, "draft")
+
+	def test_the_order_still_belongs_to_the_terminal_s_hall(self):
+		"""The section is what tells the kitchen where to carry it (D-040)."""
+		self._seat_nobody()
+
+		order = self._order(order_type=self.dine_in)
+
+		self.assertEqual(order.section, self.section)
+
+	def test_a_table_may_still_be_given(self):
+		"""Off means optional, not forbidden — the floor pane can still seat it."""
+		self._seat_nobody()
+		table = frappe.db.get_value("Restaurant Table", {"section": self.section, "is_active": 1}, "name")
+		frappe.db.set_value("Restaurant Table", table, {"status": "available", "current_order": None})
+
+		order = self._order(order_type=self.dine_in, table=table)
+
+		self.assertEqual(order.table, table)

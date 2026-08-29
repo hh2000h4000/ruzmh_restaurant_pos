@@ -140,6 +140,13 @@ function onNavigate(key: string): void {
  * needed to allow it.
  */
 async function startAnother(orderType: OrderType): Promise<void> {
+  // FR-2.1 step 4 — its own flow, and it does not exist yet. The pane already
+  // greys these out; this is the guard behind the guard.
+  if (orderType.customer_mode === "required") return;
+
+  // **Only** when the type says so. A restaurant with no table plan opens
+  // dine-in and the customer takes a seat; `requires_table` is what decides,
+  // per type, and it always has been (05 §Restaurant Order Type).
   if (orderType.requires_table) {
     // A type that seats people picks the table first, so the order is never
     // created and then refused (FR-2.1 step 3).

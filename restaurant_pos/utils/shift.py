@@ -669,6 +669,34 @@ def selling_till(pos_profile: str) -> frappe._dict | None:
 	return _open_till(profile) if profile.branch_shift_type == "single" else _my_till(profile)
 
 
+def may_sell(pos_profile: str) -> bool:
+	"""BR-044 — may this terminal ring money **right now** (D-054, D-055).
+
+	Both halves: the branch's day, and a drawer this cashier's takings land in.
+
+	This is the whole rule, in one place, asked by everything that moves money —
+	the endpoints, and the session payload the screens gate on. A second copy of
+	it anywhere is a copy that will disagree with the endpoint that refuses.
+	"""
+	profile = _profile(pos_profile)
+
+	day = profile.restaurant_shift
+	if not (day and frappe.db.get_value("Restaurant Shift", day, "status") == "open"):
+		return False
+
+	return bool(_open_till(profile) if profile.branch_shift_type == "single" else _my_till(profile))
+
+
+def assert_may_sell(pos_profile: str) -> None:
+	"""Refuse anything that moves money while no shift is open (BR-044).
+
+	Selling, paying, refunding — a closed drawer means the takings have been
+	counted and handed over, so anything after it lands in no count at all.
+	"""
+	if not may_sell(pos_profile):
+		frappe.throw(_("Open a shift before taking orders."))
+
+
 def _tills_of(shift_name: str, *, status: str) -> list[str]:
 	return frappe.get_all(
 		"POS Opening Entry",

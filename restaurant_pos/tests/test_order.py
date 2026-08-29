@@ -263,6 +263,29 @@ class TestOrderCreation(OrderTestBase):
 		finally:
 			frappe.db.set_value("POS Opening Entry", till.name, "status", "Open")
 
+	def test_a_held_draft_cannot_be_paid_with_the_drawer_closed(self):
+		"""BR-044, D-055 — the hole the user found.
+
+		Refusing to add items was not enough: a draft held over from an earlier
+		shift could still be opened and paid, and the cash went into a drawer that
+		had been counted and handed over an hour earlier.
+		"""
+		from restaurant_pos.utils import payment as payment_service
+		from restaurant_pos.utils import shift as shift_service
+
+		order = self._order()
+		service.add_item(order, item=self.item)
+
+		till = shift_service.selling_till(self.profile)
+		frappe.db.set_value("POS Opening Entry", till.name, "status", "Closed")
+		try:
+			with self.assertRaises(frappe.ValidationError):
+				payment_service.process_payment(
+					order, payments=[{"method": "Cash", "amount": order.total_amount}]
+				)
+		finally:
+			frappe.db.set_value("POS Opening Entry", till.name, "status", "Open")
+
 	def test_an_inactive_order_type_is_refused(self):
 		frappe.db.set_value("Restaurant Order Type", self.order_type, "is_active", 0)
 		frappe.clear_cache(doctype="Restaurant Order Type")

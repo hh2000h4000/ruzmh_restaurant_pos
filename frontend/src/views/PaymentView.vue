@@ -32,6 +32,8 @@ const discountValue = ref(0);
 const overrideToken = ref<string | null>(null);
 const busy = ref(false);
 const failure = ref<string | null>(null);
+/** BR-044 — shown above the columns rather than replacing them (D-055). */
+const shiftNotice = ref<string | null>(null);
 const done = ref<paymentApi.PaymentResult | null>(null);
 
 // Manager approval (FR-10.4, Screen 9)
@@ -52,7 +54,15 @@ const forcedMethod = computed(
   () => summary.value?.payment_methods.find((method) => method.is_forced)?.payment_method ?? null,
 );
 const canConfirm = computed(
-  () => !busy.value && lines.value.length > 0 && remaining.value <= 0.005 && !done.value,
+  () =>
+    !busy.value &&
+    lines.value.length > 0 &&
+    remaining.value <= 0.005 &&
+    !done.value &&
+    // BR-044 — a drawer that has been counted takes no more money, and a bill
+    // held over from an earlier shift is exactly how that used to happen
+    // (D-055). The server refuses it too.
+    session.canSell,
 );
 const needsApproval = computed(() => Boolean(preview.value?.requires_override));
 
@@ -70,6 +80,9 @@ onMounted(async () => {
     if (summary.value.already_paid) {
       failure.value = t("pay.alreadyPaid", { invoice: summary.value.sales_invoice ?? "" });
     }
+    // Said on arrival, not discovered at the confirm button: the cashier has a
+    // customer in front of them and needs to know before they count the cash.
+    if (!session.canSell) shiftNotice.value = t("home.shiftRequired");
   } catch (cause) {
     failure.value = cause instanceof Error ? cause.message : String(cause);
   }
@@ -181,6 +194,14 @@ async function confirm(): Promise<void> {
       <span class="rpos-numeric text-xs text-muted">{{ orderName }}</span>
     </header>
 
+    <p
+      v-if="shiftNotice && !done"
+      role="alert"
+      class="m-3 mb-0 rounded-rpos bg-status-reserved/10 p-3 text-sm text-status-reserved"
+    >
+      {{ shiftNotice }}
+    </p>
+
     <!-- Paid: the receipt state, with no way back into an invoiced order. -->
     <section
       v-if="done"
@@ -201,13 +222,30 @@ async function confirm(): Promise<void> {
       <p class="rpos-numeric mb-6 text-sm text-muted">
         {{ done.sales_invoice }}
       </p>
-      <button
-        type="button"
-        class="min-h-tap w-full rounded-rpos bg-primary px-4 font-medium text-primary-contrast"
-        @click="router.push({ name: 'home' })"
-      >
-        {{ t("pay.newOrder") }}
-      </button>
+
+      <!--
+        Straight into the next order (D-055). This used to be one button back to
+        a till screen that no longer exists, which put the change on screen and
+        then made the cashier find their way to the start again — with a queue
+        waiting. `?pane=new` lands on the order types; the second button is for
+        the cashier who wants to look at the floor first.
+      -->
+      <div class="flex flex-col gap-2">
+        <button
+          type="button"
+          class="min-h-tap w-full rounded-rpos bg-primary px-4 font-bold text-primary-contrast"
+          @click="router.push({ name: 'home', query: { pane: 'new' } })"
+        >
+          {{ t("pay.newOrder") }}
+        </button>
+        <button
+          type="button"
+          class="min-h-tap w-full rounded-rpos border border-line px-4 font-medium"
+          @click="router.push({ name: 'home' })"
+        >
+          {{ t("nav.orders") }}
+        </button>
+      </div>
     </section>
 
     <p

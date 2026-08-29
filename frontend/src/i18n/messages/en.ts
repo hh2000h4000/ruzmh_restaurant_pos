@@ -1,4 +1,4 @@
-/**
+﻿/**
  * English is the **source of truth for the key set**, not the default language.
  *
  * `MessageKey` and `PluralKey` are derived from this file, so every other
@@ -18,7 +18,6 @@ export const messages = {
   "action.remove": "Remove",
   "action.authorize": "Authorize",
   "common.loading": "Loading…",
-  "common.soon": "Not built yet",
   "common.listSeparator": ", ",
   "currency.sar": "SAR",
   /** The language this button switches **to**, written in that language. */
@@ -46,10 +45,8 @@ export const messages = {
   // Home
   "home.newOrder": "Open a new order",
   "home.noOrderTypes": "No order type is available on this device.",
-  "home.shiftOpen": "Shift open",
   "home.shiftClosed": "No open shift",
   "home.shiftRequired": "Open a shift before adding items or taking orders.",
-  "home.shiftFromDesk": "A shift is opened from the Restaurant Shift screen for now.",
   "home.openOrders": "Open orders",
   "home.openOrdersUnit": "open orders",
   "type.hintTable": "Pick a table",
@@ -59,8 +56,6 @@ export const messages = {
   "home.openOrdersFailed": "The open orders could not be loaded.",
   "home.scopeMine": "Mine",
   "home.scopeAll": "All",
-  "home.cashierOnDuty": "On duty",
-  "home.floorPlan": "Floor plan",
   "home.search": "Search open orders…",
   "home.searchEmpty": "Nothing matches that.",
   "home.viewList": "List view",
@@ -72,16 +67,11 @@ export const messages = {
   "home.logout": "Sign out",
   "home.logoutConfirm": "Sign out of this terminal?",
   "home.logoutBody": "Open orders stay on the floor. The next cashier signs in on the same device.",
-  "home.appName": "Point of Sale",
-  "home.closedInvoices": "Closed invoices",
-  "home.reservations": "Reservations",
-  "home.shiftReport": "Shift report",
 
   // Order cards and statuses
   "card.table": "Table {number}",
   "card.amount": "Amount",
   "card.number": "Order no.",
-  "card.openedAt": "Opened",
   "card.itemCount": "Items",
   "card.cashier": "Cashier",
   "card.type": "Type",
@@ -97,7 +87,6 @@ export const messages = {
 
   // Tables
   "tables.title": "Tables",
-  "tables.table": "Table",
   "tables.seatWhat": "Table {number} — which kind of order?",
   "tables.seatHint": "No order type asks for a table, so the choice is yours.",
   "tables.seatTitle": "Table {number}",
@@ -116,7 +105,6 @@ export const messages = {
 
   // Order screen
   "order.typeUnavailable": "That order type is not available on this device.",
-  "order.pickTableFirst": "Choose a table first.",
   "order.notRouted": "Not routed to a kitchen: {items} — printing on the cashier printer.",
   "order.sendToKitchen": "Send to kitchen",
   "order.pay": "Pay",
@@ -175,13 +163,11 @@ export const messages = {
   "customer.addAddress": "Another address",
   "customer.noAddresses": "No address saved for this customer yet.",
   "customer.withoutAddress": "Continue without one",
-  "customer.needed": "This order type needs a customer.",
   "note.placeholder": "Anything else…",
   "note.orderAction": "Order note",
   "note.orderTitle": "Note for the kitchen",
   "note.orderBody": "Printed on every station's ticket — use it for what applies to the whole order.",
   "nav.menu": "More",
-  "shift.goHome": "Till screen",
   "shift.openTill": "Open a shift",
   "shift.openTillTitle": "Open a new shift",
   "shift.openTillBody": "How much cash is in the till right now? Leave it at zero if you keep no float.",
@@ -205,9 +191,7 @@ export const messages = {
   "shift.expected": "Expected",
   "keypad.clear": "Clear",
   "keypad.back": "Delete",
-  "order.title": "Order",
   "order.paneItems": "Menu",
-  "order.save": "Save",
   "order.more": "More",
   "order.payWithTotal": "Pay {total}",
   "order.pendingSync": "Saved on this device — waiting for the connection to reach the server.",
@@ -218,8 +202,6 @@ export const messages = {
   "panel.addSame": "Add another",
   "panel.empty": "No items added yet.",
   "panel.swipeHint": "Swipe a line aside to remove it.",
-  "panel.count": "Items on this order",
-  "panel.opened": "Opened",
   "panel.covers": "Guests",
   "line.number": "Line",
   "line.item": "Item code",
@@ -278,10 +260,8 @@ export const messages = {
 
 export const plurals = {
   "count.items": { one: "{n} item", other: "{n} items" },
-  "count.covers": { one: "{n} guest", other: "{n} guests" },
   "count.seats": { one: "{n} seat", other: "{n} seats" },
   "count.minutes": { one: "{n} min", other: "{n} min" },
-  "count.openOrders": { one: "{n} open order", other: "{n} open orders" },
   "count.queued": { one: "{n} action waiting", other: "{n} actions waiting" },
   "count.syncFailed": { one: "{n} action failed", other: "{n} actions failed" },
 } as const;

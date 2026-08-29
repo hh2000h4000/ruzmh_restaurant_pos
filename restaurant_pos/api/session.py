@@ -187,7 +187,7 @@ def load_pos_session(pos_profile: str) -> dict:
 		# BR-044 — whether this cashier may ring a sale *now*: an open day and a
 		# drawer of their own. Answered by the server so no screen has to work
 		# it out, and so none of them can disagree with it (D-054).
-		"can_sell": _can_sell(profile, pos_profile),
+		"can_sell": _can_sell(pos_profile),
 		"items": items,
 		"item_groups": item_groups,
 		"promotions": _promotions(profile.branch),
@@ -433,17 +433,15 @@ def _active_shift(profile) -> dict | None:
 	return shift if shift and shift.status == "open" else None
 
 
-def _can_sell(profile, pos_profile: str) -> bool:
-	"""BR-044 — an open day *and* a drawer this cashier's sales land in (D-054).
+def _can_sell(pos_profile: str) -> bool:
+	"""BR-044 — the server's own answer, taken whole by every screen (D-054).
 
-	The day alone was what every screen read, and it is not the rule: closing a
-	till counts the money back in while the day carries on for whoever is next.
-	A terminal that kept selling after that count would put takings in no
-	drawer at all.
+	Not re-derived here: `shift.may_sell` is the same call the endpoints make
+	before they refuse, so the screen and the server cannot disagree.
 	"""
-	from restaurant_pos.utils.shift import selling_till
+	from restaurant_pos.utils.shift import may_sell
 
-	return bool(_active_shift(profile) and selling_till(pos_profile))
+	return may_sell(pos_profile)
 
 
 def _catalog(profile, order_types: list[dict]) -> tuple[list[dict], list[dict]]:

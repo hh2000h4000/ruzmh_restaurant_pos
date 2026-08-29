@@ -18,10 +18,18 @@ const router = createRouter({
       component: () => import("@/views/SelectProfileView.vue"),
       meta: { requiresSession: false },
     },
+    /**
+     * The till, with no bill in hand yet (D-055).
+     *
+     * It was a screen of its own — order types on the left, open orders on the
+     * right — and both of those are panes of the order screen, so it was a
+     * second way to do what this one already does. `name: "home"` is kept: it
+     * is still where "back to the floor" means.
+     */
     {
       path: "/",
       name: "home",
-      component: () => import("@/views/HomeView.vue"),
+      component: () => import("@/views/OrderView.vue"),
     },
     {
       path: "/tables/:orderType",

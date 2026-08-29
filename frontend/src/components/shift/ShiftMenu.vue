@@ -16,9 +16,12 @@ import { useShiftStore } from "@/stores/shift";
  * everything else one deliberate tap behind.
  *
  * **Only what exists.** The reference system lists eleven entries; we have
- * three. Nine disabled rows promising unbuilt screens is the mistake this
+ * four. Nine disabled rows promising unbuilt screens is the mistake this
  * project has avoided from the start, so the list grows as features land rather
  * than starting full of ghosts.
+ *
+ * There is no "till screen" entry any more: the orders screen **is** the till
+ * screen (D-055), so a row pointing at it would point at the page it is on.
  *
  * It hangs from the **end** of the bar, because that is where its own button
  * is — the last entry. A sheet opening at the other edge points at nothing.
@@ -39,10 +42,11 @@ const session = useSessionStore();
 const shift = useShiftStore();
 
 const entries = computed<MenuEntry[]>(() => {
-  const rows: MenuEntry[] = [{ key: "home", label: "shift.goHome", icon: "home" }];
+  const rows: MenuEntry[] = [];
 
   if (!shift.dayOpen) {
     rows.push({ key: "openTill", label: "shift.openTill", icon: "card" });
+    rows.push({ key: "logout", label: "home.logout", icon: "logout", destructive: true });
     return rows;
   }
 
@@ -60,6 +64,10 @@ const entries = computed<MenuEntry[]>(() => {
     detail: shift.state?.day.opened_at ? dateOnly(shift.state.day.opened_at) : undefined,
     destructive: true,
   });
+
+  // Last, and the only way out of the app now that the till screen is gone
+  // (D-055). Signing out by accident mid-rush is confirmed first.
+  rows.push({ key: "logout", label: "home.logout", icon: "logout", destructive: true });
 
   return rows;
 });

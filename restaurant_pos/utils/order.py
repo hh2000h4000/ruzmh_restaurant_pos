@@ -241,8 +241,12 @@ def assert_shift_open(shift: str | None, *, pos_profile: str) -> str:
 	# splitting a module to break it.
 	from restaurant_pos.utils import shift as shift_service
 
-	day_open = bool(shift) and frappe.db.get_value("Restaurant Shift", shift, "status") == "open"
-	if day_open and shift_service.selling_till(pos_profile):
+	shift_service.assert_may_sell(pos_profile)
+
+	# And the bill's own day, which is not the same question: a draft held over
+	# from a day that has since closed does not resume taking items just because
+	# somebody opened today's (D-055).
+	if shift and frappe.db.get_value("Restaurant Shift", shift, "status") == "open":
 		return shift
 
 	frappe.throw(_("Open a shift before taking orders."))

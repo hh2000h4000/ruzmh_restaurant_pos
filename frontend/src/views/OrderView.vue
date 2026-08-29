@@ -30,11 +30,22 @@ import type { FloorTable } from "@/api/table";
 import type { CatalogItem, OrderType } from "@/types/session";
 
 /**
- * Screen 3 — the screen a cashier spends the whole shift on.
+ * The till. Every screen a cashier uses, and the only one there is (D-055).
  *
- * Opens an existing order by name, or creates one for the order type the home
- * screen chose. Every action is a server call; nothing about the order is
- * decided here (`02_backend_rules.md`).
+ * It was Screen 3 of six, reached from a home screen that listed order types on
+ * the left and open orders on the right. Both of those are panes here, so that
+ * screen was a second way to do what this one already does — and a cashier who
+ * paid a bill was thrown back to it, out of the flow, to start the next one.
+ * It is gone; `/` is this.
+ *
+ * **It runs with no order in hand.** That is the resting state: the orders pane,
+ * the floor, the shift menu, and a bill panel that says there is nothing on it
+ * yet. A closed shift does not lock the screen either — the cashier can still
+ * read yesterday's orders; what a closed shift stops is money moving (BR-044),
+ * and that stop happens at the tap, with the reason attached.
+ *
+ * Every action is a server call; nothing about the order is decided here
+ * (`02_backend_rules.md`).
  */
 const route = useRoute();
 const router = useRouter();
@@ -63,61 +74,43 @@ onMounted(() => {
 });
 
 /**
- * Do what the address asked for: open that order, or create one of that type.
+ * Do what the address asked for: nothing, that order, or a new one of that type.
  *
- * Its own function because it is run again after a shift is opened from the
- * stop below — otherwise the cashier would fix the thing that blocked them and
- * still be looking at the message saying they were blocked.
+ * Run on every route change rather than only on mount, because the screen never
+ * unmounts now — paying a bill, tapping another order and starting a new one all
+ * land back here.
  */
 async function startFromRoute(): Promise<void> {
   startupError.value = null;
 
   const existing = route.params.orderName as string | undefined;
   if (existing) {
-    await orders.open(existing);
+    pane.value = "items";
+    if (existing !== orders.order?.order_name) await orders.open(existing);
     return;
   }
 
-  const typeName = route.params.orderType as string;
+  const typeName = route.params.orderType as string | undefined;
+  if (!typeName) {
+    // The resting state: no bill in hand, the floor in front of the cashier.
+    // `?pane=new` is how the payment screen says "straight into the next one".
+    orders.clear();
+    pane.value = route.query.pane === "new" ? "new" : "orders";
+    return;
+  }
+
   const type = session.orderTypes.find((candidate) => candidate.name === typeName);
   if (!type) {
     startupError.value = t("order.typeUnavailable");
     return;
   }
 
-  // BR-044 — and say so on the screen as well as in the dialog, so dismissing
-  // it does not leave a blank page with nothing on it to explain why.
-  if (!session.canSell) {
-    startupError.value = t("home.shiftRequired");
-    askingForShift.value = true;
-    return;
-  }
-
-  // A table-service order arrives here already created by the table picker, so
-  // reaching this branch means the cashier deep-linked past it.
-  if (type.requires_table) {
-    startupError.value = t("order.pickTableFirst");
-    return;
-  }
-
-  // FR-2.1 step 4 — the same detour a table type makes to the floor. The
-  // message is set as well as the dialog opened, so dismissing the picker
-  // leaves a screen that explains itself rather than an empty one.
-  if (type.customer_mode === "required") {
-    startupError.value = t("customer.needed");
-    customerFor.value = type;
-    pickingCustomer.value = true;
-    return;
-  }
-
-  const created = await orders.create({
-    order_type: type.name,
-    pos_profile: session.profile!.name,
-  });
-
-  if (created) {
-    await router.replace({ name: "order", params: { orderName: created } });
-  }
+  orders.clear();
+  // Where the cashier lands if the type cannot open right now — a closed shift,
+  // a table to pick, a customer to find. Never the menu pane with no bill under
+  // it, which is a wall of buttons that do nothing.
+  pane.value = "new";
+  await startAnother(type);
 }
 
 // --------------------------------------------------------------------------
@@ -130,14 +123,16 @@ async function startFromRoute(): Promise<void> {
  * Leaving the screen to look at the floor is what made the old flow feel like
  * two applications. Here the order in hand is never put down.
  */
-const pane = ref("items");
+const pane = ref("orders");
 const floorLayout = ref<"list" | "grid">("list");
 const {
   error: floorError,
   loading: floorLoading,
   maySeeEveryone: floorMaySeeEveryone,
   scope: floorScope,
+  search: floorSearch,
   searching: floorSearching,
+  sort: floorSort,
   view: floorView,
   visible: floorOrders,
 } = useOpenOrders();
@@ -177,7 +172,9 @@ function onNavigate(key: string): void {
   }
 
   menuOpen.value = false;
-  pane.value = key;
+  // The menu pane with no bill in hand is a wall of buttons that do nothing, so
+  // the tap lands where an order actually starts.
+  pane.value = key === "items" && !orders.order ? "new" : key;
 }
 
 // --------------------------------------------------------------------------
@@ -192,10 +189,19 @@ const closingDay = ref(false);
 function onMenu(key: string): void {
   menuOpen.value = false;
 
-  if (key === "home") void router.push({ name: "home" });
-  else if (key === "openTill") openingTill.value = true;
+  if (key === "openTill") openingTill.value = true;
   else if (key === "closeTill") closingTill.value = true;
   else if (key === "closeDay") closingDay.value = true;
+  else if (key === "logout") signingOut.value = true;
+}
+
+/** Confirmed, because signing out by accident mid-rush is a real annoyance. */
+const signingOut = ref(false);
+
+function signOut(): void {
+  // Frappe owns the session (04 §7); this app only sends the cashier to its
+  // logout and lets the redirect land wherever the site says.
+  window.location.href = "/api/method/logout";
 }
 
 /**
@@ -457,13 +463,10 @@ function openOrder(orderName: string): void {
   void router.replace({ name: "order", params: { orderName } });
 }
 
+/** The screen never unmounts, so the address is what tells it to change. */
 watch(
-  () => route.params.orderName,
-  (name) => {
-    if (typeof name === "string" && name && name !== orders.order?.order_name) {
-      void orders.open(name);
-    }
-  },
+  () => route.fullPath,
+  () => void startFromRoute(),
 );
 
 
@@ -802,17 +805,14 @@ async function send(): Promise<void> {
   -->
   <main class="grid h-full grid-rows-[minmax(0,1fr)] bg-background">
     <div class="grid min-h-0 grid-rows-[minmax(0,1fr)] p-5">
-      <p
-        v-if="startupError"
-        role="alert"
-        class="self-start rounded-rpos bg-danger/10 p-4 text-danger"
-      >
-        {{ startupError }}
-      </p>
-
+      <!--
+        Two columns while a bill is in hand, one when there is not: the working
+        column is the screen either way, and stretching it over the whole width
+        with nothing beside it is better than a permanent empty half.
+      -->
       <div
-        v-else-if="orders.order"
-        class="grid min-h-0 gap-4 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]"
+        class="grid min-h-0 gap-4"
+        :class="orders.order ? 'lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]' : ''"
       >
         <!--
           A column, not a row template. The notices below are `empty:hidden`, so
@@ -828,14 +828,50 @@ async function send(): Promise<void> {
         -->
         <div class="flex min-h-0 flex-col gap-3">
           <!-- What the order can do. Where the cashier goes is the bar along
-               the bottom; the two never mix (D-042). -->
+               the bottom; the two never mix (D-042). Nothing in hand, nothing
+               to act on — the row is not drawn rather than drawn all disabled. -->
           <OrderActionBar
+            v-if="orders.order"
             :actions="rowActions"
             :more="moreActions"
             @select="onAction"
           />
 
           <div class="flex flex-col gap-2 empty:hidden">
+            <!--
+              BR-044 — visible for as long as it is true, and it carries the way
+              out (D-055). The screen is not locked: the cashier can still read
+              the floor and yesterday's bills. What a closed drawer stops is
+              money moving, and that stop lands on the tap that moves it.
+
+              This also replaces the till screen's shift badge, which went with
+              that screen — and says more, because it says nothing at all while
+              a shift is open.
+            -->
+            <button
+              v-if="!session.canSell"
+              type="button"
+              class="flex min-h-tap items-center justify-between gap-3 rounded-rpos bg-status-reserved/10 px-3 text-sm font-semibold text-status-reserved transition duration-200 ease-rpos hover:bg-status-reserved/20"
+              @click="askingForShift = true"
+            >
+              <span class="flex items-center gap-2">
+                <AppIcon
+                  name="card"
+                  :size="18"
+                />
+                {{ t("home.shiftClosed") }}
+              </span>
+              <span class="underline">{{ t("shift.openTill") }}</span>
+            </button>
+
+            <p
+              v-if="startupError"
+              role="alert"
+              class="rounded-rpos bg-danger/10 p-3 text-sm text-danger"
+            >
+              {{ startupError }}
+            </p>
+
             <p
               v-if="orders.error"
               role="alert"
@@ -884,6 +920,8 @@ async function send(): Promise<void> {
           <OpenOrdersPanel
             v-else-if="pane === 'orders'"
             v-model:layout="floorLayout"
+            v-model:search="floorSearch"
+            v-model:sort="floorSort"
             class="min-h-0 flex-1"
             :orders="floorOrders"
             :loading="floorLoading"
@@ -929,11 +967,14 @@ async function send(): Promise<void> {
           </div>
         </div>
 
+        <!-- BR-044 — the Pay button obeys the same rule as the item tap: a
+             drawer that has been counted takes no more money (D-055). -->
         <OrderPanel
+          v-if="orders.order"
           :order="orders.order"
           :lines="orders.lines"
           :busy="locked"
-          :can-pay="!locked && !orders.isEmpty"
+          :can-pay="!locked && !orders.isEmpty && session.canSell"
           @void="askVoid"
           @repeat="repeat"
           @inspect="inspect"
@@ -941,6 +982,34 @@ async function send(): Promise<void> {
         />
       </div>
     </div>
+
+    <!-- The only way out of the app, so it asks first (D-055). -->
+    <BaseDialog
+      :open="signingOut"
+      :title="t('home.logoutConfirm')"
+      :dismissible="true"
+      @close="signingOut = false"
+    >
+      <p class="mb-4 text-sm text-muted">
+        {{ t("home.logoutBody") }}
+      </p>
+      <div class="flex gap-2">
+        <button
+          type="button"
+          class="min-h-tap flex-1 rounded-rpos border border-line"
+          @click="signingOut = false"
+        >
+          {{ t("action.undo") }}
+        </button>
+        <button
+          type="button"
+          class="min-h-tap flex-1 rounded-rpos bg-danger font-medium text-white"
+          @click="signOut"
+        >
+          {{ t("home.logout") }}
+        </button>
+      </div>
+    </BaseDialog>
 
     <!-- FR-2.11 — written on the ticket so the counter knows who to call. -->
     <BaseDialog

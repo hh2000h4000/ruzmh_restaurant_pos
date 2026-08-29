@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Arabic — the language this POS is built for.
  *
  * Typed as `Catalogue`, so a key added to `en.ts` and forgotten here stops the
@@ -16,7 +16,6 @@ const messages: Catalogue["messages"] = {
   "action.remove": "إزالة",
   "action.authorize": "تفويض",
   "common.loading": "جارٍ التحميل…",
-  "common.soon": "قيد التنفيذ",
   "common.listSeparator": "، ",
   "currency.sar": "ريال",
   "lang.other": "English",
@@ -44,10 +43,8 @@ const messages: Catalogue["messages"] = {
   "home.newOrder": "افتح طلباً جديداً",
   "home.noOrderTypes": "لا توجد أنواع طلبات متاحة على هذا الجهاز.",
   // «المناوبة» لا «الوردية» — الكلمة التي يستعملها المستخدم (D-049).
-  "home.shiftOpen": "المناوبة مفتوحة",
   "home.shiftClosed": "لا توجد مناوبة مفتوحة",
   "home.shiftRequired": "افتح المناوبة قبل إضافة أصناف أو استقبال الطلبات.",
-  "home.shiftFromDesk": "تُفتح المناوبة حالياً من شاشة Restaurant Shift في النظام.",
   "home.openOrders": "الطلبات المفتوحة",
   "home.openOrdersUnit": "طلب مفتوح",
   "type.hintTable": "يبدأ باختيار طاولة",
@@ -57,8 +54,6 @@ const messages: Catalogue["messages"] = {
   "home.openOrdersFailed": "تعذّر تحميل الطلبات المفتوحة.",
   "home.scopeMine": "طلباتي",
   "home.scopeAll": "الكل",
-  "home.cashierOnDuty": "على الجهاز",
-  "home.floorPlan": "مخطط الصالة",
   "home.search": "البحث في الطلبات المفتوحة…",
   "home.searchEmpty": "لا يوجد ما يطابق البحث.",
   "home.viewList": "عرض قائمة",
@@ -70,16 +65,11 @@ const messages: Catalogue["messages"] = {
   "home.logout": "تسجيل خروج",
   "home.logoutConfirm": "تسجيل الخروج من هذا الجهاز؟",
   "home.logoutBody": "الطلبات المفتوحة تبقى كما هي. الكاشير التالي يسجّل دخوله على نفس الجهاز.",
-  "home.appName": "نقطة البيع",
-  "home.closedInvoices": "فواتير مغلقة",
-  "home.reservations": "حجوزات",
-  "home.shiftReport": "تقرير الوردية",
 
   // Order cards and statuses
   "card.table": "طاولة {number}",
   "card.amount": "المبلغ",
   "card.number": "رقم الطلب",
-  "card.openedAt": "وقت الفتح",
   "card.itemCount": "عدد الأصناف",
   "card.cashier": "الكاشير",
   "card.type": "النوع",
@@ -95,7 +85,6 @@ const messages: Catalogue["messages"] = {
 
   // Tables
   "tables.title": "الطاولات",
-  "tables.table": "طاولة",
   "tables.seatWhat": "طاولة {number} — أي نوع طلب؟",
   "tables.seatHint": "لا يوجد نوع طلب يطلب طاولة، فالاختيار لك.",
   "tables.seatTitle": "طاولة {number}",
@@ -114,7 +103,6 @@ const messages: Catalogue["messages"] = {
 
   // Order screen
   "order.typeUnavailable": "نوع الطلب غير متاح على هذا الجهاز.",
-  "order.pickTableFirst": "اختر طاولة أولاً.",
   "order.notRouted": "لم يُوجَّه للمطبخ: {items} — ستُطبع على طابعة الكاشير.",
   "order.sendToKitchen": "إرسال للمطبخ",
   "order.pay": "دفع",
@@ -173,13 +161,11 @@ const messages: Catalogue["messages"] = {
   "customer.addAddress": "عنوان آخر",
   "customer.noAddresses": "لا يوجد عنوان محفوظ لهذا العميل.",
   "customer.withoutAddress": "المتابعة بدون عنوان",
-  "customer.needed": "هذا النوع من الطلبات يتطلب عميلاً.",
   "note.placeholder": "شيء آخر…",
   "note.orderAction": "ملاحظة الطلب",
   "note.orderTitle": "ملاحظة للمطبخ",
   "note.orderBody": "تُطبع على تذكرة كل محطة — استخدمها لما يخصّ الطلب كله.",
   "nav.menu": "المزيد",
-  "shift.goHome": "شاشة الكاشير",
   "shift.openTill": "فتح المناوبة",
   "shift.openTillTitle": "فتح مناوبة جديدة",
   "shift.openTillBody": "كم يوجد نقداً في الصندوق الآن؟ اتركه صفراً إن لم يكن فيه رصيد افتتاحي.",
@@ -203,8 +189,6 @@ const messages: Catalogue["messages"] = {
   "keypad.clear": "مسح",
   "keypad.back": "حذف",
   "order.paneItems": "الأصناف",
-  "order.title": "الطلب",
-  "order.save": "حفظ",
   "order.more": "المزيد",
   "order.payWithTotal": "دفع {total}",
   "order.pendingSync": "محفوظ على هذا الجهاز — بانتظار الاتصال ليصل الخادم.",
@@ -215,8 +199,6 @@ const messages: Catalogue["messages"] = {
   "panel.addSame": "إضافة مثله",
   "panel.swipeHint": "اسحب البند جانباً لحذفه.",
   "panel.empty": "لم تُضف أصناف بعد.",
-  "panel.count": "أصناف هذا الطلب",
-  "panel.opened": "فُتح",
   "panel.covers": "الضيوف",
   "line.number": "السطر",
   "line.item": "رمز الصنف",
@@ -286,14 +268,6 @@ const plurals: Catalogue["plurals"] = {
     many: "{n} صنفاً",
     other: "{n} صنف",
   },
-  "count.covers": {
-    zero: "بلا ضيوف",
-    one: "ضيف واحد",
-    two: "ضيفان",
-    few: "{n} ضيوف",
-    many: "{n} ضيفاً",
-    other: "{n} ضيف",
-  },
   "count.seats": {
     zero: "بلا كراسي",
     one: "كرسي واحد",
@@ -309,14 +283,6 @@ const plurals: Catalogue["plurals"] = {
     few: "{n} دقائق",
     many: "{n} دقيقة",
     other: "{n} دقيقة",
-  },
-  "count.openOrders": {
-    zero: "لا طلبات مفتوحة",
-    one: "طلب مفتوح",
-    two: "طلبان مفتوحان",
-    few: "{n} طلبات مفتوحة",
-    many: "{n} طلباً مفتوحاً",
-    other: "{n} طلب مفتوح",
   },
   "count.queued": {
     zero: "لا شيء بانتظار المزامنة",

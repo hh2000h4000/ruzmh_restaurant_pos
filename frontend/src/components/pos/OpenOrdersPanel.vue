@@ -32,6 +32,23 @@ const emit = defineEmits<{
 const layout = defineModel<"list" | "grid">("layout", { default: "list" });
 
 /**
+ * Finding one order, and choosing what comes first.
+ *
+ * Both lived in the till screen's chrome — a search box in the header, a sort
+ * sheet above the bottom bar. That screen is gone (D-055) and neither belonged
+ * to it: they act on *this list*, so they live on it, beside the controls that
+ * already do.
+ */
+const search = defineModel<string>("search", { default: "" });
+const sort = defineModel<"oldest" | "newest" | "amount">("sort", { default: "oldest" });
+
+const SORTS: { key: "oldest" | "newest" | "amount"; label: MessageKey }[] = [
+  { key: "oldest", label: "home.sortOldest" },
+  { key: "newest", label: "home.sortNewest" },
+  { key: "amount", label: "home.sortAmount" },
+];
+
+/**
  * The four questions this pane can ask the server (D-042).
  *
  * Tabs, not a filter over what is already here: today's closed orders were
@@ -111,6 +128,37 @@ const VIEWS: { key: OrderView; label: MessageKey }[] = [
             </button>
           </div>
         </div>
+      </div>
+
+      <div class="mb-4 flex flex-wrap items-center gap-2.5">
+        <label class="flex min-w-[220px] flex-1 items-center gap-2 rounded-rpos bg-background px-3">
+          <AppIcon
+            name="search"
+            :size="20"
+            class="shrink-0 text-muted"
+          />
+          <input
+            v-model="search"
+            type="search"
+            class="min-h-tap w-full bg-transparent"
+            :placeholder="t('home.search')"
+            :aria-label="t('home.search')"
+          >
+        </label>
+
+        <select
+          v-model="sort"
+          class="min-h-tap shrink-0 rounded-rpos bg-background px-3 text-sm font-semibold text-muted"
+          :aria-label="t('home.sort')"
+        >
+          <option
+            v-for="option in SORTS"
+            :key="option.key"
+            :value="option.key"
+          >
+            {{ t(option.label) }}
+          </option>
+        </select>
       </div>
 
       <!-- Which orders, asked of the server. Only where more than the open

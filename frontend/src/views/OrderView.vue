@@ -125,6 +125,9 @@ const {
  * a filled block among four signposts turns a bar into an advertisement.
  */
 const navEntries = computed<NavEntry[]>(() => [
+  // First, where the hand starts: a new order is the commonest thing asked of
+  // this bar, and the reading edge is the cheapest place to reach.
+  { key: "new", label: "nav.new", icon: "plus" },
   { key: "items", label: "order.paneItems", icon: "grid" },
   {
     key: "orders",
@@ -133,7 +136,6 @@ const navEntries = computed<NavEntry[]>(() => [
     count: floorView.value === "open" ? floorOrders.value.length : 0,
   },
   { key: "tables", label: "nav.tables", icon: "floorPlan" },
-  { key: "new", label: "nav.new", icon: "plus" },
   // D-048 — the till's occasional operations, and the way home. A menu rather
   // than four more places nobody visits during a rush.
   { key: "menu", label: "nav.menu", icon: "more" },

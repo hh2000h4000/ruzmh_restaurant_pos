@@ -19,6 +19,9 @@ import { useShiftStore } from "@/stores/shift";
  * three. Nine disabled rows promising unbuilt screens is the mistake this
  * project has avoided from the start, so the list grows as features land rather
  * than starting full of ghosts.
+ *
+ * It hangs from the **end** of the bar, because that is where its own button
+ * is — the last entry. A sheet opening at the other edge points at nothing.
  */
 export interface MenuEntry {
   key: string;
@@ -70,7 +73,7 @@ const heldBy = computed(() =>
 <template>
   <div
     v-if="open"
-    class="absolute bottom-full z-30 mb-2 w-72 overflow-hidden rounded-rpos border border-line bg-surface shadow-lift start-0"
+    class="absolute bottom-full z-30 mb-2 w-72 overflow-hidden rounded-rpos border border-line bg-surface shadow-lift end-0"
   >
     <p
       v-if="heldBy"

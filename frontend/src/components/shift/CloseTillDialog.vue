@@ -4,6 +4,7 @@ import { computed, ref, watch } from "vue";
 import type { ShiftReport } from "@/api/shift";
 import AppIcon from "@/components/AppIcon.vue";
 import BaseDialog from "@/components/BaseDialog.vue";
+import AmountKeypad from "@/components/shift/AmountKeypad.vue";
 import { formatNumber, t } from "@/i18n";
 import { useShiftStore } from "@/stores/shift";
 
@@ -50,6 +51,14 @@ watch(
   },
 );
 
+/** Which method is being counted, if any — the keypad's subject (D-049). */
+const typing = ref<string | null>(null);
+
+function onKeypad(value: string): void {
+  if (typing.value) counted.value[typing.value] = value;
+  typing.value = null;
+}
+
 const tillRows = computed(() => report.value?.by_method.filter((row) => row.kind === "till") ?? []);
 const creditRows = computed(
   () => report.value?.by_method.filter((row) => row.kind === "credit") ?? [],
@@ -90,12 +99,20 @@ function money(value: number): string {
 <template>
   <BaseDialog
     :open="open"
-    :title="t('shift.closeTillTitle')"
+    :title="typing ? t('keypad.title', { method: typing }) : t('shift.closeTillTitle')"
     :dismissible="true"
     @close="emit('close')"
   >
+    <!-- The keypad takes the dialog over while a figure is being counted. -->
+    <AmountKeypad
+      v-if="typing"
+      :value="counted[typing] || '0'"
+      @close="typing = null"
+      @confirm="onKeypad"
+    />
+
     <p
-      v-if="!report"
+      v-else-if="!report"
       class="flex items-center gap-2 text-sm text-muted"
     >
       <AppIcon
@@ -133,14 +150,14 @@ function money(value: number): string {
             <span class="rpos-numeric w-24 text-end text-sm text-muted">{{
               money(row.expected)
             }}</span>
-            <input
-              v-model="counted[row.method]"
-              type="number"
-              inputmode="decimal"
-              step="0.05"
-              class="rpos-numeric min-h-tap w-28 rounded-rpos border border-line bg-background px-3 text-end disabled:opacity-50"
+            <button
+              type="button"
+              class="rpos-numeric min-h-tap w-28 rounded-rpos border border-line bg-background px-3 text-end text-lg font-semibold transition duration-200 ease-rpos enabled:hover:border-primary disabled:opacity-50"
               :disabled="!settlementRequired"
+              @click="typing = row.method"
             >
+              {{ money(Number(counted[row.method]) || 0) }}
+            </button>
           </div>
           <p
             v-if="settlementRequired && Math.abs(varianceOf(row.method, row.expected)) >= 0.005"

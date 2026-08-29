@@ -426,7 +426,19 @@ async function send(): Promise<void> {
         v-else-if="orders.order"
         class="grid min-h-0 gap-4 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]"
       >
-        <div class="grid min-h-0 grid-rows-[auto_auto_minmax(0,1fr)_auto] gap-3">
+        <!--
+          A column, not a row template. The notices below are `empty:hidden`, so
+          on a quiet screen they are not a grid item at all — and every child
+          after them slid up a row: the menu took the `auto` track and the nav
+          took `minmax(0, 1fr)`, which stretched it to 374px. It came right
+          again the moment an error appeared, which is why it looked like the
+          bar changed size on its own.
+
+          Flex asks each child what it wants instead of counting them, so the
+          pane grows and the two bars keep their own height whatever is on
+          screen.
+        -->
+        <div class="flex min-h-0 flex-col gap-3">
           <!-- What the order can do. Where the cashier goes is the bar along
                the bottom; the two never mix (D-042). -->
           <OrderActionBar
@@ -469,7 +481,7 @@ async function send(): Promise<void> {
 
           <div
             v-if="pane === 'items'"
-            class="grid min-h-0 grid-rows-[minmax(0,1fr)] rounded-rpos bg-surface p-4 shadow-card"
+            class="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)] rounded-rpos bg-surface p-4 shadow-card"
           >
             <ItemPicker
               :order-type="orderType"
@@ -484,6 +496,7 @@ async function send(): Promise<void> {
           <OpenOrdersPanel
             v-else-if="pane === 'orders'"
             v-model:layout="floorLayout"
+            class="min-h-0 flex-1"
             :orders="floorOrders"
             :loading="floorLoading"
             :error="floorError"
@@ -498,12 +511,14 @@ async function send(): Promise<void> {
 
           <FloorPane
             v-else-if="pane === 'tables'"
+            class="min-h-0 flex-1"
             @seat="seat"
             @open="openOrder"
           />
 
           <NewOrderPane
             v-else
+            class="min-h-0 flex-1"
             @open="startAnother"
           />
 

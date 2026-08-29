@@ -13,6 +13,11 @@ import { formatNumber, t, type MessageKey } from "@/i18n";
  * This replaces the tab strip from `D-039`. Same job, and one control is better
  * than two — the reference system puts it here, a thumb rests here, and the
  * entries read as places rather than as a filter over the menu.
+ *
+ * **It sits under the working column, not across the window.** The bill runs
+ * the full height beside it: it is the tallest thing on the screen because it
+ * is the thing being read. A bar spanning both columns would cut the bill off
+ * at the ankles to make room for a control that has nothing to do with it.
  */
 export interface NavEntry {
   key: string;
@@ -29,7 +34,7 @@ const emit = defineEmits<{ select: [key: string] }>();
 </script>
 
 <template>
-  <nav class="flex shrink-0 items-center gap-2 border-t border-line bg-surface px-4 py-2.5 shadow-bar">
+  <nav class="flex shrink-0 items-center gap-2 rounded-rpos bg-surface px-3 py-2 shadow-card">
     <button
       v-for="entry in entries"
       :key="entry.key"

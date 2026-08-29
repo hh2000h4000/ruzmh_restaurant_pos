@@ -412,7 +412,7 @@ async function send(): Promise<void> {
     order's number, state, type and customer are on the bill; the way back is
     the button beside the tabs.
   -->
-  <main class="grid h-full grid-rows-[minmax(0,1fr)_auto] bg-background">
+  <main class="grid h-full grid-rows-[minmax(0,1fr)] bg-background">
     <div class="grid min-h-0 grid-rows-[minmax(0,1fr)] p-5">
       <p
         v-if="startupError"
@@ -426,7 +426,7 @@ async function send(): Promise<void> {
         v-else-if="orders.order"
         class="grid min-h-0 gap-4 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]"
       >
-        <div class="grid min-h-0 grid-rows-[auto_auto_minmax(0,1fr)] gap-3">
+        <div class="grid min-h-0 grid-rows-[auto_auto_minmax(0,1fr)_auto] gap-3">
           <!-- What the order can do. Where the cashier goes is the bar along
                the bottom; the two never mix (D-042). -->
           <OrderActionBar
@@ -506,6 +506,14 @@ async function send(): Promise<void> {
             v-else
             @open="startAnother"
           />
+
+          <!-- Under the working column, so the bill beside it keeps the full
+               height of the screen (06 Screen 3). -->
+          <OrderBottomNav
+            :entries="navEntries"
+            :active="pane"
+            @select="onNavigate"
+          />
         </div>
 
         <OrderPanel
@@ -520,12 +528,6 @@ async function send(): Promise<void> {
         />
       </div>
     </div>
-
-    <OrderBottomNav
-      :entries="navEntries"
-      :active="pane"
-      @select="onNavigate"
-    />
 
     <LineDetailDialog
       :line="inspecting"

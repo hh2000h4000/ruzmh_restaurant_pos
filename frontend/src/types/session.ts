@@ -209,6 +209,14 @@ export interface PosSession {
   order_types: OrderType[];
   payment_methods: { mode_of_payment: string; default: 0 | 1 }[];
   active_shift: Shift | null;
+  /**
+   * BR-044 — may this cashier ring a sale right now (D-054).
+   *
+   * The server's own answer: an open day *and* a drawer their sales land in.
+   * The screens gate on this rather than reading `active_shift`, which is only
+   * the day — closing a till counts the money back in while the day carries on.
+   */
+  can_sell: boolean;
   items: CatalogItem[];
   item_groups: ItemGroup[];
   promotions: Promotion[];

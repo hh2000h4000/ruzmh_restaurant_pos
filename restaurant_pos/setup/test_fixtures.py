@@ -295,7 +295,11 @@ def _cash_method(company: str) -> str:
 
 
 def open_test_shift(profile: str = PROFILE) -> str:
-	"""An open shift for the terminal — BR-044 refuses every sale without one."""
+	"""An open day **and** an open drawer — BR-044 refuses a sale without both.
+
+	The day alone was enough until `D-054`: closing a till hands the money back
+	while the day carries on, and a sale after that count belongs to no drawer.
+	"""
 	branch = frappe.db.get_value(
 		"Restaurant Section", frappe.db.get_value("POS Profile", profile, "restaurant_section"), "branch"
 	)
@@ -320,4 +324,8 @@ def open_test_shift(profile: str = PROFILE) -> str:
 		)
 
 	frappe.db.set_value("POS Profile", profile, "restaurant_shift", shift)
+
+	from restaurant_pos.utils import shift as shift_service
+
+	shift_service.open_till(pos_profile=profile)
 	return shift

@@ -86,6 +86,11 @@ export const useShiftStore = defineStore("shift", () => {
     );
     if (!done) return false;
 
+    // The session payload carries the shift the terminal sells under, and
+    // BR-044 reads it on every screen — so closing a drawer has to re-read it
+    // too. Without this the till was closed on the server while the browser
+    // still believed a shift was open, and the item guard never fired.
+    await session.load(session.profile!.name);
     await refresh();
     return true;
   }

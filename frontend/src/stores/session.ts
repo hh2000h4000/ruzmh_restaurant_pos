@@ -25,10 +25,15 @@ export const useSessionStore = defineStore("session", () => {
   const isLoaded = computed(() => data.value !== null);
   const profile = computed(() => data.value?.pos_profile ?? null);
   const branch = computed(() => data.value?.pos_profile.branch ?? null);
-  const shift = computed(() => data.value?.active_shift ?? null);
-
-  /** BR-044 — no sales without an open shift, so the UI gates on this. */
-  const hasOpenShift = computed(() => shift.value?.status === "open");
+  /**
+   * BR-044 — may this cashier ring a sale right now (D-054).
+   *
+   * The server's answer, taken whole. It used to be `active_shift.status`,
+   * which is the **day** — so a cashier who closed their till kept selling,
+   * because the day was still open behind them. The rule (an open day and a
+   * drawer of their own) lives on the server; nothing here re-derives it.
+   */
+  const canSell = computed(() => data.value?.can_sell === true);
 
   const orderTypes = computed<OrderType[]>(() => data.value?.order_types ?? []);
   const items = computed<CatalogItem[]>(() => data.value?.items ?? []);
@@ -135,8 +140,7 @@ export const useSessionStore = defineStore("session", () => {
     isLoaded,
     profile,
     branch,
-    shift,
-    hasOpenShift,
+    canSell,
     orderTypes,
     items,
     itemsByCode,

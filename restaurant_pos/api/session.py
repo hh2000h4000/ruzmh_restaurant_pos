@@ -184,6 +184,10 @@ def load_pos_session(pos_profile: str) -> dict:
 		"order_types": order_types,
 		"payment_methods": _payment_methods(pos_profile),
 		"active_shift": _active_shift(profile),
+		# BR-044 — whether this cashier may ring a sale *now*: an open day and a
+		# drawer of their own. Answered by the server so no screen has to work
+		# it out, and so none of them can disagree with it (D-054).
+		"can_sell": _can_sell(profile, pos_profile),
 		"items": items,
 		"item_groups": item_groups,
 		"promotions": _promotions(profile.branch),
@@ -427,6 +431,19 @@ def _active_shift(profile) -> dict | None:
 		as_dict=True,
 	)
 	return shift if shift and shift.status == "open" else None
+
+
+def _can_sell(profile, pos_profile: str) -> bool:
+	"""BR-044 — an open day *and* a drawer this cashier's sales land in (D-054).
+
+	The day alone was what every screen read, and it is not the rule: closing a
+	till counts the money back in while the day carries on for whoever is next.
+	A terminal that kept selling after that count would put takings in no
+	drawer at all.
+	"""
+	from restaurant_pos.utils.shift import selling_till
+
+	return bool(_active_shift(profile) and selling_till(pos_profile))
 
 
 def _catalog(profile, order_types: list[dict]) -> tuple[list[dict], list[dict]]:

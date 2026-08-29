@@ -182,6 +182,26 @@ class TestLoadPosSession(OrderTestBase):
 		self.assertIsNotNone(payload["active_shift"])
 		self.assertEqual(payload["active_shift"]["status"], "open")
 
+	def test_a_closed_drawer_stops_the_terminal_selling(self):
+		"""BR-044, D-054 — the screens gate on this, so it must be the real rule.
+
+		`active_shift` is only the day, and it stays open when a cashier hands
+		their drawer back. Every screen read that, so closing a till left the
+		till still selling.
+		"""
+		from restaurant_pos.utils import shift as shift_service
+
+		self.assertTrue(self._load()["can_sell"])
+
+		till = shift_service.selling_till(self.profile)
+		frappe.db.set_value("POS Opening Entry", till.name, "status", "Closed")
+		try:
+			payload = self._load()
+			self.assertIsNotNone(payload["active_shift"], "the day is still open")
+			self.assertFalse(payload["can_sell"], "but there is no drawer to sell into")
+		finally:
+			frappe.db.set_value("POS Opening Entry", till.name, "status", "Open")
+
 	def test_a_closed_shift_is_reported_as_none(self):
 		"""BR-044 — the UI must be able to force an open-shift screen."""
 		shift = frappe.db.get_value("POS Profile", self.profile, "restaurant_shift")

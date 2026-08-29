@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { computed, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 
@@ -87,7 +87,7 @@ async function startFromRoute(): Promise<void> {
 
   // BR-044 — and say so on the screen as well as in the dialog, so dismissing
   // it does not leave a blank page with nothing on it to explain why.
-  if (!session.hasOpenShift) {
+  if (!session.canSell) {
     startupError.value = t("home.shiftRequired");
     askingForShift.value = true;
     return;
@@ -479,13 +479,13 @@ watch(
  * item was already tapped. The tiles stay live on purpose — a greyed-out menu
  * explains nothing, and "why can I not sell" is the question being answered.
  *
- * `session.hasOpenShift` is the flag the server itself gates on — the
+ * `session.canSell` is the flag the server itself gates on — the
  * terminal's `restaurant_shift` — so the two cannot disagree.
  */
 const askingForShift = ref(false);
 
 function maySell(): boolean {
-  if (session.hasOpenShift) return true;
+  if (session.canSell) return true;
 
   askingForShift.value = true;
   return false;
@@ -506,7 +506,7 @@ function openShiftFromNotice(): void {
  */
 function onTillOpened(): void {
   openingTill.value = false;
-  if (session.hasOpenShift && startupError.value) void startFromRoute();
+  if (session.canSell && startupError.value) void startFromRoute();
 }
 
 /** FR-2.2 — an item with modifier groups opens the popup first. */
@@ -565,7 +565,7 @@ watch(
 async function changeQty(idx: number, qty: number): Promise<void> {
   // The detail dialog closes first: two stacked dialogs both answer Escape,
   // and one key would dismiss both (D-049).
-  if (!session.hasOpenShift) {
+  if (!session.canSell) {
     inspecting.value = null;
     maySell();
     return;

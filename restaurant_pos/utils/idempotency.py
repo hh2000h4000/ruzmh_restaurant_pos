@@ -61,6 +61,14 @@ def remember(
 			"action": action,
 			"reference_doctype": reference_doctype,
 			"reference_name": reference_name,
-			"response": response,
+			# Serialised here, not left to the field.
+			#
+			# Handing a dict to a text field makes Frappe reach for a plain
+			# `json.dumps`, which has no encoder for a datetime and raises
+			# "Object of type datetime is not JSON serializable" — a 500 from
+			# whichever endpoint happened to return one. `close_till` did: its
+			# report carries `opened_at`, so closing a shift failed at the last
+			# step, after the drawer had already been counted.
+			"response": frappe.as_json(response),
 		}
 	).insert(ignore_permissions=True)

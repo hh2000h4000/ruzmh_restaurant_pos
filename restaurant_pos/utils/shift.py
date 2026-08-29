@@ -621,27 +621,52 @@ def _open_day(profile) -> frappe._dict | None:
 	)
 
 
+#: What the screen and the selling gate both need to know about a drawer.
+TILL_FIELDS = ["name", "user", "period_start_date"]
+
+
+def _my_till(profile) -> frappe._dict | None:
+	return frappe.db.get_value(
+		"POS Opening Entry",
+		{"pos_profile": profile.name, "user": frappe.session.user, "status": "Open", "docstatus": 1},
+		TILL_FIELDS,
+		as_dict=True,
+	)
+
+
+def _any_till(profile) -> frappe._dict | None:
+	return frappe.db.get_value(
+		"POS Opening Entry",
+		{"pos_profile": profile.name, "status": "Open", "docstatus": 1},
+		TILL_FIELDS,
+		as_dict=True,
+	)
+
+
 def _open_till(profile) -> frappe._dict | None:
 	"""The drawer open on this terminal — this user's first, then anyone's.
 
 	A ``single`` branch shares one drawer, so the second cashier finds the one
 	already open rather than a locked screen.
 	"""
-	mine = frappe.db.get_value(
-		"POS Opening Entry",
-		{"pos_profile": profile.name, "user": frappe.session.user, "status": "Open", "docstatus": 1},
-		["name", "user", "period_start_date"],
-		as_dict=True,
-	)
-	if mine:
-		return mine
+	return _my_till(profile) or _any_till(profile)
 
-	return frappe.db.get_value(
-		"POS Opening Entry",
-		{"pos_profile": profile.name, "status": "Open", "docstatus": 1},
-		["name", "user", "period_start_date"],
-		as_dict=True,
-	)
+
+def selling_till(pos_profile: str) -> frappe._dict | None:
+	"""The drawer this cashier's sales would land in, if there is one (BR-044).
+
+	**A day is not enough.** Closing a till hands the drawer back and counts it;
+	the day stays open for whoever comes next. A sale rung up after that count
+	belongs to no drawer at all — it shows in the day's takings and in nobody's
+	close, which is the one place a shortage is meant to be traceable to a
+	person.
+
+	``single`` shares one drawer, so whichever is open on the terminal is the
+	answer. ``multi`` gives each cashier their own, and selling into somebody
+	else's is how a difference lands on the wrong name.
+	"""
+	profile = _profile(pos_profile)
+	return _open_till(profile) if profile.branch_shift_type == "single" else _my_till(profile)
 
 
 def _tills_of(shift_name: str, *, status: str) -> list[str]:

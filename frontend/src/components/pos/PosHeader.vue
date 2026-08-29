@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from "vue";
 
 import AppIcon from "@/components/AppIcon.vue";
@@ -96,12 +96,12 @@ onUnmounted(() => window.clearInterval(clock));
       <span
         class="hidden rounded-full px-3 py-1.5 text-sm font-medium lg:block"
         :class="
-          session.hasOpenShift
+          session.canSell
             ? 'bg-status-available/10 text-status-available'
             : 'bg-status-reserved/10 text-status-reserved'
         "
       >
-        {{ session.hasOpenShift ? t("home.shiftOpen") : t("home.shiftClosed") }}
+        {{ session.canSell ? t("home.shiftOpen") : t("home.shiftClosed") }}
       </span>
 
       <LocaleToggle />

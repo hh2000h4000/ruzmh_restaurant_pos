@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 
@@ -191,7 +191,7 @@ const SORT_OPTIONS = [
       text was written before the shift API existed.
     -->
     <section
-      v-if="!session.hasOpenShift"
+      v-if="!session.canSell"
       class="m-auto max-w-md self-center justify-self-center rounded-rpos bg-surface p-10 text-center shadow-card"
     >
       <span class="mb-3 inline-block text-muted opacity-40">

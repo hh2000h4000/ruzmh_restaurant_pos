@@ -114,7 +114,7 @@ def create_order(
 	section = section_of_table(table, profile)
 	_assert_order_type_allowed(config, profile, section)
 
-	shift = assert_shift_open(profile.restaurant_shift)
+	shift = assert_shift_open(profile.restaurant_shift, pos_profile=profile.name)
 
 	order = frappe.get_doc(
 		{
@@ -219,16 +219,30 @@ def _assert_order_type_allowed(config, profile, section: str | None = None) -> N
 		)
 
 
-def assert_shift_open(shift: str | None) -> str:
+def assert_shift_open(shift: str | None, *, pos_profile: str) -> str:
 	"""BR-044 — the one place that decides a terminal may sell.
 
-	Both halves of the rule come through here: the terminal must point at an
-	open day before an order exists, and the order's own day must still be open
-	before anything more goes on the bill. A bill that kept growing after the
-	day closed would leave the shift report short by whatever was rung up after
-	the count — money taken that no close accounted for.
+	Two things have to be true, and both are checked every time:
+
+	1. **The day is open.** The terminal's before an order exists, and the
+	   order's own before anything more goes on the bill — a bill that kept
+	   growing after the day closed would leave the report short by whatever was
+	   rung up after the count.
+	2. **A drawer is open for this cashier.** Closing a till hands the money back
+	   and counts it while the day carries on for whoever is next; a sale after
+	   that count belongs to no drawer, and a shortage stops being traceable to
+	   anybody (D-054).
+
+	One message for both, because one button fixes both: opening a till opens
+	the day too when nobody has.
 	"""
-	if shift and frappe.db.get_value("Restaurant Shift", shift, "status") == "open":
+	# Imported here, not at the top: `shift` reads `payment`, and `payment`
+	# reads this module. A real cycle, and one lazy import is cheaper than
+	# splitting a module to break it.
+	from restaurant_pos.utils import shift as shift_service
+
+	day_open = bool(shift) and frappe.db.get_value("Restaurant Shift", shift, "status") == "open"
+	if day_open and shift_service.selling_till(pos_profile):
 		return shift
 
 	frappe.throw(_("Open a shift before taking orders."))
@@ -406,8 +420,8 @@ def add_item(
 ) -> "frappe.Document":
 	"""Add a line to an open order (FR-2.2)."""
 	assert_mutable(order)
-	# BR-044 — the bill stops growing when the day it belongs to closes.
-	assert_shift_open(order.restaurant_shift)
+	# BR-044 — the bill stops growing when the shift it belongs to closes.
+	assert_shift_open(order.restaurant_shift, pos_profile=order.pos_profile)
 
 	if flt(qty) <= 0:
 		frappe.throw(_("Quantity must be greater than zero."))
@@ -595,7 +609,7 @@ def set_item_qty(order, *, item_idx: int, qty: float) -> dict:
 	"""
 	assert_mutable(order)
 	# BR-044 — raising a quantity is adding food, and it obeys the same rule.
-	assert_shift_open(order.restaurant_shift)
+	assert_shift_open(order.restaurant_shift, pos_profile=order.pos_profile)
 
 	if flt(qty) <= 0:
 		frappe.throw(_("Quantity must be greater than zero."))

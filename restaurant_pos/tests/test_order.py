@@ -106,7 +106,26 @@ def _ensure_shift(profile: str) -> str:
 		)
 
 	frappe.db.set_value("POS Profile", profile, "restaurant_shift", shift)
+	_ensure_till(profile)
 	return shift
+
+
+def _ensure_till(profile: str) -> None:
+	"""A drawer as well as a day — BR-044 needs both (D-054).
+
+	Opened as Administrator through the real service rather than by writing a
+	`POS Opening Entry` here: a fixture that builds the document by hand is a
+	second definition of what an open till is, and the one the tests trust would
+	be the one the app does not use.
+	"""
+	from restaurant_pos.utils import shift as shift_service
+
+	user = frappe.session.user
+	frappe.set_user("Administrator")
+	try:
+		shift_service.open_till(pos_profile=profile)
+	finally:
+		frappe.set_user(user)
 
 
 class OrderTestBase(FrappeTestCase):
@@ -225,6 +244,24 @@ class TestOrderCreation(OrderTestBase):
 				service.set_item_qty(order, item_idx=1, qty=3)
 		finally:
 			frappe.db.set_value("Restaurant Shift", shift, "status", "open")
+
+	def test_no_sales_without_an_open_drawer(self):
+		"""BR-044, D-054 — a day is not enough; the money needs a till.
+
+		Closing a drawer counts it and hands it back while the day carries on for
+		whoever is next. A sale rung up after that count belongs to no drawer at
+		all: it shows in the day's takings and in nobody's close, which is the one
+		place a shortage is meant to be traceable to a person.
+		"""
+		from restaurant_pos.utils import shift as shift_service
+
+		till = shift_service.selling_till(self.profile)
+		frappe.db.set_value("POS Opening Entry", till.name, "status", "Closed")
+		try:
+			with self.assertRaises(frappe.ValidationError):
+				self._order()
+		finally:
+			frappe.db.set_value("POS Opening Entry", till.name, "status", "Open")
 
 	def test_an_inactive_order_type_is_refused(self):
 		frappe.db.set_value("Restaurant Order Type", self.order_type, "is_active", 0)

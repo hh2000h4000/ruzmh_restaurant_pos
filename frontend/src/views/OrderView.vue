@@ -110,9 +110,9 @@ const {
 /**
  * The four places, along the bottom (D-042).
  *
- * "New" is marked as the way forward rather than a place, because it is the one
- * entry that changes something: it leaves the order in hand open — it has been
- * a real record on the server since it was created — and starts another.
+ * "New" sits among them rather than above them. It is the one entry that
+ * changes something — it leaves the order in hand open and starts another — but
+ * a filled block among four signposts turns a bar into an advertisement.
  */
 const navEntries = computed<NavEntry[]>(() => [
   { key: "items", label: "order.paneItems", icon: "grid" },
@@ -123,7 +123,7 @@ const navEntries = computed<NavEntry[]>(() => [
     count: floorView.value === "open" ? floorOrders.value.length : 0,
   },
   { key: "tables", label: "nav.tables", icon: "floorPlan" },
-  { key: "new", label: "nav.new", icon: "plus", primary: true },
+  { key: "new", label: "nav.new", icon: "plus" },
 ]);
 
 function onNavigate(key: string): void {

@@ -25,6 +25,14 @@ import { formatNumber, t, type MessageKey } from "@/i18n";
  * bar stacks and is 70px tall because it carries the day's work; this one only
  * says where you are. At 48px it is exactly the minimum a finger needs
  * (`--rpos-tap-target`) and not a pixel more.
+ *
+ * **Fixed width, not stretched.** Entries sized to the bar make each button a
+ * quarter of the screen wide, which reads as four slabs rather than four
+ * signposts — and the widths then shift whenever the column does. 104px spaced
+ * evenly keeps the bar the same shape on every terminal.
+ *
+ * Every entry carries the same weight. One filled block among four is a shout,
+ * and what would be shouted is navigation.
  */
 export interface NavEntry {
   key: string;
@@ -32,8 +40,6 @@ export interface NavEntry {
   icon: IconName;
   /** Shown as a badge; omitted when there is nothing to count. */
   count?: number;
-  /** Marked as the way forward rather than a place you are already in. */
-  primary?: boolean;
 }
 
 defineProps<{ entries: NavEntry[]; active: string }>();
@@ -41,26 +47,27 @@ const emit = defineEmits<{ select: [key: string] }>();
 </script>
 
 <template>
-  <nav class="flex shrink-0 items-center gap-1 rounded-rpos bg-surface p-1 shadow-card">
+  <nav class="flex shrink-0 items-center justify-around gap-1 rounded-rpos bg-surface p-1 shadow-card">
     <button
       v-for="entry in entries"
       :key="entry.key"
       type="button"
-      class="flex h-tap flex-1 items-center justify-center gap-2 rounded-[0.75rem] text-sm font-semibold transition duration-200 ease-rpos"
-      :class="[
-        entry.primary
-          ? 'bg-primary text-primary-contrast shadow-card hover:shadow-lift'
-          : active === entry.key
-            ? 'bg-primary/10 text-primary'
-            : 'text-muted hover:bg-background hover:text-content',
-      ]"
+      class="flex h-tap w-[104px] shrink-0 items-center justify-center gap-2 rounded-[0.75rem] text-sm font-semibold transition duration-200 ease-rpos"
+      :class="
+        active === entry.key
+          ? 'bg-primary/10 text-primary'
+          : 'text-muted hover:bg-background hover:text-content'
+      "
       :aria-current="active === entry.key ? 'page' : undefined"
       @click="emit('select', entry.key)"
     >
-      <span class="relative shrink-0">
+      <span
+        class="relative shrink-0"
+        :class="active === entry.key ? '' : 'text-primary'"
+      >
         <AppIcon
           :name="entry.icon"
-          :size="20"
+          :size="18"
         />
         <span
           v-if="entry.count"

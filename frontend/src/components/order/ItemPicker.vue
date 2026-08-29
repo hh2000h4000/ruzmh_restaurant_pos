@@ -160,16 +160,16 @@ function priceOf(item: CatalogItem): number | null {
 <template>
   <!-- A search field over one scrolling grid: whichever grid the state calls
        for, it is the only thing on this panel that moves. -->
-  <div class="grid min-h-0 grid-rows-[auto_minmax(0,1fr)] gap-3">
-    <div class="flex flex-col gap-3">
-      <div class="flex flex-wrap items-center gap-3">
+  <div class="grid min-h-0 grid-rows-[auto_minmax(0,1fr)] gap-2">
+    <div class="flex flex-col gap-2.5">
+      <div class="flex flex-wrap items-center gap-2.5">
         <label
           class="sr-only"
           for="item-search"
         >{{ t("picker.search") }}</label>
         <div class="relative min-w-0 flex-1">
           <span
-            class="pointer-events-none absolute inset-y-0 start-4 grid place-items-center text-muted"
+            class="pointer-events-none absolute inset-y-0 start-3.5 grid place-items-center text-muted"
           >
             <AppIcon
               name="search"
@@ -181,16 +181,16 @@ function priceOf(item: CatalogItem): number | null {
             v-model="search"
             type="search"
             :placeholder="t('picker.search')"
-            class="h-[52px] w-full rounded-full bg-background ps-12 pe-4 text-base outline-none transition duration-200 ease-rpos focus:bg-surface focus:ring-2 focus:ring-primary/30"
+            class="h-[46px] w-full rounded-full bg-background ps-11 pe-4 text-base outline-none transition duration-200 ease-rpos focus:bg-surface focus:ring-2 focus:ring-primary/30"
           >
         </div>
 
         <!-- Set the quantity, then tap the item. -->
-        <div class="flex h-[52px] shrink-0 items-center gap-1 rounded-full bg-background px-2">
+        <div class="flex h-[46px] shrink-0 items-center gap-1 rounded-full bg-background px-2">
           <span class="ps-2 text-sm font-medium text-muted">{{ t("picker.qty") }}</span>
           <button
             type="button"
-            class="grid h-11 w-11 place-items-center rounded-full text-muted transition duration-200 ease-rpos hover:bg-surface disabled:opacity-40"
+            class="grid h-10 w-10 place-items-center rounded-full text-muted transition duration-200 ease-rpos hover:bg-surface disabled:opacity-40"
             :disabled="qty <= 1"
             :aria-label="t('picker.qtyLess')"
             @click="bumpQty(-1)"
@@ -206,7 +206,7 @@ function priceOf(item: CatalogItem): number | null {
           >{{ formatNumber(qty) }}</span>
           <button
             type="button"
-            class="grid h-11 w-11 place-items-center rounded-full text-muted transition duration-200 ease-rpos hover:bg-surface disabled:opacity-40"
+            class="grid h-10 w-10 place-items-center rounded-full text-muted transition duration-200 ease-rpos hover:bg-surface disabled:opacity-40"
             :disabled="qty >= 99"
             :aria-label="t('picker.qtyMore')"
             @click="bumpQty(1)"
@@ -232,13 +232,13 @@ function priceOf(item: CatalogItem): number | null {
     <!-- Search wins over whatever else is on screen. -->
     <div
       v-if="search.trim()"
-      class="grid auto-rows-min grid-cols-2 gap-2.5 overflow-y-auto sm:grid-cols-3 2xl:grid-cols-4"
+      class="grid auto-rows-min content-start grid-cols-2 gap-2 overflow-y-auto sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5"
     >
       <button
         v-for="item in searchResults"
         :key="item.item_code"
         type="button"
-        class="flex min-h-[5.5rem] flex-col justify-between rounded-rpos border border-line bg-surface p-3 text-start transition duration-200 ease-rpos hover:-translate-y-px hover:border-primary/40 hover:shadow-card disabled:cursor-not-allowed disabled:opacity-40"
+        class="flex min-h-[4.5rem] flex-col justify-between rounded-rpos border border-line bg-surface p-3 text-start transition duration-200 ease-rpos hover:-translate-y-px hover:border-primary/40 hover:shadow-card disabled:cursor-not-allowed disabled:opacity-40"
         :disabled="priceOf(item) === null || disabled"
         @click="pick(item)"
       >
@@ -263,7 +263,7 @@ function priceOf(item: CatalogItem): number | null {
     <!-- A group was opened from a layout button or the fallback browser. -->
     <div
       v-else-if="activeGroup"
-      class="grid min-h-0 grid-rows-[auto_minmax(0,1fr)] gap-2.5"
+      class="grid min-h-0 grid-rows-[auto_minmax(0,1fr)] gap-2"
     >
       <button
         type="button"
@@ -277,12 +277,12 @@ function priceOf(item: CatalogItem): number | null {
         />
         {{ t("action.back") }}
       </button>
-      <div class="grid auto-rows-min grid-cols-2 gap-2.5 overflow-y-auto sm:grid-cols-3 2xl:grid-cols-4">
+      <div class="grid auto-rows-min content-start grid-cols-2 gap-2 overflow-y-auto sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
         <button
           v-for="item in groupItems"
           :key="item.item_code"
           type="button"
-          class="flex min-h-[5.5rem] flex-col justify-between rounded-rpos border border-line bg-surface p-3 text-start transition duration-200 ease-rpos hover:-translate-y-px hover:border-primary/40 hover:shadow-card disabled:cursor-not-allowed disabled:opacity-40"
+          class="flex min-h-[4.5rem] flex-col justify-between rounded-rpos border border-line bg-surface p-3 text-start transition duration-200 ease-rpos hover:-translate-y-px hover:border-primary/40 hover:shadow-card disabled:cursor-not-allowed disabled:opacity-40"
           :disabled="priceOf(item) === null || disabled"
           @click="pick(item)"
         >
@@ -299,14 +299,21 @@ function priceOf(item: CatalogItem): number | null {
       </div>
     </div>
 
-    <!-- The configured layout (FR-3.1). Its colours come from the designer, so
-         they are inline styles rather than tokens. -->
+    <!--
+      The configured layout (FR-3.1). Its colours come from the designer, so
+      they are inline styles rather than tokens.
+
+      `content-start` is what keeps a button a button. A grid taller than its
+      rows stretches `auto` rows to fill it by default, so six tiles in a screen
+      of space became six slabs a third of the pane tall each — and the fewer
+      the buttons, the more absurd it looked.
+    -->
     <div
       v-else-if="layout"
-      class="grid gap-2.5 overflow-y-auto"
+      class="grid content-start gap-2 overflow-y-auto"
       :style="{
         gridTemplateColumns: `repeat(${layout.grid_columns}, minmax(0, 1fr))`,
-        gridAutoRows: 'minmax(5.5rem, auto)',
+        gridAutoRows: 'minmax(4.5rem, auto)',
       }"
     >
       <button
@@ -325,13 +332,13 @@ function priceOf(item: CatalogItem): number | null {
     <!-- No layout configured: browse by group. -->
     <div
       v-else
-      class="grid auto-rows-min grid-cols-2 gap-2.5 overflow-y-auto sm:grid-cols-3 2xl:grid-cols-4"
+      class="grid auto-rows-min content-start grid-cols-2 gap-2 overflow-y-auto sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5"
     >
       <button
         v-for="group in groups"
         :key="group.name"
         type="button"
-        class="flex min-h-[5.5rem] items-center justify-center rounded-rpos border border-line bg-surface p-3 text-center font-semibold transition duration-200 ease-rpos hover:-translate-y-px hover:border-primary/40 hover:shadow-card"
+        class="flex min-h-[4.5rem] items-center justify-center rounded-rpos border border-line bg-surface p-3 text-center font-semibold transition duration-200 ease-rpos hover:-translate-y-px hover:border-primary/40 hover:shadow-card"
         @click="activeGroup = group.name"
       >
         {{ group.item_group_name }}

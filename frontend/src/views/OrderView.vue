@@ -390,6 +390,11 @@ async function changeQty(idx: number, qty: number): Promise<void> {
   await orders.setQty(idx, qty);
 }
 
+/** FR-2.9 — the dialog stays open: the cashier can see it took. */
+async function changeLineNotes(idx: number, notes: string | null): Promise<void> {
+  await orders.setLineNotes(idx, notes);
+}
+
 function voidFromDetail(line: OrderLine): void {
   inspecting.value = null;
   askVoid(line);
@@ -834,6 +839,7 @@ async function send(): Promise<void> {
       :busy="locked"
       @close="inspecting = null"
       @set-qty="changeQty"
+      @set-notes="changeLineNotes"
       @void="voidFromDetail"
     />
 

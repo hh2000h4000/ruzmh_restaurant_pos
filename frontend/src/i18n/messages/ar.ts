@@ -146,6 +146,7 @@ const messages: Catalogue["messages"] = {
   "covers.title": "كم عدد الضيوف؟",
   "covers.body": "هذا النوع من الطلبات يسجّل عدد الضيوف.",
   "action.save": "حفظ",
+  "note.saveLine": "حفظ الملاحظة",
   "note.placeholder": "شيء آخر…",
   "note.orderAction": "ملاحظة الطلب",
   "note.orderTitle": "ملاحظة للمطبخ",

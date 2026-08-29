@@ -224,3 +224,18 @@ export function setOrderNotes(payload: {
 }): Promise<OrderSummary & { notes: string | null; changed: boolean }> {
   return mutate("order.set_order_notes", payload);
 }
+
+/**
+ * Change one line's note (FR-2.9).
+ *
+ * Not deferrable: when the line is already with the kitchen the server also
+ * corrects the station's ticket, and a note the kitchen was not told is a note
+ * that did not happen.
+ */
+export function setItemNotes(payload: {
+  order_name: string;
+  item_idx: number;
+  notes: string | null;
+}): Promise<OrderSummary & { item_idx: number; notes: string | null; changed: boolean }> {
+  return mutate("order.set_item_notes", payload);
+}

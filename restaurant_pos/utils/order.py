@@ -1007,3 +1007,36 @@ def set_order_notes(order, *, notes: str | None) -> dict:
 
 	tickets = kitchen.restamp_order(order) if _has_sent_lines(order) else []
 	return {"notes": order.notes, "changed": True, "kots": tickets}
+
+
+def set_item_notes(order, *, item_idx: int, notes: str | None) -> dict:
+	"""Change one line's note — for any item, at any time (FR-2.9).
+
+	**Any item.** A note used to be reachable only through the modifier popup,
+	which opens only for items that have modifier groups: a plain dish could
+	never be given one. Every line takes a note.
+
+	**At any time.** Unlike a quantity (``set_item_qty``), a note may be changed
+	after the kitchen has the line — "actually, no onion" is the commonest thing
+	a customer says once the order is in. The station's ticket is corrected so
+	it never disagrees with the bill; a note the kitchen was not told is a note
+	that did not happen.
+	"""
+	assert_mutable(order)
+
+	row = next((line for line in order.items if line.idx == cint(item_idx)), None)
+	if not row:
+		frappe.throw(_("Row #{0} is not on this order.").format(item_idx))
+
+	if row.status == "void":
+		frappe.throw(_("Row #{0} is voided.").format(item_idx))
+
+	cleaned = (notes or "").strip() or None
+	if cleaned == row.notes:
+		return {"item_idx": row.idx, "notes": row.notes, "changed": False}
+
+	row.notes = cleaned
+	order.save(ignore_permissions=True)
+
+	told = kitchen.restamp_item(order, row) if row.status == "sent" else []
+	return {"item_idx": row.idx, "notes": row.notes, "changed": True, "kots": told}

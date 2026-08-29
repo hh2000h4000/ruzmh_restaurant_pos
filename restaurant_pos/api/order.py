@@ -146,6 +146,28 @@ def set_item_qty(
 
 
 @frappe.whitelist()
+def set_item_notes(
+	order_name: str,
+	item_idx: int,
+	notes: str | None = None,
+	queue_id: str | None = None,
+) -> dict:
+	"""Change one line's note (FR-2.9)."""
+	replay = idempotency.previous_result(queue_id)
+	if replay is not None:
+		return replay
+
+	order = _load(order_name)
+	outcome = service.set_item_notes(order, item_idx=item_idx, notes=notes)
+
+	result = dict(_summary(order), **outcome)
+	idempotency.remember(
+		queue_id, "set_item_notes", result, reference_doctype="Restaurant Order", reference_name=order.name
+	)
+	return result
+
+
+@frappe.whitelist()
 def void_item(
 	order_name: str,
 	item_idx: int,

@@ -4,6 +4,7 @@ import { computed, ref, watch } from "vue";
 import type { OrderLine } from "@/api/order";
 import AppIcon from "@/components/AppIcon.vue";
 import BaseDialog from "@/components/BaseDialog.vue";
+import NoteEditor from "@/components/order/NoteEditor.vue";
 import { formatNumber, pick, t } from "@/i18n";
 import { useSessionStore } from "@/stores/session";
 
@@ -24,20 +25,40 @@ const props = defineProps<{ line: OrderLine | null; busy?: boolean }>();
 const emit = defineEmits<{
   close: [];
   setQty: [idx: number, qty: number];
+  setNotes: [idx: number, notes: string | null];
   void: [line: OrderLine];
 }>();
 
 const session = useSessionStore();
 
 const qty = ref(1);
+const notes = ref("");
 
 watch(
   () => props.line,
   (line) => {
     qty.value = line ? line.qty : 1;
+    notes.value = line?.notes ?? "";
   },
   { immediate: true },
 );
+
+/**
+ * FR-2.9 — every line takes a note, and this is where.
+ *
+ * It used to be reachable only through the modifier popup, which opens only for
+ * items that have modifier groups: a plain dish could never be given one.
+ *
+ * Unlike the quantity, it stays editable after the kitchen has the line —
+ * "actually, no onion" is the commonest thing a customer says once the order is
+ * in, and the server corrects the station's ticket to match.
+ */
+const notesChanged = computed(() => notes.value.trim() !== (props.line?.notes ?? ""));
+
+function applyNotes(): void {
+  if (!props.line || !notesChanged.value) return;
+  emit("setNotes", props.line.idx, notes.value.trim() || null);
+}
 
 /** BR-013 — a line the kitchen already has is withdrawn, not edited. */
 const editable = computed(() => props.line?.status === "pending");
@@ -137,18 +158,25 @@ function apply(): void {
             {{ modifiers }}
           </dd>
         </div>
-        <div
-          v-if="line.notes"
-          class="col-span-2 min-w-0"
-        >
-          <dt class="text-sm text-muted">
-            {{ t("mod.note") }}
-          </dt>
-          <dd class="font-medium">
-            {{ line.notes }}
-          </dd>
-        </div>
       </dl>
+
+      <!-- FR-2.9 — any item, and still editable once the kitchen has it. -->
+      <p class="mb-1.5 text-sm font-medium">
+        {{ t("mod.note") }}
+      </p>
+      <NoteEditor
+        v-model="notes"
+        class="mb-3"
+        scope="item"
+      />
+      <button
+        type="button"
+        class="mb-4 min-h-tap w-full rounded-rpos bg-primary font-medium text-primary-contrast disabled:opacity-40"
+        :disabled="busy || !notesChanged"
+        @click="applyNotes"
+      >
+        {{ t("note.saveLine") }}
+      </button>
 
       <p
         v-if="!editable"

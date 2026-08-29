@@ -305,3 +305,71 @@ class TestOrderNoteReachesEveryStation(KitchenTestBase):
 
 		self.assertEqual(seen[self.grill][ITEM], "بدون بصل")
 		self.assertIsNone(seen[self.fryer][ITEM_DRINK])
+
+
+class TestItemNotesAreAlwaysReachable(KitchenTestBase):
+	"""FR-2.9 — every line takes a note, whatever the item and whenever asked.
+
+	A note used to be reachable only through the modifier popup, which opens
+	only for items that have modifier groups: a plain dish could never be given
+	one at all.
+	"""
+
+	def test_a_plain_item_takes_a_note(self):
+		order = self._order()
+		orders.add_item(order, item=ITEM, qty=1)
+
+		orders.set_item_notes(order, item_idx=1, notes="بدون بصل")
+
+		self.assertEqual(order.items[0].notes, "بدون بصل")
+
+	def test_a_note_after_the_kitchen_has_the_line_corrects_the_ticket(self):
+		"""'Actually, no onion' is the commonest thing said once the order is in."""
+		order = self._order_with((ITEM, self.grill))
+		service.send_to_kitchen(order)
+
+		orders.set_item_notes(order, item_idx=1, notes="بدون بصل")
+
+		row = frappe.get_all(
+			"KOT Item",
+			filters={"parent": order.items[0].kot_reference, "item": ITEM},
+			fields=["notes"],
+		)
+		self.assertTrue(row)
+		self.assertEqual(row[0].notes, "بدون بصل")
+
+	def test_no_second_ticket_is_made(self):
+		"""BR-073 — a duplicate ticket is how a kitchen cooks an order twice."""
+		order = self._order_with((ITEM, self.grill))
+		service.send_to_kitchen(order)
+		before = frappe.db.count("Kitchen Order Ticket", {"restaurant_order": order.name})
+
+		orders.set_item_notes(order, item_idx=1, notes="بدون بصل")
+
+		self.assertEqual(frappe.db.count("Kitchen Order Ticket", {"restaurant_order": order.name}), before)
+
+	def test_clearing_it_clears_the_ticket_too(self):
+		order = self._order_with((ITEM, self.grill))
+		orders.set_item_notes(order, item_idx=1, notes="بدون بصل")
+		service.send_to_kitchen(order)
+
+		orders.set_item_notes(order, item_idx=1, notes="")
+
+		self.assertIsNone(order.items[0].notes)
+		row = frappe.get_all(
+			"KOT Item", filters={"parent": order.items[0].kot_reference, "item": ITEM}, fields=["notes"]
+		)
+		self.assertIsNone(row[0].notes)
+
+	def test_a_voided_line_is_refused(self):
+		order = self._order_with((ITEM, self.grill))
+		orders.void_item(order, item_idx=1, reason="test")
+
+		with self.assertRaises(frappe.ValidationError):
+			orders.set_item_notes(order, item_idx=1, notes="بدون بصل")
+
+	def test_an_unknown_row_is_refused(self):
+		order = self._order_with((ITEM, self.grill))
+
+		with self.assertRaises(frappe.ValidationError):
+			orders.set_item_notes(order, item_idx=99, notes="بدون بصل")

@@ -283,3 +283,39 @@ def restamp_order(order, previous_title: str | None = None) -> list[dict]:
 		)
 
 	return [{"kot_name": ticket.name, "production_center": ticket.production_center} for ticket in tickets]
+
+
+def restamp_item(order, row) -> list[dict]:
+	"""Correct one line's note on the ticket the station is holding (FR-2.9).
+
+	No new ticket: nothing was added or withdrawn, and a second ticket for the
+	same dish is how a kitchen cooks an order twice (BR-073). The row on the
+	existing ticket is corrected and the station is told, so a KDS re-renders
+	and a reprint shows the truth.
+	"""
+	if not row.kot_reference:
+		return []
+
+	target = frappe.db.get_value(
+		"KOT Item",
+		{"parent": row.kot_reference, "parenttype": "Kitchen Order Ticket", "item": row.item},
+		"name",
+	)
+	if not target:
+		return []
+
+	frappe.db.set_value("KOT Item", target, "notes", row.notes, update_modified=False)
+
+	center = frappe.db.get_value("Kitchen Order Ticket", row.kot_reference, "production_center")
+	frappe.publish_realtime(
+		event="rpos:kot_updated",
+		message={
+			"kot": row.kot_reference,
+			"restaurant_order": order.name,
+			"item": row.item,
+			"notes": row.notes,
+		},
+		room=f"rpos:pc:{center}",
+	)
+
+	return [{"kot_name": row.kot_reference, "production_center": center}]

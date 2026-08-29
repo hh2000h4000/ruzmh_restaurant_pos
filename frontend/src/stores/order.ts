@@ -170,6 +170,20 @@ export const useOrderStore = defineStore("order", () => {
     return true;
   }
 
+  /** FR-2.9 — one line's note. Any item, and after the kitchen has it. */
+  async function setLineNotes(idx: number, notes: string | null): Promise<boolean> {
+    if (!order.value) return false;
+
+    const orderName = order.value.order_name;
+    const done = await run(() =>
+      orderApi.setItemNotes({ order_name: orderName, item_idx: idx, notes }),
+    );
+
+    if (!done) return false;
+    await open(orderName);
+    return true;
+  }
+
   /** FR-2.9 — the note every station reads. */
   async function setNotes(notes: string | null): Promise<boolean> {
     if (!order.value) return false;
@@ -243,6 +257,7 @@ export const useOrderStore = defineStore("order", () => {
     changeType,
     seat,
     setNotes,
+    setLineNotes,
     voidLine,
     cancel,
     sendToKitchen,

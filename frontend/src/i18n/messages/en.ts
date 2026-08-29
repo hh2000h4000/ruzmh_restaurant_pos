@@ -149,6 +149,7 @@ export const messages = {
   "covers.title": "How many guests?",
   "covers.body": "This order type records the number of guests.",
   "action.save": "Save",
+  "note.saveLine": "Save note",
   "note.placeholder": "Anything else…",
   "note.orderAction": "Order note",
   "note.orderTitle": "Note for the kitchen",

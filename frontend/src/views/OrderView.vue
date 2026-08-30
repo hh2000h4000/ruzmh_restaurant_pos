@@ -68,21 +68,13 @@ const orderType = computed(
 /**
  * Nothing on this bill may change.
  *
- * `session.canSell` is in here, not only on the item tiles: **taking a line
- * off is cart work too** (D-056). A bill that shrank after its shift was
- * counted is a shortfall nobody can trace, and reading an old order to check
- * what was on it must not come with the buttons that alter it.
+ * A closed shift is deliberately **not** in here (D-058). Greying every control
+ * out would say "no" everywhere and explain nowhere; the shift is answered at
+ * the tap instead, by whichever action needed it, with the button that fixes it
+ * attached. If a cashier managed to add an item, the shift was open — so the
+ * screen never needs to say so standing still.
  */
-const locked = computed(() => orders.busy || orders.isClosed || !session.canSell);
-
-/**
- * The menu itself stays live while the shift is shut, deliberately.
- *
- * The tap is what asks the question, and the answer carries the button that
- * fixes it. A greyed-out menu explains nothing — it is `locked` that takes the
- * cart's own controls away.
- */
-const pickerDisabled = computed(() => orders.busy || orders.isClosed);
+const locked = computed(() => orders.busy || orders.isClosed);
 
 onMounted(() => {
   // The menu offers what the shift allows, so it has to know the shift.
@@ -591,9 +583,9 @@ watch(
 );
 
 async function changeQty(idx: number, qty: number): Promise<void> {
-  // The detail dialog closes first: two stacked dialogs both answer Escape,
-  // and one key would dismiss both (D-049).
   if (!session.canSell) {
+    // The detail dialog closes first: two stacked dialogs both answer Escape,
+    // and one key would dismiss both (D-049).
     inspecting.value = null;
     maySell();
     return;
@@ -622,6 +614,10 @@ function voidFromDetail(line: OrderLine): void {
  * somebody has to answer for it.
  */
 function askVoid(line: OrderLine): void {
+  // BR-044 — taking a line off is cart work, and a bill that shrank after its
+  // shift was counted is a shortfall nobody can trace (D-056).
+  if (!maySell()) return;
+
   if (line.status === "pending") {
     void orders.removeLine(line.idx);
     return;
@@ -739,8 +735,9 @@ function onAction(action: OrderAction): void {
   else if (action.key === "notes") openNotes();
   else if (action.key === "callName") openCallName();
   else if (action.key === "customer") pickingCustomer.value = true;
-  else if (action.key === "convert") converting.value = true;
-  else if (action.key === "cancel") cancelling.value = true;
+  // BR-044 — both change the bill: one re-prices every line, the other ends it.
+  else if (action.key === "convert") converting.value = maySell();
+  else if (action.key === "cancel") cancelling.value = maySell();
 }
 
 // --------------------------------------------------------------------------
@@ -812,6 +809,10 @@ async function reload(): Promise<void> {
 
 function goToPayment(): void {
   if (!orders.order) return;
+  // BR-044 — asked here rather than on the payment screen, so the cashier is
+  // not walked through a form they will be refused at the end of (D-058).
+  if (!maySell()) return;
+
   void router.push({ name: "payment", params: { orderName: orders.order.order_name } });
 }
 
@@ -866,32 +867,6 @@ async function send(): Promise<void> {
           />
 
           <div class="flex flex-col gap-2 empty:hidden">
-            <!--
-              BR-044 — visible for as long as it is true, and it carries the way
-              out (D-055). The screen is not locked: the cashier can still read
-              the floor and yesterday's bills. What a closed drawer stops is
-              money moving, and that stop lands on the tap that moves it.
-
-              This also replaces the till screen's shift badge, which went with
-              that screen — and says more, because it says nothing at all while
-              a shift is open.
-            -->
-            <button
-              v-if="!session.canSell"
-              type="button"
-              class="flex min-h-tap items-center justify-between gap-3 rounded-rpos bg-status-reserved/10 px-3 text-sm font-semibold text-status-reserved transition duration-200 ease-rpos hover:bg-status-reserved/20"
-              @click="askingForShift = true"
-            >
-              <span class="flex items-center gap-2">
-                <AppIcon
-                  name="card"
-                  :size="18"
-                />
-                {{ t("home.shiftClosed") }}
-              </span>
-              <span class="underline">{{ t("shift.openTill") }}</span>
-            </button>
-
             <p
               v-if="startupError"
               role="alert"
@@ -937,7 +912,7 @@ async function send(): Promise<void> {
           >
             <ItemPicker
               :order-type="orderType"
-              :disabled="pickerDisabled"
+              :disabled="locked"
               @pick="onPick"
             />
           </div>
@@ -1030,7 +1005,7 @@ async function send(): Promise<void> {
           :order="orders.order"
           :lines="orders.lines"
           :busy="locked"
-          :can-pay="!locked && !orders.isEmpty && session.canSell"
+          :can-pay="!locked && !orders.isEmpty"
           @void="askVoid"
           @repeat="repeat"
           @inspect="inspect"

@@ -53,18 +53,10 @@ def process_payment(
 	override_token: str | None = None,
 ) -> dict:
 	"""Settle an order and submit its Sales Invoice (FR-2.7)."""
+	# BR-044 is in here too (D-058): taking money is the sale, not a step after
+	# it, and a draft held over from an earlier shift must not be settled into a
+	# drawer that has already been counted and handed over.
 	assert_mutable(order)
-
-	# BR-044 — taking money is the sale, not a step after it (D-055).
-	#
-	# Refusing to *add items* was not enough: a draft held over from an earlier
-	# shift could still be opened and paid, and the cash went into a drawer that
-	# had already been counted and handed over. The gate is on the terminal's
-	# shift now, not the order's — a bill stranded by a forced close must stay
-	# payable once somebody opens a drawer for it to land in.
-	from restaurant_pos.utils.shift import assert_may_sell
-
-	assert_may_sell(order.pos_profile)
 
 	if not order.items or all(row.status == "void" for row in order.items):
 		frappe.throw(_("An empty order cannot be paid."))

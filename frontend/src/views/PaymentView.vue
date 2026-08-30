@@ -32,7 +32,15 @@ const discountValue = ref(0);
 const overrideToken = ref<string | null>(null);
 const busy = ref(false);
 const failure = ref<string | null>(null);
-/** BR-044 — shown above the columns rather than replacing them (D-055). */
+/**
+ * BR-044 — set when the cashier presses Confirm with no shift open, never
+ * standing (D-058).
+ *
+ * The order screen refuses the Pay button first, so reaching here without a
+ * shift means a deep link or a shift that closed while this screen was open.
+ * Shown above the columns rather than replacing them: the figures stay
+ * readable, which is what the cashier is looking at.
+ */
 const shiftNotice = ref<string | null>(null);
 const done = ref<paymentApi.PaymentResult | null>(null);
 
@@ -58,11 +66,7 @@ const canConfirm = computed(
     !busy.value &&
     lines.value.length > 0 &&
     remaining.value <= 0.005 &&
-    !done.value &&
-    // BR-044 — a drawer that has been counted takes no more money, and a bill
-    // held over from an earlier shift is exactly how that used to happen
-    // (D-055). The server refuses it too.
-    session.canSell,
+    !done.value,
 );
 const needsApproval = computed(() => Boolean(preview.value?.requires_override));
 
@@ -80,9 +84,6 @@ onMounted(async () => {
     if (summary.value.already_paid) {
       failure.value = t("pay.alreadyPaid", { invoice: summary.value.sales_invoice ?? "" });
     }
-    // Said on arrival, not discovered at the confirm button: the cashier has a
-    // customer in front of them and needs to know before they count the cash.
-    if (!session.canSell) shiftNotice.value = t("home.shiftRequired");
   } catch (cause) {
     failure.value = cause instanceof Error ? cause.message : String(cause);
   }
@@ -154,6 +155,13 @@ async function approveDiscount(): Promise<void> {
 
 async function confirm(): Promise<void> {
   if (!canConfirm.value) return;
+
+  // BR-044 — a drawer that has been counted takes no more money (D-055). Said
+  // on the press, not before it, so the screen carries no standing warning.
+  if (!session.canSell) {
+    shiftNotice.value = t("home.shiftRequired");
+    return;
+  }
 
   if (needsApproval.value && !overrideToken.value) {
     askingPin.value = true;

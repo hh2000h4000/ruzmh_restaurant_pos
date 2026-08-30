@@ -55,9 +55,42 @@ FINAL_STATES = ("closed", "cancelled")
 
 
 def assert_mutable(order) -> None:
-	"""Raise unless the order may still be changed (BR-017)."""
+	"""Raise unless the order may still be changed (BR-017, BR-044).
+
+	Two conditions, and the second one is new (D-058):
+
+	1. The order is not already closed or cancelled.
+	2. **A shift is open on this terminal.** Adding, editing, removing, sending
+	   to the kitchen, paying, cancelling — every one of them already comes
+	   through here, so the shift gate lives here rather than being remembered
+	   at a dozen call sites. Remembering it twelve times is how eleven of them
+	   get it and the twelfth becomes the hole somebody finds.
+
+	Reading and printing do not call this, which is exactly the line drawn: with
+	no shift open a cashier may look at yesterday's bills and change nothing.
+	"""
 	if order.status in FINAL_STATES:
 		frappe.throw(_("Order {0} is {1} and can no longer be modified.").format(order.name, _(order.status)))
+
+	# Lazy: `shift` reads `payment`, and `payment` reads this module.
+	from restaurant_pos.utils import shift as shift_service
+
+	shift_service.assert_may_sell(order.pos_profile)
+
+
+def assert_order_day_open(order) -> None:
+	"""BR-044 — the bill's **own** day, which ``assert_mutable`` does not ask.
+
+	A draft held over from a day that has since closed does not resume taking
+	items because somebody opened today's. Paying it and cancelling it stay
+	possible, because a bill stranded by a forced close has to be clearable
+	(D-055).
+	"""
+	shift = order.restaurant_shift
+	if shift and frappe.db.get_value("Restaurant Shift", shift, "status") == "open":
+		return
+
+	frappe.throw(_("Open a shift before taking orders."))
 
 
 def assert_transition(order, new_status: str) -> None:
@@ -425,7 +458,7 @@ def add_item(
 	"""Add a line to an open order (FR-2.2)."""
 	assert_mutable(order)
 	# BR-044 — the bill stops growing when the shift it belongs to closes.
-	assert_shift_open(order.restaurant_shift, pos_profile=order.pos_profile)
+	assert_order_day_open(order)
 
 	if flt(qty) <= 0:
 		frappe.throw(_("Quantity must be greater than zero."))
@@ -613,7 +646,7 @@ def set_item_qty(order, *, item_idx: int, qty: float) -> dict:
 	"""
 	assert_mutable(order)
 	# BR-044 — raising a quantity is adding food, and it obeys the same rule.
-	assert_shift_open(order.restaurant_shift, pos_profile=order.pos_profile)
+	assert_order_day_open(order)
 
 	if flt(qty) <= 0:
 		frappe.throw(_("Quantity must be greater than zero."))
@@ -662,7 +695,7 @@ def remove_item(order, *, item_idx: int) -> dict:
 	# BR-044 — the cart is the cart. Taking a line off changes the total as
 	# surely as adding one does, and a bill that shrank after its shift was
 	# counted is a shortfall nobody can trace (D-056).
-	assert_shift_open(order.restaurant_shift, pos_profile=order.pos_profile)
+	assert_order_day_open(order)
 
 	row = next((line for line in order.items if line.idx == cint(item_idx)), None)
 	if not row:
@@ -690,7 +723,7 @@ def void_item(order, *, item_idx: int, reason: str, override_token: str | None =
 	"""
 	assert_mutable(order)
 	# BR-044 — the same rule as removing, and for the same reason (D-056).
-	assert_shift_open(order.restaurant_shift, pos_profile=order.pos_profile)
+	assert_order_day_open(order)
 
 	if not (reason or "").strip():
 		frappe.throw(_("A reason is required to void an item."))
@@ -882,7 +915,7 @@ def change_order_type(
 	assert_mutable(order)
 	# BR-044 — this re-prices every line, so it moves money like any other cart
 	# operation and obeys the same rule (D-056).
-	assert_shift_open(order.restaurant_shift, pos_profile=order.pos_profile)
+	assert_order_day_open(order)
 
 	if order.order_type == order_type:
 		return {"order_type": order_type, "changed": False}

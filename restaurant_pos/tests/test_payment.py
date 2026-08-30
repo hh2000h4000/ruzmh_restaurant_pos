@@ -43,6 +43,36 @@ def _ensure_fiscal_year() -> None:
 	).insert(ignore_permissions=True)
 
 
+class TestACancelledInvoiceLeavesTheDrawer(OrderTestBase):
+	"""D-062 — money the books gave back is not money in the till.
+
+	Cancelling a POS invoice from the ERPNext desk reverses the ledger and leaves
+	its payment rows behind with the parent's `docstatus = 2`. The shift report
+	went on expecting that cash in the drawer, so a cashier would have been made
+	to answer for a difference somebody else created in accounting.
+	"""
+
+	def test_a_cancelled_invoice_stops_being_expected_in_the_till(self):
+		from restaurant_pos.utils import shift as shift_service
+
+		_ensure_fiscal_year()
+
+		order = self._order()
+		orders.add_item(order, item=ITEM)
+		order.reload()
+		service.process_payment(order, payments=[{"method": CASH, "amount": order.total_amount}])
+		order.reload()
+
+		entry = shift_service.selling_till(self.profile).name
+		expected = shift_service.summarise_till(entry)["till_expected"]
+		self.assertGreater(expected, 0, "the sale should be expected in the drawer")
+
+		frappe.get_doc("Sales Invoice", order.sales_invoice).cancel()
+
+		after = shift_service.summarise_till(entry)["till_expected"]
+		self.assertLess(after, expected, "a reversed sale must not stay in the count")
+
+
 class PaymentTestBase(OrderTestBase):
 	@classmethod
 	def setUpClass(cls):

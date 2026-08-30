@@ -444,14 +444,26 @@ def _by_method(invoices: list[str], opening: dict) -> list[dict]:
 	``kind`` is the point: ``till`` is money to count, ``credit`` is money owed
 	by a platform or a company. Listing both and totalling them apart is what
 	keeps the variance figure honest (D-029).
+
+	**Only submitted invoices count** (D-062). Cancelling an invoice from the
+	ERPNext desk reverses the ledger but leaves its payment rows in the table
+	with the parent's `docstatus = 2` — so the drawer was still being told to
+	expect money the books had already given back. Measured, not assumed: the
+	expected figure did not move when a paid invoice was cancelled.
 	"""
+	live = (
+		frappe.get_all("Sales Invoice", filters={"name": ("in", invoices), "docstatus": 1}, pluck="name")
+		if invoices
+		else []
+	)
+
 	rows = (
 		frappe.get_all(
 			"Sales Invoice Payment",
-			filters={"parent": ("in", invoices), "parenttype": "Sales Invoice"},
+			filters={"parent": ("in", live), "parenttype": "Sales Invoice"},
 			fields=["mode_of_payment", "amount"],
 		)
-		if invoices
+		if live
 		else []
 	)
 

@@ -52,6 +52,8 @@ class TestWhatCanComeBack(ReturnTestBase):
 		self.assertEqual(summary["items"][0]["returned"], 0)
 		self.assertFalse(summary["fully_returned"])
 		self.assertEqual(summary["paid_with"][0]["method"], CASH)
+		# D-066 — every method the till has, so the cashier can choose.
+		self.assertIn(CASH, summary["methods"])
 
 
 class TestReturningPartOfABill(ReturnTestBase):
@@ -150,6 +152,30 @@ class TestTheCreditNote(ReturnTestBase):
 		self.assertEqual(note.payments[0].mode_of_payment, CASH)
 		self.assertLess(note.payments[0].amount, 0)
 		self.assertGreater(result["refund_amount"], 0)
+
+	def test_a_method_the_terminal_does_not_have_is_refused(self):
+		"""D-066 — the cashier chooses freely, from what the till actually has."""
+		order = self._paid()
+
+		with self.assertRaises(frappe.ValidationError):
+			service.create_return(
+				order,
+				items=[{"row": self._row(order), "qty": 1}],
+				reason_code=REASON,
+				refund_method="Camel",
+			)
+
+	def test_no_window_bars_an_old_bill(self):
+		"""D-066 — returns are allowed at any time, on any date.
+
+		Nothing measures the age of a bill, so this asserts the absence of a rule:
+		a sale backdated a year is still returnable today.
+		"""
+		order = self._paid()
+		frappe.db.set_value("Sales Invoice", order.sales_invoice, "posting_date", "2025-01-01")
+
+		result = service.create_return(order, items=[{"row": self._row(order), "qty": 1}], reason_code=REASON)
+		self.assertTrue(result["credit_note"])
 
 	def test_the_original_invoice_still_stands(self):
 		"""D-063 — a return reverses a sale; it does not erase it."""

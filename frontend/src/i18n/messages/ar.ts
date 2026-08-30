@@ -168,6 +168,7 @@ const messages: Catalogue["messages"] = {
   "ret.takeAll": "الفاتورة كاملة",
   "ret.leftOf": "بقي {left} من {sold}",
   "ret.method": "الاسترداد إلى",
+  "ret.asPaid": "طريقة الدفع الأصلية",
   "ret.reason": "سبب الإرجاع",
   "ret.note": "ملاحظة إضافية (اختياري)",
   "ret.reasonReturned": "أعاده العميل",

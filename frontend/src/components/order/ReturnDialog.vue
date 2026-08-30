@@ -75,7 +75,8 @@ watch(
     busy.value = true;
     try {
       bill.value = await getReturnable(props.orderName);
-      // BR-054 — one method needs no question; several do.
+      // BR-054 — the way it was paid is where the choice *starts*, not what it
+      // is limited to (D-066).
       method.value = bill.value.paid_with.length === 1 ? bill.value.paid_with[0].method : "";
     } catch (cause) {
       error.value = message(cause);
@@ -84,6 +85,9 @@ watch(
     }
   },
 );
+
+/** What the customer actually paid with, so the chips can say which. */
+const paidWith = computed(() => new Set((bill.value?.paid_with ?? []).map((row) => row.method)));
 
 const lines = computed<ReturnLine[]>(() =>
   Object.entries(chosen.value)
@@ -267,27 +271,33 @@ function money(value: number): string {
           </div>
         </div>
 
-        <!-- BR-054 — only where there is a choice to make. -->
-        <div
-          v-if="bill.paid_with.length > 1"
-          class="mb-3"
-        >
+        <!--
+          BR-054, D-066 — always shown, and it lists **every** method the till
+          has, not only the one the bill was paid with. A card terminal that is
+          down, or a customer who would rather take the cash, are ordinary
+          evenings; the original is the default, not the limit.
+        -->
+        <div class="mb-3">
           <p class="mb-1.5 text-sm font-semibold text-muted">
             {{ t("ret.method") }}
           </p>
           <div class="flex flex-wrap gap-2">
             <button
-              v-for="paid in bill.paid_with"
-              :key="paid.method"
+              v-for="option in bill.methods"
+              :key="option"
               type="button"
               class="min-h-tap rounded-full px-4 text-sm font-semibold transition duration-200 ease-rpos"
-              :class="
-                method === paid.method ? 'bg-primary text-primary-contrast' : 'bg-background text-muted'
-              "
-              :aria-pressed="method === paid.method"
-              @click="method = paid.method"
+              :class="method === option ? 'bg-primary text-primary-contrast' : 'bg-background text-muted'"
+              :aria-pressed="method === option"
+              @click="method = option"
             >
-              {{ paid.method }}
+              {{ option }}
+              <!-- Which one the customer actually paid with, so the default is
+                   not a mystery. -->
+              <span
+                v-if="paidWith.has(option)"
+                class="opacity-70"
+              >· {{ t("ret.asPaid") }}</span>
             </button>
           </div>
         </div>

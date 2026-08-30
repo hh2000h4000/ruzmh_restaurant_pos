@@ -41,6 +41,8 @@ export interface Returnable {
   sales_invoice: string;
   items: ReturnableLine[];
   reasons: ReturnReason[];
+  /** BR-054 — every method the terminal has; the cashier picks (D-066). */
+  methods: string[];
   /** BR-054 — the refund goes back the way the money came in. */
   paid_with: { method: string; amount: number }[];
   returns: { name: string; posting_date: string; grand_total: number }[];

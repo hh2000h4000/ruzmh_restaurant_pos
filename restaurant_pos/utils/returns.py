@@ -97,6 +97,9 @@ def returnable(order) -> dict:
 		"items": items,
 		# D-065 — the screen offers these and nothing else.
 		"reasons": list(RETURN_REASONS),
+		# BR-054, D-066 — every method the terminal has, because the cashier
+		# chooses; the original is only what it opens on.
+		"methods": terminal_methods(order.pos_profile),
 		# BR-054 — the refund goes back the way the money came in, so the screen
 		# needs to know what that was.
 		"paid_with": _paid_with(invoice),
@@ -123,6 +126,24 @@ def _returned_quantities(rows: list[str]) -> dict[str, float]:
 		taken[row.sales_invoice_item] = taken.get(row.sales_invoice_item, 0.0) + abs(flt(row.qty))
 
 	return taken
+
+
+def terminal_methods(pos_profile: str) -> list[str]:
+	"""Every way this till can hand money back (BR-054, D-066).
+
+	**Not filtered by ERPNext's `allow_in_returns`.** That field exists on
+	`POS Payment Method` and defaults to `0`, so gating on it would ship a
+	terminal that can refund nothing at all — measured on both sites, where every
+	row carries zero. A manager who later wants to forbid a method has the field
+	waiting; until somebody sets one, "allowed" is the honest reading of a
+	setting nobody has touched.
+	"""
+	return frappe.get_all(
+		"POS Payment Method",
+		filters={"parent": pos_profile, "parenttype": "POS Profile"},
+		pluck="mode_of_payment",
+		order_by="idx",
+	)
 
 
 def _paid_with(invoice: str) -> list[dict]:
@@ -332,12 +353,17 @@ def _build_credit_note(invoice: str, wanted: dict[str, float], reason: str, refu
 
 
 def _apply_refund(credit, refund_method: str | None) -> None:
-	"""BR-054 — the money goes back the way it came, unless told otherwise.
+	"""BR-054, D-066 — **the cashier chooses**, cash or anything else.
 
-	**One method, or say which.** A bill split across two methods has no obvious
-	right answer for a partial refund, and splitting it by ratio would hand a
-	customer two amounts for one returned dish. The cashier names the method
-	instead; the screen offers the original ones first.
+	The original method is the default, because it is right most of the time and
+	a customer usually wants their card credited. But it is only a default: a
+	card terminal that has gone down, or a customer who would rather have the
+	cash, are ordinary evenings in a restaurant, and refusing them would send the
+	cashier to the ERPNext desk to do it by hand.
+
+	**Never split by ratio.** A bill paid two ways has no right answer for one
+	returned dish, and two part-refunds for one plate is a conversation nobody
+	wants to have at a counter. One method, chosen.
 	"""
 	due = flt(credit.rounded_total or credit.grand_total)
 
@@ -345,7 +371,11 @@ def _apply_refund(credit, refund_method: str | None) -> None:
 	method = refund_method or (original[0]["method"] if len(original) == 1 else None)
 
 	if not method:
-		frappe.throw(_("This bill was paid more than one way. Choose how to refund it."))
+		frappe.throw(_("Choose how to refund this."))
+
+	allowed = terminal_methods(credit.pos_profile)
+	if allowed and method not in allowed:
+		frappe.throw(_("{0} is not a payment method on this terminal.").format(method))
 
 	# D-029 — money that never entered a drawer does not come out of one. A
 	# platform's order is settled on a statement, and so is its reversal.

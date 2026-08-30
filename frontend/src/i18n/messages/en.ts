@@ -170,6 +170,7 @@ export const messages = {
   "ret.takeAll": "All of it",
   "ret.leftOf": "{left} left of {sold}",
   "ret.method": "Refund to",
+  "ret.asPaid": "as paid",
   "ret.reason": "Why is it coming back?",
   "ret.note": "Anything to add (optional)",
   "ret.reasonReturned": "Sent back",

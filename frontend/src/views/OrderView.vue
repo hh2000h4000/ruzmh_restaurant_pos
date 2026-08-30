@@ -65,7 +65,24 @@ const orderType = computed(
   () => session.orderTypes.find((type) => type.name === orders.order?.order_type) ?? null,
 );
 
-const locked = computed(() => orders.busy || orders.isClosed);
+/**
+ * Nothing on this bill may change.
+ *
+ * `session.canSell` is in here, not only on the item tiles: **taking a line
+ * off is cart work too** (D-056). A bill that shrank after its shift was
+ * counted is a shortfall nobody can trace, and reading an old order to check
+ * what was on it must not come with the buttons that alter it.
+ */
+const locked = computed(() => orders.busy || orders.isClosed || !session.canSell);
+
+/**
+ * The menu itself stays live while the shift is shut, deliberately.
+ *
+ * The tap is what asks the question, and the answer carries the button that
+ * fixes it. A greyed-out menu explains nothing — it is `locked` that takes the
+ * cart's own controls away.
+ */
+const pickerDisabled = computed(() => orders.busy || orders.isClosed);
 
 onMounted(() => {
   // The menu offers what the shift allows, so it has to know the shift.
@@ -92,10 +109,12 @@ async function startFromRoute(): Promise<void> {
 
   const typeName = route.params.orderType as string | undefined;
   if (!typeName) {
-    // The resting state: no bill in hand, the floor in front of the cashier.
+    // The resting state is the **menu**, not a list of orders (D-056). A till
+    // that opens on a list looks like a filing cabinet; the cashier's job is in
+    // front of them, and the list is one tap away in the bar.
     // `?pane=new` is how the payment screen says "straight into the next one".
     orders.clear();
-    pane.value = route.query.pane === "new" ? "new" : "orders";
+    pane.value = route.query.pane === "new" ? "new" : "items";
     return;
   }
 
@@ -123,7 +142,7 @@ async function startFromRoute(): Promise<void> {
  * Leaving the screen to look at the floor is what made the old flow feel like
  * two applications. Here the order in hand is never put down.
  */
-const pane = ref("orders");
+const pane = ref("items");
 const floorLayout = ref<"list" | "grid">("list");
 const {
   error: floorError,
@@ -172,9 +191,7 @@ function onNavigate(key: string): void {
   }
 
   menuOpen.value = false;
-  // The menu pane with no bill in hand is a wall of buttons that do nothing, so
-  // the tap lands where an order actually starts.
-  pane.value = key === "items" && !orders.order ? "new" : key;
+  pane.value = key;
 }
 
 // --------------------------------------------------------------------------
@@ -516,6 +533,14 @@ function onTillOpened(): void {
 function onPick(item: CatalogItem, qty: number): void {
   if (!maySell()) return;
 
+  // Nothing to put it on yet. Which type the order should be is a real question
+  // — a table, a customer, a price list hang off it — so the tap opens **جديد**
+  // rather than guessing one (D-056).
+  if (!orders.order) {
+    pane.value = "new";
+    return;
+  }
+
   if (item.modifier_groups.length) {
     // The quantity has to survive the detour, or six coffees with extra milk
     // arrive as one.
@@ -810,10 +835,13 @@ async function send(): Promise<void> {
         column is the screen either way, and stretching it over the whole width
         with nothing beside it is better than a permanent empty half.
       -->
-      <div
-        class="grid min-h-0 gap-4"
-        :class="orders.order ? 'lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]' : ''"
-      >
+      <!--
+        Two columns, always. The till looks the same whether a bill is in hand
+        or not (D-056) — a screen that changes shape between customers is a
+        screen a cashier has to re-read, and the empty panel says what to do
+        next in the place the bill will appear.
+      -->
+      <div class="grid min-h-0 gap-4 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
         <!--
           A column, not a row template. The notices below are `empty:hidden`, so
           on a quiet screen they are not a grid item at all — and every child
@@ -909,7 +937,7 @@ async function send(): Promise<void> {
           >
             <ItemPicker
               :order-type="orderType"
-              :disabled="locked"
+              :disabled="pickerDisabled"
               @pick="onPick"
             />
           </div>
@@ -967,10 +995,38 @@ async function send(): Promise<void> {
           </div>
         </div>
 
+        <!-- Where the bill will be. Not a blank space: the one thing to do
+             from here is start an order, so that is the button. -->
+        <section
+          v-if="!orders.order"
+          class="grid place-content-center place-items-center gap-3 rounded-rpos bg-surface p-8 text-center shadow-card"
+        >
+          <span class="text-muted opacity-30">
+            <AppIcon
+              name="receipt"
+              :size="52"
+            />
+          </span>
+          <p class="text-muted">
+            {{ t("panel.noOrder") }}
+          </p>
+          <button
+            type="button"
+            class="flex min-h-tap items-center gap-2 rounded-rpos bg-primary px-6 font-bold text-primary-contrast shadow-card transition duration-200 ease-rpos hover:shadow-lift"
+            @click="pane = 'new'"
+          >
+            <AppIcon
+              name="plus"
+              :size="20"
+            />
+            {{ t("home.newOrder") }}
+          </button>
+        </section>
+
         <!-- BR-044 — the Pay button obeys the same rule as the item tap: a
              drawer that has been counted takes no more money (D-055). -->
         <OrderPanel
-          v-if="orders.order"
+          v-else
           :order="orders.order"
           :lines="orders.lines"
           :busy="locked"

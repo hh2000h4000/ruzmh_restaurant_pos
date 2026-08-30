@@ -199,6 +199,7 @@ const messages: Catalogue["messages"] = {
   "panel.addSame": "إضافة مثله",
   "panel.swipeHint": "اسحب البند جانباً لحذفه.",
   "panel.empty": "لم تُضف أصناف بعد.",
+  "panel.noOrder": "لا يوجد طلب مفتوح. ابدأ طلباً ليظهر هنا.",
   "panel.covers": "الضيوف",
   "line.number": "السطر",
   "line.item": "رمز الصنف",

@@ -659,6 +659,10 @@ def remove_item(order, *, item_idx: int) -> dict:
 	true — the line reaching a station — and from there it is ``void_item``.
 	"""
 	assert_mutable(order)
+	# BR-044 — the cart is the cart. Taking a line off changes the total as
+	# surely as adding one does, and a bill that shrank after its shift was
+	# counted is a shortfall nobody can trace (D-056).
+	assert_shift_open(order.restaurant_shift, pos_profile=order.pos_profile)
 
 	row = next((line for line in order.items if line.idx == cint(item_idx)), None)
 	if not row:
@@ -685,6 +689,8 @@ def void_item(order, *, item_idx: int, reason: str, override_token: str | None =
 	before the ticket printed is ``remove_item`` and asks nothing.
 	"""
 	assert_mutable(order)
+	# BR-044 — the same rule as removing, and for the same reason (D-056).
+	assert_shift_open(order.restaurant_shift, pos_profile=order.pos_profile)
 
 	if not (reason or "").strip():
 		frappe.throw(_("A reason is required to void an item."))
@@ -874,6 +880,9 @@ def change_order_type(
 	changes the packing, so the stations that already hold a ticket are told.
 	"""
 	assert_mutable(order)
+	# BR-044 — this re-prices every line, so it moves money like any other cart
+	# operation and obeys the same rule (D-056).
+	assert_shift_open(order.restaurant_shift, pos_profile=order.pos_profile)
 
 	if order.order_type == order_type:
 		return {"order_type": order_type, "changed": False}

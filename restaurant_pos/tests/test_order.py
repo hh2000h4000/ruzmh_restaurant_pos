@@ -263,6 +263,31 @@ class TestOrderCreation(OrderTestBase):
 		finally:
 			frappe.db.set_value("POS Opening Entry", till.name, "status", "Open")
 
+	def test_a_closed_drawer_freezes_the_cart_both_ways(self):
+		"""BR-044, D-056 — taking a line off is cart work too.
+
+		Adding was blocked and removing was not, so an old bill could be opened
+		and emptied after its shift was counted. A bill that *shrank* after the
+		count is a shortfall nobody can trace, which is the same defect as one
+		that grew.
+		"""
+		from restaurant_pos.utils import shift as shift_service
+
+		order = self._order()
+		service.add_item(order, item=self.item)
+		service.add_item(order, item=self.item)
+
+		till = shift_service.selling_till(self.profile)
+		frappe.db.set_value("POS Opening Entry", till.name, "status", "Closed")
+		try:
+			with self.assertRaises(frappe.ValidationError):
+				service.remove_item(order, item_idx=1)
+
+			with self.assertRaises(frappe.ValidationError):
+				service.void_item(order, item_idx=1, reason="after the count")
+		finally:
+			frappe.db.set_value("POS Opening Entry", till.name, "status", "Open")
+
 	def test_a_held_draft_cannot_be_paid_with_the_drawer_closed(self):
 		"""BR-044, D-055 — the hole the user found.
 

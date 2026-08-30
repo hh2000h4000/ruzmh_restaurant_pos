@@ -94,6 +94,21 @@ function numberLocale(): string {
   return locale.value === "ar" ? "ar-SA-u-nu-latn" : "en-US";
 }
 
+/**
+ * The same, with the **calendar pinned** — and that is not a detail (D-060).
+ *
+ * `ar-SA` defaults to the Umm al-Qura calendar, so an order opened on
+ * 30/08/2026 was being listed as `17/03/1448 هـ` beside an order number reading
+ * `RO-2026-08-01047`. Two calendars on one row, and the bill, the Sales Invoice
+ * and the ZATCA submission all use the Gregorian one.
+ *
+ * A locale default is not a decision. `-nu-latn` was pinned for exactly this
+ * reason; the calendar was left to ICU and ICU answered honestly.
+ */
+function dateLocale(): string {
+  return locale.value === "ar" ? "ar-SA-u-nu-latn-ca-gregory" : "en-US";
+}
+
 export function formatNumber(value: number, fractionDigits = 0): string {
   return new Intl.NumberFormat(numberLocale(), {
     minimumFractionDigits: fractionDigits,
@@ -110,10 +125,12 @@ export function money(value: number, currency = "SAR"): string {
 
 /** Wall-clock time for the header. Latin digits, for the reason above. */
 export function clockTime(at: Date = new Date()): string {
-  return new Intl.DateTimeFormat(numberLocale(), {
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(at);
+  return stripBidi(
+    new Intl.DateTimeFormat(dateLocale(), {
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(at),
+  );
 }
 
 /**
@@ -127,19 +144,38 @@ function parse(value: string): Date {
   return new Date(value.replace(" ", "T"));
 }
 
+/**
+ * Take out the invisible direction marks `Intl` inserts.
+ *
+ * Formatting a date under `ar-SA` puts a **U+200F right-to-left mark** between
+ * every part — `30‏/08‏/2026`. They are there to make the date read correctly
+ * inside an Arabic *sentence*, and every one of these strings is rendered
+ * inside `.rpos-numeric`, which is already `direction: ltr; unicode-bidi:
+ * isolate`. So the marks are not merely unnecessary there, they are the bug:
+ * they re-order the parts inside the isolate and the cashier reads
+ * **302026/08/**.
+ */
+function stripBidi(value: string): string {
+  return value.replace(/[‎‏]/g, "");
+}
+
 export function dateOnly(value: string): string {
-  return new Intl.DateTimeFormat(numberLocale(), {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  }).format(parse(value));
+  return stripBidi(
+    new Intl.DateTimeFormat(dateLocale(), {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    }).format(parse(value)),
+  );
 }
 
 export function timeOnly(value: string): string {
-  return new Intl.DateTimeFormat(numberLocale(), {
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(parse(value));
+  return stripBidi(
+    new Intl.DateTimeFormat(dateLocale(), {
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(parse(value)),
+  );
 }
 
 export function setLocale(next: Locale): void {

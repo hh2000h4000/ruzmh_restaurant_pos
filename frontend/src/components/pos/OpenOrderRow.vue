@@ -18,7 +18,10 @@ import { dateOnly, formatNumber, pick, t, timeOnly } from "@/i18n";
  * order comes last. The order flips with the language on its own: the row is a
  * plain flex line, and direction is set on `<html>`.
  *
- * 108px tall, evenly distributed, per the reference layout.
+ * **The order number is never truncated** (D-060). It is the one value on the
+ * row a cashier reads *out* — to a customer on the phone, to a manager tracing
+ * a refund — and half of it is worth nothing. So it takes the width it needs
+ * and the columns that can lose a few characters, do.
  */
 const props = defineProps<{ order: OpenOrder }>();
 const emit = defineEmits<{ open: []; floorPlan: [] }>();
@@ -61,7 +64,7 @@ function choose(where: "order" | "floor"): void {
 
 <template>
   <div
-    class="relative flex min-h-[108px] items-center gap-4 rounded-rpos border border-line bg-surface px-5 shadow-card transition duration-200 ease-rpos hover:-translate-y-px hover:border-primary/40 hover:shadow-lift"
+    class="relative flex min-h-[88px] items-center gap-3 rounded-rpos border border-line bg-surface px-4 shadow-card transition duration-200 ease-rpos hover:-translate-y-px hover:border-primary/40 hover:shadow-lift"
   >
     <!-- The whole row opens the order; the menu sits above it. -->
     <button
@@ -72,7 +75,7 @@ function choose(where: "order" | "floor"): void {
     />
 
     <div class="shrink-0">
-      <p class="rpos-numeric text-[22px] font-bold leading-tight text-primary">
+      <p class="rpos-numeric text-[20px] font-bold leading-tight text-primary">
         {{ formatNumber(order.total_amount, 2) }}
       </p>
       <p class="text-sm text-muted">
@@ -82,14 +85,16 @@ function choose(where: "order" | "floor"): void {
 
     <div class="shrink-0 text-center">
       <span
-        class="rpos-numeric mx-auto grid h-9 w-9 place-items-center rounded-full bg-primary/10 font-bold text-primary"
+        class="rpos-numeric mx-auto grid h-8 w-8 place-items-center rounded-full bg-primary/10 font-bold text-primary"
       >{{ formatNumber(order.item_count) }}</span>
       <p class="mt-1 text-sm text-muted">
         {{ t("card.itemCount") }}
       </p>
     </div>
 
-    <div class="hidden flex-1 lg:block">
+    <!-- A date is a fixed width; giving it a share of the leftover space only
+         took room from the number beside it. -->
+    <div class="hidden shrink-0 lg:block">
       <p class="rpos-numeric font-bold">
         {{ dateOnly(order.opened_at) }}
       </p>
@@ -98,11 +103,13 @@ function choose(where: "order" | "floor"): void {
       </p>
     </div>
 
-    <div class="hidden min-w-0 flex-1 md:block">
-      <p class="rpos-numeric truncate font-bold">
+    <!-- `shrink-0`, and no `truncate`: a half-read order number is no use to
+         anybody, so this column takes what it needs (D-060). -->
+    <div class="hidden shrink-0 md:block">
+      <p class="rpos-numeric whitespace-nowrap font-bold">
         {{ order.name }}
       </p>
-      <p class="truncate text-sm text-muted">
+      <p class="text-sm text-muted">
         {{ t("card.number") }}
       </p>
     </div>
@@ -133,26 +140,21 @@ function choose(where: "order" | "floor"): void {
       </p>
     </div>
 
-    <div class="flex min-w-0 flex-1 items-center justify-end gap-3">
-      <div class="min-w-0 text-end">
-        <p class="truncate font-bold">
-          {{ order.cashier_name }}
-        </p>
-        <p class="truncate text-sm text-muted">
-          {{ t("card.cashier") }}
-        </p>
-      </div>
-      <span
-        class="grid h-[42px] w-[42px] shrink-0 place-items-center rounded-full bg-primary/10 text-primary"
-        aria-hidden="true"
-      >
-        <AppIcon name="user" />
-      </span>
+    <!-- The avatar circle went here (D-060). It was `aria-hidden` decoration
+         beside the name it decorated, and it cost fifty pixels the order number
+         needed. -->
+    <div class="min-w-0 flex-1 text-end">
+      <p class="truncate font-bold">
+        {{ order.cashier_name }}
+      </p>
+      <p class="truncate text-sm text-muted">
+        {{ t("card.cashier") }}
+      </p>
     </div>
 
     <button
       type="button"
-      class="relative z-10 grid h-11 w-11 shrink-0 place-items-center rounded-full text-muted transition duration-200 ease-rpos hover:bg-background"
+      class="relative z-10 grid h-10 w-10 shrink-0 place-items-center rounded-full text-muted transition duration-200 ease-rpos hover:bg-background"
       :aria-label="t('card.openOrder')"
       :aria-expanded="menuOpen"
       @click.stop="menuOpen = !menuOpen"

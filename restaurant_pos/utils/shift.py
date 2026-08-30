@@ -396,7 +396,8 @@ def summarise_till(opening_entry: str) -> dict:
 
 def _report(day, orders: list, opening: dict) -> dict:
 	closed = [row for row in orders if row.status == "closed"]
-	methods = _by_method([row.sales_invoice for row in closed if row.sales_invoice], opening)
+	sold = [row.sales_invoice for row in closed if row.sales_invoice]
+	methods = _by_method(sold, opening)
 
 	return {
 		"shift": day.name,
@@ -412,11 +413,42 @@ def _report(day, orders: list, opening: dict) -> dict:
 		"by_method": methods,
 		"voids": _void_count([row.name for row in closed]),
 		"sales": money(sum(flt(row.total_amount) for row in closed)),
+		# FR-8.3 — its own line, not netted off the takings: a shift that sold
+		# 1000 and refunded 200 is a different day from one that sold 800.
+		"returns": money(_returned_total(sold)),
 		"discounts": money(sum(flt(row.discount_amount) for row in closed)),
 		# D-029 — what the drawer should hold, credit deliberately absent.
 		"till_expected": money(sum(row["expected"] for row in methods if row["kind"] == "till")),
 		"credit_total": money(sum(row["sales"] for row in methods if row["kind"] == "credit")),
 	}
+
+
+def _credit_notes(invoices: list[str]) -> list[str]:
+	"""Submitted returns raised against these invoices (FR-9, D-064)."""
+	if not invoices:
+		return []
+
+	return frappe.get_all(
+		"Sales Invoice",
+		filters={"return_against": ("in", invoices), "docstatus": 1},
+		pluck="name",
+	)
+
+
+def _returned_total(invoices: list[str]) -> float:
+	"""What went back to customers, as a positive figure (FR-8.3)."""
+	notes = _credit_notes(invoices)
+	if not notes:
+		return 0.0
+
+	return abs(
+		sum(
+			flt(row.grand_total)
+			for row in frappe.get_all(
+				"Sales Invoice", filters={"name": ("in", notes)}, fields=["grand_total"]
+			)
+		)
+	)
 
 
 def _by_order_type(closed: list) -> list[dict]:
@@ -456,6 +488,12 @@ def _by_method(invoices: list[str], opening: dict) -> list[dict]:
 		if invoices
 		else []
 	)
+
+	# FR-9 — and the credit notes raised against them (D-064). A refund carries
+	# negative payment rows, so counting them alongside the sales is what takes
+	# the money back out of the expected drawer. Without this the till would
+	# still be asked for cash the cashier handed to a customer.
+	live += _credit_notes(live)
 
 	rows = (
 		frappe.get_all(

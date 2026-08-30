@@ -13,6 +13,7 @@ import OrderActionBar, { type OrderAction } from "@/components/order/OrderAction
 import NoteEditor from "@/components/order/NoteEditor.vue";
 import OrderPanel from "@/components/order/OrderPanel.vue";
 import OrderTypeChangeDialog from "@/components/order/OrderTypeChangeDialog.vue";
+import ReturnDialog from "@/components/order/ReturnDialog.vue";
 import CloseDayDialog from "@/components/shift/CloseDayDialog.vue";
 import CloseTillDialog from "@/components/shift/CloseTillDialog.vue";
 import OpenTillDialog from "@/components/shift/OpenTillDialog.vue";
@@ -684,6 +685,19 @@ const rowActions = computed<OrderAction[]>(() => [
 const moreActions = computed<OrderAction[]>(() => {
   const entries: OrderAction[] = [];
 
+  // FR-9 — the only way to reverse a sale (D-063), so it is offered exactly
+  // where a sale can be found: on a paid bill. `locked` is true for every
+  // closed order, which is why this entry does not read it.
+  if (orders.order?.status === "closed" && session.can("can_create_return")) {
+    entries.push({
+      key: "return",
+      label: "ret.action",
+      icon: "swap",
+      disabled: orders.busy,
+      destructive: true,
+    });
+  }
+
   // D-038 — offered only where a conversion is possible at all: an app order
   // is billed to the platform and can never become a walk-in sale.
   if (session.can("can_change_order_type") && orderType.value?.counterparty === "walk_in") {
@@ -738,6 +752,20 @@ function onAction(action: OrderAction): void {
   // BR-044 — both change the bill: one re-prices every line, the other ends it.
   else if (action.key === "convert") converting.value = maySell();
   else if (action.key === "cancel") cancelling.value = maySell();
+  // FR-9 — a refund out of a counted drawer is a sale into one, backwards.
+  else if (action.key === "return") returning.value = maySell();
+}
+
+// --------------------------------------------------------------------------
+// Returns (FR-9)
+// --------------------------------------------------------------------------
+
+const returning = ref(false);
+
+/** Re-read the bill: the refund is on its record now, and on the shift's. */
+async function onReturned(): Promise<void> {
+  await reload();
+  void shift.refresh();
 }
 
 // --------------------------------------------------------------------------
@@ -1224,6 +1252,14 @@ async function send(): Promise<void> {
         </button>
       </div>
     </BaseDialog>
+
+    <!-- FR-9 — the only way to reverse a sale (D-063, D-064). -->
+    <ReturnDialog
+      :open="returning"
+      :order-name="orders.order?.order_name ?? null"
+      @close="returning = false"
+      @done="onReturned"
+    />
 
     <!-- FR-2.1 step 4 — found by number, created from the same box (D-050). -->
     <CustomerDialog

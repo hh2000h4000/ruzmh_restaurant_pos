@@ -30,7 +30,11 @@ doc_events = {
 	"User": {
 		"validate": "restaurant_pos.utils.manager_pin.hold_pin_aside",
 		"on_update": "restaurant_pos.utils.manager_pin.store_pin_hashed",
-	}
+	},
+	# D-063 — a point-of-sale sale is reversed by a return, never by cancelling
+	# the invoice. Cancelling from the desk left the ledger reversed and the
+	# order still saying `closed`, with nobody told (D-062).
+	"Sales Invoice": {"before_cancel": "restaurant_pos.utils.payment.block_invoice_cancel"},
 }
 
 # ---------------------------------------------------------------------------

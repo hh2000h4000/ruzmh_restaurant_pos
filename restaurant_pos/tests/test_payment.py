@@ -43,18 +43,16 @@ def _ensure_fiscal_year() -> None:
 	).insert(ignore_permissions=True)
 
 
-class TestACancelledInvoiceLeavesTheDrawer(OrderTestBase):
-	"""D-062 — money the books gave back is not money in the till.
+class TestAPosInvoiceIsNotCancelled(OrderTestBase):
+	"""D-063 — a POS sale is reversed by a return, never by a cancellation.
 
-	Cancelling a POS invoice from the ERPNext desk reverses the ledger and leaves
-	its payment rows behind with the parent's `docstatus = 2`. The shift report
-	went on expecting that cash in the drawer, so a cashier would have been made
-	to answer for a difference somebody else created in accounting.
+	Cancelling from the ERPNext desk reversed the ledger and left the order still
+	saying `closed`, with nothing told (D-062). Making the order follow the
+	invoice would be worse: reopening a bill after its drawer was counted
+	re-creates every hole `BR-044` closes.
 	"""
 
-	def test_a_cancelled_invoice_stops_being_expected_in_the_till(self):
-		from restaurant_pos.utils import shift as shift_service
-
+	def _paid(self):
 		_ensure_fiscal_year()
 
 		order = self._order()
@@ -62,12 +60,49 @@ class TestACancelledInvoiceLeavesTheDrawer(OrderTestBase):
 		order.reload()
 		service.process_payment(order, payments=[{"method": CASH, "amount": order.total_amount}])
 		order.reload()
+		return order
 
+	def test_the_desk_cannot_cancel_an_invoice_an_order_points_at(self):
+		order = self._paid()
+
+		with self.assertRaises(frappe.ValidationError):
+			frappe.get_doc("Sales Invoice", order.sales_invoice).cancel()
+
+		self.assertEqual(
+			frappe.db.get_value("Sales Invoice", order.sales_invoice, "docstatus"),
+			1,
+			"the invoice must still stand",
+		)
+
+	def test_an_invoice_with_no_order_behind_it_is_left_alone(self):
+		"""The guard is about **our** sales; ERPNext's own invoices are its own."""
+		order = self._paid()
+		invoice = order.sales_invoice
+
+		# Detach it, the way any invoice raised outside the till already is.
+		frappe.db.set_value("Restaurant Order", order.name, "sales_invoice", None)
+		frappe.get_doc("Sales Invoice", invoice).cancel()
+
+		self.assertEqual(frappe.db.get_value("Sales Invoice", invoice, "docstatus"), 2)
+
+	def test_a_cancelled_invoice_stops_being_expected_in_the_till(self):
+		"""D-062 — money the books gave back is not money in the till.
+
+		The `docstatus` is set directly here rather than through `cancel()`,
+		which the guard above now refuses. That is the point: this covers the
+		**read**, not the cancel path — invoices cancelled before that guard
+		existed, or by a future return flow, must not keep a cashier answering
+		for cash the ledger already gave back.
+		"""
+		from restaurant_pos.utils import shift as shift_service
+
+		order = self._paid()
 		entry = shift_service.selling_till(self.profile).name
+
 		expected = shift_service.summarise_till(entry)["till_expected"]
 		self.assertGreater(expected, 0, "the sale should be expected in the drawer")
 
-		frappe.get_doc("Sales Invoice", order.sales_invoice).cancel()
+		frappe.db.set_value("Sales Invoice", order.sales_invoice, "docstatus", 2)
 
 		after = shift_service.summarise_till(entry)["till_expected"]
 		self.assertLess(after, expected, "a reversed sale must not stay in the count")

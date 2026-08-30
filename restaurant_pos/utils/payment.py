@@ -122,6 +122,36 @@ def process_payment(
 # --------------------------------------------------------------------------- #
 
 
+def block_invoice_cancel(doc, method=None) -> None:
+	"""A POS sale is reversed by a return, never by cancelling it (D-063).
+
+	Hooked on ``Sales Invoice.before_cancel``. Deleting a submitted invoice
+	needs a cancellation first, so this covers that too.
+
+	**Why refuse rather than react.** Cancelling from the desk left the till and
+	the books disagreeing: the ledger reversed the sale and the order still said
+	``closed`` (D-062). Making the order follow the invoice is worse — reopening
+	a bill after its drawer was counted re-creates every hole BR-044 closes. And
+	the money is already gone from the drawer either way: an invoice cancelled
+	an hour after the customer walked out does not bring the cash back.
+
+	A return (``FR-9``) is the honest reversal: it is a credit note, a document
+	of its own, dated when the money actually went back — which is what an
+	auditor needs to see. It is `is_return = 1` on a **new** invoice, so nothing
+	here stands in its way.
+	"""
+	order = frappe.db.get_value("Restaurant Order", {"sales_invoice": doc.name}, "name")
+	if not order:
+		return
+
+	frappe.throw(
+		_("Invoice {0} was issued for order {1}. Reverse it with a return, not a cancellation.").format(
+			doc.name, order
+		),
+		title=_("A point-of-sale invoice is not cancelled"),
+	)
+
+
 def _normalise(payments) -> list[dict]:
 	if isinstance(payments, str):
 		payments = frappe.parse_json(payments)

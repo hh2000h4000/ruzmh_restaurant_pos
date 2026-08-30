@@ -25,7 +25,16 @@ import { useSessionStore } from "@/stores/session";
  * and charged another.
  */
 const props = defineProps<{
-  order: OrderDetail;
+  /**
+   * `null` between customers, and the panel still draws (D-059).
+   *
+   * It was replaced by a placeholder card with a button in the middle of it —
+   * so the till changed shape every time a bill was paid, and the cashier's eye
+   * had to find the totals again. The bill is furniture: the header, the list
+   * and the totals stay where they are, empty, until there is something to put
+   * in them.
+   */
+  order: OrderDetail | null;
   lines: OrderLine[];
   busy?: boolean;
   /** `false` while the order is empty, locked, or already closed. */
@@ -49,17 +58,17 @@ const session = useSessionStore();
  * beneath it: the short one repeats every day, and the long one is what a
  * search or a refund is traced by.
  */
-const shortNumber = computed(() => props.order.daily_number || 0);
+const shortNumber = computed(() => props.order?.daily_number || 0);
 
 const orderType = computed(
-  () => session.orderTypes.find((type) => type.name === props.order.order_type) ?? null,
+  () => session.orderTypes.find((type) => type.name === props.order?.order_type) ?? null,
 );
 
 const typeLabel = computed(() => pick(orderType.value?.title_ar, orderType.value?.title));
 
 /** Where this order is: the table if it sits at one, else nothing to say. */
 const seat = computed(() =>
-  props.order.table_number ? t("card.table", { number: props.order.table_number }) : "",
+  props.order?.table_number ? t("card.table", { number: props.order.table_number }) : "",
 );
 
 const STATUS_CLASS: Record<string, string> = {
@@ -74,13 +83,13 @@ const STATUS_CLASS: Record<string, string> = {
 const KNOWN_STATUSES = ["draft", "active", "in_kitchen", "pending_payment"] as const;
 
 const statusLabel = computed(() => {
-  const known = KNOWN_STATUSES.find((candidate) => candidate === props.order.status);
-  return known ? t(`status.${known}`) : props.order.status;
+  const known = KNOWN_STATUSES.find((candidate) => candidate === props.order?.status);
+  return known ? t(`status.${known}`) : (props.order?.status ?? "");
 });
 
 /** Bare figures: the currency is stated once, on the total. */
-function money(value: number): string {
-  return formatNumber(value, 2);
+function money(value: number | undefined): string {
+  return formatNumber(value ?? 0, 2);
 }
 </script>
 
@@ -92,7 +101,12 @@ function money(value: number): string {
       Two lines, the way the reference reads: the number and the state, then
       what kind of sale it is and who it is for.
     -->
-    <header class="border-b border-line px-5 py-4">
+    <!-- The same four rows whether a bill is in hand or not, so the panel does
+         not resize under the cashier's eye between customers (D-059). -->
+    <header
+      v-if="order"
+      class="border-b border-line px-5 py-4"
+    >
       <div class="flex items-baseline justify-between gap-3">
         <p class="rpos-numeric text-2xl font-bold leading-none">
           {{ formatNumber(shortNumber) }}
@@ -155,6 +169,23 @@ function money(value: number): string {
       </p>
     </header>
 
+    <!-- Between customers. The same height as the strip above, so the list
+         below it does not jump when a bill opens. -->
+    <header
+      v-else
+      class="border-b border-line px-5 py-4"
+    >
+      <p class="rpos-numeric text-2xl font-bold leading-none text-muted opacity-30">
+        —
+      </p>
+      <p class="mt-1.5 text-sm font-semibold text-muted">
+        {{ t("panel.noOrder") }}
+      </p>
+      <p class="mt-1 text-xs text-muted opacity-0">
+        &nbsp;
+      </p>
+    </header>
+
     <ul
       class="min-h-0 divide-y divide-line overflow-y-auto"
       :aria-label="t('panel.title')"
@@ -180,9 +211,12 @@ function money(value: number): string {
           />
         </span>
         <p class="text-muted">
-          {{ t("panel.empty") }}
+          {{ order ? t("panel.empty") : t("panel.startHint") }}
         </p>
-        <p class="mt-1 text-xs text-muted">
+        <p
+          v-if="order"
+          class="mt-1 text-xs text-muted"
+        >
           {{ t("panel.swipeHint") }}
         </p>
       </li>
@@ -192,11 +226,11 @@ function money(value: number): string {
       <div class="flex justify-between text-muted">
         <dt>{{ t("totals.subtotal") }}</dt>
         <dd class="rpos-numeric">
-          {{ money(order.subtotal) }}
+          {{ money(order?.subtotal) }}
         </dd>
       </div>
       <div
-        v-if="order.discount_amount"
+        v-if="order?.discount_amount"
         class="flex justify-between text-status-available"
       >
         <dt>{{ t("totals.discount") }}</dt>
@@ -207,7 +241,7 @@ function money(value: number): string {
       <div class="flex justify-between text-muted">
         <dt>{{ t("totals.tax") }}</dt>
         <dd class="rpos-numeric">
-          {{ money(order.tax_amount) }}
+          {{ money(order?.tax_amount) }}
         </dd>
       </div>
       <div class="flex items-baseline justify-between border-t border-line pt-3">
@@ -215,7 +249,7 @@ function money(value: number): string {
           {{ t("totals.total") }}
         </dt>
         <dd class="rpos-numeric text-[26px] font-bold text-primary">
-          {{ money(order.total_amount) }}
+          {{ money(order?.total_amount) }}
         </dd>
       </div>
 
@@ -231,7 +265,7 @@ function money(value: number): string {
           name="card"
           :size="24"
         />
-        {{ t("order.payWithTotal", { total: money(order.total_amount) }) }}
+        {{ t("order.payWithTotal", { total: money(order?.total_amount) }) }}
       </button>
     </dl>
   </section>

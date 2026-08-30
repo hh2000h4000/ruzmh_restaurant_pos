@@ -970,38 +970,10 @@ async function send(): Promise<void> {
           </div>
         </div>
 
-        <!-- Where the bill will be. Not a blank space: the one thing to do
-             from here is start an order, so that is the button. -->
-        <section
-          v-if="!orders.order"
-          class="grid place-content-center place-items-center gap-3 rounded-rpos bg-surface p-8 text-center shadow-card"
-        >
-          <span class="text-muted opacity-30">
-            <AppIcon
-              name="receipt"
-              :size="52"
-            />
-          </span>
-          <p class="text-muted">
-            {{ t("panel.noOrder") }}
-          </p>
-          <button
-            type="button"
-            class="flex min-h-tap items-center gap-2 rounded-rpos bg-primary px-6 font-bold text-primary-contrast shadow-card transition duration-200 ease-rpos hover:shadow-lift"
-            @click="pane = 'new'"
-          >
-            <AppIcon
-              name="plus"
-              :size="20"
-            />
-            {{ t("home.newOrder") }}
-          </button>
-        </section>
-
-        <!-- BR-044 — the Pay button obeys the same rule as the item tap: a
-             drawer that has been counted takes no more money (D-055). -->
+        <!-- Drawn whether a bill is in hand or not (D-059): the bill is
+             furniture, and a till that rearranges itself between customers is
+             one the cashier has to re-read every time. -->
         <OrderPanel
-          v-else
           :order="orders.order"
           :lines="orders.lines"
           :busy="locked"

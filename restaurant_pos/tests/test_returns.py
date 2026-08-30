@@ -19,7 +19,7 @@ from restaurant_pos.utils import payment
 from restaurant_pos.utils import returns as service
 from restaurant_pos.utils import shift as shift_service
 
-REASON = "the customer sent it back"
+REASON = "goods_returned"
 
 
 class ReturnTestBase(OrderTestBase):
@@ -59,7 +59,7 @@ class TestReturningPartOfABill(ReturnTestBase):
 		"""BR-051, FR-9.3 — and the second attempt must see the first."""
 		order = self._paid(qty=3)
 
-		service.create_return(order, items=[{"row": self._row(order), "qty": 1}], reason=REASON)
+		service.create_return(order, items=[{"row": self._row(order), "qty": 1}], reason_code=REASON)
 
 		summary = service.returnable(order)
 		self.assertEqual(summary["items"][0]["returned"], 1)
@@ -69,7 +69,7 @@ class TestReturningPartOfABill(ReturnTestBase):
 	def test_returning_everything_closes_the_door(self):
 		order = self._paid(qty=2)
 
-		service.create_return(order, items=[{"row": self._row(order), "qty": 2}], reason=REASON)
+		service.create_return(order, items=[{"row": self._row(order), "qty": 2}], reason_code=REASON)
 
 		summary = service.returnable(order)
 		self.assertTrue(summary["fully_returned"])
@@ -80,28 +80,50 @@ class TestReturningPartOfABill(ReturnTestBase):
 		order = self._paid(qty=2)
 
 		with self.assertRaises(frappe.ValidationError):
-			service.create_return(order, items=[{"row": self._row(order), "qty": 3}], reason=REASON)
+			service.create_return(order, items=[{"row": self._row(order), "qty": 3}], reason_code=REASON)
 
 	def test_a_second_return_cannot_exceed_what_is_left(self):
 		order = self._paid(qty=2)
 		row = self._row(order)
-		service.create_return(order, items=[{"row": row, "qty": 1}], reason=REASON)
+		service.create_return(order, items=[{"row": row, "qty": 1}], reason_code=REASON)
 
 		with self.assertRaises(frappe.ValidationError):
-			service.create_return(order, items=[{"row": row, "qty": 2}], reason=REASON)
+			service.create_return(order, items=[{"row": row, "qty": 2}], reason_code=REASON)
 
 	def test_nothing_selected_is_refused(self):
 		order = self._paid()
 
 		with self.assertRaises(frappe.ValidationError):
-			service.create_return(order, items=[], reason=REASON)
+			service.create_return(order, items=[], reason_code=REASON)
 
 	def test_a_reason_is_required(self):
-		"""BR-052."""
+		"""BR-052, and KSA-10 behind it (D-065).
+
+		The code has to be one of the recognised triggers, not a sentence: a
+		credit note that reaches ZATCA with free text where a trigger belongs is
+		one that does not clear.
+		"""
 		order = self._paid()
 
-		with self.assertRaises(frappe.ValidationError):
-			service.create_return(order, items=[{"row": self._row(order), "qty": 1}], reason="   ")
+		for bad in ("", "   ", "the customer sent it back"):
+			with self.assertRaises(frappe.ValidationError):
+				service.create_return(order, items=[{"row": self._row(order), "qty": 1}], reason_code=bad)
+
+	def test_the_reason_travels_on_the_credit_note(self):
+		"""D-065 — a ZATCA integration reads it from the document, not our log."""
+		order = self._paid()
+
+		result = service.create_return(
+			order,
+			items=[{"row": self._row(order), "qty": 1}],
+			reason_code="quality_complaint",
+			note="cold when it arrived",
+		)
+
+		remarks = frappe.db.get_value("Sales Invoice", result["credit_note"], "remarks")
+		self.assertIn("quality_complaint", remarks)
+		self.assertIn("goods return", remarks)
+		self.assertIn("cold when it arrived", remarks)
 
 
 class TestTheCreditNote(ReturnTestBase):
@@ -109,7 +131,7 @@ class TestTheCreditNote(ReturnTestBase):
 		"""BR-053 — ERPNext's own document, so the ledger and stock follow."""
 		order = self._paid(qty=2)
 
-		result = service.create_return(order, items=[{"row": self._row(order), "qty": 1}], reason=REASON)
+		result = service.create_return(order, items=[{"row": self._row(order), "qty": 1}], reason_code=REASON)
 
 		note = frappe.get_doc("Sales Invoice", result["credit_note"])
 		self.assertEqual(note.docstatus, 1)
@@ -122,7 +144,7 @@ class TestTheCreditNote(ReturnTestBase):
 		"""BR-054."""
 		order = self._paid(qty=1)
 
-		result = service.create_return(order, items=[{"row": self._row(order), "qty": 1}], reason=REASON)
+		result = service.create_return(order, items=[{"row": self._row(order), "qty": 1}], reason_code=REASON)
 
 		note = frappe.get_doc("Sales Invoice", result["credit_note"])
 		self.assertEqual(note.payments[0].mode_of_payment, CASH)
@@ -132,7 +154,7 @@ class TestTheCreditNote(ReturnTestBase):
 	def test_the_original_invoice_still_stands(self):
 		"""D-063 — a return reverses a sale; it does not erase it."""
 		order = self._paid(qty=2)
-		service.create_return(order, items=[{"row": self._row(order), "qty": 2}], reason=REASON)
+		service.create_return(order, items=[{"row": self._row(order), "qty": 2}], reason_code=REASON)
 
 		self.assertEqual(frappe.db.get_value("Sales Invoice", order.sales_invoice, "docstatus"), 1)
 		self.assertEqual(frappe.db.get_value("Restaurant Order", order.name, "status"), "closed")
@@ -145,7 +167,7 @@ class TestTheDrawerFollows(ReturnTestBase):
 		entry = shift_service.selling_till(self.profile).name
 
 		before = shift_service.summarise_till(entry)["till_expected"]
-		service.create_return(order, items=[{"row": self._row(order), "qty": 1}], reason=REASON)
+		service.create_return(order, items=[{"row": self._row(order), "qty": 1}], reason_code=REASON)
 		after = shift_service.summarise_till(entry)
 
 		self.assertLess(after["till_expected"], before)
@@ -157,7 +179,7 @@ class TestTheDrawerFollows(ReturnTestBase):
 		entry = shift_service.selling_till(self.profile).name
 
 		sales = shift_service.summarise_till(entry)["sales"]
-		service.create_return(order, items=[{"row": self._row(order), "qty": 1}], reason=REASON)
+		service.create_return(order, items=[{"row": self._row(order), "qty": 1}], reason_code=REASON)
 
 		self.assertEqual(shift_service.summarise_till(entry)["sales"], sales)
 
@@ -172,6 +194,6 @@ class TestTheShiftGate(ReturnTestBase):
 		frappe.db.set_value("POS Opening Entry", till.name, "status", "Closed")
 		try:
 			with self.assertRaises(frappe.ValidationError):
-				service.create_return(order, items=[{"row": row, "qty": 1}], reason=REASON)
+				service.create_return(order, items=[{"row": row, "qty": 1}], reason_code=REASON)
 		finally:
 			frappe.db.set_value("POS Opening Entry", till.name, "status", "Open")

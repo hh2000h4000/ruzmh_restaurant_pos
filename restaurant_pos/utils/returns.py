@@ -27,6 +27,23 @@ from restaurant_pos.utils.payment import is_credit_method
 from restaurant_pos.utils.permissions import consume_override_token
 from restaurant_pos.utils.shift import assert_may_sell, selling_till
 
+#: Why a bill is being reversed, and what ZATCA calls that (D-065).
+#:
+#: **A coded list, not a typed sentence.** `FR-9.2` step 5 says "select return
+#: reason from predefined list" and the first build shipped a text box — which
+#: is not only off-spec but unsubmittable: a KSA credit note carries KSA-10, and
+#: its text must map to one of **five legally recognised triggers**. Free text
+#: cannot be relied on to, and "x" typed to get past a box certainly does not.
+#:
+#: The cashier still adds a note; it goes beside the code, never instead of it.
+RETURN_REASONS = {
+	"goods_returned": "goods return or service rejection",
+	"quality_complaint": "goods return or service rejection",
+	"wrong_item": "clerical error correction",
+	"price_error": "clerical error correction",
+	"order_cancelled": "cancellation or suspension of the supply",
+}
+
 
 def assert_returnable(order) -> str:
 	"""BR-050 — there is nothing to return until there is an invoice."""
@@ -78,6 +95,8 @@ def returnable(order) -> dict:
 		"order_name": order.name,
 		"sales_invoice": invoice,
 		"items": items,
+		# D-065 — the screen offers these and nothing else.
+		"reasons": list(RETURN_REASONS),
 		# BR-054 — the refund goes back the way the money came in, so the screen
 		# needs to know what that was.
 		"paid_with": _paid_with(invoice),
@@ -131,7 +150,8 @@ def create_return(
 	order,
 	*,
 	items: list,
-	reason: str,
+	reason_code: str,
+	note: str | None = None,
 	refund_method: str | None = None,
 	override_token: str | None = None,
 ) -> dict:
@@ -147,9 +167,11 @@ def create_return(
 	# as a sale into one (D-055).
 	assert_may_sell(order.pos_profile)
 
-	if not (reason or "").strip():
-		frappe.throw(_("A reason is required for a return."))
+	# BR-052, and KSA-10 behind it (D-065).
+	if reason_code not in RETURN_REASONS:
+		frappe.throw(_("Choose why this is being returned."))
 
+	reason = _reason_text(reason_code, note)
 	approved_by = _authorise_return(order, override_token)
 	wanted = _validate_quantities(order, items)
 
@@ -161,10 +183,11 @@ def create_return(
 		pos_profile=order.pos_profile,
 		restaurant_order=order.name,
 		approved_by=approved_by,
-		reason=reason.strip(),
+		reason=reason,
 		details={
 			"sales_invoice": invoice,
 			"credit_note": credit.name,
+			"reason_code": reason_code,
 			"refund_amount": flt(credit.rounded_total or credit.grand_total),
 			"items": [{"row": row, "qty": qty} for row, qty in wanted.items()],
 		},
@@ -179,6 +202,17 @@ def create_return(
 		"refund_amount": abs(flt(credit.rounded_total or credit.grand_total)),
 		"returnable": returnable(order),
 	}
+
+
+def _reason_text(reason_code: str, note: str | None) -> str:
+	"""What goes on the credit note, and on the audit entry.
+
+	The ZATCA trigger first, because that is the part a validator reads, then
+	whatever the cashier added for the humans.
+	"""
+	detail = (note or "").strip()
+	trigger = RETURN_REASONS[reason_code]
+	return f"{trigger} ({reason_code}): {detail}" if detail else f"{trigger} ({reason_code})"
 
 
 def _authorise_return(order, override_token: str | None) -> str | None:
@@ -286,7 +320,10 @@ def _build_credit_note(invoice: str, wanted: dict[str, float], reason: str, refu
 	credit = _compose(invoice, wanted)
 
 	_apply_refund(credit, refund_method)
-	credit.remarks = _("Return of {0}: {1}").format(invoice, reason.strip())
+	# The reason travels on the document, not only in our audit log: a KSA
+	# credit note has to carry one, and this is where a ZATCA integration will
+	# read it from (D-065).
+	credit.remarks = _("Return of {0}: {1}").format(invoice, reason)
 
 	credit.flags.ignore_permissions = True
 	credit.insert()

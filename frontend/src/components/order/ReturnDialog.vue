@@ -7,10 +7,11 @@ import {
   previewReturn,
   type Returnable,
   type ReturnLine,
+  type ReturnReason,
 } from "@/api/returns";
 import AppIcon from "@/components/AppIcon.vue";
 import BaseDialog from "@/components/BaseDialog.vue";
-import { formatNumber, t } from "@/i18n";
+import { formatNumber, t, type MessageKey } from "@/i18n";
 
 /**
  * Sending part of a paid bill back (FR-9.2, D-064).
@@ -34,7 +35,24 @@ const emit = defineEmits<{ close: []; done: [creditNote: string] }>();
 const bill = ref<Returnable | null>(null);
 /** Row name → how much of it is going back. */
 const chosen = ref<Record<string, number>>({});
-const reason = ref("");
+/**
+ * BR-052 and KSA-10 (D-065) — a code, not a sentence.
+ *
+ * The reason on a Saudi credit note has to map to one of five triggers ZATCA
+ * recognises, and a text box invites "x" typed to get past it. The note beside
+ * it is for the humans and is optional.
+ */
+const reason = ref<ReturnReason | "">("");
+const note = ref("");
+
+/** Labels for the codes the server sent. Wording is ours; the list is not. */
+const REASON_LABEL: Record<ReturnReason, MessageKey> = {
+  goods_returned: "ret.reasonReturned",
+  quality_complaint: "ret.reasonQuality",
+  wrong_item: "ret.reasonWrongItem",
+  price_error: "ret.reasonPrice",
+  order_cancelled: "ret.reasonCancelled",
+};
 const method = ref("");
 const refund = ref(0);
 const busy = ref(false);
@@ -47,6 +65,7 @@ watch(
     bill.value = null;
     chosen.value = {};
     reason.value = "";
+    note.value = "";
     method.value = "";
     refund.value = 0;
     error.value = null;
@@ -103,11 +122,11 @@ function takeAll(): void {
 }
 
 const canConfirm = computed(
-  () => !busy.value && lines.value.length > 0 && Boolean(reason.value.trim() && method.value),
+  () => !busy.value && lines.value.length > 0 && Boolean(reason.value && method.value),
 );
 
 async function confirm(): Promise<void> {
-  if (!canConfirm.value || !props.orderName) return;
+  if (!canConfirm.value || !props.orderName || !reason.value) return;
 
   busy.value = true;
   error.value = null;
@@ -115,7 +134,8 @@ async function confirm(): Promise<void> {
     const done = await createReturn({
       order_name: props.orderName,
       items: lines.value,
-      reason: reason.value.trim(),
+      reason_code: reason.value,
+      note: note.value.trim() || null,
       refund_method: method.value,
     });
 
@@ -272,12 +292,30 @@ function money(value: number): string {
           </div>
         </div>
 
-        <!-- BR-052 — mandatory, and it goes on the audit entry. -->
+        <!-- BR-052 and KSA-10 (D-065) — one of five, chosen not typed. -->
+        <p class="mb-1.5 text-sm font-semibold text-muted">
+          {{ t("ret.reason") }}
+        </p>
+        <div class="mb-3 flex flex-wrap gap-2">
+          <button
+            v-for="code in bill.reasons"
+            :key="code"
+            type="button"
+            class="min-h-tap rounded-full px-4 text-sm font-semibold transition duration-200 ease-rpos"
+            :class="reason === code ? 'bg-primary text-primary-contrast' : 'bg-background text-muted'"
+            :aria-pressed="reason === code"
+            @click="reason = code"
+          >
+            {{ t(REASON_LABEL[code]) }}
+          </button>
+        </div>
+
+        <!-- For the humans. The code above is what a validator reads. -->
         <input
-          v-model="reason"
+          v-model="note"
           type="text"
           class="mb-3 min-h-tap w-full rounded-rpos border border-line bg-background px-3"
-          :placeholder="t('ret.reason')"
+          :placeholder="t('ret.note')"
         >
 
         <p class="mb-4 flex items-center justify-between rounded-rpos bg-background p-3">

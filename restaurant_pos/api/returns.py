@@ -41,7 +41,8 @@ def preview_return(order_name: str, items: list | str) -> dict:
 def create_return(
 	order_name: str,
 	items: list | str,
-	reason: str,
+	reason_code: str,
+	note: str | None = None,
 	refund_method: str | None = None,
 	manager_override_token: str | None = None,
 	queue_id: str | None = None,
@@ -60,7 +61,8 @@ def create_return(
 	result = service.create_return(
 		order,
 		items=frappe.parse_json(items) if isinstance(items, str) else items,
-		reason=reason,
+		reason_code=reason_code,
+		note=note,
 		refund_method=refund_method,
 		override_token=manager_override_token,
 	)

@@ -22,10 +22,25 @@ export interface ReturnableLine {
   returnable: number;
 }
 
+/**
+ * Why a bill is being reversed (D-065).
+ *
+ * A code, not a sentence: a KSA credit note carries the reason and its text has
+ * to map to one of five triggers ZATCA recognises. The server owns the list;
+ * the screen only labels it.
+ */
+export type ReturnReason =
+  | "goods_returned"
+  | "quality_complaint"
+  | "wrong_item"
+  | "price_error"
+  | "order_cancelled";
+
 export interface Returnable {
   order_name: string;
   sales_invoice: string;
   items: ReturnableLine[];
+  reasons: ReturnReason[];
   /** BR-054 — the refund goes back the way the money came in. */
   paid_with: { method: string; amount: number }[];
   returns: { name: string; posting_date: string; grand_total: number }[];
@@ -57,7 +72,8 @@ export function previewReturn(
 export function createReturn(payload: {
   order_name: string;
   items: ReturnLine[];
-  reason: string;
+  reason_code: ReturnReason;
+  note?: string | null;
   refund_method?: string | null;
   manager_override_token?: string | null;
 }): Promise<{

@@ -542,14 +542,6 @@ function onPick(item: CatalogItem, qty: number): void {
     return;
   }
 
-  // D-073 — the modifier dialog reads its options from the server, so there is
-  // no honest price for "extra cheese" while the line is down. Said before the
-  // dialog opens rather than after it fails to load.
-  if (orders.offline && item.modifier_groups.length) {
-    orders.error = t("offline.noModifiers");
-    return;
-  }
-
   if (item.modifier_groups.length) {
     // The quantity has to survive the detour, or six coffees with extra milk
     // arrive as one.

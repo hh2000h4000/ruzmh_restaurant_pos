@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 
-import { getModifierGroups, type ModifierGroup } from "@/api/modifiers";
+import type { ModifierGroup } from "@/api/modifiers";
 import type { ModifierChoice } from "@/api/order";
 import BaseDialog from "@/components/BaseDialog.vue";
 import NoteEditor from "@/components/order/NoteEditor.vue";
 import { formatNumber, pick, t } from "@/i18n";
+import { useSessionStore } from "@/stores/session";
 import type { CatalogItem } from "@/types/session";
 
 /**
@@ -22,15 +23,25 @@ const emit = defineEmits<{
   cancel: [];
 }>();
 
+const session = useSessionStore();
+
 const groups = ref<ModifierGroup[]>([]);
 const chosen = ref<Record<string, string[]>>({});
 const notes = ref("");
 const loading = ref(false);
 const failure = ref<string | null>(null);
 
+/**
+ * D-076 — read from the session, not fetched.
+ *
+ * This used to ask the server every time it opened, which made the popup wait a
+ * round trip in front of a customer and made "extra cheese" **impossible during
+ * an outage**. The groups ship with the menu now; there are far fewer of them
+ * than there are items, and the items were already there.
+ */
 watch(
   () => props.item,
-  async (item) => {
+  (item) => {
     groups.value = [];
     chosen.value = {};
     notes.value = "";
@@ -38,18 +49,21 @@ watch(
 
     if (!item?.modifier_groups.length) return;
 
-    loading.value = true;
-    try {
-      groups.value = await getModifierGroups(item.modifier_groups);
-      for (const group of groups.value) {
-        chosen.value[group.name] = group.options
-          .filter((option) => option.is_default)
-          .map((option) => option.title);
-      }
-    } catch (cause) {
-      failure.value = cause instanceof Error ? cause.message : String(cause);
-    } finally {
-      loading.value = false;
+    const wanted = new Set(item.modifier_groups);
+    groups.value = (session.data?.modifier_groups ?? []).filter((group) => wanted.has(group.name));
+
+    if (groups.value.length !== item.modifier_groups.length) {
+      // The menu names a group this terminal did not receive — a cache written
+      // before the group existed, or a menu edited since. Saying so beats
+      // showing half the options as though they were all of them.
+      failure.value = t("mod.missing");
+      return;
+    }
+
+    for (const group of groups.value) {
+      chosen.value[group.name] = group.options
+        .filter((option) => option.is_default)
+        .map((option) => option.title);
     }
   },
   { immediate: true },

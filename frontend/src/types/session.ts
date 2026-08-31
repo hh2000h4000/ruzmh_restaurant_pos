@@ -7,6 +7,7 @@
  * (`DECISIONS.md` D-025).
  */
 
+import type { ModifierGroup } from "@/api/modifiers";
 import type { Pricing } from "@/money/totals";
 
 export interface ThemeTokens {
@@ -229,6 +230,14 @@ export interface PosSession {
   pricing: Pricing;
   items: CatalogItem[];
   item_groups: ItemGroup[];
+  /**
+   * D-076 — shipped with the menu so the popup never waits on a request.
+   *
+   * Prices here are for display and for the offline total. The backend prices
+   * every option again when the line lands (`D-020`), and the offline replay
+   * refuses a bill whose figures disagree (`D-072`).
+   */
+  modifier_groups: ModifierGroup[];
   promotions: Promotion[];
   quick_notes: QuickNote[];
   permissions: PosPermissions;

@@ -31,7 +31,7 @@ export interface LocalLine {
   item_name: string;
   qty: number;
   rate: number;
-  modifiers: { group: string; option: string; option_ar: string; amount: number }[];
+  modifiers: OrderLine["modifiers"];
   notes: string | null;
 }
 
@@ -126,9 +126,22 @@ export function toOrderDetail(state: LocalOrderState, pricing: Pricing): OrderDe
   };
 }
 
-/** One line, modifiers included — mirrors `utils/totals.line_amount`. */
+/**
+ * One line, modifiers included — mirrors `utils/order._resolve_modifiers` and
+ * `utils/totals.line_amount`.
+ *
+ * `replace` adds like `add` does. That looks wrong and is what the server does
+ * (`utils/order.py`), so the port follows it rather than improving on it: a
+ * device that computed the "better" answer would disagree with the invoice.
+ */
 function lineAmount(line: LocalLine): number {
-  const delta = line.modifiers.reduce((sum, modifier) => sum + (modifier.amount || 0), 0);
+  const delta = line.modifiers.reduce((sum, modifier) => {
+    const amount = modifier.amount || 0;
+    if (modifier.price_effect === "subtract") return sum - amount;
+    if (modifier.price_effect === "none") return sum;
+    return sum + amount;
+  }, 0);
+
   return (line.rate + delta) * line.qty;
 }
 

@@ -33,7 +33,7 @@ const CONFIG_KEY = "session";
  * into a new shape guesses at what the server would have said, which is the
  * thing this whole layer exists not to do.
  */
-const SHAPE = 2;
+const SHAPE = 3;
 
 /** Items live in their own store per 09 §3, so the config row stays small. */
 type SessionWithoutItems = Omit<PosSession, "items">;

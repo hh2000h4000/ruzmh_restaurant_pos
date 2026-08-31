@@ -28,7 +28,17 @@ export interface OrderLine {
   amount: number;
   status: "pending" | "sent" | "void" | "served";
   notes: string | null;
-  modifiers: { group: string; option: string; option_ar: string; amount: number }[];
+  /**
+   * `amount` is the option's own price, not a signed delta — the server stores
+   * it that way and `price_effect` says which direction it pulls (D-076).
+   */
+  modifiers: {
+    group: string;
+    option: string;
+    option_ar: string;
+    amount: number;
+    price_effect?: "none" | "add" | "subtract" | "replace";
+  }[];
   production_center: string | null;
 }
 

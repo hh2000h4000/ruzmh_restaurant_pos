@@ -195,6 +195,13 @@ def load_pos_session(pos_profile: str) -> dict:
 		"pricing": totals_service.pricing_inputs(pos_profile),
 		"items": items,
 		"item_groups": item_groups,
+		# D-076 — shipped with the menu, not fetched per item.
+		#
+		# The popup used to ask the server every time it opened, which made
+		# "extra cheese" impossible during an outage and a round trip away from
+		# the cashier the rest of the time. There are far fewer groups than
+		# items, and the items are already here.
+		"modifier_groups": _modifier_groups_for(items),
 		"promotions": _promotions(profile.branch),
 		# FR-2.9 — typing Arabic on a touch screen mid-rush is the slowest thing
 		# a cashier does, and these are the notes a kitchen hears every day.
@@ -565,6 +572,16 @@ def _promotions(branch: str | None) -> list[dict]:
 			"time_to",
 		],
 	)
+
+
+def _modifier_groups_for(items: list[dict]) -> list[dict]:
+	"""Every group this terminal's menu can reach (D-076).
+
+	Scoped to the menu rather than the whole site: a chain's other branches sell
+	things this till does not, and a payload is read on every sign-in.
+	"""
+	wanted = sorted({group for item in items for group in (item.get("modifier_groups") or [])})
+	return get_modifier_groups(wanted) if wanted else []
 
 
 @frappe.whitelist()

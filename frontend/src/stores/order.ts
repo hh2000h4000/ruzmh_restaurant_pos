@@ -162,12 +162,6 @@ export const useOrderStore = defineStore("order", () => {
         const catalogue = session.itemsByCode.get(item);
         if (!catalogue) throw new Error(t("offline.itemUnknown"));
 
-        // D-073 — the modifier dialog reads its options from the server, so
-        // offline there is no price for "extra cheese" and no honest way to
-        // invent one. The screen refuses these before the tap gets here; this
-        // is the guard behind that guard.
-        if (catalogue.modifier_groups.length) throw new Error(t("offline.noModifiers"));
-
         offline.value!.lines.push({
           item,
           item_name: catalogue.item_name,
@@ -175,7 +169,7 @@ export const useOrderStore = defineStore("order", () => {
           // server re-reads it on sync and refuses a bill that disagrees.
           rate: session.priceOf(catalogue, orderTypeOf()) ?? 0,
           qty: options.qty ?? 1,
-          modifiers: [],
+          modifiers: resolveModifiers(options.modifiers),
           notes: options.notes ?? null,
         });
         await applyLocal();
@@ -196,6 +190,40 @@ export const useOrderStore = defineStore("order", () => {
 
     // The line list changed shape, so re-read rather than patch it locally.
     if (done) await open(orderName);
+  }
+
+  /**
+   * Price the chosen options from the groups the session shipped (D-076).
+   *
+   * Display money, not authority: `add_item` prices every option again from
+   * `POS Modifier Option` (`D-020`), and the offline replay refuses a bill whose
+   * total disagrees with the server's (`D-072`). What this buys is a cashier who
+   * can sell "extra cheese" during an outage and a customer who is quoted the
+   * right figure.
+   */
+  function resolveModifiers(chosen: ModifierChoice[] | undefined) {
+    if (!chosen?.length) return [];
+
+    const groups = useSessionStore().data?.modifier_groups ?? [];
+
+    return chosen.flatMap((choice) => {
+      const group = groups.find((row) => row.name === choice.group);
+      const option = group?.options.find((row) => row.title === choice.option);
+      if (!group || !option) return [];
+
+      // `amount` is the option's own price and `price_effect` says which way it
+      // pulls — the shape `utils/order._resolve_modifiers` stores, so a line
+      // reads the same whether it was built here or came back from the server.
+      return [
+        {
+          group: group.name,
+          option: option.title,
+          option_ar: option.title_ar || option.title,
+          amount: option.price_amount,
+          price_effect: option.price_effect,
+        },
+      ];
+    });
   }
 
   /** The order type in hand, for pricing a line the way the till would. */

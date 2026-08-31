@@ -182,6 +182,21 @@ class TestLoadPosSession(OrderTestBase):
 		self.assertIsNotNone(payload["active_shift"])
 		self.assertEqual(payload["active_shift"]["status"], "open")
 
+	def test_the_menu_brings_its_modifier_groups(self):
+		"""D-076 — the popup must not need the network to price an option.
+
+		Scoped to what this terminal's menu can reach, and carrying the options,
+		because a group without them cannot be shown or priced.
+		"""
+		payload = self._load()
+
+		self.assertIn("modifier_groups", payload)
+		wanted = {group for item in payload["items"] for group in (item.get("modifier_groups") or [])}
+		self.assertEqual({group["name"] for group in payload["modifier_groups"]}, wanted)
+
+		for group in payload["modifier_groups"]:
+			self.assertIn("options", group)
+
 	def test_a_closed_drawer_stops_the_terminal_selling(self):
 		"""BR-044, D-054 — the screens gate on this, so it must be the real rule.
 

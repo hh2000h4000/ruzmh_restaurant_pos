@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Arabic — the language this POS is built for.
  *
  * Typed as `Catalogue`, so a key added to `en.ts` and forgotten here stops the
@@ -29,7 +29,6 @@ const messages: Catalogue["messages"] = {
   "conn.staleConfig": "يعمل من نسخة هذا الجهاز، المحفوظة {when}.",
   // البيع بلا اتصال (09 §5)
   "offline.itemUnknown": "هذا الصنف ليس في قائمة هذا الجهاز.",
-  "offline.noModifiers": "لا يمكن تسعير الإضافات بلا اتصال. أضف الصنف بعد عودة الاتصال.",
   "offline.bill": "بلا اتصال — هذه الفاتورة على الجهاز حتى يعود الاتصال.",
   "offline.paid": "حُصِّلت على هذا الجهاز. تصل الخادم حين يعود الاتصال.",
   "offline.noPricing": "هذا الجهاز لم يُحمّل الأسعار بعد. أعد الاتصال مرة واحدة ليحمّلها.",
@@ -263,6 +262,7 @@ const messages: Catalogue["messages"] = {
   "mod.priceDelta": "الإضافة على السعر:",
   "mod.add": "إضافة للطلب",
   "mod.choose": "اختر:",
+  "mod.missing": "خيارات هذا الصنف غير موجودة على الجهاز. أعد الاتصال مرة لتحميلها.",
 
   // Payment
   "pay.title": "الدفع",

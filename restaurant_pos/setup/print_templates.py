@@ -15,6 +15,7 @@ Refs: FR-7.2, FR-7.4, FR-7.5, D-084
 """
 
 import frappe
+from frappe.utils import time_diff_in_seconds
 
 #: Root font size in px per paper width, so `rem` means the same physical size
 #: on every roll. 80mm prints 576 dots, 58mm prints 384 — two thirds of it.
@@ -46,6 +47,13 @@ table { width: 100%; border-collapse: collapse; }
 td, th { padding: 0.1rem 0; vertical-align: top; font-size: 0.95rem; }
 th { border-bottom: 1px solid #000; text-align: start; font-weight: bold; }
 .num { text-align: end; white-space: nowrap; }
+/* Every printed number is isolated from the Arabic around it.
+ *
+ * Without this, "10.00 ر.س" inside an RTL line is handed to the bidi algorithm
+ * as one run, and the currency ends up wrapped into the digits — the total line
+ * came out unreadable on the first real receipt. `isolate` is what says "this
+ * span is a self-contained LTR run", which is exactly what an amount is. */
+.num, .amt { direction: ltr; unicode-bidi: isolate; }
 .row { display: flex; justify-content: space-between; gap: 0.5rem; }
 .total { font-size: 1.3rem; font-weight: bold; }
 """
@@ -61,7 +69,7 @@ CUSTOMER_RECEIPT = """
 	</div>
 	<hr>
 	<div class="row"><span>رقم الطلب</span><b>{{{{ order.daily_number or doc.name }}}}</b></div>
-	<div class="row"><span>التاريخ</span><span>{{{{ frappe.utils.format_datetime(doc.posting_date) }}}}</span></div>
+	<div class="row"><span>التاريخ</span><span class="amt">{{{{ frappe.utils.formatdate(doc.posting_date) }}}} {{{{ frappe.utils.format_time(doc.posting_time) }}}}</span></div>
 	<div class="row"><span>الكاشير</span><span>{{{{ order.cashier_name or doc.owner }}}}</span></div>
 	{{% if order.order_type_title %}}
 	<div class="row"><span>نوع الطلب</span><span>{{{{ order.order_type_title }}}}</span></div>
@@ -80,20 +88,20 @@ CUSTOMER_RECEIPT = """
 		{{% endfor %}}
 	</table>
 	<hr>
-	<div class="row"><span>الإجمالي قبل الضريبة</span><span>{{{{ "%.2f" | format(doc.net_total) }}}}</span></div>
+	<div class="row"><span>الإجمالي قبل الضريبة</span><span class="amt">{{{{ "%.2f" | format(doc.net_total) }}}}</span></div>
 	{{% if doc.discount_amount %}}
-	<div class="row"><span>الخصم</span><span>{{{{ "%.2f" | format(doc.discount_amount) }}}}</span></div>
+	<div class="row"><span>الخصم</span><span class="amt">{{{{ "%.2f" | format(doc.discount_amount) }}}}</span></div>
 	{{% endif %}}
 	{{% for tax in doc.taxes %}}
-	<div class="row"><span>{{{{ tax.description }}}}</span><span>{{{{ "%.2f" | format(tax.tax_amount) }}}}</span></div>
+	<div class="row"><span>{{{{ tax.description }}}}</span><span class="amt">{{{{ "%.2f" | format(tax.tax_amount) }}}}</span></div>
 	{{% endfor %}}
-	<div class="row total"><span>الإجمالي</span><span>{{{{ "%.2f" | format(doc.rounded_total or doc.grand_total) }}}} ر.س</span></div>
+	<div class="row total"><span>الإجمالي</span><span><span class="amt">{{{{ "%.2f" | format(doc.rounded_total or doc.grand_total) }}}}</span> ر.س</span></div>
 	<hr>
 	{{% for payment in doc.payments %}}
-	<div class="row"><span>{{{{ payment.mode_of_payment }}}}</span><span>{{{{ "%.2f" | format(payment.amount) }}}}</span></div>
+	<div class="row"><span>{{{{ payment.mode_of_payment }}}}</span><span class="amt">{{{{ "%.2f" | format(payment.amount) }}}}</span></div>
 	{{% endfor %}}
 	{{% if doc.change_amount %}}
-	<div class="row"><span>الباقي</span><span>{{{{ "%.2f" | format(doc.change_amount) }}}}</span></div>
+	<div class="row"><span>الباقي</span><span class="amt">{{{{ "%.2f" | format(doc.change_amount) }}}}</span></div>
 	{{% endif %}}
 	<hr>
 	<div class="c muted">شكراً لزيارتكم</div>
@@ -126,7 +134,7 @@ BILL_PREVIEW = """
 		{{% endfor %}}
 	</table>
 	<hr>
-	<div class="row total"><span>الإجمالي</span><span>{{{{ "%.2f" | format(totals.grand_total) }}}} ر.س</span></div>
+	<div class="row total"><span>الإجمالي</span><span><span class="amt">{{{{ "%.2f" | format(totals.grand_total) }}}}</span> ر.س</span></div>
 	<div class="c muted">شامل ضريبة القيمة المضافة</div>
 </body></html>
 """
@@ -192,8 +200,8 @@ SHIFT_REPORT = """
 		{{% endfor %}}
 	</table>
 	<hr>
-	<div class="row total"><span>صافي المبيعات</span><span>{{{{ "%.2f" | format(doc.grand_total) }}}}</span></div>
-	<div class="row"><span>عدد الفواتير</span><span>{{{{ doc.pos_transactions | length }}}}</span></div>
+	<div class="row total"><span>صافي المبيعات</span><span class="amt">{{{{ "%.2f" | format(doc.grand_total) }}}}</span></div>
+	<div class="row"><span>عدد الفواتير</span><span class="amt">{{{{ doc.pos_transactions | length }}}}</span></div>
 </body></html>
 """
 
@@ -209,17 +217,34 @@ SOURCES = {
 def create_default_templates() -> None:
 	"""Install one default template per type and paper width. Idempotent.
 
-	An existing document is left completely alone. A restaurant that edited its
-	receipt must not find the edit gone after a migrate — that is a change
-	nobody made, arriving without warning, in the thing the customer is handed.
+	**A template nobody has edited is refreshed; one somebody edited is never
+	touched.** Both halves matter. A restaurant that redesigned its receipt must
+	not find the design gone after a migrate — that is a change nobody made,
+	arriving unannounced, in the thing the customer is handed. But a site that
+	never opened the screen should get a fix to the shipped template, or the bug
+	is frozen into every install that predates it. The first real receipt
+	rendered proved that: the currency ran into the total, and without this the
+	repair would have reached new sites only.
+
+	"Edited" is `modified` having moved away from `creation`, which is why the
+	refresh below writes with `update_modified=False` — a template we corrected
+	is still an untouched one, and must stay eligible for the next correction.
 	"""
 	for template_type, (title_ar, title_en, html) in SOURCES.items():
 		for paper_width, root_px in ROOT_PX.items():
 			title = f"{title_en} {paper_width}"
-			if frappe.db.exists("POS Print Template", title):
+			css = f"html {{ font-size: {root_px}px; }}" + BASE_CSS
+			body = html.format(css=css).strip()
+
+			existing = frappe.db.get_value(
+				"POS Print Template", title, ["name", "creation", "modified"], as_dict=True
+			)
+			if existing:
+				if _was_edited(existing):
+					continue
+				frappe.db.set_value("POS Print Template", title, "template_html", body, update_modified=False)
 				continue
 
-			css = f"html {{ font-size: {root_px}px; }}" + BASE_CSS
 			frappe.get_doc(
 				{
 					"doctype": "POS Print Template",
@@ -228,6 +253,19 @@ def create_default_templates() -> None:
 					"template_type": template_type,
 					"paper_width": paper_width,
 					"is_default": 1,
-					"template_html": html.format(css=css).strip(),
+					"template_html": body,
 				}
 			).insert(ignore_permissions=True)
+
+
+def _was_edited(row) -> bool:
+	"""Has a person changed this since it was installed?
+
+	A second of tolerance because `creation` and `modified` are stamped by
+	separate calls on insert and can land microseconds apart — a difference that
+	would otherwise read as an edit and freeze every shipped template for ever.
+	"""
+	if not row.modified or not row.creation:
+		return False
+
+	return abs(time_diff_in_seconds(row.modified, row.creation)) > 1

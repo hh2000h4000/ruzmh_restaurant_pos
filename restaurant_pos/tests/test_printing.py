@@ -19,7 +19,9 @@ from frappe.utils import add_to_date, now_datetime
 
 from restaurant_pos.api import printing as api
 from restaurant_pos.restaurant_pos.doctype.pos_print_agent import pos_print_agent
+from restaurant_pos.setup import print_templates
 from restaurant_pos.tests.test_order import BRANCH, ITEM, OrderTestBase
+from restaurant_pos.tests.test_payment import PaymentTestBase
 from restaurant_pos.utils import kitchen
 from restaurant_pos.utils import order as orders
 from restaurant_pos.utils import printing as service
@@ -384,6 +386,96 @@ class TestWhatTheAgentReports(PrintingTestBase):
 
 		self.assertEqual(frappe.db.get_value("POS Print Job", job, "error"), "Out of paper")
 		self.assertEqual(frappe.db.get_value("Kitchen Order Ticket", kot.name, "print_status"), "failed")
+
+
+class TestTheShippedTemplates(FrappeTestCase):
+	"""They are the thing a customer is handed, and they render on the server."""
+
+	def test_every_shipped_template_is_installed(self):
+		for template_type in print_templates.SOURCES:
+			for paper_width in print_templates.ROOT_PX:
+				self.assertTrue(
+					frappe.db.exists(
+						"POS Print Template",
+						{"template_type": template_type, "paper_width": paper_width, "is_default": 1},
+					),
+					f"{template_type} {paper_width} is missing",
+				)
+
+	def test_an_untouched_template_takes_a_correction(self):
+		"""A fix to a shipped template must reach sites that already have it.
+
+		The first real receipt printed the currency into the total. Without this,
+		the repair would have reached new installations only, and every site that
+		migrated before it would have kept the bug for good.
+		"""
+		title = "Customer Receipt 80mm"
+		frappe.db.set_value(
+			"POS Print Template", title, "template_html", "<html>stale</html>", update_modified=False
+		)
+
+		print_templates.create_default_templates()
+
+		self.assertNotEqual(
+			frappe.db.get_value("POS Print Template", title, "template_html"), "<html>stale</html>"
+		)
+
+	def test_a_template_somebody_edited_is_never_overwritten(self):
+		"""A restaurant's own receipt design is theirs."""
+		title = "Bill Preview 80mm"
+		mine = "<html><body>my own receipt</body></html>"
+
+		doc = frappe.get_doc("POS Print Template", title)
+		doc.template_html = mine
+		doc.save(ignore_permissions=True)
+
+		print_templates.create_default_templates()
+
+		self.assertEqual(frappe.db.get_value("POS Print Template", title, "template_html"), mine)
+
+
+class TestTheCustomerReceipt(PaymentTestBase):
+	"""Built on the payment base, because a receipt needs a real invoice.
+
+	A Sales Invoice needs a fiscal year, a warehouse and a default customer that
+	only `PaymentTestBase` arranges — and a receipt rendered from a hand-made
+	dict would prove nothing about the one a customer is handed.
+	"""
+
+	@classmethod
+	def setUpClass(cls):
+		super().setUpClass()
+		cls.agent = _agent("RPOS Test Agent")
+		cls.printer = _printer("RPOS Test Printer", agent=cls.agent)
+		frappe.db.commit()
+
+	def setUp(self):
+		super().setUp()
+		frappe.db.set_value("POS Printer", self.printer, "print_agent", self.agent)
+		frappe.db.delete("POS Print Job", {"agent": self.agent})
+
+	def test_a_paid_order_queues_a_receipt_on_the_cashier_s_printer(self):
+		"""FR-7.5 — it goes with the payment, not with a button."""
+		frappe.db.set_value("POS Profile", self.profile, "default_printer", self.printer)
+		result = self._pay(self._payable_order())
+
+		# `process_payment` enqueues rather than renders, so this calls what the
+		# worker would call — covering the render itself, not the intent to.
+		job = service.print_receipt(result["sales_invoice"], order_name=result["order_name"])
+
+		self.assertIsNotNone(job)
+		doc = frappe.get_doc("POS Print Job", job)
+		self.assertEqual(doc.job_type, "customer_receipt")
+		self.assertEqual(doc.printer, self.printer)
+		self.assertEqual(doc.reference_name, result["sales_invoice"])
+		self.assertGreater(doc.payload_bytes, 0)
+
+	def test_a_terminal_with_no_printer_queues_nothing_and_does_not_raise(self):
+		"""The money has already moved; a printer cannot undo that."""
+		frappe.db.set_value("POS Profile", self.profile, "default_printer", None)
+		result = self._pay(self._payable_order())
+
+		self.assertIsNone(service.print_receipt(result["sales_invoice"], order_name=result["order_name"]))
 
 
 class TestTheQueueDoesNotGrowForever(PrintingTestBase):

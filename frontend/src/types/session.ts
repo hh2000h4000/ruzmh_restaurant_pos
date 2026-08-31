@@ -7,6 +7,8 @@
  * (`DECISIONS.md` D-025).
  */
 
+import type { Pricing } from "@/money/totals";
+
 export interface ThemeTokens {
   primary: string;
   primary_contrast: string;
@@ -217,6 +219,14 @@ export interface PosSession {
    * the day — closing a till counts the money back in while the day carries on.
    */
   can_sell: boolean;
+  /**
+   * D-071 — the settings the device needs to compute a total while offline.
+   *
+   * The server's own: the tax rate from the POS Profile's template, the
+   * cash-rounding step from the ERPNext `Currency`, and the rounding method.
+   * `money/totals.ts` applies them; it never guesses one.
+   */
+  pricing: Pricing;
   items: CatalogItem[];
   item_groups: ItemGroup[];
   promotions: Promotion[];

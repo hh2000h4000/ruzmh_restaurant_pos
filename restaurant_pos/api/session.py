@@ -24,6 +24,7 @@ import frappe
 from frappe import _
 from frappe.utils import flt, now_datetime
 
+from restaurant_pos.utils import totals as totals_service
 from restaurant_pos.utils.order import is_order_type_allowed
 from restaurant_pos.utils.permissions import get_pos_permission_set, validate_branch_access
 
@@ -188,6 +189,10 @@ def load_pos_session(pos_profile: str) -> dict:
 		# drawer of their own. Answered by the server so no screen has to work
 		# it out, and so none of them can disagree with it (D-054).
 		"can_sell": _can_sell(pos_profile),
+		# D-071 — the inputs a device needs to reach the same total this server
+		# does while the line is down: the tax rate, the cash-rounding step and
+		# the rounding method. Shipped, never guessed (`09` §5).
+		"pricing": totals_service.pricing_inputs(pos_profile),
 		"items": items,
 		"item_groups": item_groups,
 		"promotions": _promotions(profile.branch),

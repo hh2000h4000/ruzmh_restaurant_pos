@@ -86,21 +86,63 @@ def line_amount(rate: float, qty: float, modifier_delta: float = 0.0) -> float:
 	return money((flt(rate) + flt(modifier_delta)) * flt(qty))
 
 
+def pricing_inputs(pos_profile: str) -> dict:
+	"""Everything a device needs to reach the same total this module does (D-071).
+
+	Three settings live on the server and nowhere else: the tax rate on the POS
+	Profile's template, the cash-rounding step on the ERPNext `Currency`, and the
+	rounding method in System Settings. A till that guessed any of them would
+	quote a customer one figure while the invoice carried another — which is the
+	whole reason `CLAUDE.md` §5.1 says the backend computes.
+
+	It still does. **This ships the inputs, not the authority**: the device
+	applies them while the connection is down, and the server recomputes on sync
+	and reports any difference rather than swallowing it (`09` §5).
+	"""
+	currency = frappe.db.get_value("POS Profile", pos_profile, "currency") or DEFAULT_CURRENCY
+
+	return {
+		"currency": currency,
+		"precision": CURRENCY_PRECISION,
+		"tax_rate": tax_rate_for(pos_profile),
+		"rounding_step": flt(frappe.db.get_value("Currency", currency, "smallest_currency_fraction_value")),
+		"rounding_method": frappe.get_system_settings("rounding_method") or "Banker's Rounding (legacy)",
+	}
+
+
+def compute(line_amounts: list, discount_type: str | None, discount_value, pricing: dict) -> dict:
+	"""The arithmetic itself, with nothing to look up (D-071).
+
+	Pulled out of :func:`calculate` so there is exactly **one** description of
+	how a bill adds up, and the device's port has a single function to mirror.
+	A second path here — one for the order, one for the offline copy — is how
+	two figures for one meal are born.
+	"""
+	subtotal = money(sum(flt(amount) for amount in line_amounts))
+	discount = discount_amount(subtotal, discount_type, discount_value)
+
+	net = money(subtotal - discount)
+	tax = money(net * flt(pricing["tax_rate"]) / 100)
+
+	return {
+		"subtotal": subtotal,
+		"discount_amount": discount,
+		"tax_amount": tax,
+		"total_amount": round_to_step(net + tax, pricing["currency"]),
+	}
+
+
 def calculate(order) -> None:
 	"""Recompute every total on ``order`` in place.
 
 	Voided lines are excluded: BR-013 removes a voided item from the order
 	total while keeping the row for the audit trail.
 	"""
-	subtotal = sum(flt(row.amount) for row in (order.items or []) if row.status != "void")
-	order.subtotal = money(subtotal)
+	amounts = [flt(row.amount) for row in (order.items or []) if row.status != "void"]
 
-	order.discount_amount = discount_amount(order.subtotal, order.discount_type, order.discount_value)
+	totals = compute(amounts, order.discount_type, order.discount_value, pricing_inputs(order.pos_profile))
 
-	net = money(order.subtotal - order.discount_amount)
-	rate = tax_rate_for(order.pos_profile)
-
-	order.tax_amount = money(net * rate / 100)
-
-	currency = frappe.db.get_value("POS Profile", order.pos_profile, "currency") or DEFAULT_CURRENCY
-	order.total_amount = round_to_step(net + order.tax_amount, currency)
+	order.subtotal = totals["subtotal"]
+	order.discount_amount = totals["discount_amount"]
+	order.tax_amount = totals["tax_amount"]
+	order.total_amount = totals["total_amount"]

@@ -3,7 +3,7 @@ import type { OpenOrder, OrderView } from "@/api/order";
 import AppIcon from "@/components/AppIcon.vue";
 import OpenOrderCard from "@/components/pos/OpenOrderCard.vue";
 import OpenOrderRow from "@/components/pos/OpenOrderRow.vue";
-import { formatNumber, t, type MessageKey } from "@/i18n";
+import { dateOnly, formatNumber, t, timeOnly, type MessageKey } from "@/i18n";
 
 /**
  * The floor: every order still open, in the shape the cashier asked for.
@@ -20,6 +20,14 @@ defineProps<{
   scope: "mine" | "all" | null;
   /** `null` on the till screen, which only ever shows the open floor. */
   view?: OrderView | null;
+  /**
+   * When these rows were last fetched, if they are not live (D-080).
+   *
+   * Said out loud rather than shown quietly: a list of yesterday's bills is
+   * useful, and a cashier who thinks it is today's will look for a sale that
+   * is not on it and ring it again.
+   */
+  staleAt?: string | null;
 }>();
 
 const emit = defineEmits<{
@@ -187,6 +195,19 @@ const VIEWS: { key: OrderView; label: MessageKey }[] = [
           {{ t(option.label) }}
         </button>
       </div>
+
+      <!-- D-080 — the last answer the server gave, with its age on it. -->
+      <p
+        v-if="staleAt"
+        role="status"
+        class="mb-3 flex items-center gap-2 rounded-rpos bg-status-cleaning/10 p-3 text-sm text-status-cleaning"
+      >
+        <AppIcon
+          name="hourglass"
+          :size="18"
+        />
+        {{ t("orders.stale", { when: `${dateOnly(staleAt)} ${timeOnly(staleAt)}` }) }}
+      </p>
 
       <p
         v-if="error"

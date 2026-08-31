@@ -140,6 +140,7 @@ const messages: Catalogue["messages"] = {
   "orders.viewClosed": "مغلقة اليوم",
   "orders.viewReturned": "مرتجعات",
   "orders.viewAll": "الكل",
+  "orders.stale": "نسخة هذا الجهاز، من {when}. تتحدّث عند عودة الاتصال.",
   "covers.title": "كم عدد الضيوف؟",
   "covers.body": "هذا النوع من الطلبات يسجّل عدد الضيوف.",
   "action.save": "حفظ",

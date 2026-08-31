@@ -145,6 +145,7 @@ const {
   search: floorSearch,
   searching: floorSearching,
   sort: floorSort,
+  staleAt: floorStaleAt,
   view: floorView,
   visible: floorOrders,
 } = useOpenOrders();
@@ -983,6 +984,7 @@ async function send(): Promise<void> {
             :searching="floorSearching"
             :scope="floorMaySeeEveryone ? floorScope : null"
             :view="floorView"
+            :stale-at="floorStaleAt"
             @open="switchTo"
             @floor-plan="pane = 'tables'"
             @update:scope="floorScope = $event"

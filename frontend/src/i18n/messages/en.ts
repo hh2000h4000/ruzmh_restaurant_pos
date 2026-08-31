@@ -143,6 +143,7 @@ export const messages = {
   "orders.viewClosed": "Closed today",
   "orders.viewReturned": "Refunded",
   "orders.viewAll": "All",
+  "orders.stale": "This device's copy, from {when}. It refreshes when the connection returns.",
   "covers.title": "How many guests?",
   "covers.body": "This order type records the number of guests.",
   "action.save": "Save",

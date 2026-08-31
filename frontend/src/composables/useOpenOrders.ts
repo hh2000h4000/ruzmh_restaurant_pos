@@ -2,6 +2,7 @@ import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 
 import { listOrders, type OpenOrder, type OrderView } from "@/api/order";
 import { t } from "@/i18n";
+import { recall, remember } from "@/offline/orderMirror";
 import { queuedSales } from "@/offline/queue";
 import { useSessionStore } from "@/stores/session";
 
@@ -22,6 +23,8 @@ export function useOpenOrders() {
   const rows = ref<OpenOrder[]>([]);
   const error = ref<string | null>(null);
   const loading = ref(false);
+  /** When these rows came from the server, if they are not fresh (D-080). */
+  const staleAt = ref<string | null>(null);
 
   const search = ref("");
   const sort = ref<OrderSort>("oldest");
@@ -125,10 +128,25 @@ export function useOpenOrders() {
     try {
       rows.value = await listOrders(profile, view.value);
       error.value = null;
+      staleAt.value = null;
+      // D-080 — so the next outage still has a day's history to show.
+      await remember(view.value, rows.value);
     } catch (cause) {
-      // The list is a convenience; a failure here must not blank the screen or
-      // stop a cashier opening a new order.
-      error.value = cause instanceof Error ? cause.message : t("home.openOrdersFailed");
+      const mirrored = await recall(view.value);
+
+      if (mirrored) {
+        // Not an error: it is the last answer the server gave, and the screen
+        // says how old it is. An outage that emptied every list is what this
+        // replaces.
+        rows.value = mirrored.orders;
+        staleAt.value = mirrored.cached_at;
+        error.value = null;
+      } else {
+        // The list is a convenience; a failure here must not blank the screen
+        // or stop a cashier opening a new order.
+        rows.value = [];
+        error.value = cause instanceof Error ? cause.message : t("home.openOrdersFailed");
+      }
     } finally {
       loading.value = false;
     }
@@ -166,6 +184,7 @@ export function useOpenOrders() {
     search,
     searching: computed(() => Boolean(search.value.trim())),
     sort,
+    staleAt,
     view,
     visible,
   };

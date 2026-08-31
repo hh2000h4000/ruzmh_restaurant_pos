@@ -19,6 +19,22 @@ import { database } from "./db";
 
 const CONFIG_KEY = "session";
 
+/**
+ * The shape this code expects the cached payload to have (D-074).
+ *
+ * **Bump it whenever `load_pos_session` gains a field the app depends on.** A
+ * cache written by an older build is not a slightly-old cache — it is a payload
+ * missing a key some screen now reads without checking, and the failure lands
+ * far from the cause. `pricing` was the one that taught this: a terminal
+ * carrying a pre-`D-071` cache went offline, priced nothing, and the payment
+ * screen rendered its header and stopped.
+ *
+ * An unrecognised version is discarded, not migrated. Merging a stale payload
+ * into a new shape guesses at what the server would have said, which is the
+ * thing this whole layer exists not to do.
+ */
+const SHAPE = 2;
+
 /** Items live in their own store per 09 §3, so the config row stays small. */
 type SessionWithoutItems = Omit<PosSession, "items">;
 
@@ -31,7 +47,9 @@ export async function saveSession(payload: PosSession): Promise<void> {
 
   try {
     const tx = db.transaction(["config_cache", "item_cache"], "readwrite");
-    await tx.objectStore("config_cache").put({ key: CONFIG_KEY, data: rest, cached_at });
+    await tx
+      .objectStore("config_cache")
+      .put({ key: CONFIG_KEY, data: { shape: SHAPE, session: rest }, cached_at });
 
     const store = tx.objectStore("item_cache");
     await store.clear();
@@ -60,11 +78,20 @@ export async function loadSession(): Promise<CachedSession | null> {
     const config = await db.get("config_cache", CONFIG_KEY);
     if (!config) return null;
 
+    const stored = config.data as { shape?: number; session?: SessionWithoutItems };
+    if (stored?.shape !== SHAPE || !stored.session) {
+      // Written by an older build, so it is missing whatever this one now
+      // reads. Discarded rather than served: no cache sends the cashier to a
+      // sign-in they can fix, a half-shaped one sends them to a blank screen.
+      console.warn("[rpos] the cached session is from an older build; ignoring it.");
+      return null;
+    }
+
     const items = await db.getAll("item_cache");
 
     return {
       session: {
-        ...(config.data as SessionWithoutItems),
+        ...stored.session,
         items: items.map((row) => row.data as CatalogItem),
       },
       cached_at: config.cached_at,

@@ -35,7 +35,8 @@ export const messages = {
   "offline.noModifiers": "Options cannot be priced while offline. Add this item once the connection is back.",
   "offline.bill": "Offline — this bill is on the device until the connection returns.",
   "offline.paid": "Taken on this device. It reaches the server when the connection does.",
-  "offline.noPricing": "This terminal has not loaded its prices yet.",
+  "offline.noPricing": "This terminal has not loaded its prices yet. Reconnect once so it can.",
+  "offline.billGone": "That offline bill is not on this device any more.",
 
   // Errors raised by the API client
   "err.noCsrf": "The page loaded without a security token — sign out and reload.",

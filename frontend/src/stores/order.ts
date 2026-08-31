@@ -99,9 +99,16 @@ export const useOrderStore = defineStore("order", () => {
     // A bill this device composed lives here, not on the server (D-073).
     if (local.isLocalOrder(orderName)) {
       await run(async () => {
-        offline.value = await local.load(orderName);
-        if (!offline.value) throw new Error("That offline order is no longer on this device.");
-        await applyLocal();
+        const state = await local.load(orderName);
+        if (!state) throw new Error(t("offline.billGone"));
+
+        // Rendered *before* it is adopted. `applyLocal` needs the pricing the
+        // server shipped, and a terminal whose cached session predates it has
+        // none — assigning first would leave `offline` set with no `order`
+        // beside it, which every screen reads as "an offline bill" and then
+        // finds nothing to draw.
+        order.value = local.toOrderDetail(state, pricing());
+        offline.value = state;
         pendingSync.value = false;
       });
       return;

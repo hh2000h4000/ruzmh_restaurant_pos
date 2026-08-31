@@ -91,7 +91,15 @@ const offline = computed(() => orders.offline !== null);
 
 onMounted(async () => {
   if (offline.value) {
-    const bill = orders.order!;
+    const bill = orders.order;
+    // The bill is only in memory, so a reload or a fresh tab arrives here with
+    // nothing to pay. Said out loud: this screen used to render its header and
+    // then nothing at all, which reads as a broken app rather than a lost bill.
+    if (!bill) {
+      failure.value = t("offline.billGone");
+      return;
+    }
+
     summary.value = {
       order_name: bill.order_name,
       subtotal: bill.subtotal,
@@ -533,6 +541,19 @@ async function confirm(): Promise<void> {
         </button>
       </section>
     </div>
+
+    <!--
+      The fourth branch, and the reason it exists: without it this screen drew
+      its header and then nothing whenever the summary had not arrived — which
+      reads as a broken app, not as a screen still loading. A blank page is the
+      one thing a till must never show (`D-074`).
+    -->
+    <p
+      v-else
+      class="m-4 text-center text-muted"
+    >
+      {{ t("common.loading") }}
+    </p>
 
     <!-- Screen 9 — manager authorisation -->
     <BaseDialog

@@ -1,0 +1,160 @@
+{
+ "charts": [],
+ "content": "[{\"id\":\"rpos_print_head\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\">Printing</span>\",\"col\":12}},{\"id\":\"rpos_print_intro\",\"type\":\"paragraph\",\"data\":{\"text\":\"Printers are defined once per branch, here — not repeated on every till. An <b>agent</b> running inside the restaurant is what reaches them; the server only renders and queues.\",\"col\":12}},{\"id\":\"rpos_print_sc1\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Printers\",\"col\":3}},{\"id\":\"rpos_print_sc2\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Print Agents\",\"col\":3}},{\"id\":\"rpos_print_sc3\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Routing Rules\",\"col\":3}},{\"id\":\"rpos_print_sc4\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Print Queue\",\"col\":3}},{\"id\":\"rpos_print_spacer\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"rpos_print_card1\",\"type\":\"card\",\"data\":{\"card_name\":\"Hardware\",\"col\":4}},{\"id\":\"rpos_print_card2\",\"type\":\"card\",\"data\":{\"card_name\":\"What prints where\",\"col\":4}},{\"id\":\"rpos_print_card3\",\"type\":\"card\",\"data\":{\"card_name\":\"Paper and problems\",\"col\":4}}]",
+ "creation": "2026-08-31 00:00:00.000000",
+ "custom_blocks": [],
+ "docstatus": 0,
+ "doctype": "Workspace",
+ "for_user": "",
+ "hide_custom": 0,
+ "icon": "printer",
+ "idx": 0,
+ "is_hidden": 0,
+ "label": "Printing",
+ "links": [
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Hardware",
+   "link_count": 2,
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Printer",
+   "link_count": 0,
+   "link_to": "POS Printer",
+   "link_type": "DocType",
+   "onboard": 1,
+   "type": "Link"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Print Agent",
+   "link_count": 0,
+   "link_to": "POS Print Agent",
+   "link_type": "DocType",
+   "onboard": 1,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "What prints where",
+   "link_count": 2,
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Production Center",
+   "link_count": 0,
+   "link_to": "Production Center",
+   "link_type": "DocType",
+   "onboard": 1,
+   "type": "Link"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Printer Routing Rule",
+   "link_count": 0,
+   "link_to": "POS Printer Routing Rule",
+   "link_type": "DocType",
+   "onboard": 1,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Paper and problems",
+   "link_count": 3,
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Print Template",
+   "link_count": 0,
+   "link_to": "POS Print Template",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Print Job",
+   "link_count": 0,
+   "link_to": "POS Print Job",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Kitchen Order Ticket",
+   "link_count": 0,
+   "link_to": "Kitchen Order Ticket",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  }
+ ],
+ "modified": "2026-08-31 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Restaurant POS",
+ "name": "Printing",
+ "number_cards": [],
+ "owner": "Administrator",
+ "parent_page": "",
+ "public": 1,
+ "quick_lists": [],
+ "roles": [],
+ "sequence_id": 20.0,
+ "shortcuts": [
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Printers",
+   "link_to": "POS Printer",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Print Agents",
+   "link_to": "POS Print Agent",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Routing Rules",
+   "link_to": "POS Printer Routing Rule",
+   "type": "DocType"
+  },
+  {
+   "color": "Red",
+   "doc_view": "List",
+   "label": "Print Queue",
+   "link_to": "POS Print Job",
+   "stats_filter": "{\"status\":\"failed\"}",
+   "type": "DocType"
+  }
+ ],
+ "title": "Printing"
+}

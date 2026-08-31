@@ -15,6 +15,7 @@
   "is_active",
   "fallback_printer",
   "connection_section",
+  "print_agent",
   "connection_type",
   "ip_address",
   "port",
@@ -82,6 +83,15 @@
    "fieldname": "connection_section",
    "fieldtype": "Section Break",
    "label": "Connection"
+  },
+  {
+   "description": "Which agent puts paper through this printer. A network printer in the kitchen belongs to the branch's agent; a USB printer belongs to the agent on the machine it is plugged into. Naming an owner is what stops five tills each printing the same ticket.",
+   "fieldname": "print_agent",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Print Agent",
+   "options": "POS Print Agent"
   },
   {
    "default": "network",

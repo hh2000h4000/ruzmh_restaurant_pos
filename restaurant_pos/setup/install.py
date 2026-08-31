@@ -14,6 +14,7 @@ import frappe
 from frappe.custom.doctype.custom_field.custom_field import create_custom_fields
 
 from restaurant_pos.setup.defaults import create_default_data
+from restaurant_pos.setup.print_templates import create_default_templates
 
 # ``Restaurant Branch`` in the database design is the ERPNext ``Branch`` DocType
 # extended with restaurant configuration (see 10_Implementation_Plan.md, Phase 1).
@@ -302,8 +303,14 @@ CUSTOM_FIELDS = {
 	],
 }
 
-# Phase 3 adds three more POS Profile fields (customer_receipt_template,
-# kot_template, shift_report_template) once the POS Print Template DocType exists.
+# No per-profile template fields, despite what `FR-7.2` anticipated (D-085).
+#
+# `printing.resolve_template` already picks a branch's template over the shipped
+# default, and that is the difference restaurants actually have. Four Link
+# fields nothing sets and nobody has asked for would be four more places to look
+# when a receipt prints wrong. `resolve_template` takes an `explicit` argument,
+# so the day a terminal genuinely needs its own template, the field is one line
+# and the resolution order is already written.
 
 
 #: Roles that settle an order and therefore create a Sales Invoice.
@@ -368,6 +375,7 @@ def grant_erpnext_permissions() -> None:
 def after_install():
 	create_custom_fields(CUSTOM_FIELDS, ignore_validate=True)
 	grant_erpnext_permissions()
+	create_default_templates()
 	frappe.db.commit()
 
 	# Shipped defaults run on install only. See setup/defaults.py for why they
@@ -378,3 +386,9 @@ def after_install():
 def after_migrate():
 	create_custom_fields(CUSTOM_FIELDS, ignore_validate=True)
 	grant_erpnext_permissions()
+
+	# Unlike the defaults above, templates are re-checked on every migrate: they
+	# are keyed by title and an existing one is never touched, and a site that
+	# had the app before Phase 3 has no templates at all — which is a site that
+	# cannot print.
+	create_default_templates()

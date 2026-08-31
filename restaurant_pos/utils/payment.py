@@ -22,7 +22,7 @@ import frappe
 from frappe import _
 from frappe.utils import flt, now_datetime
 
-from restaurant_pos.utils import kitchen, totals
+from restaurant_pos.utils import kitchen, printing, totals
 from restaurant_pos.utils.audit import log_audit
 from restaurant_pos.utils.order import (
 	assert_mutable,
@@ -101,6 +101,11 @@ def process_payment(
 				"discount_amount": flt(order.discount_amount),
 			},
 		)
+
+	# FR-7.5 — the receipt goes with the payment, not with a button somebody has
+	# to remember. Off the request: the agent inside the restaurant is what
+	# reaches paper (D-084), and rendering must not be added to the sale.
+	printing.enqueue_print("print_receipt", invoice_name=invoice.name, order_name=order.name)
 
 	return {
 		"order_name": order.name,

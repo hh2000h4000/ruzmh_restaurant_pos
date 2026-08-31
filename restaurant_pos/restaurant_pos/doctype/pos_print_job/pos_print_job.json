@@ -1,0 +1,256 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "naming_series:",
+ "creation": "2026-08-31 00:00:00.000000",
+ "description": "One thing to print, already turned into the bytes a printer understands. The server renders; the agent sends (D-084).",
+ "doctype": "DocType",
+ "editable_grid": 0,
+ "engine": "InnoDB",
+ "field_order": [
+  "naming_series",
+  "target_section",
+  "printer",
+  "agent",
+  "branch",
+  "target_cb",
+  "job_type",
+  "copies",
+  "status",
+  "source_section",
+  "reference_doctype",
+  "reference_name",
+  "source_cb",
+  "retry_of",
+  "result_section",
+  "attempts",
+  "claimed_at",
+  "printed_at",
+  "result_cb",
+  "error",
+  "payload_section",
+  "payload_bytes",
+  "payload"
+ ],
+ "fields": [
+  {
+   "default": "PJOB-.YYYY.-.#####.",
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "label": "Naming Series",
+   "no_copy": 1,
+   "options": "PJOB-.YYYY.-.#####.",
+   "print_hide": 1,
+   "reqd": 1,
+   "set_only_once": 1
+  },
+  {
+   "fieldname": "target_section",
+   "fieldtype": "Section Break",
+   "label": "Target"
+  },
+  {
+   "fieldname": "printer",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Printer",
+   "options": "POS Printer",
+   "reqd": 1
+  },
+  {
+   "description": "Copied from the printer when the job is queued, not read through it. Which agent owns a printer can be changed while a job is in flight, and a queued job must not move to a different building because somebody edited a form.",
+   "fieldname": "agent",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "Agent",
+   "options": "POS Print Agent",
+   "reqd": 1
+  },
+  {
+   "fieldname": "branch",
+   "fieldtype": "Link",
+   "label": "Branch",
+   "options": "Branch",
+   "read_only": 1
+  },
+  {
+   "fieldname": "target_cb",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "job_type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Job Type",
+   "options": "customer_receipt\nkot\nbill_preview\nshift_report\ntest",
+   "reqd": 1
+  },
+  {
+   "default": "1",
+   "fieldname": "copies",
+   "fieldtype": "Int",
+   "label": "Copies"
+  },
+  {
+   "default": "queued",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Status",
+   "options": "queued\nclaimed\nprinted\nfailed",
+   "reqd": 1
+  },
+  {
+   "fieldname": "source_section",
+   "fieldtype": "Section Break",
+   "label": "Source"
+  },
+  {
+   "fieldname": "reference_doctype",
+   "fieldtype": "Link",
+   "label": "Reference Doctype",
+   "options": "DocType",
+   "read_only": 1
+  },
+  {
+   "fieldname": "reference_name",
+   "fieldtype": "Dynamic Link",
+   "in_list_view": 1,
+   "label": "Reference Name",
+   "options": "reference_doctype",
+   "read_only": 1
+  },
+  {
+   "fieldname": "source_cb",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "Set when this job is the fallback printer's attempt after the first one failed (BR-072).",
+   "fieldname": "retry_of",
+   "fieldtype": "Link",
+   "label": "Retry Of",
+   "options": "POS Print Job",
+   "read_only": 1
+  },
+  {
+   "fieldname": "result_section",
+   "fieldtype": "Section Break",
+   "label": "Result"
+  },
+  {
+   "default": "0",
+   "fieldname": "attempts",
+   "fieldtype": "Int",
+   "label": "Attempts",
+   "read_only": 1
+  },
+  {
+   "fieldname": "claimed_at",
+   "fieldtype": "Datetime",
+   "label": "Claimed At",
+   "read_only": 1
+  },
+  {
+   "fieldname": "printed_at",
+   "fieldtype": "Datetime",
+   "label": "Printed At",
+   "read_only": 1
+  },
+  {
+   "fieldname": "result_cb",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "What the agent said went wrong, in its own words. \"Out of paper\" and \"connection refused\" are not the same call-out.",
+   "fieldname": "error",
+   "fieldtype": "Small Text",
+   "label": "Error",
+   "read_only": 1
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "payload_section",
+   "fieldtype": "Section Break",
+   "label": "Payload"
+  },
+  {
+   "fieldname": "payload_bytes",
+   "fieldtype": "Int",
+   "label": "Payload Bytes",
+   "read_only": 1
+  },
+  {
+   "description": "ESC/POS, base64. Rendered once when the job was queued so a reprint puts out exactly what came out the first time.",
+   "fieldname": "payload",
+   "fieldtype": "Long Text",
+   "label": "Payload",
+   "read_only": 1
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "istable": 0,
+ "links": [],
+ "modified": "2026-08-31 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Restaurant POS",
+ "name": "POS Print Job",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 0,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Restaurant Admin",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 0,
+   "delete": 0,
+   "email": 0,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Restaurant Manager",
+   "share": 0,
+   "write": 0
+  },
+  {
+   "create": 0,
+   "delete": 0,
+   "email": 0,
+   "export": 0,
+   "print": 0,
+   "read": 1,
+   "report": 0,
+   "role": "Restaurant Print Agent",
+   "share": 0,
+   "write": 1
+  }
+ ],
+ "search_fields": "printer,job_type,status",
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 0
+}

@@ -7,10 +7,15 @@
 raise one KOT per center. ``BR-073`` defines the four types — initial,
 addition, void, reprint.
 
-This module creates the documents and announces them. **It does not print.**
-The ESC/POS service, the 5-second timeout and the fallback printer are Phase 3
-(``FR-7.3``, ``BR-072``); every KOT is left at ``print_status = pending`` for it
-to pick up.
+This module creates the documents, announces them to the KDS, and hands each one
+to ``utils.printing``. It does not talk to a printer itself — nothing on the
+server does (``D-084``). A ticket is rendered here and sent by an agent inside
+the restaurant, so ``print_status`` stays ``pending`` until that agent reports
+back (``FR-7.3``, ``BR-072``).
+
+**Printing never fails an order.** ``print_kot`` swallows its own errors: a
+station whose printer is unplugged still gets the ticket on its screen, and the
+customer is still charged.
 
 Prices never appear on a KOT (``BR-075``). The header carries order number,
 table, order type, cashier and timestamp (``BR-074``).
@@ -22,6 +27,7 @@ import frappe
 from frappe import _
 from frappe.utils import flt, now_datetime
 
+from restaurant_pos.utils import printing
 from restaurant_pos.utils.audit import log_audit
 
 #: Lines that still have to reach the kitchen.
@@ -72,6 +78,7 @@ def send_to_kitchen(order, *, kot_type: str | None = None) -> dict:
 
 	for kot in created:
 		_announce(kot)
+		printing.enqueue_print("print_kot", kot_name=kot.name)
 
 	return {
 		"kots_created": [
@@ -114,6 +121,9 @@ def create_void_kot(order, rows) -> list[dict]:
 		)
 		created.append(kot)
 		_announce(kot)
+		# A void ticket that only reaches the screen leaves the cook working from
+		# paper that is now wrong — which is the exact plate this is meant to stop.
+		printing.enqueue_print("print_kot", kot_name=kot.name)
 
 	return [
 		{"kot_name": kot.name, "production_center": kot.production_center, "kot_type": "void"}
@@ -126,8 +136,11 @@ def reprint(kot_name: str) -> dict:
 
 	No second document is created: a reprint is the same ticket on paper twice,
 	and a duplicate would distort the kitchen's history. The trail lives in the
-	audit log, and Phase 3 stamps the output with a REPRINT header
-	(``DECISIONS.md`` D-021).
+	audit log, and the ticket carries a REPRINT header because its ``kot_type``
+	is on the template (``DECISIONS.md`` D-021).
+
+	``force`` because a reprint is somebody asking for paper: whether the station
+	prints automatically is a rule about new tickets, not about this request.
 	"""
 	kot = frappe.get_doc("Kitchen Order Ticket", kot_name)
 	order = frappe.db.get_value(
@@ -135,6 +148,7 @@ def reprint(kot_name: str) -> dict:
 	)
 
 	kot.db_set("print_status", "pending", update_modified=False)
+	printing.enqueue_print("print_kot", kot_name=kot.name, force=True)
 
 	log_audit(
 		"reprint_receipt",

@@ -140,7 +140,12 @@ class TestSendToKitchen(KitchenTestBase):
 		self.assertEqual(order.items[0].status, "sent")
 
 	def test_kots_start_unprinted(self):
-		"""Printing is Phase 3; the ticket waits at pending."""
+		"""A ticket is `pending` until an agent says otherwise (D-084).
+
+		Nothing on the server puts ink on paper, so the value the caller sees is
+		always `pending` — the render happens off this request and the printing
+		happens in the restaurant.
+		"""
 		order = self._order_with((ITEM, self.grill))
 		result = service.send_to_kitchen(order)
 		self.assertEqual(result["kots_created"][0]["print_status"], "pending")

@@ -37,6 +37,15 @@ doc_events = {
 	"Sales Invoice": {"before_cancel": "restaurant_pos.utils.payment.block_invoice_cancel"},
 }
 
+# D-085 — a print job carries the bitmap it printed, about 15 KB of base64 each.
+# Nothing else in the app grows per-receipt like this, and a queue table nobody
+# prunes is a disk that fills on a Friday night.
+scheduler_events = {
+	"daily": [
+		"restaurant_pos.utils.printing.prune_jobs",
+	],
+}
+
 # ---------------------------------------------------------------------------
 # The cashier PWA
 # ---------------------------------------------------------------------------
@@ -53,7 +62,6 @@ website_route_rules = [
 # Phase 2+ hooks are intentionally left unregistered until the corresponding
 # phase is implemented (see docs/10_Implementation_Plan.md).
 #
-#   scheduler_events      -> Phase 2 (offline queue reconciliation)
 #   app_include_js        -> Phase 4 (desk-side helpers)
 #   fixtures              -> handled by setup/defaults.py instead (D-013)
 # ---------------------------------------------------------------------------

@@ -1,0 +1,185 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "naming_series:",
+ "creation": "2026-08-31 00:00:00.000000",
+ "description": "A program running inside the restaurant that talks to the printers. The server cannot reach a thermal printer itself: a browser cannot open a TCP socket, and a cloud bench cannot see the restaurant's LAN (D-084).",
+ "doctype": "DocType",
+ "editable_grid": 0,
+ "engine": "InnoDB",
+ "field_order": [
+  "naming_series",
+  "identity_section",
+  "title",
+  "branch",
+  "identity_cb",
+  "is_active",
+  "credentials_section",
+  "user",
+  "credentials_help",
+  "health_section",
+  "last_seen",
+  "agent_version",
+  "health_cb",
+  "host_name"
+ ],
+ "fields": [
+  {
+   "default": "AGT-.###.",
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "label": "Naming Series",
+   "no_copy": 1,
+   "options": "AGT-.###.",
+   "print_hide": 1,
+   "reqd": 1,
+   "set_only_once": 1
+  },
+  {
+   "fieldname": "identity_section",
+   "fieldtype": "Section Break",
+   "label": "Identity"
+  },
+  {
+   "description": "Where it runs, in words a technician can act on: \"Front till PC\", \"Kitchen mini PC\".",
+   "fieldname": "title",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Title",
+   "reqd": 1
+  },
+  {
+   "fieldname": "branch",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Branch",
+   "options": "Branch",
+   "reqd": 1
+  },
+  {
+   "fieldname": "identity_cb",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "1",
+   "fieldname": "is_active",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Is Active"
+  },
+  {
+   "fieldname": "credentials_section",
+   "fieldtype": "Section Break",
+   "label": "Credentials"
+  },
+  {
+   "description": "Created automatically. The agent signs in with this user's API key and secret — Frappe's own token auth, so there is no second login to write or to get wrong.",
+   "fieldname": "user",
+   "fieldtype": "Link",
+   "label": "User",
+   "no_copy": 1,
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "credentials_help",
+   "fieldtype": "HTML",
+   "label": "Credentials Help",
+   "options": "<p class=\"text-muted\">Use <b>Generate Keys</b> to issue the agent's API secret. It is shown once and never again — copy it into the agent's configuration before closing the dialog.</p>"
+  },
+  {
+   "fieldname": "health_section",
+   "fieldtype": "Section Break",
+   "label": "Health"
+  },
+  {
+   "description": "Last time the agent asked for work. A silent agent is why nothing is printing, and a technician should be able to read that here rather than guess it.",
+   "fieldname": "last_seen",
+   "fieldtype": "Datetime",
+   "in_list_view": 1,
+   "label": "Last Seen",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "agent_version",
+   "fieldtype": "Data",
+   "label": "Agent Version",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "health_cb",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "host_name",
+   "fieldtype": "Data",
+   "label": "Host Name",
+   "no_copy": 1,
+   "read_only": 1
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "istable": 0,
+ "links": [
+  {
+   "link_doctype": "POS Printer",
+   "link_fieldname": "print_agent"
+  },
+  {
+   "link_doctype": "POS Print Job",
+   "link_fieldname": "agent"
+  }
+ ],
+ "modified": "2026-08-31 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Restaurant POS",
+ "name": "POS Print Agent",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Restaurant Admin",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 0,
+   "delete": 0,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Restaurant Manager",
+   "share": 1,
+   "write": 0
+  }
+ ],
+ "search_fields": "title,branch",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "title",
+ "track_changes": 1
+}

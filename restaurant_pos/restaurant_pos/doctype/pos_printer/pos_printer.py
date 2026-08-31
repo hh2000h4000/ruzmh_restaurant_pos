@@ -14,6 +14,7 @@ class POSPrinter(Document):
 	def validate(self):
 		self.validate_connection()
 		self.validate_fallback_printer()
+		self.validate_agent_branch()
 
 	def validate_connection(self):
 		if self.connection_type == "network":
@@ -58,3 +59,21 @@ class POSPrinter(Document):
 	def validate_fallback_printer(self):
 		if self.fallback_printer and self.fallback_printer == self.name:
 			frappe.throw(_("A printer cannot be its own fallback printer."))
+
+	def validate_agent_branch(self):
+		"""An agent only reaches printers on its own network (D-084).
+
+		Caught here because the alternative is a job that queues cleanly, waits
+		for an agent in another city, and is only noticed when a customer asks
+		where their receipt is.
+		"""
+		if not self.print_agent:
+			return
+
+		agent_branch = frappe.db.get_value("POS Print Agent", self.print_agent, "branch")
+		if agent_branch != self.branch:
+			frappe.throw(
+				_("{0} runs at {1} and cannot reach a printer at {2}.").format(
+					self.print_agent, agent_branch, self.branch
+				)
+			)

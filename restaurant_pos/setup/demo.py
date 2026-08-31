@@ -262,10 +262,34 @@ def _profile(pos_profile: str | None) -> frappe._dict:
 # --------------------------------------------------------------------------- #
 
 
+def _print_agent(branch: str) -> str:
+	"""The one program in the restaurant that can reach a printer (D-084).
+
+	Created with the printers rather than left for later: a printer with no
+	agent is a printer nothing can send to, and a demo that quietly cannot print
+	teaches the wrong shape of the system.
+	"""
+	existing = frappe.db.get_value("POS Print Agent", {"title": "وكيل الطباعة", "branch": branch})
+	if existing:
+		return existing
+
+	agent = frappe.get_doc(
+		{"doctype": "POS Print Agent", "title": "وكيل الطباعة", "branch": branch, "is_active": 1}
+	)
+	agent.insert(ignore_permissions=True)
+	return agent.name
+
+
 def _printers(branch: str) -> list[str]:
+	agent = _print_agent(branch)
 	created = []
 	for spec in PRINTERS:
-		if frappe.db.exists("POS Printer", {"title": spec["title"], "branch": branch}):
+		existing = frappe.db.get_value("POS Printer", {"title": spec["title"], "branch": branch})
+		if existing:
+			# An older demo built these before agents existed; give them one
+			# rather than leaving a printer nothing owns.
+			if not frappe.db.get_value("POS Printer", existing, "print_agent"):
+				frappe.db.set_value("POS Printer", existing, "print_agent", agent)
 			continue
 
 		doc = frappe.get_doc(
@@ -273,6 +297,7 @@ def _printers(branch: str) -> list[str]:
 				"doctype": "POS Printer",
 				"title": spec["title"],
 				"branch": branch,
+				"print_agent": agent,
 				"connection_type": "network",
 				"ip_address": spec["ip_address"],
 				"port": 9100,

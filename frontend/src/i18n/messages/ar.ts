@@ -130,6 +130,7 @@ const messages: Catalogue["messages"] = {
   "orders.viewOpen": "مفتوحة",
   "orders.viewDraft": "مسودّات",
   "orders.viewClosed": "مغلقة اليوم",
+  "orders.viewReturned": "مرتجعات",
   "orders.viewAll": "الكل",
   "covers.title": "كم عدد الضيوف؟",
   "covers.body": "هذا النوع من الطلبات يسجّل عدد الضيوف.",

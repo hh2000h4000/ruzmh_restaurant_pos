@@ -210,6 +210,36 @@ class TestTheDrawerFollows(ReturnTestBase):
 		self.assertEqual(shift_service.summarise_till(entry)["sales"], sales)
 
 
+class TestTheTillCanSeeIt(ReturnTestBase):
+	"""D-070 — a refund the cashier cannot find is a refund they will make twice.
+
+	A credit note is not a `Restaurant Order`, so no list of orders could ever
+	show it. What the cashier is looking for is which *bill* was refunded, and
+	that is an order.
+	"""
+
+	def test_a_refunded_bill_carries_what_went_back(self):
+		from restaurant_pos.api import order as order_api
+
+		order = self._paid(qty=2)
+		service.create_return(order, items=[{"row": self._row(order), "qty": 1}], reason_code=REASON)
+
+		closed = order_api.list_orders(self.profile, view="closed")
+		row = next(entry for entry in closed if entry["name"] == order.name)
+		self.assertGreater(row["returned_amount"], 0)
+
+	def test_the_returned_view_shows_only_refunded_bills(self):
+		from restaurant_pos.api import order as order_api
+
+		kept = self._paid()
+		refunded = self._paid(qty=2)
+		service.create_return(refunded, items=[{"row": self._row(refunded), "qty": 1}], reason_code=REASON)
+
+		names = [row["name"] for row in order_api.list_orders(self.profile, view="returned")]
+		self.assertIn(refunded.name, names)
+		self.assertNotIn(kept.name, names)
+
+
 class TestTheShiftGate(ReturnTestBase):
 	def test_no_refund_out_of_a_closed_drawer(self):
 		"""BR-044, D-055 — a refund obeys the same rule as a sale."""

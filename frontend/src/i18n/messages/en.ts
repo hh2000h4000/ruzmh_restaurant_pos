@@ -132,6 +132,7 @@ export const messages = {
   "orders.viewOpen": "Open",
   "orders.viewDraft": "Drafts",
   "orders.viewClosed": "Closed today",
+  "orders.viewReturned": "Refunded",
   "orders.viewAll": "All",
   "covers.title": "How many guests?",
   "covers.body": "This order type records the number of guests.",

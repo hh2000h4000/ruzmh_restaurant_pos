@@ -81,6 +81,8 @@ export interface OpenOrder {
   cashier: string | null;
   cashier_name: string | null;
   total_amount: number;
+  /** FR-9 — what went back to the customer, `0` when nothing did (D-070). */
+  returned_amount: number;
   opened_at: string;
   order_minutes: number;
   item_count: number;
@@ -91,8 +93,14 @@ export interface ModifierChoice {
   option: string;
 }
 
-/** Which orders the pane is asking for (06 Screen 3). */
-export type OrderView = "open" | "draft" | "closed" | "all";
+/**
+ * Which orders the pane is asking for (06 Screen 3).
+ *
+ * `returned` is the bills money went back out of (D-070). A credit note is not
+ * an order and can never appear in a list of orders — what the cashier is
+ * looking for is *which bill was refunded*, and that is one.
+ */
+export type OrderView = "open" | "draft" | "closed" | "returned" | "all";
 
 /** Branch-wide, not terminal-wide — see the docstring on the endpoint. */
 export function listOrders(posProfile: string, view: OrderView = "open"): Promise<OpenOrder[]> {

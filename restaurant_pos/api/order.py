@@ -12,7 +12,7 @@ Refs: 07_API_Design.md §3, FR-2.1..FR-2.8
 
 import frappe
 from frappe import _
-from frappe.utils import get_datetime, now_datetime, nowdate, time_diff_in_seconds
+from frappe.utils import flt, get_datetime, now_datetime, nowdate, time_diff_in_seconds
 
 from restaurant_pos.utils import customer as customer_service
 from restaurant_pos.utils import idempotency
@@ -402,6 +402,11 @@ VIEWS = {
 	"open": OPEN_STATUSES,
 	"draft": ("draft",),
 	"closed": ("closed", "cancelled"),
+	# FR-9, D-070 — the bills money went back out of. A credit note is not a
+	# `Restaurant Order`, so it can never appear in a list of orders; what the
+	# cashier is actually looking for is **which bill was refunded**, and that is
+	# an order. Same card, same list, one more tab.
+	"returned": ("closed",),
 	"all": (*OPEN_STATUSES, "closed", "cancelled"),
 }
 
@@ -437,7 +442,7 @@ def list_orders(pos_profile: str, view: str = "open") -> list[dict]:
 
 	# History is bounded by the day, so the list cannot grow without limit and a
 	# cashier is never scrolling through last month to reprint this morning.
-	history_only = view == "closed"
+	history_only = view in ("closed", "returned")
 	if history_only:
 		filters["opened_at"] = (">=", get_datetime(f"{nowdate()} 00:00:00"))
 
@@ -470,6 +475,7 @@ def list_orders(pos_profile: str, view: str = "open") -> list[dict]:
 			"cover_count",
 			"customer",
 			"cashier",
+			"sales_invoice",
 			"total_amount",
 			"opened_at",
 		],
@@ -479,8 +485,37 @@ def list_orders(pos_profile: str, view: str = "open") -> list[dict]:
 	if not orders:
 		return []
 
+	_annotate_refunds(orders)
+	if view == "returned":
+		orders = [row for row in orders if row.returned_amount]
+		if not orders:
+			return []
+
 	_annotate_open_orders(orders)
 	return orders
+
+
+def _annotate_refunds(orders: list) -> None:
+	"""How much of each bill went back to the customer (FR-9, D-070).
+
+	One query for the whole list, keyed on `return_against` — the same field
+	ERPNext links a credit note by. A refunded bill was invisible in the till
+	until now: the credit note is not an order, so no list of orders could ever
+	show it, and the cashier saw only the sale.
+	"""
+	invoices = [row.sales_invoice for row in orders if row.get("sales_invoice")]
+
+	refunded: dict[str, float] = {}
+	if invoices:
+		for row in frappe.get_all(
+			"Sales Invoice",
+			filters={"return_against": ("in", invoices), "docstatus": 1},
+			fields=["return_against", "grand_total"],
+		):
+			refunded[row.return_against] = refunded.get(row.return_against, 0.0) + abs(flt(row.grand_total))
+
+	for order in orders:
+		order.returned_amount = refunded.get(order.get("sales_invoice"), 0.0)
 
 
 def _annotate_open_orders(orders: list) -> None:

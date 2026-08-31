@@ -100,7 +100,18 @@ function choose(where: "order" | "floor"): void {
         <p class="rpos-numeric text-[22px] font-bold leading-tight text-primary">
           {{ formatNumber(order.total_amount, 2) }}
         </p>
-        <p class="text-sm text-muted">
+        <!-- FR-9, D-070 — the same signal as the row: a refunded bill reads
+             differently from a kept one, where the money is read. -->
+        <p
+          v-if="order.returned_amount"
+          class="rpos-numeric text-sm font-semibold text-danger"
+        >
+          −{{ formatNumber(order.returned_amount, 2) }}
+        </p>
+        <p
+          v-else
+          class="text-sm text-muted"
+        >
           {{ t("card.amount") }}
         </p>
       </div>

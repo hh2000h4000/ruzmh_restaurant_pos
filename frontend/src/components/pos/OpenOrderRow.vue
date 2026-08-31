@@ -41,6 +41,9 @@ const STATUS_TEXT: Record<OpenOrder["status"], string> = {
   // History, since the orders pane can ask for today's closed bills (D-042).
   closed: "text-order-closed",
   cancelled: "text-order-cancelled",
+  // D-075 — sold on this device, not yet on the server. Shares the colour the
+  // rest of the app already uses for work waiting to sync.
+  queued: "text-status-cleaning",
 };
 
 function whereLabel(order: OpenOrder): string {

@@ -464,6 +464,14 @@ async function openAt(table: FloorTable, type: OrderType): Promise<void> {
  * cashier is actually looking at — and the watch below does the reading.
  */
 function switchTo(order: OpenOrder): void {
+  // D-075 — a queued sale has no order to open: it is one entry in the queue
+  // until the server has it. Listing it answers "where did my bill go"; opening
+  // it would be a promise nothing can keep.
+  if (order.status === "queued") {
+    orders.error = t("offline.queuedSale");
+    return;
+  }
+
   openOrder(order.name);
 }
 

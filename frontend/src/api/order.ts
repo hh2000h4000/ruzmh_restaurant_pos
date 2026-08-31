@@ -61,7 +61,14 @@ export type OpenOrderStatus =
   | "in_kitchen"
   | "pending_payment"
   | "closed"
-  | "cancelled";
+  | "cancelled"
+  /**
+   * Sold on this device, not yet on the server (D-075).
+   *
+   * The only status that is not a `Restaurant Order.status` — nothing on the
+   * server carries it, because nothing on the server knows about the bill yet.
+   */
+  | "queued";
 
 /** One card on the home screen (06 Screen 1). */
 export interface OpenOrder {

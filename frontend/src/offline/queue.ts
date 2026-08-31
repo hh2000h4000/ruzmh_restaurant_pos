@@ -101,6 +101,18 @@ async function entries(): Promise<QueueEntry[]> {
   }
 }
 
+/**
+ * Sales taken on this device that the server has not seen yet (D-075).
+ *
+ * A bill paid offline leaves no `Restaurant Order` to list — it is one queue
+ * entry until the connection returns. Without this the cashier takes money,
+ * goes to look for the bill, and finds nothing: the most alarming thing a till
+ * can do, and the surest way to be paid twice for one meal.
+ */
+export async function queuedSales(): Promise<QueueEntry[]> {
+  return (await entries()).filter((entry) => entry.path === "offline.submit_order");
+}
+
 export async function pendingCount(): Promise<number> {
   return (await entries()).filter((entry) => entry.status !== "failed").length;
 }

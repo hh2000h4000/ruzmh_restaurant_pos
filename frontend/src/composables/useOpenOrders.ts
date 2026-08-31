@@ -2,6 +2,7 @@ import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 
 import { listOrders, type OpenOrder, type OrderView } from "@/api/order";
 import { t } from "@/i18n";
+import { queuedSales } from "@/offline/queue";
 import { useSessionStore } from "@/stores/session";
 
 export type OrderSort = "oldest" | "newest" | "amount";
@@ -38,8 +39,56 @@ export function useOpenOrders() {
    */
   const maySeeEveryone = computed(() => session.can("can_view_all_orders"));
 
+  /**
+   * Bills sold on this device and still in the queue (D-075).
+   *
+   * They are not on the server, so no list of orders can contain them — and a
+   * cashier who has just taken money and cannot find the bill will take it
+   * again. They appear beside the real ones, marked, until the queue drains.
+   */
+  const queued = ref<OpenOrder[]>([]);
+
+  async function refreshQueued(): Promise<void> {
+    const user = session.data?.user ?? null;
+
+    queued.value = (await queuedSales()).map((entry) => {
+      const payload = (entry.payload.payload ?? {}) as Record<string, never>;
+      const totals = (payload.totals ?? {}) as Record<string, number>;
+      const lines = (payload.lines ?? []) as unknown[];
+      const type = session.orderTypes.find((row) => row.name === payload.order_type);
+
+      return {
+        name: entry.queue_id,
+        daily_number: 0,
+        call_name: (payload.call_name as string | null) ?? null,
+        order_type: (payload.order_type as string) ?? "",
+        order_type_title: type?.title ?? "",
+        order_type_title_ar: type?.title_ar ?? "",
+        icon: type?.icon ?? null,
+        color: type?.color ?? null,
+        status: "queued",
+        table: null,
+        table_number: null,
+        cover_count: 0,
+        customer: null,
+        cashier: user,
+        cashier_name: session.data?.user_name ?? user,
+        total_amount: totals.total_amount ?? 0,
+        returned_amount: 0,
+        opened_at: entry.created_at,
+        order_minutes: 0,
+        item_count: lines.length,
+      } satisfies OpenOrder;
+    });
+  }
+
   const visible = computed(() => {
-    let list = rows.value;
+    // Only where a paid bill belongs. They are sales, so they sit with the
+    // day's history, not on the open floor.
+    let list =
+      view.value === "closed" || view.value === "all"
+        ? [...queued.value, ...rows.value]
+        : rows.value;
 
     if (maySeeEveryone.value && scope.value === "mine") {
       list = list.filter((order) => order.cashier === session.data?.user);
@@ -66,6 +115,11 @@ export function useOpenOrders() {
   async function refresh(): Promise<void> {
     const profile = session.profile?.name;
     if (!profile) return;
+
+    // First, and never inside the `try`: these are on this device, so they are
+    // readable when the server is not — which is exactly when they exist
+    // (D-075).
+    await refreshQueued();
 
     loading.value = true;
     try {

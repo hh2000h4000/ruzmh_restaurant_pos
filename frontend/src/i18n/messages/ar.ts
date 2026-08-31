@@ -34,6 +34,7 @@ const messages: Catalogue["messages"] = {
   "offline.paid": "حُصِّلت على هذا الجهاز. تصل الخادم حين يعود الاتصال.",
   "offline.noPricing": "هذا الجهاز لم يُحمّل الأسعار بعد. أعد الاتصال مرة واحدة ليحمّلها.",
   "offline.billGone": "هذه الفاتورة لم تعد موجودة على هذا الجهاز.",
+  "offline.queuedSale": "مدفوعة على هذا الجهاز. تُفتح بعد عودة الاتصال ووصولها للخادم.",
 
   // Errors raised by the API client
   "err.noCsrf": "الصفحة حُمّلت بدون رمز الحماية — سجّل الخروج وأعد تحميل الصفحة.",
@@ -89,6 +90,7 @@ const messages: Catalogue["messages"] = {
   "status.active": "نشط",
   "status.in_kitchen": "في المطبخ",
   "status.pending_payment": "بانتظار الدفع",
+  "status.queued": "بانتظار المزامنة",
 
   // Tables
   "tables.title": "الطاولات",

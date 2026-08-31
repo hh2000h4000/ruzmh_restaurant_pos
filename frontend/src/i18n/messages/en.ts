@@ -37,6 +37,7 @@ export const messages = {
   "offline.paid": "Taken on this device. It reaches the server when the connection does.",
   "offline.noPricing": "This terminal has not loaded its prices yet. Reconnect once so it can.",
   "offline.billGone": "That offline bill is not on this device any more.",
+  "offline.queuedSale": "Paid on this device. It opens once the connection returns and it reaches the server.",
 
   // Errors raised by the API client
   "err.noCsrf": "The page loaded without a security token — sign out and reload.",
@@ -91,6 +92,8 @@ export const messages = {
   "status.active": "Active",
   "status.in_kitchen": "In kitchen",
   "status.pending_payment": "Awaiting payment",
+  /** D-075 — paid on this device, not yet on the server. */
+  "status.queued": "Waiting to sync",
 
   // Tables
   "tables.title": "Tables",

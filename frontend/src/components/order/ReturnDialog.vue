@@ -188,6 +188,9 @@ function money(value: number): string {
         <p class="rpos-numeric text-xs text-muted">
           {{ receipt.note }}
         </p>
+        <p class="mt-2 text-xs text-muted">
+          {{ t("ret.whereItLives") }}
+        </p>
       </div>
       <button
         type="button"
@@ -199,6 +202,31 @@ function money(value: number): string {
     </template>
 
     <template v-else-if="bill">
+      <!--
+        What has already gone back, and its credit-note number (D-068).
+        The server sent this from the start and the screen was throwing it away,
+        so a cashier asked where a refund went and the till had no answer — even
+        though it had one in hand.
+      -->
+      <div
+        v-if="bill.returns.length"
+        class="mb-3 rounded-rpos bg-background p-3"
+      >
+        <p class="mb-2 text-xs font-semibold text-muted">
+          {{ t("ret.previous") }}
+        </p>
+        <div
+          v-for="credit in bill.returns"
+          :key="credit.name"
+          class="flex items-center justify-between gap-3 text-sm"
+        >
+          <span class="rpos-numeric min-w-0 truncate text-muted">{{ credit.name }}</span>
+          <span class="rpos-numeric shrink-0 font-semibold">{{
+            money(Math.abs(credit.grand_total))
+          }}</span>
+        </div>
+      </div>
+
       <p
         v-if="bill.fully_returned"
         class="rounded-rpos bg-background p-4 text-center text-sm text-muted"

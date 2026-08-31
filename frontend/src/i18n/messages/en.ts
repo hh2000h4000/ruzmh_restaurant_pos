@@ -181,6 +181,8 @@ export const messages = {
   "ret.refund": "To hand back",
   "ret.confirm": "Refund",
   "ret.refunded": "Refunded",
+  "ret.previous": "Already returned",
+  "ret.whereItLives": "A credit note, filed against the original invoice.",
   "ret.allReturned": "Everything on this bill has already been returned.",
   "note.placeholder": "Anything else…",
   "note.orderAction": "Order note",

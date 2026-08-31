@@ -179,6 +179,8 @@ const messages: Catalogue["messages"] = {
   "ret.refund": "المبلغ المُعاد",
   "ret.confirm": "تنفيذ المرتجع",
   "ret.refunded": "تم الاسترداد",
+  "ret.previous": "مرتجعات سابقة",
+  "ret.whereItLives": "إشعار دائن مقيَّد على الفاتورة الأصلية.",
   "ret.allReturned": "أُرجعت كل أصناف هذه الفاتورة.",
   "note.placeholder": "شيء آخر…",
   "note.orderAction": "ملاحظة الطلب",

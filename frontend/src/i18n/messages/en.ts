@@ -37,6 +37,7 @@ export const messages = {
   "offline.noPricing": "This terminal has not loaded its prices yet. Reconnect once so it can.",
   "offline.billGone": "That offline bill is not on this device any more.",
   "offline.queuedSale": "Paid on this device. It opens once the connection returns and it reaches the server.",
+  "offline.screenMissing": "That screen is not stored on this device yet. Reconnect once and it will be.",
 
   // Errors raised by the API client
   "err.noCsrf": "The page loaded without a security token — sign out and reload.",

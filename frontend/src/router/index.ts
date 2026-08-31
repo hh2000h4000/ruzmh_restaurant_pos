@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from "vue-router";
 
+import { t } from "@/i18n";
 import { useSessionStore } from "@/stores/session";
 
 /**
@@ -56,6 +57,29 @@ const router = createRouter({
       redirect: { name: "home" },
     },
   ],
+});
+
+/**
+ * A screen that could not be downloaded (D-082).
+ *
+ * **Every view here is a lazy import**, so opening one the cashier has not
+ * visited fetches a chunk. Offline that fetch either comes from the service
+ * worker's cache or fails — and a failed dynamic import rejects the navigation,
+ * which by default is *silence*: the button looks dead, the cashier taps it
+ * again, and nothing anywhere says why. That is exactly how "tapping Pay does
+ * nothing" was reported.
+ *
+ * The message names the cause, because the fix is a person's: reconnect once so
+ * the terminal can store the app (`D-078`).
+ */
+router.onError((error) => {
+  const message = String(error?.message ?? error);
+  if (!/dynamically imported module|Importing a module script failed|Loading chunk/i.test(message)) {
+    return;
+  }
+
+  console.error("[rpos] a screen is not on this device:", error);
+  window.alert(t("offline.screenMissing"));
 });
 
 router.beforeEach((to) => {

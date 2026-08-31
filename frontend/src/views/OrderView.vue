@@ -850,7 +850,15 @@ function goToPayment(): void {
   // not walked through a form they will be refused at the end of (D-058).
   if (!maySell()) return;
 
-  void router.push({ name: "payment", params: { orderName: orders.order.order_name } });
+  // **Not `void`** (D-082). A rejected navigation resolves into nothing: the
+  // button appears dead, the cashier taps it again, and there is not a word
+  // anywhere to say why. Every path ends in something visible (`CLAUDE.md`
+  // §5.5), and that includes the paths that are supposed to be impossible.
+  router
+    .push({ name: "payment", params: { orderName: orders.order.order_name } })
+    .catch((cause) => {
+      orders.error = cause instanceof Error ? cause.message : String(cause);
+    });
 }
 
 async function send(): Promise<void> {

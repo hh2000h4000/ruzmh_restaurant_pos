@@ -17,7 +17,7 @@
  * it** — and the screen says so rather than presenting stale rows as live ones.
  */
 
-import type { OpenOrder, OrderView } from "@/api/order";
+import { listOrders, type OpenOrder, type OrderView } from "@/api/order";
 
 import { database } from "./db";
 
@@ -44,6 +44,30 @@ export async function remember(view: OrderView, orders: OpenOrder[]): Promise<vo
     // The list is on screen either way; what is lost is having it during the
     // next outage. Worth a line, not worth interrupting a sale.
     console.warn("[rpos] could not mirror the orders:", cause);
+  }
+}
+
+/**
+ * Fill every view's copy while the line is good (D-081).
+ *
+ * **Mirroring only the tab the cashier happened to be looking at was a trap.**
+ * It made the offline history depend on somebody having opened all five tabs
+ * that morning — which nobody does, and which fails silently on the day it
+ * matters. The lists were empty during an outage and the reason was invisible.
+ *
+ * Five requests, once, when the app starts online and again when the connection
+ * comes back. Not on the fifteen-second poll: that would be five times the
+ * traffic forever to protect against a minute that may never come.
+ */
+export async function warm(posProfile: string, views: OrderView[]): Promise<void> {
+  for (const view of views) {
+    try {
+      await remember(view, await listOrders(posProfile, view));
+    } catch {
+      // The line went while we were warming. Whatever landed is kept, and the
+      // next reconnection tries again.
+      return;
+    }
   }
 }
 

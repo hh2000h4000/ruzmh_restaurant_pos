@@ -2,8 +2,9 @@ import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 
 import { listOrders, type OpenOrder, type OrderView } from "@/api/order";
 import { t } from "@/i18n";
-import { recall, remember } from "@/offline/orderMirror";
+import { recall, remember, warm } from "@/offline/orderMirror";
 import { queuedSales } from "@/offline/queue";
+import { useConnectionStore } from "@/stores/connection";
 import { useSessionStore } from "@/stores/session";
 
 export type OrderSort = "oldest" | "newest" | "amount";
@@ -19,6 +20,7 @@ export type OrderScope = "mine" | "all";
  */
 export function useOpenOrders() {
   const session = useSessionStore();
+  const connection = useConnectionStore();
 
   const rows = ref<OpenOrder[]>([]);
   const error = ref<string | null>(null);
@@ -164,8 +166,36 @@ export function useOpenOrders() {
   // what is already here: today's closed orders were never fetched.
   watch(view, () => void refresh());
 
+  // D-081 — the line came back. Take a fresh copy of every tab now, while it is
+  // there to take, rather than waiting for the next outage to discover that the
+  // one on the device is a day old.
+  watch(
+    () => connection.isOnline,
+    (online) => {
+      if (online) void refresh().then(warmMirror);
+    },
+  );
+
+  /**
+   * Fill every tab's offline copy, once (D-081).
+   *
+   * After the visible one, so the screen the cashier is looking at is never
+   * waiting behind four requests for tabs they have not opened.
+   */
+  async function warmMirror(): Promise<void> {
+    const profile = session.profile?.name;
+    if (!profile) return;
+
+    await warm(
+      profile,
+      (["open", "draft", "closed", "returned", "all"] as OrderView[]).filter(
+        (candidate) => candidate !== view.value,
+      ),
+    );
+  }
+
   onMounted(() => {
-    void refresh();
+    void refresh().then(warmMirror);
     timer = window.setInterval(refresh, REFRESH_MS);
     document.addEventListener("visibilitychange", onVisibilityChange);
   });

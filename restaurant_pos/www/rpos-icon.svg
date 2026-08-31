@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!--
+    A placeholder, and it should be replaced by the restaurant's own mark.
+
+    It exists because a web app manifest without an icon is not installable at
+    all: Chrome will not offer "Install" and the terminal stays a browser tab,
+    whose storage the browser may evict (D-079).
+  -->
+  <rect width="512" height="512" rx="96" fill="#2563eb"/>
+  <path d="M150 140h212a20 20 0 0 1 20 20v232l-44-28-42 28-42-28-42 28-42-28-40 28V160a20 20 0 0 1 20-20z"
+        fill="#ffffff"/>
+  <path d="M196 208h120M196 264h120M196 320h72" stroke="#2563eb" stroke-width="20" stroke-linecap="round"/>
+</svg>

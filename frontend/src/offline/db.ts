@@ -93,6 +93,45 @@ export function database(): Promise<RposDB | null> {
   return connection;
 }
 
+/**
+ * Ask the browser not to throw this away (D-079).
+ *
+ * **By default every byte here is "best effort".** Under disk pressure a
+ * browser evicts an origin's IndexedDB and caches without asking — which for
+ * this app means the menu, the cached session, the app shell **and any offline
+ * sale still waiting in the queue**. Money taken and then deleted by a
+ * housekeeping routine.
+ *
+ * `persist()` moves the origin to durable storage, which is not evicted
+ * automatically. Chrome grants it silently to an installed app or a site the
+ * user visits often, and refuses it for a passing tab — which is the real
+ * reason the manifest exists (`D-079`): **installing the terminal is what makes
+ * its storage safe.**
+ *
+ * Called once at start-up. A refusal is worth knowing about and is not worth
+ * stopping for; the app works either way, it is only less protected.
+ */
+export async function requestDurableStorage(): Promise<boolean> {
+  if (!navigator.storage?.persist) return false;
+
+  try {
+    // Already granted on a previous run — asking again would prompt for nothing.
+    if (await navigator.storage.persisted()) return true;
+
+    const granted = await navigator.storage.persist();
+    if (!granted) {
+      console.warn(
+        "[rpos] this browser may delete offline data under disk pressure. " +
+          "Install the app (browser menu → Install) so it does not.",
+      );
+    }
+    return granted;
+  } catch (cause) {
+    console.warn("[rpos] could not ask for durable storage:", cause);
+    return false;
+  }
+}
+
 /** For tests and for sign-out: drop everything this device remembers. */
 export async function clearAll(): Promise<void> {
   const db = await database();

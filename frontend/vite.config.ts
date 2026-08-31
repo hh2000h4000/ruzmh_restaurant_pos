@@ -37,8 +37,23 @@ const WWW_PAGE = resolve(__dirname, "../restaurant_pos/www/restaurant-pos.html")
  * has no token and Jinja would otherwise render the literal string "None",
  * which looks like a valid token to any truthiness check.
  */
+/**
+ * The manifest turns the tab into an installed terminal (D-079).
+ *
+ * Without it the browser never offers **Install**, and the till stays a tab —
+ * whose storage the browser is free to evict when the disk fills, taking the
+ * cached app *and* any offline sale still in the queue with it. Installed apps
+ * are the ones browsers keep.
+ *
+ * It lives in `www/` rather than the build output because it is content, not
+ * code: a restaurant replaces the icon and the name, and rebuilding the
+ * frontend to change a logo would be absurd.
+ */
 const HEAD_INJECTION = [
   '  <script>window.csrf_token = "{{ frappe.session.csrf_token or "" }}";</script>',
+  '  <link rel="manifest" href="/rpos-manifest.json">',
+  '  <link rel="icon" href="/rpos-icon.svg" type="image/svg+xml">',
+  '  <meta name="theme-color" content="#2563eb">',
   "  ",
 ].join("\n");
 
@@ -93,7 +108,14 @@ function buildServiceWorker(files: string[]): string {
     throw new Error("The bundle emitted no js or css; the service worker would cache nothing.");
   }
 
-  const urls = files.map((file) => ASSET_BASE + file).sort();
+  // The manifest and the icon are served from `www/`, not from the bundle, so
+  // the build does not know them — but an installed terminal that opens offline
+  // should still have its own name and mark (D-079). Both are tiny.
+  const urls = [
+    ...files.map((file) => ASSET_BASE + file),
+    "/rpos-manifest.json",
+    "/rpos-icon.svg",
+  ].sort();
 
   return (
     readFileSync(SW_TEMPLATE, "utf-8")

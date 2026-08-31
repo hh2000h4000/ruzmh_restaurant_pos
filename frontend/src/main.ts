@@ -3,6 +3,7 @@ import { createApp } from "vue";
 
 import App from "./App.vue";
 import { initLocale } from "./i18n";
+import { requestDurableStorage } from "./offline/db";
 import router from "./router";
 import "./styles/main.css";
 
@@ -32,6 +33,14 @@ createApp(App).use(createPinia()).use(router).mount("#app");
  * which is a deployment fact worth seeing in the console rather than a reason
  * to stop.
  */
+/**
+ * And ask the browser not to delete what we keep there (D-079).
+ *
+ * Without this, an offline sale waiting in the queue is evictable data: a
+ * browser clearing space would take money that has already been handed over.
+ */
+void requestDurableStorage();
+
 if ("serviceWorker" in navigator) {
   // `/sw.js`, not under `/restaurant-pos/`: a worker only controls its own
   // directory and below, and that path is routed to this very page anyway.

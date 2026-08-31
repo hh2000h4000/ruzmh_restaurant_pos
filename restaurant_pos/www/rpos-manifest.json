@@ -1,0 +1,22 @@
+{
+  "name": "RPOS — نقاط البيع",
+  "short_name": "RPOS",
+  "description": "شاشة الكاشير — مطاعم",
+  "id": "/restaurant-pos",
+  "start_url": "/restaurant-pos",
+  "scope": "/restaurant-pos",
+  "display": "standalone",
+  "orientation": "landscape",
+  "dir": "rtl",
+  "lang": "ar",
+  "background_color": "#f7f8fa",
+  "theme_color": "#2563eb",
+  "icons": [
+    {
+      "src": "/rpos-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

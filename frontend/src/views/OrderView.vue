@@ -534,6 +534,14 @@ function onPick(item: CatalogItem, qty: number): void {
     return;
   }
 
+  // D-073 — the modifier dialog reads its options from the server, so there is
+  // no honest price for "extra cheese" while the line is down. Said before the
+  // dialog opens rather than after it fails to load.
+  if (orders.offline && item.modifier_groups.length) {
+    orders.error = t("offline.noModifiers");
+    return;
+  }
+
   if (item.modifier_groups.length) {
     // The quantity has to survive the detour, or six coffees with extra milk
     // arrive as one.
@@ -909,6 +917,21 @@ async function send(): Promise<void> {
               class="rounded-rpos bg-danger/10 p-3 text-sm text-danger"
             >
               {{ orders.error }}
+            </p>
+
+            <!-- 09 §5, D-073 — a bill that lives on this device says so. It is
+                 sellable and priced correctly, but nobody else can see it and a
+                 wiped browser would lose it. -->
+            <p
+              v-if="orders.offline"
+              role="status"
+              class="flex items-center gap-2 rounded-rpos bg-status-cleaning/10 p-3 text-sm text-status-cleaning"
+            >
+              <AppIcon
+                name="hourglass"
+                :size="18"
+              />
+              {{ t("offline.bill") }}
             </p>
 
             <!-- 09 §10 — an order carrying queued work must say so, or the

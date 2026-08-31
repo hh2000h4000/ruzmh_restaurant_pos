@@ -30,6 +30,12 @@ export const messages = {
   "conn.syncing": "Syncing…",
   "conn.syncNow": "Sync now",
   "conn.staleConfig": "Working from this device's copy, saved {when}.",
+  // Selling offline (09 §5)
+  "offline.itemUnknown": "That item is not in this device's menu.",
+  "offline.noModifiers": "Options cannot be priced while offline. Add this item once the connection is back.",
+  "offline.bill": "Offline — this bill is on the device until the connection returns.",
+  "offline.paid": "Taken on this device. It reaches the server when the connection does.",
+  "offline.noPricing": "This terminal has not loaded its prices yet.",
 
   // Errors raised by the API client
   "err.noCsrf": "The page loaded without a security token — sign out and reload.",

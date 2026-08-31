@@ -27,6 +27,12 @@ const messages: Catalogue["messages"] = {
   "conn.syncing": "جارٍ المزامنة…",
   "conn.syncNow": "زامن الآن",
   "conn.staleConfig": "يعمل من نسخة هذا الجهاز، المحفوظة {when}.",
+  // البيع بلا اتصال (09 §5)
+  "offline.itemUnknown": "هذا الصنف ليس في قائمة هذا الجهاز.",
+  "offline.noModifiers": "لا يمكن تسعير الإضافات بلا اتصال. أضف الصنف بعد عودة الاتصال.",
+  "offline.bill": "بلا اتصال — هذه الفاتورة على الجهاز حتى يعود الاتصال.",
+  "offline.paid": "حُصِّلت على هذا الجهاز. تصل الخادم حين يعود الاتصال.",
+  "offline.noPricing": "هذا الجهاز لم يُحمّل الأسعار بعد.",
 
   // Errors raised by the API client
   "err.noCsrf": "الصفحة حُمّلت بدون رمز الحماية — سجّل الخروج وأعد تحميل الصفحة.",

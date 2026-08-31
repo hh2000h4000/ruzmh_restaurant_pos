@@ -1,11 +1,15 @@
 import { defineStore } from "pinia";
 import { computed, ref } from "vue";
 
+import { newQueueId } from "@/api/client";
 import * as kitchenApi from "@/api/kitchen";
 import * as orderApi from "@/api/order";
 import type { ModifierChoice, OrderDetail, OrderSummary } from "@/api/order";
+import { t } from "@/i18n";
+import * as local from "@/offline/localOrder";
 import { isQueued } from "@/offline/queue";
 import { useConnectionStore } from "@/stores/connection";
+import { useSessionStore } from "@/stores/session";
 
 /**
  * The order the cashier is working on.
@@ -28,6 +32,35 @@ export const useOrderStore = defineStore("order", () => {
    * drains (09 §10, "PENDING SYNC").
    */
   const pendingSync = ref(false);
+
+  /**
+   * The bill this device is composing while the line is down (D-073).
+   *
+   * `null` whenever the order in hand belongs to the server, which is every
+   * ordinary minute. When it is set, `order` is built from it rather than
+   * fetched — the screens cannot tell, and must not have to.
+   */
+  const offline = ref<local.LocalOrderState | null>(null);
+
+  /** The arithmetic's inputs, shipped by the server (D-071). Never guessed. */
+  function pricing() {
+    const shipped = useSessionStore().data?.pricing;
+    if (!shipped) {
+      // A terminal that has never loaded a session has no rate, no rounding
+      // step and no method — and inventing them is precisely what D-071 exists
+      // to prevent. Better to refuse the sale than to price it wrongly.
+      throw new Error(t("offline.noPricing"));
+    }
+    return shipped;
+  }
+
+  /** Rebuild what the screens read from the local bill. */
+  async function applyLocal(): Promise<void> {
+    if (!offline.value) return;
+
+    order.value = local.toOrderDetail(offline.value, pricing());
+    await local.save(offline.value);
+  }
 
   const lines = computed(() => order.value?.items.filter((row) => row.status !== "void") ?? []);
   const voided = computed(() => order.value?.items.filter((row) => row.status === "void") ?? []);
@@ -63,7 +96,19 @@ export const useOrderStore = defineStore("order", () => {
   }
 
   async function open(orderName: string): Promise<void> {
+    // A bill this device composed lives here, not on the server (D-073).
+    if (local.isLocalOrder(orderName)) {
+      await run(async () => {
+        offline.value = await local.load(orderName);
+        if (!offline.value) throw new Error("That offline order is no longer on this device.");
+        await applyLocal();
+        pendingSync.value = false;
+      });
+      return;
+    }
+
     await run(async () => {
+      offline.value = null;
       order.value = await orderApi.getOrder(orderName);
       // Whatever the server just handed back is the truth; anything this screen
       // was holding is either applied or gone.
@@ -71,7 +116,26 @@ export const useOrderStore = defineStore("order", () => {
     });
   }
 
+  /**
+   * Open an order — on the server when there is one, on the device when there
+   * is not (09 §5, D-073).
+   *
+   * The offline branch is not a fallback after a failed request: a till that
+   * tries the network first makes every tap wait out a timeout during an
+   * outage. The connection state is already known and polled (`09` §2).
+   */
   async function create(payload: Parameters<typeof orderApi.createOrder>[0]): Promise<string | null> {
+    if (!useConnectionStore().isOnline) {
+      return run(async () => {
+        offline.value = local.newLocalOrder(payload.order_type, newQueueId());
+        offline.value.table = payload.table ?? null;
+        offline.value.customer = payload.customer ?? null;
+        offline.value.cover_count = payload.cover_count ?? 0;
+        await applyLocal();
+        return offline.value!.local_id;
+      });
+    }
+
     const summary = await run(() => orderApi.createOrder(payload));
     if (!summary) return null;
 
@@ -84,6 +148,33 @@ export const useOrderStore = defineStore("order", () => {
     options: { qty?: number; modifiers?: ModifierChoice[]; notes?: string | null } = {},
   ): Promise<void> {
     if (!order.value) return;
+
+    if (offline.value) {
+      await run(async () => {
+        const session = useSessionStore();
+        const catalogue = session.itemsByCode.get(item);
+        if (!catalogue) throw new Error(t("offline.itemUnknown"));
+
+        // D-073 — the modifier dialog reads its options from the server, so
+        // offline there is no price for "extra cheese" and no honest way to
+        // invent one. The screen refuses these before the tap gets here; this
+        // is the guard behind that guard.
+        if (catalogue.modifier_groups.length) throw new Error(t("offline.noModifiers"));
+
+        offline.value!.lines.push({
+          item,
+          item_name: catalogue.item_name,
+          // The rate this device cached for the terminal's price list. The
+          // server re-reads it on sync and refuses a bill that disagrees.
+          rate: session.priceOf(catalogue, orderTypeOf()) ?? 0,
+          qty: options.qty ?? 1,
+          modifiers: [],
+          notes: options.notes ?? null,
+        });
+        await applyLocal();
+      });
+      return;
+    }
 
     const orderName = order.value.order_name;
     const done = await run(() =>
@@ -100,9 +191,24 @@ export const useOrderStore = defineStore("order", () => {
     if (done) await open(orderName);
   }
 
+  /** The order type in hand, for pricing a line the way the till would. */
+  function orderTypeOf() {
+    const session = useSessionStore();
+    return session.orderTypes.find((type) => type.name === order.value?.order_type) ?? null;
+  }
+
   /** FR-2.2 — the server decides the new amount; the screen re-reads it. */
   async function setQty(idx: number, qty: number): Promise<void> {
     if (!order.value) return;
+
+    if (offline.value) {
+      await run(async () => {
+        const line = offline.value!.lines[idx - 1];
+        if (line) line.qty = qty;
+        await applyLocal();
+      });
+      return;
+    }
 
     const orderName = order.value.order_name;
     const done = await run(() => orderApi.setItemQty({ order_name: orderName, item_idx: idx, qty }));
@@ -117,6 +223,14 @@ export const useOrderStore = defineStore("order", () => {
    */
   async function removeLine(idx: number): Promise<void> {
     if (!order.value) return;
+
+    if (offline.value) {
+      await run(async () => {
+        offline.value!.lines.splice(idx - 1, 1);
+        await applyLocal();
+      });
+      return;
+    }
 
     const orderName = order.value.order_name;
     const done = await run(() => orderApi.removeItem({ order_name: orderName, item_idx: idx }));
@@ -287,8 +401,55 @@ export const useOrderStore = defineStore("order", () => {
     return true;
   }
 
+  /**
+   * Take money for a bill this device composed (09 §5, D-073).
+   *
+   * The whole thing goes into the queue as one entry, under the id it was built
+   * with — so the queue's ordinary replay is what lands it, and the ordinary
+   * idempotency is what stops it landing twice (`D-072`). There is no second
+   * sync path here to drift from the first.
+   *
+   * The local copy is dropped once it is queued: a paid bill with two homes
+   * would make the screen choose which one is true.
+   */
+  async function payOffline(
+    payments: { method: string; amount: number; tendered?: number }[],
+  ): Promise<boolean> {
+    const state = offline.value;
+    if (!state) return false;
+
+    const done = await run(async () => {
+      const { enqueue } = await import("@/offline/queue");
+      await enqueue(
+        "offline.submit_order",
+        {
+          pos_profile: useSessionStore().profile!.name,
+          payload: toSubmissionPayload(state, payments),
+        },
+        local.queueIdOf(state),
+      );
+      await local.forget(state.local_id);
+      return true;
+    });
+
+    if (!done) return false;
+
+    offline.value = null;
+    pendingSync.value = true;
+    void useConnectionStore().refreshCounts();
+    return true;
+  }
+
+  function toSubmissionPayload(
+    state: local.LocalOrderState,
+    payments: { method: string; amount: number; tendered?: number }[],
+  ): Record<string, unknown> {
+    return local.toSubmission(state, pricing(), payments);
+  }
+
   function clear(): void {
     order.value = null;
+    offline.value = null;
     error.value = null;
     unrouted.value = [];
     pendingSync.value = false;
@@ -296,10 +457,12 @@ export const useOrderStore = defineStore("order", () => {
 
   return {
     order,
+    offline,
     busy,
     error,
     unrouted,
     pendingSync,
+    payOffline,
     lines,
     voided,
     isEmpty,

@@ -6,6 +6,7 @@ import * as paymentApi from "@/api/payment";
 import type { PaymentLine, PaymentSummary, TotalsPreview } from "@/api/payment";
 import BaseDialog from "@/components/BaseDialog.vue";
 import { formatNumber, t } from "@/i18n";
+import { useOrderStore } from "@/stores/order";
 import { useSessionStore } from "@/stores/session";
 
 /**
@@ -21,6 +22,7 @@ const QUICK_DISCOUNTS = [10, 25, 50];
 const route = useRoute();
 const router = useRouter();
 const session = useSessionStore();
+const orders = useOrderStore();
 
 const orderName = route.params.orderName as string;
 
@@ -78,7 +80,38 @@ function money(value: number): string {
   return formatNumber(value, 2);
 }
 
+/**
+ * A bill this device composed while the line was down (09 §5, D-073).
+ *
+ * There is no summary to fetch — the order only exists here — so the figures
+ * come from the store, which built them with the same arithmetic the server
+ * uses (`D-071`). Everything else on this screen is the same.
+ */
+const offline = computed(() => orders.offline !== null);
+
 onMounted(async () => {
+  if (offline.value) {
+    const bill = orders.order!;
+    summary.value = {
+      order_name: bill.order_name,
+      subtotal: bill.subtotal,
+      discount_amount: bill.discount_amount,
+      tax_amount: bill.tax_amount,
+      total_amount: bill.total_amount,
+      already_paid: false,
+      sales_invoice: null,
+      // The terminal's own methods. Which ones an order *type* forbids
+      // (`BR-023`) is on the server, so the replay is what enforces it — a
+      // device that guessed would refuse a method the shop allows.
+      payment_methods: (session.data?.payment_methods ?? []).map((row) => ({
+        payment_method: row.mode_of_payment,
+        is_forced: 0 as const,
+        is_default: row.default,
+      })),
+    };
+    return;
+  }
+
   try {
     summary.value = await paymentApi.getPaymentSummary(orderName);
     if (summary.value.already_paid) {
@@ -172,6 +205,26 @@ async function confirm(): Promise<void> {
   failure.value = null;
 
   try {
+    // D-073 — offline the whole bill goes into the queue as one entry and
+    // lands, once, when the connection returns. Nothing is sent now, so there
+    // is no invoice number to show; the amount and the change are real.
+    if (offline.value) {
+      const total = due.value;
+      const change = Math.max(round(tendered.value - total), 0);
+
+      if (await orders.payOffline(lines.value.map((line) => ({ ...line })))) {
+        done.value = {
+          order_name: orderName,
+          sales_invoice: "",
+          total_amount: total,
+          change_amount: change,
+        } as paymentApi.PaymentResult;
+      } else {
+        failure.value = orders.error;
+      }
+      return;
+    }
+
     done.value = await paymentApi.processPayment({
       order_name: orderName,
       payments: lines.value,
@@ -227,8 +280,19 @@ async function confirm(): Promise<void> {
       >
         {{ t("pay.change") }}: {{ money(done.change_amount) }}
       </p>
-      <p class="rpos-numeric mb-6 text-sm text-muted">
+      <!-- Offline there is no invoice number yet, and saying so is the point:
+           the money is taken, the document is not written (D-073). -->
+      <p
+        v-if="done.sales_invoice"
+        class="rpos-numeric mb-6 text-sm text-muted"
+      >
         {{ done.sales_invoice }}
+      </p>
+      <p
+        v-else
+        class="mb-6 text-sm text-status-cleaning"
+      >
+        {{ t("offline.paid") }}
       </p>
 
       <!--

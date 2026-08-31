@@ -1,4 +1,5 @@
-import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 import vue from "@vitejs/plugin-vue";
@@ -41,10 +42,36 @@ const HEAD_INJECTION = [
   "  ",
 ].join("\n");
 
+/** Hand-written; the build only fills in what it alone knows (D-078). */
+const SW_TEMPLATE = resolve(__dirname, "sw-template.js");
+
+/**
+ * The worker is written to `www/sw.js`, which Frappe serves at **`/sw.js`**.
+ *
+ * It cannot live under `/restaurant-pos/`: `hooks.website_route_rules` sends
+ * every path there to the SPA page, so the request would come back as HTML. And
+ * it cannot live under `/assets/`, because a worker's scope is its own
+ * directory and `/assets/...` cannot control `/restaurant-pos`.
+ */
 function publishToFrappe(): Plugin {
+  /** Every chunk Rollup emitted, captured where the list actually exists. */
+  let emitted: string[] = [];
+
   return {
     name: "rpos-publish-to-frappe",
     apply: "build",
+
+    writeBundle(_options, bundle) {
+      // **Not read out of index.html.** That page names only the entry chunk;
+      // every view is a lazy import, so a precache built from it would leave a
+      // terminal that reloads offline with a shell and no screens. The bundle
+      // is the only place that knows all of them.
+      //
+      // Source maps are left out on purpose: a till has no debugger open and
+      // they are larger than the code.
+      emitted = Object.keys(bundle).filter((file) => /\.(js|css)$/.test(file));
+    },
+
     closeBundle() {
       const html = readFileSync(resolve(OUT_DIR, "index.html"), "utf-8");
 
@@ -55,15 +82,29 @@ function publishToFrappe(): Plugin {
       mkdirSync(resolve(WWW_PAGE, ".."), { recursive: true });
       writeFileSync(WWW_PAGE, html.replace("</head>", `${HEAD_INJECTION}</head>`), "utf-8");
 
-      // The service worker must be served from the app root, not /assets,
-      // or its scope cannot cover the whole SPA.
-      try {
-        copyFileSync(resolve(OUT_DIR, "sw.js"), resolve(WWW_PAGE, "../sw.js"));
-      } catch {
-        // No service worker yet — Workbox lands with the offline queue.
-      }
+      writeFileSync(resolve(WWW_PAGE, "../sw.js"), buildServiceWorker(emitted), "utf-8");
     },
   };
+}
+
+/** Fill the worker in with this build's asset URLs (D-078). */
+function buildServiceWorker(files: string[]): string {
+  if (!files.length) {
+    throw new Error("The bundle emitted no js or css; the service worker would cache nothing.");
+  }
+
+  const urls = files.map((file) => ASSET_BASE + file).sort();
+
+  return (
+    readFileSync(SW_TEMPLATE, "utf-8")
+      .replace('["__PRECACHE__"]', JSON.stringify(urls, null, 2))
+      // Global, because the placeholder is named in the file's own comment
+      // first — a plain `replace` renamed the documentation and left the code.
+      //
+      // The id is derived from the URLs, which carry content hashes: a build
+      // that changed nothing must not evict a terminal's cache for no reason.
+      .replace(/__BUILD__/g, createHash("sha1").update(urls.join("|")).digest("hex").slice(0, 12))
+  );
 }
 
 export default defineConfig({

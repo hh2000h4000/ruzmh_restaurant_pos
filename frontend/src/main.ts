@@ -18,3 +18,24 @@ import "./styles/main.css";
 initLocale();
 
 createApp(App).use(createPinia()).use(router).mount("#app");
+
+/**
+ * Keep the app itself on the device (09 §4, D-078).
+ *
+ * Everything RPOS does offline lives **inside** an application that has to be
+ * downloaded from the server first. Without this a till survives an outage only
+ * until somebody reloads, and then shows a white page with a customer waiting.
+ *
+ * Registered after mount, deliberately: the worker is for the *next* start, and
+ * a registration that failed must never keep the app from painting this one.
+ * Registration also fails outright over plain HTTP on anything but localhost —
+ * which is a deployment fact worth seeing in the console rather than a reason
+ * to stop.
+ */
+if ("serviceWorker" in navigator) {
+  // `/sw.js`, not under `/restaurant-pos/`: a worker only controls its own
+  // directory and below, and that path is routed to this very page anyway.
+  navigator.serviceWorker.register("/sw.js", { scope: "/" }).catch((cause) => {
+    console.warn("[rpos] offline start-up is not available on this device:", cause);
+  });
+}

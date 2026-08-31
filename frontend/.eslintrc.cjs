@@ -50,5 +50,18 @@ module.exports = {
       files: ["src/i18n/**"],
       rules: { "no-restricted-syntax": "off" },
     },
+    {
+      /**
+       * The service worker (D-078).
+       *
+       * Linted like everything else — it caught a function this file called and
+       * never defined — but it runs in a worker, not a page, and its one Arabic
+       * string is the page shown when there is no app to show and therefore no
+       * `t()` to call.
+       */
+      files: ["sw-template.js"],
+      env: { browser: false, serviceworker: true, es2022: true },
+      rules: { "no-restricted-syntax": "off" },
+    },
   ],
 };

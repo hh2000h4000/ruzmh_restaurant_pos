@@ -128,11 +128,25 @@ CUSTOM_FIELDS = {
 			"insert_after": "order_number_reset",
 		},
 		{
+			# D-105 — the restaurant decides what an open bill means at midnight.
+			"fieldname": "close_open_orders_with_day",
+			"fieldtype": "Check",
+			"default": "1",
+			"label": "Finish open orders before closing the day",
+			"description": (
+				"On: the day cannot end while a bill is still open, so every one of them is "
+				"settled or cancelled first. Off: open bills carry over to the next day and "
+				"stay fully editable. Neither is wrong — a table that leaves without paying "
+				"is an ordinary evening in some restaurants and an incident in others."
+			),
+			"insert_after": "settlement_required",
+		},
+		{
 			"fieldname": "is_active",
 			"fieldtype": "Check",
 			"label": "Is Active",
 			"default": "1",
-			"insert_after": "settlement_required",
+			"insert_after": "close_open_orders_with_day",
 		},
 		{
 			"fieldname": "rpos_address_section",

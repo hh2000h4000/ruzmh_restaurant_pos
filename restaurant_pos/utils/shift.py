@@ -154,8 +154,13 @@ def close_day(*, shift_name: str, force: bool = False) -> dict:
 	if day.opened_by != frappe.session.user:
 		assert_permission("can_close_others_shift")
 
+	# **The branch decides** (`D-105`). A bill still open at closing time is an
+	# ordinary evening in one restaurant and an incident in another: a table that
+	# walked out, or a tab that genuinely runs past midnight. With the setting on
+	# the day waits for them; with it off they carry over and stay fully
+	# editable tomorrow.
 	report = summarise(shift_name)
-	if report["orders"]["still_open"] and not force:
+	if report["orders"]["still_open"] and not force and _must_finish_orders(day.branch):
 		frappe.throw(
 			_("{0} orders are still open on this day.").format(report["orders"]["still_open"]),
 			frappe.ValidationError,
@@ -749,6 +754,17 @@ def assert_may_sell(pos_profile: str) -> None:
 	"""
 	if not may_sell(pos_profile):
 		frappe.throw(_("Open a shift before taking orders."))
+
+
+def _must_finish_orders(branch: str) -> bool:
+	"""Whether this branch ends its day with nothing left open (`D-105`).
+
+	Defaults to on for a branch created before the setting existed: refusing to
+	close is recoverable in one step, and a day closed over bills nobody meant
+	to carry is not.
+	"""
+	setting = frappe.db.get_value("Branch", branch, "close_open_orders_with_day")
+	return True if setting is None else bool(setting)
 
 
 def _tills_of(shift_name: str, *, status: str) -> list[str]:

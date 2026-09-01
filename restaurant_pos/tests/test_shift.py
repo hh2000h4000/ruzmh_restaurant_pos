@@ -26,13 +26,20 @@ class ShiftTestBase(OrderTestBase):
 	def setUp(self):
 		self.settlement = frappe.db.get_value("Branch", BRANCH, "settlement_required")
 		self.shift_type = frappe.db.get_value("Branch", BRANCH, "shift_type")
+		self.finish_orders = frappe.db.get_value("Branch", BRANCH, "close_open_orders_with_day")
 		self._clear()
 
 	def tearDown(self):
 		frappe.db.set_value(
 			"Branch",
 			BRANCH,
-			{"settlement_required": self.settlement, "shift_type": self.shift_type or "single"},
+			{
+				"settlement_required": self.settlement,
+				"shift_type": self.shift_type or "single",
+				# Restored, or a test that turned it off leaves every later one
+				# closing days over open bills without meaning to.
+				"close_open_orders_with_day": self.finish_orders,
+			},
 		)
 		self._clear()
 		# The suite's other modules expect the terminal to be selling.
@@ -201,6 +208,51 @@ class TestEndOfDay(ShiftTestBase):
 
 		with self.assertRaises(frappe.ValidationError):
 			service.close_day(shift_name=outcome["shift"])
+
+	def test_a_branch_may_let_bills_run_past_midnight(self):
+		"""D-105 — the restaurant decides what an open bill means at closing.
+
+		A tab that runs late, or a numbered bill emptied and reused for the next
+		customer, is an ordinary evening in some restaurants. In others a bill
+		still open at the end of the night is an incident. The setting is the
+		difference, and neither answer is wrong.
+		"""
+		frappe.db.set_value("Branch", BRANCH, "close_open_orders_with_day", 0)
+		outcome = service.open_till(pos_profile=self.profile)
+		order = self._order()
+
+		service.close_day(shift_name=outcome["shift"])
+
+		self.assertEqual(frappe.db.get_value("Restaurant Shift", outcome["shift"], "status"), "closed")
+		self.assertNotIn(
+			frappe.db.get_value("Restaurant Order", order.name, "status"),
+			("closed", "cancelled"),
+			"the bill carries over rather than being settled by the day ending",
+		)
+
+	def test_a_carried_over_bill_still_takes_items_tomorrow(self):
+		"""The rule this replaced refused, and refusing was wrong (`D-105`).
+
+		`assert_mutable` still asks for an open till, which is what closed the
+		original hole — paying a held draft with no shift open. What it does not
+		ask any more is which day the bill was opened on.
+		"""
+		from restaurant_pos.tests.test_order import ITEM
+		from restaurant_pos.utils import order as orders
+
+		frappe.db.set_value("Branch", BRANCH, "close_open_orders_with_day", 0)
+		yesterday = service.open_till(pos_profile=self.profile)
+		order = self._order()
+		service.close_day(shift_name=yesterday["shift"])
+
+		# A new day, a new drawer — the cashier is at work and the bill is on the
+		# floor in front of them.
+		service.open_till(pos_profile=self.profile)
+		order.reload()
+
+		orders.add_item(order, item=ITEM, qty=1)
+
+		self.assertTrue(order.items)
 
 	def test_a_manager_may_close_over_it(self):
 		outcome = service.open_till(pos_profile=self.profile)

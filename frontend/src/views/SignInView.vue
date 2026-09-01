@@ -24,6 +24,7 @@ const session = useSessionStore();
 
 const pin = ref("");
 const posProfile = computed(() => session.profile?.name ?? null);
+const build = __RPOS_BUILD__;
 
 /** Boxes drawn from the server's own length, so the two cannot disagree. */
 const boxes = computed(() => Array.from({ length: auth.pinLength }, (_, index) => index));
@@ -82,6 +83,18 @@ async function punch(): Promise<void> {
           class="mt-1 text-sm text-muted"
         >
           {{ session.branch }}
+        </p>
+        <!--
+          Which build this terminal is actually running (D-100). A till holds
+          the whole app in a cache, so an old bundle behaves like a bug in the
+          new one — and this is the only place the answer is visible without
+          opening devtools.
+        -->
+        <p
+          class="mt-2 text-xs text-muted/60"
+          dir="ltr"
+        >
+          {{ build }}
         </p>
       </div>
 

@@ -131,6 +131,18 @@ function buildServiceWorker(files: string[]): string {
 
 export default defineConfig({
   base: ASSET_BASE,
+  /**
+   * When this build was made, shown on the sign-in screen (`D-100`).
+   *
+   * A till caches the whole app on purpose (`D-078`), so "have you got the new
+   * version?" is a real question with no way to answer it from the screen.
+   * Half an afternoon went into a sign-in that worked on the server and failed
+   * in a browser holding an older bundle. A date under the logo settles it in
+   * one glance, from across the counter.
+   */
+  define: {
+    __RPOS_BUILD__: JSON.stringify(new Date().toISOString().slice(0, 16).replace("T", " ")),
+  },
   plugins: [vue(), publishToFrappe()],
   resolve: {
     alias: { "@": resolve(__dirname, "src") },

@@ -471,18 +471,32 @@ def print_receipt(invoice_name: str, *, order_name: str | None = None) -> str | 
 		return print_document(
 			job_type="customer_receipt",
 			printer=printer,
-			context={
-				"doc": invoice,
-				"order": order or frappe._dict(),
-				"company": frappe.get_cached_doc("Company", invoice.company),
-				"branch": frappe.get_cached_doc("Branch", order.branch) if order and order.branch else None,
-			},
+			context=receipt_context(invoice, order),
 			reference_doctype="Sales Invoice",
 			reference_name=invoice.name,
 		)
 	except Exception:
 		frappe.log_error(f"Receipt for {invoice_name} could not be queued", "RPOS printing")
 		return None
+
+
+def receipt_context(invoice, order=None) -> dict:
+	"""Everything the customer's receipt is rendered from.
+
+	Named and public so the same context can be built for a preview or a
+	reprint. A second way to assemble a receipt is how two receipts for one sale
+	start to differ.
+	"""
+	from restaurant_pos.utils import zatca
+
+	return {
+		"doc": invoice,
+		"order": order or frappe._dict(),
+		"company": frappe.get_cached_doc("Company", invoice.company),
+		"branch": frappe.get_cached_doc("Branch", order.branch) if order and order.branch else None,
+		# FR-7.5 — ZATCA Phase 1. Local arithmetic, no integration (`D-092`).
+		"zatca_qr": zatca.invoice_qr(invoice),
+	}
 
 
 def _receipt_order(order_name: str | None):

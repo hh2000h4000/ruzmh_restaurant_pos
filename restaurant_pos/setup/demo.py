@@ -272,6 +272,10 @@ def _profile(pos_profile: str | None) -> frappe._dict:
 VAT_RATE = 15
 VAT_TEMPLATE = "KSA VAT 15%"
 
+#: A placeholder VAT registration number for the demo, in the Saudi shape:
+#: 15 digits beginning and ending with 3. Not a real registration.
+DEMO_VAT_NUMBER = "300000000000003"
+
 
 def _vat_template(profile) -> str:
 	"""A 15% VAT template on **ERPNext's own** DocTypes (D-089).
@@ -287,6 +291,17 @@ def _vat_template(profile) -> str:
 	`included_in_print_rate` and extract the tax rather than add it — and the
 	discount comes off the grand total to match.
 	"""
+	company = profile.company
+
+	# Before the early return below, not after it. Without a VAT number there is
+	# no ZATCA QR, because tag 2 of the QR *is* the VAT number and one missing it
+	# is invalid rather than lenient (`D-092`). Put after the return, this ran
+	# only on a site that had never had the template — which is not the site
+	# anybody is looking at.
+	if not frappe.db.get_value("Company", company, "tax_id"):
+		frappe.db.set_value("Company", company, "tax_id", DEMO_VAT_NUMBER)
+		frappe.clear_cache(doctype="Company")
+
 	name = frappe.db.get_value("Sales Taxes and Charges Template", {"title": VAT_TEMPLATE}, "name")
 	if name:
 		# A demo built before the inclusive decision carries an exclusive row,
@@ -302,7 +317,6 @@ def _vat_template(profile) -> str:
 		frappe.db.set_value("POS Profile", profile.name, "taxes_and_charges", name)
 		return name
 
-	company = profile.company
 	abbr = frappe.db.get_value("Company", company, "abbr")
 	parent = frappe.db.get_value(
 		"Account", {"company": company, "account_name": "Duties and Taxes", "is_group": 1}, "name"

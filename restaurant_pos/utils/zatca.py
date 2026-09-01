@@ -1,0 +1,167 @@
+# Copyright (c) 2026, RPOS and contributors
+# For license information, please see license.txt
+
+"""The ZATCA Phase 1 QR code — the one every simplified invoice must carry.
+
+**Phase 1 (Generation) and Phase 2 (Integration) are different problems**, and
+only the second needs an integration app (`D-092`):
+
+* **Phase 1** — a QR on the printed receipt holding five fields. Local
+  arithmetic and a bitmap; no network, no keys, no registration. Mandatory on
+  every simplified tax invoice in Saudi Arabia. **This module.**
+* **Phase 2** — clearing and reporting invoices to ZATCA's Fatoora platform:
+  signed XML, cryptographic stamps, a CSID obtained by onboarding. That is what
+  Lavaloon's app (or an equivalent) exists to do, and it is Phase 5 here.
+
+The QR is a **TLV** sequence — tag, length, value — base64 encoded:
+
+    1 seller name · 2 VAT number · 3 timestamp · 4 total with VAT · 5 VAT amount
+
+Refs: FR-7.5, D-092
+"""
+
+from __future__ import annotations
+
+import base64
+import io
+from datetime import datetime
+
+import frappe
+from frappe.utils import flt, get_datetime, get_system_timezone
+
+#: Tag numbers, in the order ZATCA specifies. The order is part of the format.
+SELLER_NAME = 1
+VAT_NUMBER = 2
+TIMESTAMP = 3
+INVOICE_TOTAL = 4
+VAT_TOTAL = 5
+
+#: A TLV length is one byte, so no value may exceed 255 **bytes**. Arabic is
+#: two bytes a letter in UTF-8, which halves how long a seller name may be.
+MAX_VALUE_BYTES = 255
+
+#: Dots per QR module. Four keeps the code about 200 dots across on 80mm paper —
+#: large enough for a phone camera, small enough to leave room for the total.
+MODULE_SCALE = 4
+
+#: Modules of blank margin. The specification for QR codes calls for four, and a
+#: code printed without it is one a scanner may refuse at an angle.
+QUIET_ZONE = 4
+
+
+def tlv(tag: int, value: str) -> bytes:
+	"""One tag-length-value triple.
+
+	The length counts **bytes, not characters**. Getting that wrong produces a
+	QR that scans perfectly for an English seller name and is corrupt for an
+	Arabic one — which is every restaurant this is for.
+	"""
+	encoded = value.encode("utf-8")
+	if len(encoded) > MAX_VALUE_BYTES:
+		# Cutting at a byte offset lands mid-character in Arabic, and the leftover
+		# lead byte is not valid UTF-8 — a scanner decoding the payload gets an
+		# error rather than a name. Decoding with `ignore` drops exactly the
+		# partial character, whether what remains is a lead byte or a
+		# continuation one; an earlier version only handled the latter and this
+		# test caught it.
+		encoded = encoded[:MAX_VALUE_BYTES].decode("utf-8", "ignore").encode("utf-8")
+
+	return bytes([tag, len(encoded)]) + encoded
+
+
+def qr_payload(
+	*,
+	seller_name: str,
+	vat_number: str,
+	timestamp: datetime,
+	invoice_total: float,
+	vat_total: float,
+) -> str:
+	"""The five fields, TLV encoded and base64'd — what the QR actually holds."""
+	fields = (
+		(SELLER_NAME, seller_name or ""),
+		(VAT_NUMBER, vat_number or ""),
+		(TIMESTAMP, _iso_utc(timestamp)),
+		(INVOICE_TOTAL, f"{flt(invoice_total, 2):.2f}"),
+		(VAT_TOTAL, f"{flt(vat_total, 2):.2f}"),
+	)
+
+	return base64.b64encode(b"".join(tlv(tag, value) for tag, value in fields)).decode("ascii")
+
+
+def _iso_utc(moment: datetime) -> str:
+	"""ISO 8601 in UTC, as the specification asks.
+
+	A Frappe timestamp is naive and in the site's timezone, so it is converted
+	rather than stamped with a Z it has not earned — a receipt an hour out is a
+	receipt whose QR disagrees with its own printed time.
+	"""
+	import pytz
+
+	if moment.tzinfo is None:
+		moment = pytz.timezone(get_system_timezone()).localize(moment)
+
+	return moment.astimezone(pytz.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def qr_png(payload: str, *, scale: int = MODULE_SCALE, quiet: int = QUIET_ZONE) -> bytes:
+	"""Draw the QR as a bitmap at exact module size.
+
+	Drawn from the module matrix rather than asked for as a scaled image: the
+	receipt is printed at 203 dpi in one-bit black, and a QR resampled to a
+	fractional module size prints with grey edges that scanners misread. Whole
+	dots per module is the whole point.
+	"""
+	import pyqrcode
+	from PIL import Image
+
+	# `M` recovers from about 15% damage — the right trade for thermal paper,
+	# which smudges and fades, against a payload this small.
+	matrix = pyqrcode.create(payload, error="M").code
+
+	modules = len(matrix)
+	side = (modules + quiet * 2) * scale
+	image = Image.new("1", (side, side), 1)
+	pixels = image.load()
+
+	for row, line in enumerate(matrix):
+		for column, module in enumerate(line):
+			if not module:
+				continue
+			for y in range((row + quiet) * scale, (row + quiet + 1) * scale):
+				for x in range((column + quiet) * scale, (column + quiet + 1) * scale):
+					pixels[x, y] = 0
+
+	out = io.BytesIO()
+	image.save(out, format="PNG")
+	return out.getvalue()
+
+
+def qr_data_uri(payload: str, **kwargs) -> str:
+	"""The QR as a `data:` URI, so the template needs no file and no server."""
+	encoded = base64.b64encode(qr_png(payload, **kwargs)).decode("ascii")
+	return f"data:image/png;base64,{encoded}"
+
+
+def invoice_qr(invoice) -> str | None:
+	"""The QR for one Sales Invoice, ready to drop into an `<img src>`.
+
+	Returns None when the company has no VAT number: a QR missing tag 2 is not
+	a lenient QR, it is an invalid one, and printing it would look like
+	compliance while being the opposite.
+	"""
+	company = frappe.get_cached_doc("Company", invoice.company)
+	if not company.tax_id:
+		return None
+
+	posting = get_datetime(f"{invoice.posting_date} {invoice.posting_time or '00:00:00'}")
+
+	payload = qr_payload(
+		seller_name=company.company_name or company.name,
+		vat_number=company.tax_id,
+		timestamp=posting,
+		invoice_total=flt(invoice.rounded_total or invoice.grand_total),
+		vat_total=flt(invoice.total_taxes_and_charges),
+	)
+
+	return qr_data_uri(payload)

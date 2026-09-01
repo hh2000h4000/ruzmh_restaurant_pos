@@ -1,0 +1,150 @@
+# Copyright (c) 2026, RPOS and contributors
+# For license information, please see license.txt
+
+"""ZATCA Phase 1 QR tests.
+
+The payload is not something a person can eyeball on a receipt — it is base64 of
+a byte format, and a wrong length byte produces a QR that scans and decodes to
+rubbish. So it is decoded back here rather than compared to a string.
+
+Refs: FR-7.5, D-092
+"""
+
+import base64
+import io
+
+import frappe
+from frappe.tests.utils import FrappeTestCase
+from frappe.utils import get_datetime
+
+from restaurant_pos.utils import zatca
+
+
+def _walk(payload: str) -> dict:
+	"""Decode a TLV payload back into {tag: value}, the way a scanner would."""
+	raw = base64.b64decode(payload)
+	fields = {}
+	index = 0
+	while index < len(raw):
+		tag = raw[index]
+		length = raw[index + 1]
+		fields[tag] = raw[index + 2 : index + 2 + length].decode("utf-8")
+		index += 2 + length
+	return fields
+
+
+class TestTheTagLengthValue(FrappeTestCase):
+	def test_a_length_counts_bytes_not_characters(self):
+		"""The trap that breaks every Arabic seller and no English one.
+
+		"مطعم" is four characters and eight bytes. A length byte of 4 makes the
+		scanner read half the name and then mistake the rest for the next tag —
+		the whole payload decodes to rubbish from that point on.
+		"""
+		encoded = zatca.tlv(zatca.SELLER_NAME, "مطعم")
+
+		self.assertEqual(encoded[0], zatca.SELLER_NAME)
+		self.assertEqual(encoded[1], 8)
+		self.assertEqual(encoded[2:].decode("utf-8"), "مطعم")
+
+	def test_an_over_long_value_is_cut_on_a_character_boundary(self):
+		"""A length byte cannot exceed 255, and half a letter is not UTF-8."""
+		encoded = zatca.tlv(zatca.SELLER_NAME, "م" * 200)  # 400 bytes
+
+		self.assertLessEqual(encoded[1], zatca.MAX_VALUE_BYTES)
+		# The value must still decode; a truncation mid-character would raise.
+		encoded[2:].decode("utf-8")
+
+
+class TestThePayload(FrappeTestCase):
+	def _payload(self, **overrides):
+		fields = {
+			"seller_name": "مطعم الرُزمة",
+			"vat_number": "300000000000003",
+			"timestamp": get_datetime("2026-09-01 15:30:00"),
+			"invoice_total": 32.0,
+			"vat_total": 4.17,
+		}
+		fields.update(overrides)
+		return zatca.qr_payload(**fields)
+
+	def test_it_carries_the_five_fields_in_order(self):
+		fields = _walk(self._payload())
+
+		self.assertEqual(sorted(fields), [1, 2, 3, 4, 5])
+		self.assertEqual(fields[zatca.SELLER_NAME], "مطعم الرُزمة")
+		self.assertEqual(fields[zatca.VAT_NUMBER], "300000000000003")
+
+	def test_amounts_carry_two_decimals(self):
+		"""`32` and `32.00` are the same number and not the same field."""
+		fields = _walk(self._payload(invoice_total=32, vat_total=4.1))
+
+		self.assertEqual(fields[zatca.INVOICE_TOTAL], "32.00")
+		self.assertEqual(fields[zatca.VAT_TOTAL], "4.10")
+
+	def test_the_timestamp_is_utc_and_says_so(self):
+		"""Stamped with a Z it has earned, not one assumed.
+
+		A naive Frappe timestamp is in the site's timezone; writing it straight
+		out with a Z would put the QR three hours off its own printed time in
+		Riyadh.
+		"""
+		fields = _walk(self._payload())
+		stamp = fields[zatca.TIMESTAMP]
+
+		self.assertTrue(stamp.endswith("Z"))
+		self.assertRegex(stamp, r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
+		self.assertNotIn("15:30:00", stamp)
+
+	def test_it_is_valid_base64(self):
+		base64.b64decode(self._payload(), validate=True)
+
+
+class TestTheImage(FrappeTestCase):
+	def test_it_is_a_png_of_whole_modules(self):
+		"""Fractional modules print grey on thermal paper and misread."""
+		payload = zatca.qr_payload(
+			seller_name="مطعم",
+			vat_number="300000000000003",
+			timestamp=get_datetime("2026-09-01 15:30:00"),
+			invoice_total=32.0,
+			vat_total=4.17,
+		)
+		png = zatca.qr_png(payload)
+
+		self.assertTrue(png.startswith(b"\x89PNG"))
+
+		from PIL import Image
+
+		image = Image.open(io.BytesIO(png))
+		self.assertEqual(image.size[0], image.size[1])
+		self.assertEqual(image.size[0] % zatca.MODULE_SCALE, 0)
+
+	def test_the_data_uri_is_what_an_img_tag_wants(self):
+		uri = zatca.qr_data_uri("test")
+
+		self.assertTrue(uri.startswith("data:image/png;base64,"))
+		base64.b64decode(uri.split(",", 1)[1], validate=True)
+
+
+class TestAnInvoiceWithoutAVatNumber(FrappeTestCase):
+	def test_no_qr_rather_than_an_invalid_one(self):
+		"""Tag 2 *is* the VAT number; a QR without it only looks compliant."""
+		company = frappe.db.get_value("Company", {}, "name")
+		original = frappe.db.get_value("Company", company, "tax_id")
+		frappe.db.set_value("Company", company, "tax_id", None)
+		frappe.clear_cache(doctype="Company")
+
+		try:
+			invoice = frappe._dict(
+				company=company,
+				posting_date="2026-09-01",
+				posting_time="15:30:00",
+				rounded_total=32.0,
+				grand_total=32.0,
+				total_taxes_and_charges=4.17,
+			)
+			self.assertIsNone(zatca.invoice_qr(invoice))
+		finally:
+			frappe.db.set_value("Company", company, "tax_id", original)
+			frappe.clear_cache(doctype="Company")

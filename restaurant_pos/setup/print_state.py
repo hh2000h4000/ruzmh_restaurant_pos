@@ -72,6 +72,15 @@ def report() -> None:
 	for job in stuck:
 		print(f"  FAILED {job.name} {job.job_type} on {job.printer}: {job.error}")
 
+	print("\n=== zatca phase 1 ===")
+	# The QR is only as present as the VAT number, and its absence is silent:
+	# the receipt prints, looks finished, and is not a valid simplified invoice.
+	for company in frappe.get_all("Company", fields=["name", "tax_id"]):
+		if company.tax_id:
+			print(f"  {company.name}: VAT {company.tax_id} — QR will print")
+		else:
+			print(f"  {company.name}: NO VAT NUMBER — receipts print without a ZATCA QR")
+
 	print("\n=== role ===")
 	exists = frappe.db.exists("Role", "Restaurant Print Agent")
 	print(f"  Restaurant Print Agent: {'present' if exists else 'MISSING'}")

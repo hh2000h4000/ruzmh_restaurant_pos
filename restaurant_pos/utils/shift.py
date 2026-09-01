@@ -37,6 +37,7 @@ import frappe
 from frappe import _
 from frappe.utils import cint, flt, now_datetime, nowdate, nowtime
 
+from restaurant_pos.utils import printing
 from restaurant_pos.utils.payment import is_credit_method
 from restaurant_pos.utils.permissions import assert_permission, validate_branch_access
 from restaurant_pos.utils.totals import money
@@ -243,6 +244,9 @@ def open_till(*, pos_profile: str, opening_floats: dict | None = None) -> dict:
 	)
 	entry.insert(ignore_permissions=True)
 	entry.submit()
+
+	# The float has to go in, so the drawer has to open (`D-093`).
+	printing.open_drawer(pos_profile, reason="shift opened")
 
 	return {"entry": entry.name, "shift": day.name, "joined": False}
 

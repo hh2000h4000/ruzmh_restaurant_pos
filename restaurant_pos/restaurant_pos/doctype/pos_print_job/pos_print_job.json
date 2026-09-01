@@ -84,7 +84,7 @@
    "in_list_view": 1,
    "in_standard_filter": 1,
    "label": "Job Type",
-   "options": "customer_receipt\nkot\nbill_preview\nshift_report\ntest",
+   "options": "customer_receipt\nkot\nbill_preview\nshift_report\ntest\ndrawer",
    "reqd": 1
   },
   {

@@ -27,7 +27,8 @@
   "paper_width",
   "hardware_cb",
   "print_mode",
-  "cut_after_print"
+  "cut_after_print",
+  "cash_drawer_pin"
  ],
  "fields": [
   {
@@ -175,6 +176,14 @@
    "fieldname": "cut_after_print",
    "fieldtype": "Check",
    "label": "Cut After Print"
+  },
+  {
+   "default": "2",
+   "description": "Which pin of the printer's drawer socket is pulsed. Almost every cash drawer is on pin 2; some Star hardware uses pin 5. A drawer on the wrong pin never opens and says nothing.",
+   "fieldname": "cash_drawer_pin",
+   "fieldtype": "Select",
+   "label": "Cash Drawer Pin",
+   "options": "2\n5"
   }
  ],
  "index_web_pages_for_search": 1,

@@ -59,6 +59,13 @@ INIT = ESC + b"@"
 #: the print head instead of through the last line of the total.
 FEED_AND_CUT = ESC + b"d" + bytes([4]) + GS + b"V" + bytes([66, 0])
 
+#: Pulse timings for the cash drawer, in units of 2 ms: 50 ms on, 500 ms off.
+#:
+#: The solenoid needs a long enough pulse to throw the latch and a gap before it
+#: could be pulsed again. Too short and a stiff drawer stays shut; far too long
+#: and the coil cooks.
+DRAWER_ON, DRAWER_OFF = 25, 250
+
 
 @dataclass(frozen=True)
 class Rendered:
@@ -343,6 +350,52 @@ def print_document(
 		reference_doctype=reference_doctype,
 		reference_name=reference_name,
 	)
+
+
+def drawer_kick(pin: str | int = 2) -> bytes:
+	"""`ESC p` — the pulse that throws the cash drawer's latch.
+
+	The drawer is not a device we talk to. It is a solenoid wired to a socket on
+	the back of the receipt printer, and the printer fires it when it sees these
+	five bytes. That is why this needs nothing from the agent: the agent already
+	sends whatever bytes a job carries, and a drawer job is just a very short
+	one (`D-093`).
+
+	`m` selects which of the two pins on that socket is pulsed. Almost every
+	drawer is on pin 2; some Star hardware is wired to pin 5, and a drawer on
+	the wrong pin simply never opens, with nothing anywhere to say why — which
+	is what `POS Printer.cash_drawer_pin` exists to fix.
+	"""
+	return ESC + b"p" + bytes([0 if str(pin) == "2" else 1, DRAWER_ON, DRAWER_OFF])
+
+
+def open_drawer(pos_profile: str, *, reason: str) -> str | None:
+	"""Open the till's cash drawer. Returns the job, or None.
+
+	Never raises, for the reason every other entry point here does not: this is
+	called from taking a payment and from opening a shift, and a drawer that
+	will not open must not stop either.
+	"""
+	try:
+		printer = _cashier_printer(pos_profile)
+		if not printer:
+			return None
+
+		doc = frappe.get_cached_doc("POS Printer", printer)
+		if not doc.is_active:
+			return None
+
+		payload = drawer_kick(doc.cash_drawer_pin or 2)
+		return queue(
+			printer=printer,
+			job_type="drawer",
+			rendered=Rendered(payload=payload, width_dots=0, height_dots=0),
+			reference_doctype="POS Profile",
+			reference_name=pos_profile,
+		)
+	except Exception:
+		frappe.log_error(f"Could not open the drawer for {pos_profile} ({reason})", "RPOS printing")
+		return None
 
 
 def enqueue_print(method: str, **kwargs) -> None:

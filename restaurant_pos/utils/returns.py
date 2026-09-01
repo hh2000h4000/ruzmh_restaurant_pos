@@ -22,6 +22,7 @@ import frappe
 from frappe import _
 from frappe.utils import flt, now_datetime
 
+from restaurant_pos.utils import payment, printing
 from restaurant_pos.utils.audit import log_audit
 from restaurant_pos.utils.payment import is_credit_method
 from restaurant_pos.utils.permissions import consume_override_token
@@ -388,3 +389,9 @@ def _apply_refund(credit, refund_method: str | None) -> None:
 	credit.set_posting_time = 1
 	credit.posting_date = now_datetime().date()
 	credit.posting_time = now_datetime().time()
+
+	# D-093 — a cash refund is money leaving the drawer, so the drawer opens.
+	# The same rule as taking cash, for the same reason and in the same place as
+	# the decision about which method it is.
+	if credit.is_pos and payment._is_cash(method):
+		printing.open_drawer(credit.pos_profile, reason=f"cash refund on {credit.return_against}")

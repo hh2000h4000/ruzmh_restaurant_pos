@@ -11,7 +11,7 @@ Refs: 07_API_Design.md, FR-8.1..8.3, BR-040..BR-045, D-047
 
 import frappe
 
-from restaurant_pos.utils import idempotency
+from restaurant_pos.utils import idempotency, printing
 from restaurant_pos.utils import shift as service
 
 
@@ -29,8 +29,19 @@ def get_day_summary(shift: str) -> dict:
 
 @frappe.whitelist()
 def get_till_summary(opening_entry: str) -> dict:
-	"""One drawer's takings, and what closing it will be measured against."""
-	return service.summarise_till(opening_entry)
+	"""One drawer's takings, and what closing it will be measured against.
+
+	Opens the cash drawer as it answers (`D-093`). This is the request the
+	closing screen makes when it opens, and the cashier is about to count the
+	cash — the drawer has to be open for that. `close_till` would be too late:
+	by then the count has already been typed in.
+	"""
+	summary = service.summarise_till(opening_entry)
+
+	pos_profile = frappe.db.get_value("POS Opening Entry", opening_entry, "pos_profile")
+	printing.open_drawer(pos_profile, reason="counting the till")
+
+	return summary
 
 
 @frappe.whitelist()

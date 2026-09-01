@@ -586,6 +586,57 @@ class TestTheQueueDoesNotGrowForever(PrintingTestBase):
 		self.assertTrue(frappe.db.get_value("POS Print Job", job, "payload"))
 
 
+class TestTheCashDrawer(PrintingTestBase):
+	"""D-093 — the drawer is a printer command, not a device of its own."""
+
+	def setUp(self):
+		super().setUp()
+		frappe.db.set_value("POS Profile", self.profile, "default_printer", self.printer)
+
+	def test_the_kick_is_five_bytes_of_esc_p(self):
+		self.assertEqual(
+			service.drawer_kick(2),
+			b"\x1bp" + bytes([0, service.DRAWER_ON, service.DRAWER_OFF]),
+		)
+
+	def test_pin_five_is_a_different_pulse(self):
+		"""A drawer on the wrong pin never opens and says nothing."""
+		self.assertNotEqual(service.drawer_kick(2), service.drawer_kick(5))
+		self.assertEqual(service.drawer_kick(5)[2], 1)
+
+	def test_opening_it_queues_a_job_for_the_cashier_printer(self):
+		job = service.open_drawer(self.profile, reason="test")
+
+		self.assertIsNotNone(job)
+		doc = frappe.get_doc("POS Print Job", job)
+		self.assertEqual(doc.job_type, "drawer")
+		self.assertEqual(doc.printer, self.printer)
+		self.assertEqual(base64.b64decode(doc.payload), service.drawer_kick(2))
+
+	def test_the_agent_needs_to_know_nothing_about_drawers(self):
+		"""It is bytes on the same queue, claimed like any other job.
+
+		This is the whole reason the drawer needed no agent change: had it been
+		a new command the agent had to understand, every restaurant would have
+		had to update the program on its machine to get one.
+		"""
+		service.open_drawer(self.profile, reason="test")
+		frappe.set_user(frappe.db.get_value("POS Print Agent", self.agent, "user"))
+		try:
+			claimed = [row for row in api.claim() if row["job_type"] == "drawer"]
+		finally:
+			frappe.set_user("Administrator")
+
+		self.assertTrue(claimed)
+		self.assertEqual(base64.b64decode(claimed[0]["payload"]), service.drawer_kick(2))
+
+	def test_a_terminal_with_no_printer_does_not_raise(self):
+		"""It is called from taking money; it must never stop that."""
+		frappe.db.set_value("POS Profile", self.profile, "default_printer", None)
+
+		self.assertIsNone(service.open_drawer(self.profile, reason="test"))
+
+
 class TestTheTestPage(PrintingTestBase):
 	def test_it_queues_a_job_for_the_printer(self):
 		result = api.test_print(printer=self.printer)

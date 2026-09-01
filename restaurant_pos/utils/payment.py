@@ -72,6 +72,7 @@ def process_payment(
 	change = _validate_amounts(order, payments) if settlement == "till" else 0.0
 
 	invoice = _create_sales_invoice(order, payments, promotion_applied, settlement)
+	_assert_invoice_matches_order(order, invoice)
 
 	# BR-016 — closed only once the invoice is submitted.
 	assert_transition(order, "closed")
@@ -125,6 +126,41 @@ def process_payment(
 # --------------------------------------------------------------------------- #
 # Validation
 # --------------------------------------------------------------------------- #
+
+
+#: Half a halala. Below this the two figures are the same number arrived at by
+#: different routes, not a disagreement.
+TOTALS_EPSILON = 0.005
+
+
+def _assert_invoice_matches_order(order, invoice) -> None:
+	"""The bill the customer was quoted must be the bill ERPNext posts (`D-091`).
+
+	The two are computed by different code — `totals.compute` for the screen,
+	ERPNext's controller for the ledger — and the whole design depends on them
+	agreeing. Nothing checked, so when the tax template's
+	`included_in_print_rate` was dropped on the way to the invoice, the order
+	said 32.00, ERPNext billed 36.80, the cashier took 32.00 and the invoice sat
+	4.80 outstanding. **No error anywhere**; the money simply stopped matching,
+	and a shop would find out at the monthly reconciliation.
+
+	`frappe.throw` here rolls the invoice back, which is the point: a bill that
+	cannot be priced consistently must not become a posted document somebody has
+	to unpick later. The offline replay already had this guard
+	(`offline._assert_totals_agree`); the ordinary payment did not.
+	"""
+	quoted = flt(order.total_amount)
+	posted = flt(invoice.rounded_total or invoice.grand_total)
+
+	if abs(quoted - posted) < TOTALS_EPSILON:
+		return
+
+	frappe.throw(
+		_(
+			"This bill prices differently on the screen ({0}) and on the invoice ({1}). "
+			"Nothing has been charged. A manager should check the terminal's tax template."
+		).format(quoted, posted)
+	)
 
 
 def block_invoice_cancel(doc, method=None) -> None:
@@ -333,7 +369,20 @@ def _create_sales_invoice(order, payments, promotion_applied, settlement: str = 
 			frappe.get_all(
 				"Sales Taxes and Charges",
 				filters={"parent": profile.taxes_and_charges},
-				fields=["charge_type", "account_head", "description", "rate", "cost_center"],
+				# `included_in_print_rate` is not optional here (`D-091`). Copying
+				# the row without it turns a tax-inclusive template into an
+				# exclusive invoice: the order says 32.00, ERPNext bills 36.80,
+				# and the payment leaves 4.80 outstanding on a bill the customer
+				# has already settled in full. Nothing raises — the money simply
+				# stops matching.
+				fields=[
+					"charge_type",
+					"account_head",
+					"description",
+					"rate",
+					"cost_center",
+					"included_in_print_rate",
+				],
 				order_by="idx",
 			),
 		)
@@ -354,8 +403,19 @@ def _create_sales_invoice(order, payments, promotion_applied, settlement: str = 
 		)
 
 	if flt(order.discount_amount):
-		# FR-10.4 — the discount reduces the net, and ERPNext then recomputes VAT.
-		invoice.apply_discount_on = "Net Total"
+		# Which total the discount comes off has to match how the order was
+		# priced, or the invoice and the till disagree on every discounted bill
+		# (`D-091`).
+		#
+		# Exclusive: `FR-10.4` — the discount reduces the net and ERPNext
+		# recomputes VAT on what is left.
+		#
+		# Inclusive: the cashier took a percentage off the price the customer
+		# was shown, which already contains the tax. That is the grand total, and
+		# `totals.compute` subtracts it from the same figure.
+		invoice.apply_discount_on = (
+			"Grand Total" if totals.tax_is_inclusive(order.pos_profile) else "Net Total"
+		)
 		invoice.discount_amount = flt(order.discount_amount)
 
 	for row in payments:

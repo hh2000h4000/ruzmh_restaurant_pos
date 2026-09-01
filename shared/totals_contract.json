@@ -5,7 +5,8 @@
       "pricing": {
         "currency": "SAR",
         "precision": 2,
-        "tax_rate": 0.0,
+        "tax_rate": 0,
+        "tax_inclusive": 0,
         "rounding_step": 0.05,
         "rounding_method": "Banker's Rounding"
       },
@@ -158,6 +159,7 @@
         "currency": "SAR",
         "precision": 2,
         "tax_rate": 15.0,
+        "tax_inclusive": 0,
         "rounding_step": 0.05,
         "rounding_method": "Banker's Rounding"
       },
@@ -301,6 +303,159 @@
             "discount_amount": 0.0,
             "tax_amount": 3.03,
             "total_amount": 23.25
+          }
+        }
+      ]
+    },
+    {
+      "pricing": {
+        "currency": "SAR",
+        "precision": 2,
+        "tax_rate": 15.0,
+        "tax_inclusive": 1,
+        "rounding_step": 0.05,
+        "rounding_method": "Banker's Rounding"
+      },
+      "cases": [
+        {
+          "name": "nothing on the bill",
+          "lines": [],
+          "discount_type": null,
+          "discount_value": 0,
+          "expect": {
+            "subtotal": 0.0,
+            "discount_amount": 0.0,
+            "tax_amount": 0.0,
+            "total_amount": 0.0
+          }
+        },
+        {
+          "name": "one line",
+          "lines": [
+            25.0
+          ],
+          "discount_type": null,
+          "discount_value": 0,
+          "expect": {
+            "subtotal": 25.0,
+            "discount_amount": 0.0,
+            "tax_amount": 3.26,
+            "total_amount": 25.0
+          }
+        },
+        {
+          "name": "several lines",
+          "lines": [
+            25.0,
+            10.5,
+            3.25
+          ],
+          "discount_type": null,
+          "discount_value": 0,
+          "expect": {
+            "subtotal": 38.75,
+            "discount_amount": 0.0,
+            "tax_amount": 5.05,
+            "total_amount": 38.75
+          }
+        },
+        {
+          "name": "a percentage discount",
+          "lines": [
+            100.0
+          ],
+          "discount_type": "percentage",
+          "discount_value": 10,
+          "expect": {
+            "subtotal": 100.0,
+            "discount_amount": 10.0,
+            "tax_amount": 11.74,
+            "total_amount": 90.0
+          }
+        },
+        {
+          "name": "a percentage that makes a third decimal",
+          "lines": [
+            33.33
+          ],
+          "discount_type": "percentage",
+          "discount_value": 7,
+          "expect": {
+            "subtotal": 33.33,
+            "discount_amount": 2.33,
+            "tax_amount": 4.04,
+            "total_amount": 31.0
+          }
+        },
+        {
+          "name": "a flat discount",
+          "lines": [
+            50.0
+          ],
+          "discount_type": "amount",
+          "discount_value": 12.5,
+          "expect": {
+            "subtotal": 50.0,
+            "discount_amount": 12.5,
+            "tax_amount": 4.89,
+            "total_amount": 37.5
+          }
+        },
+        {
+          "name": "a discount larger than the bill",
+          "lines": [
+            10.0
+          ],
+          "discount_type": "amount",
+          "discount_value": 40,
+          "expect": {
+            "subtotal": 10.0,
+            "discount_amount": 10.0,
+            "tax_amount": 0.0,
+            "total_amount": 0.0
+          }
+        },
+        {
+          "name": "a full percentage discount",
+          "lines": [
+            80.0
+          ],
+          "discount_type": "percentage",
+          "discount_value": 100,
+          "expect": {
+            "subtotal": 80.0,
+            "discount_amount": 80.0,
+            "tax_amount": 0.0,
+            "total_amount": 0.0
+          }
+        },
+        {
+          "name": "a rounding tie",
+          "lines": [
+            8.7174
+          ],
+          "discount_type": null,
+          "discount_value": 0,
+          "expect": {
+            "subtotal": 8.72,
+            "discount_amount": 0.0,
+            "tax_amount": 1.14,
+            "total_amount": 8.7
+          }
+        },
+        {
+          "name": "halalas that survive",
+          "lines": [
+            12.34,
+            7.89
+          ],
+          "discount_type": null,
+          "discount_value": 0,
+          "expect": {
+            "subtotal": 20.23,
+            "discount_amount": 0.0,
+            "tax_amount": 2.64,
+            "total_amount": 20.25
           }
         }
       ]

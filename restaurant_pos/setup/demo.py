@@ -281,16 +281,24 @@ def _vat_template(profile) -> str:
 	field — `payment._create_sales_invoice` just reads it and hands the rows to
 	the Sales Invoice controller. There is no RPOS tax model to keep in step.
 
-	**Added on the net total, not included in the price.** That is not a
-	preference: `totals.compute` calculates `tax = net * rate`, and its offline
-	port and the checked-in contract mirror it exactly. A template flagged
-	`included_in_print_rate` would make the till quote one figure and the
-	invoice carry another, and `offline._assert_totals_agree` would then refuse
-	the sale — silently, at the till. VAT-inclusive menu pricing is the Saudi
-	norm and a real change to that arithmetic; see `HANDOFF` §4.
+	**Included in the price, which is the Saudi norm** (`D-091`): a menu says 32
+	and the customer pays 32, of which 4.17 is VAT. Both sides of the till know
+	it — `totals.compute` and its offline port each read
+	`included_in_print_rate` and extract the tax rather than add it — and the
+	discount comes off the grand total to match.
 	"""
-	if frappe.db.exists("Sales Taxes and Charges Template", {"title": VAT_TEMPLATE}):
-		name = frappe.db.get_value("Sales Taxes and Charges Template", {"title": VAT_TEMPLATE}, "name")
+	name = frappe.db.get_value("Sales Taxes and Charges Template", {"title": VAT_TEMPLATE}, "name")
+	if name:
+		# A demo built before the inclusive decision carries an exclusive row,
+		# and a demo where the menu price and the invoice disagree is worse than
+		# no demo. Corrected in place rather than left for somebody to notice.
+		for row in frappe.get_all(
+			"Sales Taxes and Charges",
+			filters={"parent": name, "parenttype": "Sales Taxes and Charges Template"},
+			pluck="name",
+		):
+			frappe.db.set_value("Sales Taxes and Charges", row, "included_in_print_rate", 1)
+
 		frappe.db.set_value("POS Profile", profile.name, "taxes_and_charges", name)
 		return name
 
@@ -328,6 +336,10 @@ def _vat_template(profile) -> str:
 					"account_head": account,
 					"description": "ضريبة القيمة المضافة 15%",
 					"rate": VAT_RATE,
+					# Saudi menus show the price the customer pays (`D-091`).
+					# `totals.tax_is_inclusive` reads this flag, and the till
+					# extracts the tax from the price instead of adding to it.
+					"included_in_print_rate": 1,
 					"cost_center": frappe.db.get_value(
 						"Cost Center", {"company": company, "is_group": 0}, "name"
 					),

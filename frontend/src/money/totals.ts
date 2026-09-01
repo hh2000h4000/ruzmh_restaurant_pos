@@ -35,6 +35,11 @@ export interface Pricing {
   precision: number;
   /** Percent on the net total, from the POS Profile's tax template. */
   tax_rate: number;
+  /**
+   * D-091 — whether the menu price already contains the tax
+   * (ERPNext's `included_in_print_rate`). Saudi menus normally do.
+   */
+  tax_inclusive: 0 | 1;
   /** BR-024 — the cash-rounding step, from the ERPNext `Currency`. */
   rounding_step: number;
   rounding_method: string;
@@ -190,8 +195,14 @@ export function discountAmount(
 /**
  * `utils/totals.compute` — the whole bill.
  *
- * FR-10.4: the discount comes off the pre-tax subtotal and VAT is recomputed on
- * what is left. Taking it off after tax would under-collect.
+ * FR-10.4: with tax added on top, the discount comes off the pre-tax subtotal
+ * and VAT is recomputed on what is left; taking it off after tax would
+ * under-collect.
+ *
+ * D-091: with tax included in the menu price, the figure the customer was
+ * quoted *is* the total, and the tax is extracted from it rather than added to
+ * it. `subtotal` stays the sum of the menu prices either way — it is what the
+ * cashier and the customer are both looking at.
  */
 export function computeTotals(
   lineAmounts: number[],
@@ -204,14 +215,28 @@ export function computeTotals(
     pricing,
   );
   const discount = discountAmount(subtotal, discountType, discountValue, pricing);
+  const afterDiscount = money(subtotal - discount, pricing);
 
-  const net = money(subtotal - discount, pricing);
-  const tax = money((net * pricing.tax_rate) / 100, pricing);
+  let net: number;
+  let tax: number;
+  let total: number;
+
+  if (pricing.tax_inclusive) {
+    net = pricing.tax_rate
+      ? money(afterDiscount / (1 + pricing.tax_rate / 100), pricing)
+      : afterDiscount;
+    tax = money(afterDiscount - net, pricing);
+    total = afterDiscount;
+  } else {
+    net = afterDiscount;
+    tax = money((net * pricing.tax_rate) / 100, pricing);
+    total = money(net + tax, pricing);
+  }
 
   return {
     subtotal,
     discount_amount: discount,
     tax_amount: tax,
-    total_amount: roundToStep(net + tax, pricing),
+    total_amount: roundToStep(total, pricing),
   };
 }

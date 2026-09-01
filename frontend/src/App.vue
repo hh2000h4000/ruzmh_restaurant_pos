@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted } from "vue";
+import { useRouter } from "vue-router";
 
 import { t, tn } from "@/i18n";
 import { useConnectionStore } from "@/stores/connection";
@@ -12,10 +13,13 @@ import { useConnectionStore } from "@/stores/connection";
  * (09 §10).
  */
 const connection = useConnectionStore();
+const router = useRouter();
 
 function signIn(): void {
-  // Frappe owns authentication (04 §7); this app never sees credentials.
-  window.location.href = `/login?redirect-to=${encodeURIComponent(window.location.pathname)}`;
+  // The app owns the sign-in screen now (`D-094`), so this is a route and not
+  // a trip to `/login`. Sending a cashier to ERPNext's form would ask them for
+  // an email address and a password on a machine with no keyboard.
+  void router.push({ name: "sign-in" });
 }
 
 onMounted(connection.start);

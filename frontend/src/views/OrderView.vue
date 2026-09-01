@@ -24,6 +24,7 @@ import OrderBottomNav, { type NavEntry } from "@/components/order/OrderBottomNav
 import OpenOrdersPanel from "@/components/pos/OpenOrdersPanel.vue";
 import { useOpenOrders } from "@/composables/useOpenOrders";
 import { formatNumber, t } from "@/i18n";
+import { useAuthStore } from "@/stores/auth";
 import { useOrderStore } from "@/stores/order";
 import { useSessionStore } from "@/stores/session";
 import { useShiftStore } from "@/stores/shift";
@@ -209,10 +210,16 @@ function onMenu(key: string): void {
 /** Confirmed, because signing out by accident mid-rush is a real annoyance. */
 const signingOut = ref(false);
 
-function signOut(): void {
-  // Frappe owns the session (04 §7); this app only sends the cashier to its
-  // logout and lets the redirect land wherever the site says.
-  window.location.href = "/api/method/logout";
+async function signOut(): Promise<void> {
+  // **Stays inside the app** (`D-098`). This used to hand the browser to
+  // `/api/method/logout` and let Frappe redirect, which was right while Frappe
+  // owned the login screen. It does not any more (`D-094`): that endpoint
+  // answers with raw JSON and a `home_page` of `/login`, so a cashier signing
+  // out landed on a page of braces — and behind it, the ERPNext login form the
+  // PIN pad exists to replace.
+  signingOut.value = false;
+  await useAuthStore().signOut();
+  await router.push({ name: "sign-in" });
 }
 
 /**

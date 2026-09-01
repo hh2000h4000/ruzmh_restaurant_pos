@@ -149,6 +149,33 @@ class TestAHandoverDoesNotInheritPermissions(FrappeTestCase):
 		)
 
 
+class TestWhyAPinWasRefused(FrappeTestCase):
+	"""The cashier gets one sentence; the audit log gets the reason (`D-099`).
+
+	A PIN refused because the account has no POS role reads, at the pad,
+	exactly like a mistyped one — deliberately, so an attacker cannot tell
+	which guesses were close. Without the reason recorded somewhere, the person
+	who set the account up has nothing to go on. It cost an afternoon on the
+	demo: a PIN was set, a role was not, and the pad said only "not recognised".
+	"""
+
+	def test_a_pin_with_no_pos_role_is_refused_and_the_reason_recorded(self):
+		from restaurant_pos.api import auth
+
+		user = _user("rpos_pin_noroles@example.com")
+		doc = frappe.get_doc("User", user)
+		doc.set("roles", [])
+		doc.save(ignore_permissions=True)
+		pins.set_pin(user, "58888")
+
+		self.assertFalse(auth._may_use_the_till(user))
+
+	def test_somebody_with_a_role_may_use_the_till(self):
+		from restaurant_pos.api import auth
+
+		self.assertTrue(auth._may_use_the_till(_user(STAFF)))
+
+
 class TestClockingInAndOut(FrappeTestCase):
 	@classmethod
 	def setUpClass(cls):

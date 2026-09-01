@@ -45,11 +45,22 @@ def sign_in(pin: str, pos_profile: str | None = None) -> dict:
 	pin = (pin or "").strip()
 
 	user = manager_pin.find_user_by_pin(pin) if pin.isdigit() else None
-	if not user or not frappe.db.get_value("User", user, "enabled") or not _may_use_the_till(user):
-		_record_failure(pos_profile)
-		# One message for a wrong PIN, a disabled account, and a PIN belonging to
-		# somebody with no business at a till. Distinguishing them would tell an
-		# attacker which guesses were close.
+
+	refusal = None
+	if not user:
+		refusal = "no_such_pin"
+	elif not frappe.db.get_value("User", user, "enabled"):
+		refusal = "account_disabled"
+	elif not _may_use_the_till(user):
+		refusal = "no_pos_role"
+
+	if refusal:
+		# **One message for all three**, so an attacker cannot tell which guesses
+		# were close. But the *reason* goes in the audit log, where only an
+		# administrator sees it: without that, a PIN refused for a missing role
+		# is indistinguishable from a mistyped one, and the person who set it up
+		# has nothing to go on. This exact case cost time on the demo.
+		_record_failure(pos_profile, reason=refusal, user=user)
 		frappe.throw(_("That PIN was not recognised."), frappe.AuthenticationError)
 
 	frappe.local.login_manager.login_as(user)
@@ -136,23 +147,28 @@ def _punch(log_type: str, pos_profile: str | None) -> dict:
 	return state
 
 
-def _record_failure(pos_profile: str | None) -> None:
+def _record_failure(pos_profile: str | None, *, reason: str, user: str | None = None) -> None:
 	"""A refused PIN is recorded; **the PIN itself never is** (`CLAUDE.md` §5.4).
 
 	Written as Administrator because there is no session yet — that nobody was
 	identified is the whole content of the event.
+
+	`user` is named only when the PIN matched somebody and they were refused for
+	another reason. It is not a leak: whoever reads the audit log can already
+	list every user.
 
 	Falls back to the error log when the terminal is unknown, because
 	`POS Audit Log` requires a branch and a run of refused PINs from a terminal
 	that has not been set up is exactly the run worth seeing.
 	"""
 	branch = _branch_of(pos_profile)
+	details = {"reason": reason, "user": user} if user else {"reason": reason}
 	try:
 		frappe.set_user("Administrator")
 		if branch:
-			log_audit("pin_sign_in_failed", branch=branch, pos_profile=pos_profile)
+			log_audit("pin_sign_in_failed", branch=branch, pos_profile=pos_profile, details=details)
 		else:
-			frappe.log_error(f"Refused PIN from an unknown terminal: {pos_profile}", "RPOS auth")
+			frappe.log_error(f"Refused PIN from an unknown terminal ({pos_profile}): {details}", "RPOS auth")
 		frappe.db.commit()
 	except Exception:
 		# Failing to record must not change the message the person at the

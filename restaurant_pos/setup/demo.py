@@ -199,6 +199,9 @@ def create_demo_data(pos_profile: str | None = None) -> dict:
 
 	created = {
 		"price_list": [price_list],
+		# Before the items: a menu priced without a tax template is a demo where
+		# every receipt reads net = grand, which is what this site did until now.
+		"vat_template": [_vat_template(profile)],
 		"printers": _printers(branch),
 		"production_centers": _production_centers(branch),
 		"item_groups": _item_groups(),
@@ -260,6 +263,82 @@ def _profile(pos_profile: str | None) -> frappe._dict:
 # --------------------------------------------------------------------------- #
 # Builders
 # --------------------------------------------------------------------------- #
+
+
+#: The KSA rate. Written here because this is demo *data*, not code: no part of
+#: the application knows what 15 means (`CLAUDE.md` §5.1). `totals.tax_rate_for`
+#: reads whatever this template says, and a zero-rated outlet is a different
+#: template rather than a different build.
+VAT_RATE = 15
+VAT_TEMPLATE = "KSA VAT 15%"
+
+
+def _vat_template(profile) -> str:
+	"""A 15% VAT template on **ERPNext's own** DocTypes (D-089).
+
+	Nothing about tax is ours. `Sales Taxes and Charges Template` is ERPNext's,
+	its screen is ERPNext's, and `POS Profile.taxes_and_charges` is ERPNext's
+	field — `payment._create_sales_invoice` just reads it and hands the rows to
+	the Sales Invoice controller. There is no RPOS tax model to keep in step.
+
+	**Added on the net total, not included in the price.** That is not a
+	preference: `totals.compute` calculates `tax = net * rate`, and its offline
+	port and the checked-in contract mirror it exactly. A template flagged
+	`included_in_print_rate` would make the till quote one figure and the
+	invoice carry another, and `offline._assert_totals_agree` would then refuse
+	the sale — silently, at the till. VAT-inclusive menu pricing is the Saudi
+	norm and a real change to that arithmetic; see `HANDOFF` §4.
+	"""
+	if frappe.db.exists("Sales Taxes and Charges Template", {"title": VAT_TEMPLATE}):
+		name = frappe.db.get_value("Sales Taxes and Charges Template", {"title": VAT_TEMPLATE}, "name")
+		frappe.db.set_value("POS Profile", profile.name, "taxes_and_charges", name)
+		return name
+
+	company = profile.company
+	abbr = frappe.db.get_value("Company", company, "abbr")
+	parent = frappe.db.get_value(
+		"Account", {"company": company, "account_name": "Duties and Taxes", "is_group": 1}, "name"
+	)
+	if not parent:
+		frappe.throw(_("{0} has no 'Duties and Taxes' account group to file VAT under.").format(company))
+
+	account = f"VAT {VAT_RATE}% - {abbr}"
+	if not frappe.db.exists("Account", account):
+		frappe.get_doc(
+			{
+				"doctype": "Account",
+				"account_name": f"VAT {VAT_RATE}%",
+				"parent_account": parent,
+				"company": company,
+				"account_type": "Tax",
+				"tax_rate": VAT_RATE,
+				"is_group": 0,
+			}
+		).insert(ignore_permissions=True)
+
+	template = frappe.get_doc(
+		{
+			"doctype": "Sales Taxes and Charges Template",
+			"title": VAT_TEMPLATE,
+			"company": company,
+			"is_default": 1,
+			"taxes": [
+				{
+					"charge_type": "On Net Total",
+					"account_head": account,
+					"description": "ضريبة القيمة المضافة 15%",
+					"rate": VAT_RATE,
+					"cost_center": frappe.db.get_value(
+						"Cost Center", {"company": company, "is_group": 0}, "name"
+					),
+				}
+			],
+		}
+	)
+	template.insert(ignore_permissions=True)
+
+	frappe.db.set_value("POS Profile", profile.name, "taxes_and_charges", template.name)
+	return template.name
 
 
 def _print_agent(branch: str) -> str:

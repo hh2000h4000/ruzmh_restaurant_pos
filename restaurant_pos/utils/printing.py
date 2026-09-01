@@ -122,6 +122,31 @@ def resolve_template(
 # --------------------------------------------------------------------------- #
 
 
+#: RIGHT-TO-LEFT MARK.
+RLM = "‏"
+
+
+def rtl(text) -> str:
+	"""Prefix an RLM to Arabic text that contains digits, and nothing else.
+
+	A Jinja filter (`hooks.py`), written `{{ item.item_name | rtl }}` around
+	every field that comes from the database.
+
+	**Both halves of the condition were measured** (`D-090`). wkhtmltoimage's
+	bidi is an old WebKit's, and it draws only the tail of an Arabic string that
+	contains digits: "برغر لحم 200 جرام" — an ordinary menu item — came out as
+	overlapping fragments, and "ضريبة القيمة المضافة 15%" as "ة 15%". An RLM
+	fixes those. But the same RLM *breaks* plain Arabic: "شيش طاووق" became
+	"ﺱ طاووق". `dir="rtl"`, `<bdi>`, `unicode-bidi` in three modes and a CSS
+	`::before` were each tried and each failed on one side or the other.
+
+	So the mark goes on exactly the strings that need it. A digit is the whole
+	test, because a digit is what the renderer cannot lay out beside Arabic.
+	"""
+	text = "" if text is None else str(text)
+	return RLM + text if any(character.isdigit() for character in text) else text
+
+
 def render_html(template_name: str, context: dict) -> str:
 	template = frappe.get_cached_doc("POS Print Template", template_name)
 	return frappe.render_template(template.template_html, context)

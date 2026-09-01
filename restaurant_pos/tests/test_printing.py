@@ -152,6 +152,32 @@ class TestTheBytes(FrappeTestCase):
 		self.assertFalse(service.png_to_escpos(png, cut=False).payload.endswith(service.FEED_AND_CUT))
 
 
+class TestTheRightToLeftMark(FrappeTestCase):
+	"""Both halves of the condition, because both were measured (D-090)."""
+
+	def test_arabic_with_digits_is_marked(self):
+		"""Unmarked, the renderer draws only the tail of it."""
+		self.assertTrue(service.rtl("برغر لحم 200 جرام").startswith(service.RLM))
+		self.assertTrue(service.rtl("ضريبة القيمة المضافة 15%").startswith(service.RLM))
+
+	def test_arabic_without_digits_is_left_alone(self):
+		"""Marking it is what turned "شيش طاووق" into "ﺱ طاووق"."""
+		self.assertEqual(service.rtl("شيش طاووق"), "شيش طاووق")
+
+	def test_the_text_itself_is_never_changed(self):
+		"""Only prefixed. A filter that rewrote a dish name would be worse."""
+		for text in ("برغر لحم 200 جرام", "شيش طاووق", "Cash", "طاولة 5"):
+			self.assertTrue(service.rtl(text).endswith(text))
+
+	def test_nothing_renders_as_the_word_none(self):
+		self.assertEqual(service.rtl(None), "")
+
+	def test_it_is_registered_as_a_jinja_filter(self):
+		"""The templates call it as `| rtl`; unregistered, every print fails."""
+		rendered = frappe.render_template("{{ 'قطعة 200 جرام' | rtl }}", {})
+		self.assertTrue(rendered.startswith(service.RLM))
+
+
 class TestWhichTemplate(FrappeTestCase):
 	def test_the_shipped_default_is_found(self):
 		name = service.resolve_template("customer_receipt", paper_width="80mm", branch=BRANCH)

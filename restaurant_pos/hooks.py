@@ -46,6 +46,15 @@ scheduler_events = {
 	],
 }
 
+# D-090 — `{{ field | rtl }}` in the print templates. The renderer that turns a
+# receipt into a bitmap cannot lay Arabic out beside digits without help, and
+# the help has to be conditional; `printing.rtl` explains what was measured.
+jinja = {
+	"filters": [
+		"restaurant_pos.utils.printing.rtl",
+	],
+}
+
 # ---------------------------------------------------------------------------
 # The cashier PWA
 # ---------------------------------------------------------------------------

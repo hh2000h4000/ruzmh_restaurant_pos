@@ -52,9 +52,21 @@ body {
 .huge { font-size: 2.2rem; font-weight: bold; }
 .muted { font-size: 0.8rem; }
 hr { border: 0; border-top: 1px dashed #000; margin: 0.4rem 0; }
-table { width: 100%; border-collapse: collapse; }
-td, th { padding: 0.1rem 0; vertical-align: top; font-size: 0.95rem; }
-th { border-bottom: 1px solid #000; text-align: start; font-weight: bold; }
+/* Columns are flex rows, not a `<table>` — measured, not preferred (`D-090`).
+ *
+ * wkhtmltoimage mangles Arabic containing digits inside a table cell and
+ * **nothing fixes it there**: an RLM, an RLE/PDF pair and a `dir` attribute
+ * were each tried, and the RLM makes even plain Arabic worse. The same text in
+ * a flex row, marked by the `rtl` filter, renders correctly. "برغر لحم 200
+ * جرام" is an ordinary menu item, so a receipt that cannot print it is not a
+ * receipt. */
+.line { display: flex; gap: 0.4rem; align-items: baseline; font-size: 0.95rem; padding: 0.1rem 0; }
+.line .name { flex: 1 1 auto; min-width: 0; }
+.line .col { flex: 0 0 4.2rem; text-align: end; direction: ltr; unicode-bidi: isolate; }
+/* The header keeps the data columns' direction, or `text-align: end` means the
+ * opposite edge for the label and for the figure under it, and nothing lines
+ * up. Each heading is a single Arabic run, so an LTR box lays it out correctly. */
+.line.head { border-bottom: 1px solid #000; font-weight: bold; }
 .num { text-align: end; white-space: nowrap; }
 /* Every printed number is isolated from the Arabic around it.
  *
@@ -64,6 +76,13 @@ th { border-bottom: 1px solid #000; text-align: start; font-weight: bold; }
  * span is a self-contained LTR run", which is exactly what an amount is. */
 .num, .amt { direction: ltr; unicode-bidi: isolate; }
 .row { display: flex; justify-content: space-between; gap: 0.5rem; }
+/* A flex item's `min-width` defaults to `auto`, which means it refuses to
+ * shrink below its own text and overflows the row instead of wrapping. On an
+ * RTL line the overflow runs off the start edge, so the *beginning* of the
+ * label is what disappears: "ضريبة القيمة المضافة 15%" printed as "ة 15%".
+ * `min-width: 0` is what lets `overflow-wrap` above actually do its job. */
+.row > * { min-width: 0; }
+.row > .num, .row > .amt { flex: none; }
 .total { font-size: 1.3rem; font-weight: bold; }
 /* A kitchen ticket's modifiers and notes are not annotations — "بدون ملح" is
  * the whole instruction, and one a cook scanning a rail must not miss. Set
@@ -76,8 +95,8 @@ CUSTOMER_RECEIPT = """
 <html><head><meta charset="utf-8"><style>{css}</style></head>
 <body class="rtl">
 	<div class="c">
-		<div class="big">{{{{ company.company_name or company.name }}}}</div>
-		{{% if branch %}}<div>{{{{ branch.branch }}}}</div>{{% endif %}}
+		<div class="big">{{{{ (company.company_name or company.name) | rtl }}}}</div>
+		{{% if branch %}}<div>{{{{ branch.branch | rtl }}}}</div>{{% endif %}}
 		{{% if company.tax_id %}}<div class="muted">الرقم الضريبي: {{{{ company.tax_id }}}}</div>{{% endif %}}
 		<div class="muted">فاتورة ضريبية مبسطة</div>
 	</div>
@@ -90,29 +109,30 @@ CUSTOMER_RECEIPT = """
 	{{% endif %}}
 	{{% if order.table %}}<div class="row"><span>الطاولة</span><span>{{{{ order.table }}}}</span></div>{{% endif %}}
 	<hr>
-	<table>
-		<tr><th>الصنف</th><th class="num">الكمية</th><th class="num">السعر</th><th class="num">الإجمالي</th></tr>
-		{{% for item in doc.items %}}
-		<tr>
-			<td>{{{{ item.item_name }}}}</td>
-			<td class="num">{{{{ item.qty | int }}}}</td>
-			<td class="num">{{{{ "%.2f" | format(item.rate) }}}}</td>
-			<td class="num">{{{{ "%.2f" | format(item.amount) }}}}</td>
-		</tr>
-		{{% endfor %}}
-	</table>
+	<div class="line head">
+		<span class="name">الصنف</span>
+		<span class="col">الكمية</span><span class="col">السعر</span><span class="col">الإجمالي</span>
+	</div>
+	{{% for item in doc.items %}}
+	<div class="line">
+		<span class="name">{{{{ item.item_name | rtl }}}}</span>
+		<span class="col">{{{{ item.qty | int }}}}</span>
+		<span class="col">{{{{ "%.2f" | format(item.rate) }}}}</span>
+		<span class="col">{{{{ "%.2f" | format(item.amount) }}}}</span>
+	</div>
+	{{% endfor %}}
 	<hr>
 	<div class="row"><span>الإجمالي قبل الضريبة</span><span class="amt">{{{{ "%.2f" | format(doc.net_total) }}}}</span></div>
 	{{% if doc.discount_amount %}}
 	<div class="row"><span>الخصم</span><span class="amt">{{{{ "%.2f" | format(doc.discount_amount) }}}}</span></div>
 	{{% endif %}}
 	{{% for tax in doc.taxes %}}
-	<div class="row"><span>{{{{ tax.description }}}}</span><span class="amt">{{{{ "%.2f" | format(tax.tax_amount) }}}}</span></div>
+	<div class="row"><span>{{{{ tax.description | rtl }}}}</span><span class="amt">{{{{ "%.2f" | format(tax.tax_amount) }}}}</span></div>
 	{{% endfor %}}
 	<div class="row total"><span>الإجمالي</span><span><span class="amt">{{{{ "%.2f" | format(doc.rounded_total or doc.grand_total) }}}}</span> ر.س</span></div>
 	<hr>
 	{{% for payment in doc.payments %}}
-	<div class="row"><span>{{{{ payment.mode_of_payment }}}}</span><span class="amt">{{{{ "%.2f" | format(payment.amount) }}}}</span></div>
+	<div class="row"><span>{{{{ payment.mode_of_payment | rtl }}}}</span><span class="amt">{{{{ "%.2f" | format(payment.amount) }}}}</span></div>
 	{{% endfor %}}
 	{{% if doc.change_amount %}}
 	<div class="row"><span>الباقي</span><span class="amt">{{{{ "%.2f" | format(doc.change_amount) }}}}</span></div>
@@ -126,7 +146,7 @@ BILL_PREVIEW = """
 <html><head><meta charset="utf-8"><style>{css}</style></head>
 <body class="rtl">
 	<div class="c">
-		<div class="big">{{{{ company.company_name or company.name }}}}</div>
+		<div class="big">{{{{ (company.company_name or company.name) | rtl }}}}</div>
 		<div class="big">— غير ضريبية —</div>
 		<div class="muted">للمراجعة فقط، ليست فاتورة</div>
 	</div>
@@ -135,18 +155,19 @@ BILL_PREVIEW = """
 	{{% if doc.table %}}<div class="row"><span>الطاولة</span><span>{{{{ doc.table }}}}</span></div>{{% endif %}}
 	<div class="row"><span>الكاشير</span><span>{{{{ doc.cashier_name }}}}</span></div>
 	<hr>
-	<table>
-		<tr><th>الصنف</th><th class="num">الكمية</th><th class="num">الإجمالي</th></tr>
-		{{% for item in doc.items %}}
-		{{% if not item.is_void %}}
-		<tr>
-			<td>{{{{ item.item_name }}}}</td>
-			<td class="num">{{{{ item.qty | int }}}}</td>
-			<td class="num">{{{{ "%.2f" | format(item.amount) }}}}</td>
-		</tr>
-		{{% endif %}}
-		{{% endfor %}}
-	</table>
+	<div class="line head">
+		<span class="name">الصنف</span>
+		<span class="col">الكمية</span><span class="col">الإجمالي</span>
+	</div>
+	{{% for item in doc.items %}}
+	{{% if not item.is_void %}}
+	<div class="line">
+		<span class="name">{{{{ item.item_name | rtl }}}}</span>
+		<span class="col">{{{{ item.qty | int }}}}</span>
+		<span class="col">{{{{ "%.2f" | format(item.amount) }}}}</span>
+	</div>
+	{{% endif %}}
+	{{% endfor %}}
 	<hr>
 	<div class="row total"><span>الإجمالي</span><span><span class="amt">{{{{ "%.2f" | format(totals.grand_total) }}}}</span> ر.س</span></div>
 	<div class="c muted">شامل ضريبة القيمة المضافة</div>
@@ -156,11 +177,11 @@ BILL_PREVIEW = """
 KOT = """
 <html><head><meta charset="utf-8"><style>{css}</style></head>
 <body class="rtl">
-	<div class="c huge">{{{{ doc.order_type_title or "" }}}}</div>
+	<div class="c huge">{{{{ (doc.order_type_title or "") | rtl }}}}</div>
 	<div class="c huge">#{{{{ doc.daily_number }}}}</div>
-	{{% if doc.call_name %}}<div class="c big">{{{{ doc.call_name }}}}</div>{{% endif %}}
+	{{% if doc.call_name %}}<div class="c big">{{{{ doc.call_name | rtl }}}}</div>{{% endif %}}
 	<hr>
-	<div class="row"><span>{{{{ station }}}}</span>
+	<div class="row"><span>{{{{ station | rtl }}}}</span>
 		<span class="amt">{{{{ frappe.utils.format_datetime(doc.sent_at, "HH:mm") }}}}</span></div>
 	{{% if table_number %}}<div class="row"><span>الطاولة</span><b class="amt">{{{{ table_number }}}}</b></div>{{% endif %}}
 	<div class="row muted"><span>{{{{ doc.cashier_name }}}}</span><span class="amt">{{{{ doc.name }}}}</span></div>
@@ -181,19 +202,19 @@ KOT = """
 		    plates. #}}
 		<div class="big">
 			<span class="amt">{{% if item.action == "void" %}}&#10005;{{% endif %}}{{{{ item.qty | int }}}}&times;</span>
-			{{{{ item.item_name }}}}
+			{{{{ item.item_name | rtl }}}}
 		</div>
 		{{% if item.modifiers %}}
 		{{% for modifier in frappe.parse_json(item.modifiers) %}}
-		<div class="mod">+ {{{{ modifier.get("title") or modifier.get("item_name") or modifier }}}}</div>
+		<div class="mod">+ {{{{ (modifier.get("title") or modifier.get("item_name") or modifier) | rtl }}}}</div>
 		{{% endfor %}}
 		{{% endif %}}
-		{{% if item.notes %}}<div class="note">{{{{ item.notes }}}}</div>{{% endif %}}
+		{{% if item.notes %}}<div class="note">{{{{ item.notes | rtl }}}}</div>{{% endif %}}
 	</div>
 	{{% endfor %}}
 	{{% if doc.order_notes %}}
 	<hr>
-	<div class="big">{{{{ doc.order_notes }}}}</div>
+	<div class="big">{{{{ doc.order_notes | rtl }}}}</div>
 	{{% endif %}}
 </body></html>
 """
@@ -208,17 +229,18 @@ SHIFT_REPORT = """
 	<div class="row"><span>الإغلاق</span><span>{{{{ frappe.utils.format_datetime(doc.period_end_date) }}}}</span></div>
 	<div class="row"><span>الكاشير</span><span>{{{{ doc.owner }}}}</span></div>
 	<hr>
-	<table>
-		<tr><th>طريقة الدفع</th><th class="num">متوقّع</th><th class="num">معدود</th><th class="num">الفرق</th></tr>
-		{{% for row in doc.payment_reconciliation %}}
-		<tr>
-			<td>{{{{ row.mode_of_payment }}}}</td>
-			<td class="num">{{{{ "%.2f" | format(row.expected_amount) }}}}</td>
-			<td class="num">{{{{ "%.2f" | format(row.closing_amount) }}}}</td>
-			<td class="num">{{{{ "%.2f" | format(row.difference) }}}}</td>
-		</tr>
-		{{% endfor %}}
-	</table>
+	<div class="line head">
+		<span class="name">طريقة الدفع</span>
+		<span class="col">متوقّع</span><span class="col">معدود</span><span class="col">الفرق</span>
+	</div>
+	{{% for row in doc.payment_reconciliation %}}
+	<div class="line">
+		<span class="name">{{{{ row.mode_of_payment | rtl }}}}</span>
+		<span class="col">{{{{ "%.2f" | format(row.expected_amount) }}}}</span>
+		<span class="col">{{{{ "%.2f" | format(row.closing_amount) }}}}</span>
+		<span class="col">{{{{ "%.2f" | format(row.difference) }}}}</span>
+	</div>
+	{{% endfor %}}
 	<hr>
 	<div class="row total"><span>صافي المبيعات</span><span class="amt">{{{{ "%.2f" | format(doc.grand_total) }}}}</span></div>
 	<div class="row"><span>عدد الفواتير</span><span class="amt">{{{{ doc.pos_transactions | length }}}}</span></div>

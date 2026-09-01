@@ -14,6 +14,21 @@
   #app {
     height: 100%;
     overflow: hidden;
+
+    /*
+     * No swipe leaves the app (`D-097`).
+     *
+     * A horizontal drag near the edge of a touch screen is the browser's
+     * back gesture, and this app puts a horizontal drag on every line of the
+     * bill — swiping one off is how an item is voided. The two collide at
+     * exactly the edge a right-handed cashier reaches from, and the app
+     * disappears instead of the line.
+     *
+     * Fixed here rather than with a browser flag, because a flag is a setting
+     * on one terminal and this is a property of the app: it holds on the
+     * machine somebody set up in a hurry too.
+     */
+    overscroll-behavior: none;
   }
 
   /* 06 §Accessibility: 48px minimum touch target, everywhere. */

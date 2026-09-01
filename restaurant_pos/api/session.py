@@ -21,6 +21,7 @@ Refs: 07 §2, 09 §3, FR-1.3, FR-3.5, FR-15.4, 04 §8
 """
 
 import frappe
+import frappe.sessions
 from frappe import _
 from frappe.utils import flt, now_datetime
 
@@ -134,14 +135,17 @@ def csrf_token() -> dict:
 	if frappe.session.user == "Guest":
 		frappe.throw(_("Sign in first."), frappe.PermissionError)
 
-	token = frappe.session.data.get("csrf_token")
-	if not token:
-		# Frappe issues one when a session starts, so an empty one means the
-		# session is not what it looks like. Say that, rather than hand back a
-		# null the browser would try to send.
-		frappe.throw(_("This session has no security token. Sign out and sign in again."))
-
-	return {"csrf_token": token}
+	# **Generated if the session has none** (`D-103`), through Frappe's own
+	# helper rather than by reading the field.
+	#
+	# This used to read `session.data.csrf_token` and refuse when it was empty,
+	# on the reasoning that Frappe issues one when a session starts. It does —
+	# when a *page* is rendered. A session created by `login_manager.login_as`
+	# over the API renders nothing, so a cashier who signed in with a PIN had a
+	# perfectly good session carrying no token, and the first thing they tried
+	# to do was refused with an instruction to sign out and sign in again — the
+	# one action guaranteed not to help.
+	return {"csrf_token": frappe.sessions.get_csrf_token()}
 
 
 @frappe.whitelist()

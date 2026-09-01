@@ -26,14 +26,26 @@ class TestCsrfToken(FrappeTestCase):
 		finally:
 			frappe.session.data.csrf_token = before
 
-	def test_a_session_without_one_is_told_so_rather_than_handed_a_null(self):
+	def test_a_session_without_one_is_given_one(self):
+		"""D-103 — the case that stopped a till from opening a shift.
+
+		This test used to assert the opposite: that a session with no token was
+		refused, on the reasoning that Frappe issues one when a session starts.
+		It does — when a **page** is rendered. A session built by
+		`login_manager.login_as` for a PIN sign-in renders nothing, so the
+		cashier had a perfectly good session with no token, and the first thing
+		they touched was refused with an instruction to sign out and sign in
+		again: the one action guaranteed not to help.
+		"""
 		from restaurant_pos.api import session
 
 		before = frappe.session.data.get("csrf_token")
 		frappe.session.data.csrf_token = None
 		try:
-			with self.assertRaises(frappe.ValidationError):
-				session.csrf_token()
+			token = session.csrf_token()["csrf_token"]
+
+			self.assertTrue(token)
+			self.assertEqual(frappe.session.data.csrf_token, token, "it must stick to the session")
 		finally:
 			frappe.session.data.csrf_token = before
 

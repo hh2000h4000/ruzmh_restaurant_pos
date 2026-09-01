@@ -18,6 +18,7 @@ Refs: FR-8.4, FR-12.2, D-057, D-094
 from __future__ import annotations
 
 import frappe
+import frappe.sessions
 from frappe import _
 from frappe.rate_limiter import rate_limit
 
@@ -64,6 +65,12 @@ def sign_in(pin: str, pos_profile: str | None = None) -> dict:
 		frappe.throw(_("That PIN was not recognised."), frappe.AuthenticationError)
 
 	frappe.local.login_manager.login_as(user)
+
+	# Mint the CSRF token now (`D-103`). `login_as` builds a session without
+	# rendering a page, and it is a page render that normally issues one — so
+	# without this the till signs in successfully and is refused on its first
+	# write, which is the worst possible moment to discover it.
+	frappe.sessions.get_csrf_token()
 
 	return me(pos_profile=pos_profile)
 

@@ -77,6 +77,19 @@ export const useAuthStore = defineStore("auth", () => {
     known.value = true;
   }
 
+  /**
+   * Drop the identity without asking the server (`D-101`).
+   *
+   * For when the server has already decided: a request came back
+   * unauthenticated, so there is no session left to call `sign_out` on, and
+   * trying would be one more failing request in front of a cashier who needs
+   * the keypad.
+   */
+  function forget(): void {
+    identity.value = null;
+    known.value = true;
+  }
+
   async function punch(posProfile: string | null): Promise<void> {
     const going = clockedIn.value ? api.clockOut : api.clockIn;
     const state = await run(() => going(posProfile));
@@ -97,6 +110,7 @@ export const useAuthStore = defineStore("auth", () => {
     probe,
     signIn,
     signOut,
+    forget,
     punch,
   };
 });

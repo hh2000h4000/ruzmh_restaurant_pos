@@ -68,19 +68,45 @@ function setCsrfToken(value: string): void {
  * The token is injected into the page by Jinja (`frontend/vite.config.ts`),
  * and that covers every load except one: HTML the *browser* kept from a visit
  * made while nobody was signed in comes back with an empty token. So when it
- * is missing, ask the server. A GET carries no token, so this cannot deadlock,
- * and a caller with no session gets a 403 — which is the honest answer, and a
- * far better message than "reload the page".
+ * is missing, ask the server.
+ *
+ * **A guest is allowed through without one** (`D-102`). `session.csrf_token`
+ * needs a session and answers 403 without one — which was the honest answer
+ * while Frappe owned the login screen, and became a deadlock the moment this
+ * app grew its own: signing in is a POST, made by somebody with no session, so
+ * the one call that could produce a session was the one call this refused to
+ * let through. Frappe does not ask a Guest for a CSRF token, so there is
+ * nothing to send and nothing to fail.
  */
 async function ensureCsrfToken(): Promise<void> {
   if (csrfToken()) return;
 
-  const fresh = await query<{ csrf_token: string }>("session.csrf_token");
+  let fresh: { csrf_token?: string } | null = null;
+  try {
+    fresh = await query<{ csrf_token: string }>("session.csrf_token");
+  } catch (cause) {
+    // Not signed in: the write about to happen is either the sign-in itself,
+    // which needs no token, or one that will be refused on its own merits.
+    if (cause instanceof ApiError && (cause.status === 403 || cause.status === 401)) return;
+    throw cause;
+  }
+
   if (!fresh?.csrf_token) {
     throw new ApiError(t("err.noCsrf"), 0, "CSRFTokenMissing");
   }
 
   setCsrfToken(fresh.csrf_token);
+}
+
+/**
+ * Forget the token, so the next write fetches one for the session in hand.
+ *
+ * Signing in **replaces the session**, and a token minted for the previous one
+ * is refused with a bare 400 — the failure this whole dance exists to avoid,
+ * arriving one step later.
+ */
+export function resetCsrfToken(): void {
+  setCsrfToken("");
 }
 
 /** Frappe returns `{"message": ...}` on success and messages in a few shapes on failure. */

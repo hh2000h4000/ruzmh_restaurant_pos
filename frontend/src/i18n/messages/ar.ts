@@ -22,8 +22,6 @@ const messages: Catalogue["messages"] = {
 
   // Connection banner
   "conn.offline": "وضع عدم الاتصال — العمليات تُحفظ محلياً",
-  "conn.signedOut": "لم يتم تسجيل الدخول",
-  "conn.signIn": "تسجيل الدخول",
   "conn.syncing": "جارٍ المزامنة…",
   "conn.syncNow": "زامن الآن",
   "conn.staleConfig": "يعمل من نسخة هذا الجهاز، المحفوظة {when}.",

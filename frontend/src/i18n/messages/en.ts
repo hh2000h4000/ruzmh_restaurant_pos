@@ -25,8 +25,6 @@ export const messages = {
 
   // Connection banner
   "conn.offline": "Offline — actions are saved on this device",
-  "conn.signedOut": "Not signed in",
-  "conn.signIn": "Sign in",
   "conn.syncing": "Syncing…",
   "conn.syncNow": "Sync now",
   "conn.staleConfig": "Working from this device's copy, saved {when}.",

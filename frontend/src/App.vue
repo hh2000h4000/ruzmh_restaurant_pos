@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted } from "vue";
+import { onMounted, onUnmounted, watch } from "vue";
 import { useRouter } from "vue-router";
 
 import { t, tn } from "@/i18n";
+import { useAuthStore } from "@/stores/auth";
 import { useConnectionStore } from "@/stores/connection";
 
 /**
@@ -15,12 +16,27 @@ import { useConnectionStore } from "@/stores/connection";
 const connection = useConnectionStore();
 const router = useRouter();
 
-function signIn(): void {
-  // The app owns the sign-in screen now (`D-094`), so this is a route and not
-  // a trip to `/login`. Sending a cashier to ERPNext's form would ask them for
-  // an email address and a password on a machine with no keyboard.
-  void router.push({ name: "sign-in" });
-}
+/**
+ * A lost session takes the cashier to the pad, rather than to a banner about it
+ * (`D-101`).
+ *
+ * There used to be a red bar here saying "not signed in", with a button that
+ * sent them to ERPNext's login form. Once this app grew its own sign-in screen
+ * the bar became absurd: it appeared **on** that screen, above the keypad, and
+ * its button led back to the page it was already on.
+ *
+ * "Not signed in" has exactly one right response, so the app performs it
+ * instead of offering it (`CLAUDE.md` §5.5).
+ */
+watch(
+  () => connection.state,
+  (state) => {
+    if (state !== "unauthenticated") return;
+
+    useAuthStore().forget();
+    if (router.currentRoute.value.name !== "sign-in") void router.push({ name: "sign-in" });
+  },
+);
 
 onMounted(connection.start);
 onUnmounted(connection.stop);
@@ -37,21 +53,6 @@ onUnmounted(connection.stop);
       <span aria-hidden="true">●</span>
       <span>{{ t("conn.offline") }}</span>
       <span v-if="connection.pending">— {{ tn("count.queued", connection.pending) }}</span>
-    </div>
-
-    <div
-      v-else-if="connection.state === 'unauthenticated'"
-      role="alert"
-      class="flex flex-wrap items-center justify-center gap-3 bg-danger px-4 py-2 text-sm font-medium text-white"
-    >
-      <span>{{ t("conn.signedOut") }}</span>
-      <button
-        type="button"
-        class="rounded-rpos bg-white/20 px-3 py-1 underline"
-        @click="signIn"
-      >
-        {{ t("conn.signIn") }}
-      </button>
     </div>
 
     <!-- Online but still carrying work: the cashier must be able to see that

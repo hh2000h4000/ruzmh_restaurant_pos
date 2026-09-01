@@ -116,6 +116,39 @@ class TestTwoPeopleCannotShareAPin(FrappeTestCase):
 		pins.set_pin(STAFF, "51234")
 
 
+class TestAHandoverDoesNotInheritPermissions(FrappeTestCase):
+	"""Why the till reloads its session when somebody signs in (`D-096`).
+
+	The terminal payload carries `permissions`, and permissions belong to the
+	person rather than to the machine. The screen caches that payload for the
+	menu and the branch, which do not change at a handover — but the permissions
+	do, and a cashier taking over would otherwise be looking at the last one's
+	buttons.
+	"""
+
+	def test_the_terminal_payload_is_scoped_to_whoever_asks(self):
+		from restaurant_pos.utils.permissions import get_pos_permission_set
+
+		manager = _user("rpos_pin_manager@example.com")
+		doc = frappe.get_doc("User", manager)
+		if "POS Manager" not in [row.role for row in doc.roles]:
+			doc.append("roles", {"role": "POS Manager"})
+			doc.save(ignore_permissions=True)
+
+		cashier_rights = get_pos_permission_set(STAFF)
+		manager_rights = get_pos_permission_set(manager)
+
+		self.assertNotEqual(
+			cashier_rights.get("roles"),
+			manager_rights.get("roles"),
+			"if two roles carried the same rights this test proves nothing",
+		)
+		self.assertNotEqual(
+			cashier_rights.get("can_void_order"),
+			manager_rights.get("can_void_order"),
+		)
+
+
 class TestClockingInAndOut(FrappeTestCase):
 	@classmethod
 	def setUpClass(cls):

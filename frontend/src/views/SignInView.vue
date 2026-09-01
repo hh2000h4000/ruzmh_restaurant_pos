@@ -47,6 +47,15 @@ watch(pin, async (value) => {
   pin.value = "";
   if (!ok) return;
 
+  // **Reload the terminal session for the new person** (`D-096`).
+  //
+  // It carries permissions, and permissions belong to whoever is signed in.
+  // Without this the cashier taking over inherits the last one's: a senior's
+  // void button on a junior's screen, or the reverse. The backend re-checks
+  // everything, so this is not a hole — but a button that refuses when pressed
+  // is a screen lying to the person reading it.
+  if (session.isLoaded && posProfile.value) await session.load(posProfile.value);
+
   // Somebody who cannot clock in has nothing to choose between, so the second
   // pane would be a screen with one button on it.
   if (!auth.isEmployee) void enterTill();

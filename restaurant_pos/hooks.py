@@ -55,6 +55,18 @@ jinja = {
 	],
 }
 
+# D-096 — where a POS role lands after any Frappe login.
+#
+# The app is the whole job for these roles, and the desk is a place a cashier
+# has no business in and no idea what to do with. It matters because Frappe's
+# own logout answers with `home_page: "/login"`: somebody who arrives there and
+# signs in should come back to a till, not to an accounting workspace.
+role_home_page = {
+	"POS Cashier": "restaurant-pos",
+	"POS Senior Cashier": "restaurant-pos",
+	"POS Manager": "restaurant-pos",
+}
+
 # ---------------------------------------------------------------------------
 # The cashier PWA
 # ---------------------------------------------------------------------------

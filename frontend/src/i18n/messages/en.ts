@@ -39,6 +39,16 @@ export const messages = {
   "offline.queuedSale": "Paid on this device. It opens once the connection returns and it reaches the server.",
   "offline.screenMissing": "That screen is not stored on this device yet. Reconnect once and it will be.",
 
+  // D-094 — signing in at the till. A cashier never sees the ERPNext login form.
+  "auth.enterPin": "Enter your PIN",
+  "auth.pinRefused": "That PIN was not recognised.",
+  "auth.welcome": "Welcome, {name}",
+  "auth.clockedInAt": "Clocked in at {at}",
+  "auth.clockIn": "Clock in",
+  "auth.clockOut": "Clock out",
+  "auth.enterTill": "Go to the till",
+  "auth.exit": "Exit",
+
   // Errors raised by the API client
   "err.noCsrf": "The page loaded without a security token — sign out and reload.",
   "err.offline": "No connection to the server",

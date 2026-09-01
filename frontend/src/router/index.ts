@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from "vue-router";
 
 import { t } from "@/i18n";
+import { useAuthStore } from "@/stores/auth";
 import { useSessionStore } from "@/stores/session";
 
 /**
@@ -13,6 +14,19 @@ import { useSessionStore } from "@/stores/session";
 const router = createRouter({
   history: createWebHistory("/restaurant-pos/"),
   routes: [
+    /**
+     * The locked till (`D-094`).
+     *
+     * `requiresSession: false` because there is nothing to have a session
+     * *for* until somebody signs in — this is the screen that replaces
+     * ERPNext's login form, which a cashier can neither read nor type into.
+     */
+    {
+      path: "/sign-in",
+      name: "sign-in",
+      component: () => import("@/views/SignInView.vue"),
+      meta: { requiresSession: false, requiresSignIn: false },
+    },
     {
       path: "/setup",
       name: "setup",
@@ -82,7 +96,18 @@ router.onError((error) => {
   window.alert(t("offline.screenMissing"));
 });
 
-router.beforeEach((to) => {
+router.beforeEach(async (to) => {
+  // Who before what (`D-094`). Every other screen assumes a person: the audit
+  // log records one, the permission set belongs to one, and a drawer is
+  // somebody's. Probed once rather than assumed, because "not asked yet" and
+  // "nobody is here" are different answers and only one of them means the
+  // sign-in screen.
+  const auth = useAuthStore();
+  if (to.meta.requiresSignIn !== false) {
+    if (!auth.known) await auth.probe(useSessionStore().profile?.name ?? null);
+    if (!auth.signedIn) return { name: "sign-in" };
+  }
+
   if (to.meta.requiresSession === false) return true;
 
   // Every screen but setup needs the terminal configuration; without it there

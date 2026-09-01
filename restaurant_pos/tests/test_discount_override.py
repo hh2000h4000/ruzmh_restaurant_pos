@@ -33,8 +33,10 @@ def _user(email: str, role: str, pin: str) -> str:
 			}
 		).insert(ignore_permissions=True)
 
-	if not pins.has_pin(email):
-		pins.set_pin(email, pin)
+	# Set every time, not only when missing. A fixture that keeps whatever a
+	# previous run left behind is a fixture that tests something else — this one
+	# silently kept a PIN of the old length and failed on the digit count.
+	pins.set_pin(email, pin)
 
 	return email
 
@@ -45,8 +47,8 @@ class TestDiscountOverride(PaymentTestBase):
 		super().setUpClass()
 		create_default_data()
 		# Senior cashier ceiling 10%, POS Manager 50% (08 §3).
-		cls.senior = _user(SENIOR, "POS Senior Cashier", "3311")
-		cls.manager = _user(MANAGER, "POS Manager", "7742")
+		cls.senior = _user(SENIOR, "POS Senior Cashier", "33115")
+		cls.manager = _user(MANAGER, "POS Manager", "77425")
 		frappe.db.commit()
 
 	def setUp(self):
@@ -112,8 +114,10 @@ class TestDiscountOverride(PaymentTestBase):
 
 	def test_an_approver_cannot_exceed_their_own_ceiling(self):
 		"""The hole this change closed: 50% manager approving 90%."""
-		self.assertEqual(perms.find_approver_for_discount("max_order_discount_pct", 40, "7742"), self.manager)
-		self.assertIsNone(perms.find_approver_for_discount("max_order_discount_pct", 90, "7742"))
+		self.assertEqual(
+			perms.find_approver_for_discount("max_order_discount_pct", 40, "77425"), self.manager
+		)
+		self.assertIsNone(perms.find_approver_for_discount("max_order_discount_pct", 90, "77425"))
 
 	def test_a_token_cannot_be_spent_on_a_bigger_discount(self):
 		"""The second hole: an approval for 10% reused for 90%."""
@@ -129,7 +133,7 @@ class TestDiscountOverride(PaymentTestBase):
 
 		with self.assertRaises(frappe.PermissionError):
 			permissions_api.validate_discount_override(
-				pin="0000",
+				pin="00000",
 				percentage=40,
 				reason="Regular customer",
 				branch=order.branch,
@@ -151,7 +155,7 @@ class TestDiscountOverride(PaymentTestBase):
 		frappe.local.rpos_permission_cache = {}
 		try:
 			approval = permissions_api.validate_discount_override(
-				pin="7742",
+				pin="77425",
 				percentage=40,
 				reason="Complaint about the wait",
 				branch=order.branch,

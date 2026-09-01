@@ -197,23 +197,23 @@ class TestManagerPin(FrappeTestCase):
 		create_default_data()
 		_make_user(CASHIER, "POS Cashier")
 		_make_user(MANAGER, "POS Manager")
-		pins.set_pin(MANAGER, "4271")
+		pins.set_pin(MANAGER, "42715")
 		frappe.db.commit()
 
 	def test_correct_pin_identifies_the_person_who_approved(self):
 		"""The whole point of the move: approved_by names a human."""
-		self.assertEqual(pins.find_approver_for_pin("can_void_order", "4271"), MANAGER)
+		self.assertEqual(pins.find_approver_for_pin("can_void_order", "42715"), MANAGER)
 
 	def test_wrong_pin_finds_nothing(self):
-		self.assertIsNone(pins.find_approver_for_pin("can_void_order", "0000"))
+		self.assertIsNone(pins.find_approver_for_pin("can_void_order", "00000"))
 
 	def test_pin_does_not_authorise_an_action_its_holder_lacks(self):
 		"""A valid PIN is not a master key."""
-		pins.set_pin(CASHIER, "1357")
+		pins.set_pin(CASHIER, "13579")
 		frappe.local.rpos_permission_cache = {}
 
-		self.assertEqual(pins.find_approver_for_pin("can_void_item", "1357"), CASHIER)
-		self.assertIsNone(pins.find_approver_for_pin("can_void_order", "1357"))
+		self.assertEqual(pins.find_approver_for_pin("can_void_item", "13579"), CASHIER)
+		self.assertIsNone(pins.find_approver_for_pin("can_void_order", "13579"))
 
 	def test_pin_is_never_stored_reversibly(self):
 		"""D-015: a Password DocField would be readable with the site key."""
@@ -227,7 +227,7 @@ class TestManagerPin(FrappeTestCase):
 		self.assertTrue(rows)
 		for encrypted, stored in rows:
 			self.assertEqual(encrypted, 0)
-			self.assertNotIn("4271", str(stored))
+			self.assertNotIn("42715", str(stored))
 
 	def test_has_pin_reports_without_reading(self):
 		self.assertTrue(pins.has_pin(MANAGER))
@@ -236,20 +236,21 @@ class TestManagerPin(FrappeTestCase):
 	def test_two_users_cannot_share_a_pin(self):
 		"""A shared PIN would make approved_by name the wrong person."""
 		with self.assertRaises(frappe.ValidationError):
-			pins.set_pin(CASHIER, "4271")
+			pins.set_pin(CASHIER, "42715")
 
-	def test_pin_must_be_four_digits(self):
-		for bad in ("123", "12345", "abcd", "12a4", ""):
+	def test_pin_must_be_five_digits(self):
+		"""Five since the PIN became an identity as well as an approval (D-094)."""
+		for bad in ("1234", "123456", "abcde", "12a45", ""):
 			with self.assertRaises(frappe.ValidationError):
 				pins.set_pin(CASHIER, bad)
 
 	def test_clearing_a_pin_revokes_approval(self):
-		pins.set_pin(CASHIER, "2468")
+		pins.set_pin(CASHIER, "24680")
 		self.assertTrue(pins.has_pin(CASHIER))
 
 		pins.clear_pin(CASHIER)
 		self.assertFalse(pins.has_pin(CASHIER))
-		self.assertIsNone(pins.find_approver_for_pin("can_void_item", "2468"))
+		self.assertIsNone(pins.find_approver_for_pin("can_void_item", "24680"))
 
 	def test_a_cashier_cannot_overwrite_a_managers_pin(self):
 		frappe.set_user(CASHIER)

@@ -205,10 +205,25 @@ CUSTOM_FIELDS = {
 		{
 			"fieldname": "pos_manager_pin",
 			"fieldtype": "Password",
-			"label": "POS Manager PIN",
-			"description": "4 digits, used to approve overrides. Write-only — never displayed.",
+			"label": "POS PIN",
+			"description": "5 digits. Signs this person in at the till and approves overrides. Write-only — never displayed.",
 			"no_copy": 1,
 			"insert_after": "rpos_section",
+		},
+		{
+			# D-094 — a keyed digest of the PIN, so signing in is one indexed
+			# read instead of a slow hash per member of staff. Hidden and
+			# read-only because it is PIN-equivalent for lookup: it must never
+			# be shown, exported or returned by an API.
+			"fieldname": "rpos_pin_lookup",
+			"fieldtype": "Data",
+			"label": "PIN Lookup",
+			"hidden": 1,
+			"read_only": 1,
+			"no_copy": 1,
+			"print_hide": 1,
+			"search_index": 1,
+			"insert_after": "pos_manager_pin",
 		},
 	],
 	# A delivery platform or a corporate account is settled on a statement, not

@@ -36,6 +36,15 @@ const messages: Catalogue["messages"] = {
   "offline.queuedSale": "مدفوعة على هذا الجهاز. تُفتح بعد عودة الاتصال ووصولها للخادم.",
   "offline.screenMissing": "هذه الشاشة غير محفوظة على الجهاز بعد. أعد الاتصال مرة واحدة لتُحفظ.",
 
+  "auth.enterPin": "أدخل رقمك السري",
+  "auth.pinRefused": "الرقم السري غير صحيح.",
+  "auth.welcome": "أهلاً، {name}",
+  "auth.clockedInAt": "سجّلت حضورك {at}",
+  "auth.clockIn": "تسجيل حضور",
+  "auth.clockOut": "تسجيل انصراف",
+  "auth.enterTill": "الدخول للكاشير",
+  "auth.exit": "خروج",
+
   // Errors raised by the API client
   "err.noCsrf": "الصفحة حُمّلت بدون رمز الحماية — سجّل الخروج وأعد تحميل الصفحة.",
   "err.offline": "لا يوجد اتصال بالخادم",

@@ -13,7 +13,7 @@
  *    in twenty components would produce twenty different results.
  */
 
-import { t } from "@/i18n";
+import { locale, t } from "@/i18n";
 
 const BASE = "/api/method/restaurant_pos.api";
 
@@ -141,6 +141,24 @@ function stripHtml(value: string): string {
   return value.replace(/<[^>]*>/g, "").trim();
 }
 
+/**
+ * Ask the server to answer in the language on the screen (`D-104`, `FR-17`).
+ *
+ * `frappe.throw` messages are translated with the *user's* language, which is a
+ * setting on their ERPNext account and has nothing to do with the toggle the
+ * cashier just used. A till showing Arabic was refusing an order in English.
+ *
+ * `_lang` is the first thing Frappe's `get_language` looks at, ahead of the
+ * user document, so this is the supported way to say it per request rather
+ * than per account.
+ */
+function withLanguage(body: unknown): unknown {
+  if (body === undefined) return { _lang: locale.value };
+  if (body === null || typeof body !== "object") return body;
+
+  return { ...(body as Record<string, unknown>), _lang: locale.value };
+}
+
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
   if (method !== "GET") await ensureCsrfToken();
 
@@ -155,7 +173,7 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
         Accept: "application/json",
         "X-Frappe-CSRF-Token": csrfToken(),
       },
-      body: body === undefined ? undefined : JSON.stringify(body),
+      body: method === "GET" ? undefined : JSON.stringify(withLanguage(body)),
     });
   } catch (cause) {
     // Network failure, not an application error. The caller decides whether to
@@ -180,8 +198,10 @@ export function query<T>(path: string, params: Record<string, unknown> = {}): Pr
     search.set(key, typeof value === "object" ? JSON.stringify(value) : String(value));
   }
 
-  const suffix = search.toString();
-  return request<T>("GET", suffix ? `${path}?${suffix}` : path);
+  // A GET has no body to carry it in (`D-104`).
+  search.set("_lang", locale.value);
+
+  return request<T>("GET", `${path}?${search.toString()}`);
 }
 
 /**

@@ -1,0 +1,74 @@
+A mobile number is required.,رقم الجوال مطلوب.
+A name is required.,الاسم مطلوب.
+A paid order cannot be cancelled. Create a return instead.,الطلب المدفوع لا يُلغى. أنشئ مرتجعاً بدلاً من ذلك.
+A payment amount must be greater than zero.,مبلغ الدفع يجب أن يكون أكبر من صفر.
+A price cannot be negative.,السعر لا يكون سالباً.
+A reason is required for a discount override.,سبب تجاوز الخصم مطلوب.
+A reason is required for a manager override.,سبب التجاوز مطلوب.
+A reason is required to cancel an order.,سبب إلغاء الطلب مطلوب.
+A reason is required to void an item.,سبب إلغاء الصنف مطلوب.
+A return quantity must be greater than zero.,كمية الإرجاع يجب أن تكون أكبر من صفر.
+An address line is required.,العنوان مطلوب.
+An empty order cannot be paid.,لا يمكن دفع طلب فارغ.
+An offline order must carry the totals it was sold at.,الطلب المرسل من وضع عدم الاتصال يجب أن يحمل إجمالياته.
+"An order is either settled at the till or billed to an account, not both.",الطلب إما يُسدَّد في التِل أو يُقيَّد على حساب، لا الاثنين معاً.
+Choose at least one item to return.,اختر صنفاً واحداً على الأقل للإرجاع.
+Choose how to refund this.,اختر طريقة الإرجاع.
+Choose why this is being returned.,اختر سبب الإرجاع.
+Customer {0} does not exist.,العميل {0} غير موجود.
+Day {0} is already closed.,اليوم {0} مغلق أصلاً.
+Discount of {0}% exceeds your limit of {1}%.,خصم {0}% يتجاوز حدّك {1}%.
+Enter a reason for the difference before closing.,أدخل سبب الفرق قبل الإغلاق.
+Enter the number of guests.,أدخل عدد الضيوف.
+Invalid PIN or insufficient permissions.,الرقم السري غير صحيح أو الصلاحية غير كافية.
+Item {0} does not exist.,الصنف {0} غير موجود.
+Item {0} is disabled.,الصنف {0} موقوف.
+Manager authorisation is invalid or has expired.,تفويض المدير غير صالح أو انتهت صلاحيته.
+Manager authorisation is required.,يلزم تفويض المدير.
+Modifier group {0} does not apply to this item.,مجموعة الإضافات {0} لا تنطبق على هذا الصنف.
+Modifier option {0} is not available.,خيار الإضافة {0} غير متاح.
+No price is configured for {0} in price list {1}.,لا يوجد سعر للصنف {0} في قائمة الأسعار {1}.
+Only {0} of that line is left to return.,المتبقي من هذا السطر للإرجاع: {0}.
+Open a shift before taking orders.,افتح المناوبة قبل استقبال الطلبات.
+Order type {0} is not active.,نوع الطلب {0} غير مفعّل.
+Order type {0} is not available here.,نوع الطلب {0} غير متاح على هذا الجهاز.
+Order type {0} needs a customer.,نوع الطلب {0} يحتاج عميلاً.
+Order type {0} requires a customer.,نوع الطلب {0} يتطلب عميلاً.
+Order type {0} requires a table.,نوع الطلب {0} يتطلب طاولة.
+"Order {0} has not been paid, so there is nothing to return.",الطلب {0} غير مدفوع، فلا شيء لإرجاعه.
+Order {0} is already cancelled.,الطلب {0} ملغى أصلاً.
+Order {0} is {1} and can no longer be modified.,الطلب {0} حالته {1} ولا يمكن تعديله.
+Payment method {0} does not exist.,طريقة الدفع {0} غير موجودة.
+Payment of {0} does not cover the total of {1}.,المبلغ {0} لا يغطي الإجمالي {1}.
+Quantity must be greater than zero.,الكمية يجب أن تكون أكبر من صفر.
+Row #{0} has already gone to the kitchen. Void it instead.,السطر رقم {0} أُرسل للمطبخ. ألغِه بدل حذفه.
+Row #{0} is already voided.,السطر رقم {0} ملغى أصلاً.
+Row #{0} is not on this order.,السطر رقم {0} ليس في هذا الطلب.
+Row #{0} is voided.,السطر رقم {0} ملغى.
+Select at least one payment method.,اختر طريقة دفع واحدة على الأقل.
+Sign in first.,سجّل الدخول أولاً.
+Table {0} does not exist.,الطاولة {0} غير موجودة.
+Table {0} is not in this branch.,الطاولة {0} ليست في هذا الفرع.
+Table {0} is out of service.,الطاولة {0} خارج الخدمة.
+Table {0} still has an open order.,الطاولة {0} عليها طلب مفتوح.
+That PIN is already in use. Choose a different one.,هذا الرقم مستخدم. اختر رقماً آخر.
+That PIN was not recognised.,الرقم السري غير صحيح.
+The PIN must be exactly {0} digits.,الرقم السري يجب أن يكون {0} أرقام بالضبط.
+The amount received is less than the amount being paid.,المبلغ المستلم أقل من المبلغ المدفوع.
+There is nothing new to send to the kitchen.,لا يوجد جديد لإرساله للمطبخ.
+"This bill is from a day that has been closed, so nothing can be added to it. ",هذه الفاتورة من يوم مُغلق، فلا يمكن إضافة شيء إليها. ما زال بالإمكان دفعها أو إلغاؤها.
+This bill prices differently on the screen ({0}) and on the invoice ({1}). ,هذه الفاتورة تُحسب على الشاشة ({0}) وعلى الفاتورة ({1}) بشكل مختلف. لم يُخصم شيء. راجع قالب الضريبة على الجهاز.
+This bill was sold offline at {0} but comes to {1} here ,هذه الفاتورة بيعت بلا اتصال بمبلغ {0} وتُحسب هنا {1}
+This login is not linked to an employee record.,هذا الحساب غير مرتبط بسجل موظف.
+This order type must be paid by {0}.,هذا النوع من الطلبات يُدفع بـ{0}.
+This till session is already closed.,هذه المناوبة مغلقة أصلاً.
+You are already clocked in.,أنت مسجَّل حضورك بالفعل.
+You are not clocked in.,لم تسجّل حضورك.
+You cannot set {0} above your own limit of {1}%.,لا يمكنك رفع {0} فوق حدّك {1}%.
+You do not have access to branch {0}.,لا تملك صلاحية على الفرع {0}.
+You do not have permission to perform this action.,لا تملك صلاحية هذا الإجراء.
+{0} already uses this number.,{0} يستخدم هذا الرقم بالفعل.
+{0} is not a payment method on this terminal.,{0} ليست طريقة دفع على هذا الجهاز.
+{0} is not accepted for this order type.,{0} غير مقبولة لهذا النوع من الطلبات.
+{0} orders are still open on this day.,ما زال هناك {0} طلبات مفتوحة في هذا اليوم.
+{0} still has the till open. Close it before taking over.,{0} ما زال التِل مفتوحاً لديه. أغلقه قبل الاستلام.

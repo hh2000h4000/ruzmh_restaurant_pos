@@ -85,12 +85,24 @@ def assert_order_day_open(order) -> None:
 	items because somebody opened today's. Paying it and cancelling it stay
 	possible, because a bill stranded by a forced close has to be clearable
 	(D-055).
+
+	**The message says which of the two refusals this is** (`D-104`). It used to
+	share a sentence with `shift.assert_may_sell` — "open a shift before taking
+	orders" — which is true there and false here: the cashier who hits this has
+	just opened one. Being told to do the thing they have already done, with no
+	hint that the bill is the problem, is the kind of dead end that ends in a
+	phone call.
 	"""
 	shift = order.restaurant_shift
 	if shift and frappe.db.get_value("Restaurant Shift", shift, "status") == "open":
 		return
 
-	frappe.throw(_("Open a shift before taking orders."))
+	frappe.throw(
+		_(
+			"This bill is from a day that has been closed, so nothing can be added to it. "
+			"It can still be paid or cancelled."
+		)
+	)
 
 
 def assert_transition(order, new_status: str) -> None:

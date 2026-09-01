@@ -332,12 +332,24 @@ def enqueue_print(method: str, **kwargs) -> None:
 	and without it the render can start before the ticket it is rendering has
 	been committed, and fail on a document that certainly exists.
 	"""
-	frappe.enqueue(
-		f"restaurant_pos.utils.printing.{method}",
-		queue="short",
-		enqueue_after_commit=True,
-		**kwargs,
-	)
+	try:
+		frappe.enqueue(
+			f"restaurant_pos.utils.printing.{method}",
+			queue="short",
+			enqueue_after_commit=True,
+			**kwargs,
+		)
+	except Exception:
+		# Redis down takes the queue with it, and `frappe.enqueue` raises. That
+		# must not travel: it reached this module through `send_to_kitchen`, so
+		# an unreachable queue was failing the *order* — no ticket, no sale, over
+		# a printer. Found by running a real order, not by a test.
+		#
+		# Printing inline instead of giving up. It costs the caller ~300 ms,
+		# which is the whole reason this function exists; but a slow ticket is a
+		# ticket, and the alternative is a kitchen that silently gets nothing.
+		frappe.log_error(f"print queue unreachable; running {method} inline", "RPOS printing")
+		globals()[method](**kwargs)
 
 
 def print_kot(kot_name: str, *, force: bool = False) -> str | None:
@@ -370,7 +382,7 @@ def print_kot(kot_name: str, *, force: bool = False) -> str | None:
 		return print_document(
 			job_type="kot",
 			printer=printer,
-			context={"doc": kot, "center": center},
+			context=kot_context(kot, center),
 			reference_doctype="Kitchen Order Ticket",
 			reference_name=kot.name,
 		)
@@ -378,6 +390,24 @@ def print_kot(kot_name: str, *, force: bool = False) -> str | None:
 		frappe.log_error(f"KOT {kot_name} could not be queued", "RPOS printing")
 		_mark_kot_failed(kot_name)
 		return None
+
+
+def kot_context(kot, center) -> dict:
+	"""What the kitchen ticket needs, in the words a cook reads.
+
+	The document stores links — `production_center` is `PC-001`, `table` is
+	`TBL-SEC-Riyadh-001-019` — and a cook needs "المشاوي" and "19". The first
+	real ticket printed both ids, and the table's was long enough to widen the
+	page and shear the item names off the right edge of the roll.
+	"""
+	return {
+		"doc": kot,
+		"center": center,
+		"station": center.title_ar or center.title or kot.production_center,
+		"table_number": frappe.db.get_value("Restaurant Table", kot.table, "table_number")
+		if kot.table
+		else None,
+	}
 
 
 def _mark_kot_failed(kot_name: str) -> None:

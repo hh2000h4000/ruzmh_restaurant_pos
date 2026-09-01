@@ -31,6 +31,15 @@ ROOT_PX = {
 BASE_CSS = """
 @page { margin: 0; }
 * { box-sizing: border-box; }
+/* Nothing may make the page wider than the paper.
+ *
+ * In an RTL page, text starts at the *right* edge — so a single long token that
+ * stretches the body pushes the start of every line off the roll, and the
+ * ticket prints with the item names sheared off. That is what a real kitchen
+ * ticket did: one long table id widened the page and took the food with it.
+ * `hidden` alone would not do it; the long token has to be allowed to break. */
+html, body { width: 100%; max-width: 100%; overflow-x: hidden; }
+* { overflow-wrap: anywhere; }
 body {
 	margin: 0; padding: 0.5rem;
 	font-family: "Noto Naskh Arabic", "Amiri", "Segoe UI", "DejaVu Sans", sans-serif;
@@ -56,6 +65,11 @@ th { border-bottom: 1px solid #000; text-align: start; font-weight: bold; }
 .num, .amt { direction: ltr; unicode-bidi: isolate; }
 .row { display: flex; justify-content: space-between; gap: 0.5rem; }
 .total { font-size: 1.3rem; font-weight: bold; }
+/* A kitchen ticket's modifiers and notes are not annotations — "بدون ملح" is
+ * the whole instruction, and one a cook scanning a rail must not miss. Set
+ * below the item name, but not so far below that it reads as small print. */
+.mod { font-size: 1.15rem; padding-inline-start: 1.2rem; }
+.note { font-size: 1.25rem; font-weight: bold; padding-inline-start: 1.2rem; }
 """
 
 CUSTOMER_RECEIPT = """
@@ -146,10 +160,10 @@ KOT = """
 	<div class="c huge">#{{{{ doc.daily_number }}}}</div>
 	{{% if doc.call_name %}}<div class="c big">{{{{ doc.call_name }}}}</div>{{% endif %}}
 	<hr>
-	<div class="row"><span>{{{{ doc.production_center }}}}</span>
-		<span>{{{{ frappe.utils.format_datetime(doc.sent_at, "HH:mm") }}}}</span></div>
-	{{% if doc.table %}}<div class="row"><span>الطاولة</span><b>{{{{ doc.table }}}}</b></div>{{% endif %}}
-	<div class="row muted"><span>{{{{ doc.cashier_name }}}}</span><span>{{{{ doc.name }}}}</span></div>
+	<div class="row"><span>{{{{ station }}}}</span>
+		<span class="amt">{{{{ frappe.utils.format_datetime(doc.sent_at, "HH:mm") }}}}</span></div>
+	{{% if table_number %}}<div class="row"><span>الطاولة</span><b class="amt">{{{{ table_number }}}}</b></div>{{% endif %}}
+	<div class="row muted"><span>{{{{ doc.cashier_name }}}}</span><span class="amt">{{{{ doc.name }}}}</span></div>
 	{{% if doc.kot_type != "initial" %}}
 	<div class="c big">
 		{{% if doc.kot_type == "addition" %}}إضافة على الطلب
@@ -160,15 +174,21 @@ KOT = """
 	<hr>
 	{{% for item in doc.items %}}
 	<div style="margin-bottom: 0.4rem;">
+		{{# The quantity is its own isolated box rather than part of the sentence.
+		    A quantity, a multiplication sign and an Arabic name in one run are
+		    handed to the bidi algorithm mixed, and the digits land inside the
+		    name. A cook reading a smeared quantity makes the wrong number of
+		    plates. #}}
 		<div class="big">
-			{{% if item.action == "void" %}}&#10005; {{% endif %}}{{{{ item.qty | int }}}} &times; {{{{ item.item_name }}}}
+			<span class="amt">{{% if item.action == "void" %}}&#10005;{{% endif %}}{{{{ item.qty | int }}}}&times;</span>
+			{{{{ item.item_name }}}}
 		</div>
 		{{% if item.modifiers %}}
 		{{% for modifier in frappe.parse_json(item.modifiers) %}}
-		<div style="padding-inline-start: 1rem;">+ {{{{ modifier.get("title") or modifier.get("item_name") or modifier }}}}</div>
+		<div class="mod">+ {{{{ modifier.get("title") or modifier.get("item_name") or modifier }}}}</div>
 		{{% endfor %}}
 		{{% endif %}}
-		{{% if item.notes %}}<div style="padding-inline-start: 1rem;"><b>{{{{ item.notes }}}}</b></div>{{% endif %}}
+		{{% if item.notes %}}<div class="note">{{{{ item.notes }}}}</div>{{% endif %}}
 	</div>
 	{{% endfor %}}
 	{{% if doc.order_notes %}}

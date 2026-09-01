@@ -263,6 +263,49 @@ class TestAJobIsAddressed(PrintingTestBase):
 			frappe.db.set_value("POS Printer", self.printer, "print_agent", self.agent)
 
 
+class TestWhatTheKitchenReads(PrintingTestBase):
+	"""A cook reads names, not document ids (D-087)."""
+
+	def test_the_station_is_named_not_numbered(self):
+		kot = self._sent_kot()
+		center = frappe.get_doc("Production Center", kot.production_center)
+
+		context = service.kot_context(kot, center)
+
+		self.assertEqual(context["station"], center.title_ar or center.title)
+		self.assertNotEqual(context["station"], kot.production_center)
+
+	def test_the_table_is_its_number_not_its_record(self):
+		"""The record's name is long enough to widen the page.
+
+		In an RTL ticket that pushes the start of every line off the right edge
+		of the roll, and the item names print sheared off — which is what the
+		first real kitchen ticket did.
+		"""
+		table = frappe.db.get_value("Restaurant Table", {}, ["name", "table_number"], as_dict=True)
+		if not table:
+			self.skipTest("no tables on this site")
+
+		kot = self._sent_kot()
+		kot.db_set("table", table.name, update_modified=False)
+		kot.reload()
+
+		context = service.kot_context(kot, frappe.get_doc("Production Center", kot.production_center))
+
+		self.assertEqual(context["table_number"], table.table_number)
+
+	def test_a_ticket_with_no_table_still_renders(self):
+		"""Takeaway has no table, and a missing one must not stop the food."""
+		kot = self._sent_kot()
+		kot.db_set("table", None, update_modified=False)
+		kot.reload()
+
+		context = service.kot_context(kot, frappe.get_doc("Production Center", kot.production_center))
+
+		self.assertIsNone(context["table_number"])
+		self.assertIsNotNone(service.print_kot(kot.name))
+
+
 class TestTheAgentSeam(PrintingTestBase):
 	def _as_agent(self):
 		user = frappe.db.get_value("POS Print Agent", self.agent, "user")

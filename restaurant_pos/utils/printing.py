@@ -49,6 +49,20 @@ BAND_ROWS = 128
 #: hold the request that queued the ticket.
 RENDER_TIMEOUT = 20
 
+#: Below this grey a dot fires. Measured on real paper, not chosen (`D-109`).
+#:
+#: The obvious midpoint, 128, keeps only the darkest core of each stroke and
+#: throws the anti-aliased body away — and on a first real print that did not
+#: read as "a bit light". Whole characters were **missing**: the colon in
+#: `192.168.8.192:9100`, the full stop ending a sentence, the dots that tell
+#: Arabic letters apart, and both horizontal rules, which vanished completely.
+#:
+#: 170 fires 60% more dots (1.79% of the page against 2.86%) and brings all of
+#: them back. Higher gains almost nothing and starts filling the counters —
+#: the holes inside letters — which on 203 dpi paper turns small Arabic into
+#: a smudge.
+INK_THRESHOLD = 170
+
 ESC = b"\x1b"
 GS = b"\x1d"
 
@@ -240,7 +254,7 @@ def png_to_escpos(png: bytes, *, cut: bool = True) -> Rendered:
 		backdrop = Image.new("RGBA", image.size, (255, 255, 255, 255))
 		image = Image.alpha_composite(backdrop, image)
 
-	image = image.convert("L").point(lambda value: 0 if value < 128 else 255, mode="1")
+	image = image.convert("L").point(lambda value: 0 if value < INK_THRESHOLD else 255, mode="1")
 
 	width, height = image.size
 	width_bytes = (width + 7) // 8

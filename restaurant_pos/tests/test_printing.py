@@ -145,6 +145,35 @@ class TestTheBytes(FrappeTestCase):
 
 		self.assertEqual(set(body), {0})
 
+	def test_a_mid_grey_stroke_still_fires_a_dot(self):
+		"""D-109 — the threshold, from a real print rather than from taste.
+
+		At the obvious midpoint the anti-aliased body of every stroke is thrown
+		away, and on paper that did not read as "slightly light": the colon in
+		an address, a full stop, the dots that tell Arabic letters apart and
+		both horizontal rules were simply **absent**.
+		"""
+		import io as _io
+
+		from PIL import Image
+
+		# 150 is inside the band a font's edge pixels live in — dark enough to
+		# be part of the letter, light enough that a midpoint discards it.
+		out = _io.BytesIO()
+		Image.new("L", (8, 8), 150).save(out, format="PNG")
+
+		rendered = service.png_to_escpos(out.getvalue(), cut=False)
+		body = rendered.payload[len(service.INIT) + 8 :]
+
+		self.assertNotEqual(set(body), {0}, "a mid-grey stroke printed as blank paper")
+
+	def test_white_paper_is_still_left_alone(self):
+		"""Raising it must not start firing dots at the background."""
+		rendered = service.png_to_escpos(_white_png(64, 8), cut=False)
+		body = rendered.payload[len(service.INIT) + 8 :]
+
+		self.assertEqual(set(body), {0})
+
 	def test_cutting_is_the_printer_s_setting(self):
 		png = _white_png(64, 8)
 

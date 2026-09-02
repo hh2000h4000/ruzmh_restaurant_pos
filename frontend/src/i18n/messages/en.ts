@@ -47,6 +47,36 @@ export const messages = {
   "auth.enterTill": "Go to the till",
   "auth.exit": "Exit",
 
+  // D-106 — the bill's own history. Composed here rather than stored as a
+  // sentence, so it follows the language on the screen and not the language it
+  // happened to be written in.
+  "log.action": "History",
+  "log.title": "What happened to bill {number}",
+  "log.empty": "Nothing recorded for this bill yet.",
+  "log.failed": "The history could not be loaded.",
+  "log.sensitive": "Also in the audit log",
+  "log.count": "{count} entries",
+  "log.opened": "Bill opened — {subject}",
+  "log.viewed": "Bill opened on screen",
+  "log.left": "Left the bill",
+  "log.item_added": "Added {subject}",
+  "log.item_qty_changed": "Quantity changed — {subject}",
+  "log.item_removed": "Removed {subject}",
+  "log.item_voided": "Voided {subject}",
+  "log.note_changed": "Note changed",
+  "log.discount_applied": "Discount applied — {subject}",
+  "log.discount_removed": "Discount removed",
+  "log.customer_set": "Customer set — {subject}",
+  "log.customer_removed": "Customer removed",
+  "log.table_changed": "Table changed — {subject}",
+  "log.type_changed": "Order type changed — {subject}",
+  "log.sent_to_kitchen": "Sent to the kitchen — {subject}",
+  "log.bill_previewed": "Bill printed for review",
+  "log.paid": "Paid {subject}",
+  "log.cancelled": "Order cancelled",
+  "log.returned": "Returned — {subject}",
+  "log.reprinted": "Reprinted",
+
   // Errors raised by the API client
   "err.noCsrf": "The page loaded without a security token — sign out and reload.",
   "err.offline": "No connection to the server",

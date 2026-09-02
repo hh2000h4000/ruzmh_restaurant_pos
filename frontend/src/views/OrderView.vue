@@ -2,6 +2,7 @@
 import { computed, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 
+import { recordView } from "@/api/activity";
 import type { ModifierChoice, OpenOrder, OrderLine } from "@/api/order";
 import AppIcon from "@/components/AppIcon.vue";
 import BaseDialog from "@/components/BaseDialog.vue";
@@ -13,6 +14,7 @@ import OrderActionBar, { type OrderAction } from "@/components/order/OrderAction
 import NoteEditor from "@/components/order/NoteEditor.vue";
 import OrderPanel from "@/components/order/OrderPanel.vue";
 import OrderTypeChangeDialog from "@/components/order/OrderTypeChangeDialog.vue";
+import ActivityDialog from "@/components/order/ActivityDialog.vue";
 import ReturnDialog from "@/components/order/ReturnDialog.vue";
 import CloseDayDialog from "@/components/shift/CloseDayDialog.vue";
 import CloseTillDialog from "@/components/shift/CloseTillDialog.vue";
@@ -97,7 +99,15 @@ async function startFromRoute(): Promise<void> {
   const existing = route.params.orderName as string | undefined;
   if (existing) {
     pane.value = "items";
-    if (existing !== orders.order?.order_name) await orders.open(existing);
+    if (existing !== orders.order?.order_name) {
+      // Put the previous bill down before picking this one up (`D-106`).
+      // Neither event changes anything, so the server cannot infer either —
+      // and "who had this bill open" is a question asked about a bill that
+      // came out wrong.
+      noteView(orders.order?.order_name ?? null, "left");
+      await orders.open(existing);
+      noteView(existing, "viewed");
+    }
     return;
   }
 
@@ -124,6 +134,17 @@ async function startFromRoute(): Promise<void> {
   // it, which is a wall of buttons that do nothing.
   pane.value = "new";
   await startAnother(type);
+}
+
+/**
+ * Record that a bill was picked up or put down, and never get in the way.
+ *
+ * Fire-and-forget on purpose: this is bookkeeping, and a cashier must not wait
+ * on it or be shown an error from it. The same trade the server side makes.
+ */
+function noteView(orderName: string | null, action: "viewed" | "left"): void {
+  if (!orderName) return;
+  void recordView(orderName, action).catch(() => {});
 }
 
 // --------------------------------------------------------------------------
@@ -209,6 +230,7 @@ function onMenu(key: string): void {
 
 /** Confirmed, because signing out by accident mid-rush is a real annoyance. */
 const signingOut = ref(false);
+const showingLog = ref(false);
 
 async function signOut(): Promise<void> {
   // **Stays inside the app** (`D-098`). This used to hand the browser to
@@ -746,6 +768,11 @@ const moreActions = computed<OrderAction[]>(() => {
     });
   }
 
+  // D-106 — the bill's own history. Never disabled: reading is allowed with
+  // no shift open, which is exactly when somebody is working out what
+  // happened last night (`D-058` drew that line).
+  entries.push({ key: "log", label: "log.action", icon: "document" });
+
   if (session.can("can_cancel_order")) {
     entries.push({
       key: "cancel",
@@ -770,6 +797,7 @@ function onAction(action: OrderAction): void {
   else if (action.key === "cancel") cancelling.value = maySell();
   // FR-9 — a refund out of a counted drawer is a sale into one, backwards.
   else if (action.key === "return") returning.value = maySell();
+  else if (action.key === "log") showingLog.value = true;
 }
 
 // --------------------------------------------------------------------------
@@ -1294,6 +1322,12 @@ async function send(): Promise<void> {
     </BaseDialog>
 
     <!-- FR-9 — the only way to reverse a sale (D-063, D-064). -->
+    <ActivityDialog
+      v-model="showingLog"
+      :order-name="orders.order?.order_name ?? null"
+      :number="orders.order?.daily_number ?? null"
+    />
+
     <ReturnDialog
       :open="returning"
       :order-name="orders.order?.order_name ?? null"

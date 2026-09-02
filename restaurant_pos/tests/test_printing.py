@@ -394,6 +394,55 @@ class TestTheAgentSeam(PrintingTestBase):
 		self.assertIn(job, [row["name"] for row in api.claim()])
 		self.assertEqual(frappe.db.get_value("POS Print Job", job, "attempts"), 1)
 
+	def test_a_ticket_whose_moment_has_passed_is_not_printed(self):
+		"""D-108 — a kitchen ticket has a shelf life.
+
+		An agent switched off all day and connected at closing would otherwise
+		print every ticket the day queued: a cook receiving twenty orders that
+		were served, cancelled or paid hours ago, with no way to tell which.
+		"""
+		kot = self._sent_kot()
+		job = service.print_kot(kot.name)
+		frappe.db.set_value(
+			"POS Print Job",
+			job,
+			"creation",
+			add_to_date(now_datetime(), minutes=-(api.STALE_AFTER_MINUTES + 1)),
+			update_modified=False,
+		)
+
+		self._as_agent()
+		claimed = [row["name"] for row in api.claim()]
+
+		self.assertNotIn(job, claimed)
+		self.assertEqual(frappe.db.get_value("POS Print Job", job, "status"), "failed")
+
+	def test_it_is_marked_rather_than_deleted(self):
+		"""'Queued and never printed' is the answer to a real question."""
+		kot = self._sent_kot()
+		job = service.print_kot(kot.name)
+		frappe.db.set_value(
+			"POS Print Job",
+			job,
+			"creation",
+			add_to_date(now_datetime(), minutes=-(api.STALE_AFTER_MINUTES + 1)),
+			update_modified=False,
+		)
+
+		self._as_agent()
+		api.claim()
+
+		self.assertTrue(frappe.db.exists("POS Print Job", job))
+		self.assertTrue(frappe.db.get_value("POS Print Job", job, "error"))
+
+	def test_a_fresh_ticket_is_untouched_by_that(self):
+		kot = self._sent_kot()
+		job = service.print_kot(kot.name)
+
+		self._as_agent()
+
+		self.assertIn(job, [row["name"] for row in api.claim()])
+
 	def test_an_agent_cannot_report_on_another_agent_s_job(self):
 		kot = self._sent_kot()
 		job = service.print_kot(kot.name)

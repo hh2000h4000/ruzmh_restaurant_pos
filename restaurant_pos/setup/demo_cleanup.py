@@ -71,6 +71,7 @@ def clean() -> None:
 
 	_drop_test_traffic(report)
 	_drop_e2e_printing(report)
+	_tidy_printers(report)
 	_drop_items(report)
 	_drop_tables(report)
 	_drop_production_centers(report)
@@ -184,6 +185,53 @@ ITEM_DEPENDENTS = (
 	("POS Printer Routing Rule", "item"),
 	("Restaurant Modifier Group Item", "item"),
 )
+
+
+def _tidy_printers(report: Report) -> None:
+	"""Leave one printer per name, each owned by an agent, and an empty queue.
+
+	Three things accumulate here and each is a trap of its own before a real
+	printer is plugged in:
+
+	* a printer nobody made deliberately — an English name among Arabic ones,
+	  duplicating another's address, and often the one a station points at;
+	* a station pointing at it, which is how a ticket goes to the wrong roll;
+	* **a queue of jobs waiting for an agent that never ran.** That is the worst
+	  of the three: the moment a real agent connects it prints the lot.
+	"""
+	from restaurant_pos.setup.demo import PRINTERS
+
+	shipped = {spec["title"] for spec in PRINTERS}
+
+	for printer in frappe.get_all("POS Printer", fields=["name", "title", "branch"]):
+		if printer.title in shipped:
+			continue
+
+		# A station pointing at a printer about to go would be left with none,
+		# and BR-070 level 7 would quietly send its food to the cashier.
+		replacement = frappe.db.get_value(
+			"POS Printer", {"title": "طابعة المشاوي", "branch": printer.branch}, "name"
+		)
+		for center in frappe.get_all("Production Center", filters={"printer": printer.name}, pluck="name"):
+			frappe.db.set_value("Production Center", center, "printer", replacement)
+			report.spared(f"{center} repointed to {replacement or 'no printer'}")
+
+		for job in frappe.get_all("POS Print Job", filters={"printer": printer.name}, pluck="name"):
+			frappe.db.set_value("POS Print Job", job, "status", "failed", update_modified=False)
+			frappe.delete_doc("POS Print Job", job, force=True, ignore_permissions=True)
+			report.gone("POS Print Job")
+
+		frappe.db.set_value("POS Profile", {"default_printer": printer.name}, "default_printer", None)
+		frappe.delete_doc("POS Printer", printer.name, force=True, ignore_permissions=True)
+		report.gone("POS Printer")
+
+	# Everything still waiting for an agent that has never run. Left alone, the
+	# first real agent to connect would print all of it (`D-108` stops that at
+	# claim time too, but a queue of hundreds is not what a first test wants).
+	waiting = frappe.get_all("POS Print Job", filters={"status": "queued"}, pluck="name")
+	for job in waiting:
+		frappe.delete_doc("POS Print Job", job, force=True, ignore_permissions=True)
+	report.gone("POS Print Job", len(waiting))
 
 
 def _drop_items(report: Report) -> None:

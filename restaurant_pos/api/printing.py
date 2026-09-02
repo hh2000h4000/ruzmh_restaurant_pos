@@ -33,6 +33,18 @@ STALE_CLAIM_SECONDS = 120
 #: crashed agent strands a small number of tickets.
 CLAIM_BATCH = 5
 
+#: How long a queued job is still worth printing (`D-108`).
+#:
+#: **A kitchen ticket has a shelf life.** An agent that has been off all day and
+#: connects at closing time would otherwise print every ticket the day queued —
+#: sending a cook a rush of orders that were served hours ago, or cancelled.
+#: Twenty minutes is longer than any outage a cook could work through and far
+#: shorter than a service.
+#:
+#: A receipt is the same argument from the other side: a customer who left
+#: without one an hour ago is not helped by it appearing now.
+STALE_AFTER_MINUTES = 20
+
 
 # --------------------------------------------------------------------------- #
 # The agent
@@ -53,6 +65,7 @@ def claim(version: str | None = None, host: str | None = None) -> list[dict]:
 	agent.seen(version=version, host=host)
 
 	_reclaim_stale(agent_name)
+	_expire_old(agent_name)
 
 	queued = frappe.get_all(
 		"POS Print Job",
@@ -114,6 +127,41 @@ def _reclaim_stale(agent_name: str) -> None:
 			{"status": "queued", "attempts": (row.attempts or 0) + 1},
 			update_modified=False,
 		)
+
+
+def _expire_old(agent_name: str) -> None:
+	"""Drop the backlog rather than print it (`D-108`).
+
+	An agent that was switched off all day, or a printer nobody had plugged in
+	yet, comes back to a queue full of tickets whose moment has passed. Printing
+	them is not catching up — it is a cook receiving twenty orders that were
+	served, cancelled or paid hours ago, with no way to tell which.
+
+	Marked failed rather than deleted: "this was queued and never printed" is
+	the answer to a question somebody will ask, and a row that vanished answers
+	nothing. The fallback printer is not tried either — the same staleness
+	applies there.
+	"""
+	cutoff = add_to_date(now_datetime(), minutes=-STALE_AFTER_MINUTES)
+	stale = frappe.get_all(
+		"POS Print Job",
+		filters={"agent": agent_name, "status": "queued", "creation": ("<", cutoff)},
+		pluck="name",
+	)
+
+	for name in stale:
+		frappe.db.set_value(
+			"POS Print Job",
+			name,
+			{
+				"status": "failed",
+				"error": f"Not printed within {STALE_AFTER_MINUTES} minutes; too late to be useful.",
+			},
+			update_modified=False,
+		)
+
+	if stale:
+		frappe.log_error(f"{len(stale)} stale print jobs dropped for {agent_name}", "RPOS printing")
 
 
 def _connection(printer: str) -> dict:

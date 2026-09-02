@@ -27,7 +27,7 @@ import frappe
 from frappe import _
 from frappe.utils import flt, now_datetime
 
-from restaurant_pos.utils import printing
+from restaurant_pos.utils import activity, printing
 from restaurant_pos.utils.audit import log_audit
 
 #: Lines that still have to reach the kitchen.
@@ -79,6 +79,24 @@ def send_to_kitchen(order, *, kot_type: str | None = None) -> dict:
 	for kot in created:
 		_announce(kot)
 		printing.enqueue_print("print_kot", kot_name=kot.name)
+
+	# Station **names**, not ids. `PC-001, PC-007` is not a sentence anybody
+	# reads — the same lesson the kitchen ticket taught (`D-087`).
+	stations = sorted(
+		{
+			frappe.db.get_value("Production Center", kot.production_center, "title_ar")
+			or frappe.db.get_value("Production Center", kot.production_center, "title")
+			or kot.production_center
+			for kot in created
+		}
+	)
+
+	activity.log(
+		order,
+		"sent_to_kitchen",
+		subject="، ".join(stations),
+		details={"kots": [k.name for k in created], "unrouted": [r.item_name for r in unrouted]},
+	)
 
 	return {
 		"kots_created": [

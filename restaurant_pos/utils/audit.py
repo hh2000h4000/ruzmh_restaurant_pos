@@ -60,7 +60,43 @@ def log_audit(
 		}
 	)
 	entry.insert(ignore_permissions=True)
+
+	# A sensitive action is also part of the bill's story (`D-106`), and it is
+	# written from here so no call site has to remember two logs. Remembering it
+	# at every site is how one of them gets missed, and the missed one is always
+	# the interesting entry.
+	if restaurant_order and action_type in _ORDER_STORY:
+		from restaurant_pos.utils import activity
+
+		activity.log(
+			restaurant_order,
+			_ORDER_STORY[action_type],
+			subject=reason,
+			details=redact(details) if details else None,
+			audit_log=entry.name,
+			user=cashier or frappe.session.user,
+		)
+
 	return entry.name
+
+
+#: Audit actions that belong in a bill's timeline, and what they are called
+#: there. Anything absent is about a shift, a terminal or a person rather than
+#: about one bill, and has no place on its story.
+_ORDER_STORY = {
+	"void_item": "item_voided",
+	"void_order": "cancelled",
+	"cancel_order": "cancelled",
+	"discount_applied": "discount_applied",
+	"discount_override": "discount_applied",
+	"price_change": "item_qty_changed",
+	"payment_method_override": "paid",
+	"return_created": "returned",
+	"order_reopened": "opened",
+	"reprint_receipt": "reprinted",
+	"order_type_changed": "type_changed",
+	"table_changed": "table_changed",
+}
 
 
 def redact(value):

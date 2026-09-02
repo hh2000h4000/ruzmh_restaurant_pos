@@ -22,7 +22,7 @@ import frappe
 from frappe import _
 from frappe.utils import flt, now_datetime
 
-from restaurant_pos.utils import kitchen, printing, totals
+from restaurant_pos.utils import activity, kitchen, printing, totals
 from restaurant_pos.utils.audit import log_audit
 from restaurant_pos.utils.order import (
 	assert_mutable,
@@ -113,6 +113,18 @@ def process_payment(
 	# is how a drawer ends up sitting open through a queue.
 	if any(_is_cash(row["method"]) for row in payments):
 		printing.open_drawer(order.pos_profile, reason=f"cash payment on {order.name}")
+
+	activity.log(
+		order,
+		"paid",
+		subject=f"{flt(invoice.rounded_total or invoice.grand_total):.2f}",
+		details={
+			"sales_invoice": invoice.name,
+			"settlement": settlement,
+			"methods": [row["method"] for row in payments],
+			"change": change,
+		},
+	)
 
 	return {
 		"order_name": order.name,

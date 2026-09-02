@@ -19,7 +19,7 @@ import frappe
 from frappe import _
 from frappe.utils import cint, flt, now_datetime
 
-from restaurant_pos.utils import kitchen, numbering, routing, totals
+from restaurant_pos.utils import activity, kitchen, numbering, routing, totals
 from restaurant_pos.utils.audit import log_audit
 from restaurant_pos.utils.permissions import (
 	assert_permission,
@@ -182,6 +182,13 @@ def create_order(
 
 	if order.table:
 		set_table_status(order.table, "occupied", order.name)
+
+	activity.log(
+		order,
+		"opened",
+		subject=config.title_ar or config.title,
+		details={"order_type": order_type, "table": order.table, "daily_number": order.daily_number},
+	)
 
 	return order
 
@@ -495,6 +502,14 @@ def add_item(
 
 	totals.calculate(order)
 	order.save(ignore_permissions=True)
+
+	activity.log(
+		order,
+		"item_added",
+		subject=f"{flt(qty):g} x {row.item_name}",
+		details={"item": item, "qty": flt(qty), "rate": unit_rate, "amount": row.amount},
+	)
+
 	return row
 
 
@@ -671,6 +686,13 @@ def set_item_qty(order, *, item_idx: int, qty: float) -> dict:
 	totals.calculate(order)
 	order.save(ignore_permissions=True)
 
+	activity.log(
+		order,
+		"item_qty_changed",
+		subject=f"{row.item_name}: {before:g} → {flt(row.qty):g}",
+		details={"item": row.item, "from": before, "to": flt(row.qty)},
+	)
+
 	return {"item_idx": row.idx, "qty": flt(row.qty), "amount": flt(row.amount)}
 
 
@@ -703,9 +725,18 @@ def remove_item(order, *, item_idx: int) -> dict:
 			frappe.ValidationError,
 		)
 
+	removed_name = row.item_name
+	removed_item = row.item
 	order.remove(row)
 	totals.calculate(order)
 	order.save(ignore_permissions=True)
+
+	activity.log(
+		order,
+		"item_removed",
+		subject=removed_name,
+		details={"item": removed_item, "row": cint(item_idx)},
+	)
 
 	return {"removed": cint(item_idx)}
 

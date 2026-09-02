@@ -43,6 +43,9 @@ doc_events = {
 scheduler_events = {
 	"daily": [
 		"restaurant_pos.utils.printing.prune_jobs",
+		# D-106 — a dozen rows per bill is millions a year. The order is kept for
+		# ever; a year-old "quantity changed from 1 to 2" answers nothing.
+		"restaurant_pos.utils.activity.prune_default",
 	],
 }
 

@@ -215,6 +215,85 @@ def test_print(printer: str) -> dict:
 
 
 @frappe.whitelist()
+def preview_template(template: str) -> dict:
+	"""Render a template against a real document and hand back the bitmap.
+
+	**Designing a receipt blind does not work**, and this project has the scars
+	to prove it: a currency that ran into the total, item names sheared off the
+	roll, a date reading 00:00:00, and a threshold that silently deleted every
+	full stop — each one written in correct HTML, each one found by looking at
+	the output rather than at the markup (`D-086`, `D-087`, `D-109`).
+
+	So the preview is the **same pipeline the printer gets**, down to the
+	one-bit conversion: rendered, thresholded, and shown at the paper's real dot
+	width. A preview that skipped that would be a browser screenshot, which is
+	exactly the thing that flattered every one of those defects.
+	"""
+	doc = frappe.get_doc("POS Print Template", template)
+	if doc.branch:
+		validate_branch_access(doc.branch)
+
+	context = _sample_context(doc.template_type)
+	if not context:
+		frappe.throw(_("Nothing to preview with: this site has no {0} yet.").format(_(doc.template_type)))
+
+	html = frappe.render_template(doc.template_html, context)
+	png = service.html_to_png(html, width_dots=service.PAPER_DOTS[doc.paper_width])
+
+	# Through the one-bit conversion, then back to PNG: what the paper gets.
+	import base64
+	import io
+
+	from PIL import Image
+
+	image = Image.open(io.BytesIO(png)).convert("L")
+	image = image.point(lambda value: 0 if value < service.INK_THRESHOLD else 255, mode="1")
+
+	out = io.BytesIO()
+	image.save(out, format="PNG")
+
+	return {
+		"image": f"data:image/png;base64,{base64.b64encode(out.getvalue()).decode('ascii')}",
+		"width_dots": image.size[0],
+		"height_dots": image.size[1],
+		"sample": context.get("_sample"),
+	}
+
+
+def _sample_context(template_type: str) -> dict | None:
+	"""A real document of the right kind, or nothing.
+
+	Real rather than invented: a made-up order has tidy short names and round
+	numbers, and every layout fault this project has had came from the awkward
+	real ones — a long Arabic dish, a table id, a tax description with digits in
+	it.
+	"""
+	if template_type == "kot":
+		name = frappe.db.get_value("Kitchen Order Ticket", {}, "name", order_by="creation desc")
+		if not name:
+			return None
+		kot = frappe.get_doc("Kitchen Order Ticket", name)
+		center = frappe.get_doc("Production Center", kot.production_center)
+		return service.kot_context(kot, center) | {"_sample": name}
+
+	if template_type in ("customer_receipt", "bill_preview"):
+		name = frappe.db.get_value(
+			"Sales Invoice", {"docstatus": 1, "is_pos": 1}, "name", order_by="creation desc"
+		)
+		if not name:
+			return None
+		invoice = frappe.get_doc("Sales Invoice", name)
+		order = frappe.db.get_value("Restaurant Order", {"sales_invoice": name}, "name")
+		return service.receipt_context(invoice, service._receipt_order(order)) | {"_sample": name}
+
+	name = frappe.db.get_value("POS Closing Entry", {}, "name", order_by="creation desc")
+	if not name:
+		return None
+
+	return {"doc": frappe.get_doc("POS Closing Entry", name), "_sample": name}
+
+
+@frappe.whitelist()
 def jobs_for(reference_doctype: str, reference_name: str) -> list[dict]:
 	"""Every print job raised for one document, newest first.
 

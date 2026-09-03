@@ -315,6 +315,7 @@ export const messages = {
   "pay.newOrder": "New order",
   "pay.methods": "Payment methods",
   "pay.split": "Split evenly",
+  "table.whichBill": "Which bill?",
   "pay.splitProgress": "{done} of {ways} paid · next share {amount}",
   "pay.splitSettled": "All {ways} shares taken",
   "pay.splitClear": "Cancel split",
@@ -338,6 +339,7 @@ export const messages = {
 
 export const plurals = {
   "count.items": { one: "{n} item", other: "{n} items" },
+  "count.bills": { one: "{n} bill", other: "{n} bills" },
   "count.seats": { one: "{n} seat", other: "{n} seats" },
   "count.minutes": { one: "{n} min", other: "{n} min" },
   "count.queued": { one: "{n} action waiting", other: "{n} actions waiting" },

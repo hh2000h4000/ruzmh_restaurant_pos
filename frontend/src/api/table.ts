@@ -7,9 +7,22 @@ export interface FloorTable {
   capacity: number;
   shape: string | null;
   current_order: string | null;
-  order_status?: string;
-  order_minutes?: number;
-  item_count?: number;
+  /**
+   * Every bill open on this table, oldest first — a table may carry more than
+   * one where the branch allows it (`BR-066`). `current_order` names only one
+   * of them and is kept for the desk; read this.
+   */
+  orders: TableBill[];
+}
+
+export interface TableBill {
+  name: string;
+  daily_number: number | null;
+  status: string;
+  total_amount: number;
+  /** Lines, not plates: two of the same dish is one row. */
+  item_count: number;
+  minutes: number;
 }
 
 export interface FloorPlan {

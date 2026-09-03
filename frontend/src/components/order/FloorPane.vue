@@ -3,6 +3,7 @@ import { computed, onMounted, ref, watch } from "vue";
 
 import { getFloorPlan, type FloorTable } from "@/api/table";
 import AppIcon from "@/components/AppIcon.vue";
+import BillPicker from "@/components/order/BillPicker.vue";
 import { pick, t, tn } from "@/i18n";
 import { useSessionStore } from "@/stores/session";
 
@@ -31,6 +32,9 @@ const session = useSessionStore();
 
 const tables = ref<FloorTable[]>([]);
 const loading = ref(true);
+
+/** The table whose bills the cashier is choosing between (`BR-066`). */
+const picking = ref<FloorTable | null>(null);
 const failure = ref<string | null>(null);
 
 const sections = computed(() => session.data?.sections ?? []);
@@ -76,15 +80,31 @@ async function load(): Promise<void> {
   }
 }
 
-/** FR-5.2 — an occupied table opens the order it has; a free one seats this one. */
+/**
+ * FR-5.2 — an occupied table opens its bill; a free one seats this order.
+ *
+ * More than one bill on the table (`BR-066`) is a question, not a guess.
+ */
 function onTable(table: FloorTable): void {
-  if (table.current_order) {
-    emit("open", table.current_order);
+  const bills = table.orders ?? [];
+
+  if (bills.length > 1) {
+    picking.value = table;
+    return;
+  }
+
+  if (bills.length === 1) {
+    emit("open", bills[0].name);
     return;
   }
 
   if (table.status !== "available" && table.status !== "reserved") return;
   emit("seat", table);
+}
+
+function openBill(orderName: string): void {
+  picking.value = null;
+  emit("open", orderName);
 }
 
 defineExpose({ reload: load });
@@ -168,11 +188,16 @@ defineExpose({ reload: load });
           <span class="text-xs font-medium">{{ statusLabel[table.status] }}</span>
 
           <span
-            v-if="table.current_order"
+            v-if="(table.orders ?? []).length"
             class="rpos-numeric text-xs"
           >
-            {{ tn("count.minutes", table.order_minutes ?? 0) }} ·
-            {{ tn("count.items", table.item_count ?? 0) }}
+            <template v-if="table.orders.length > 1">
+              {{ tn("count.bills", table.orders.length) }}
+            </template>
+            <template v-else>
+              {{ tn("count.minutes", table.orders[0].minutes) }} ·
+              {{ tn("count.items", table.orders[0].item_count) }}
+            </template>
           </span>
           <span
             v-else-if="table.capacity"
@@ -190,5 +215,10 @@ defineExpose({ reload: load });
         {{ t("tables.empty") }}
       </p>
     </div>
+      <BillPicker
+      :table="picking"
+      @pick="openBill"
+      @close="picking = null"
+    />
   </section>
 </template>

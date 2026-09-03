@@ -307,6 +307,7 @@ const messages: Catalogue["messages"] = {
   "pay.newOrder": "طلب جديد",
   "pay.methods": "طرق الدفع",
   "pay.split": "قسّم بالتساوي",
+  "table.whichBill": "أي فاتورة؟",
   "pay.splitProgress": "{done} من {ways} دُفعت · الحصة التالية {amount}",
   "pay.splitSettled": "كل الحصص الـ{ways} استُلمت",
   "pay.splitClear": "إلغاء التقسيم",
@@ -333,6 +334,14 @@ const messages: Catalogue["messages"] = {
  * wrong where "صنفان" is right. `Intl.PluralRules` chooses; this table words it.
  */
 const plurals: Catalogue["plurals"] = {
+  "count.bills": {
+    zero: "بلا فواتير",
+    one: "فاتورة واحدة",
+    two: "فاتورتان",
+    few: "{n} فواتير",
+    many: "{n} فاتورة",
+    other: "{n} فاتورة",
+  },
   "count.items": {
     zero: "بلا أصناف",
     one: "صنف واحد",

@@ -142,7 +142,10 @@ class BillsOnOneTable(OrderTestBase):
 		table = next(row for row in plan["tables"] if row["name"] == self.table)
 
 		self.assertEqual([bill["name"] for bill in table["orders"]], [first.name, second.name])
-		self.assertEqual(table["orders"][0]["item_count"], 2)
+		# Lines, not plates: `item_count` has always counted rows, and two of
+		# the same dish is one row. What matters here is that the count belongs
+		# to the bill that ordered it and not to the table.
+		self.assertEqual(table["orders"][0]["item_count"], 1)
 		self.assertEqual(table["orders"][1]["item_count"], 0)
 
 	def test_an_empty_table_reports_no_bills(self):

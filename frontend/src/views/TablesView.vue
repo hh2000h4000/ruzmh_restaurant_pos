@@ -4,6 +4,7 @@ import { useRoute, useRouter } from "vue-router";
 
 import { getFloorPlan, type FloorTable } from "@/api/table";
 import BaseDialog from "@/components/BaseDialog.vue";
+import BillPicker from "@/components/order/BillPicker.vue";
 import { pick, t, tn } from "@/i18n";
 import { useOrderStore } from "@/stores/order";
 import { useSessionStore } from "@/stores/session";
@@ -45,6 +46,9 @@ const loading = ref(true);
 const failure = ref<string | null>(null);
 
 const chosen = ref<FloorTable | null>(null);
+
+/** The table whose bills the cashier is choosing between (`BR-066`). */
+const picking = ref<FloorTable | null>(null);
 const coverCount = ref(2);
 const creating = ref(false);
 
@@ -109,13 +113,27 @@ async function load(): Promise<void> {
 /** Switching halls re-reads the floor; nothing else about the screen changes. */
 watch(activeSection, () => {
   chosen.value = null;
+  picking.value = null;
   void load();
 });
 
-/** FR-5.2 — free table starts an order, occupied table opens the one it has. */
+/**
+ * FR-5.2 — a free table starts an order, an occupied one opens its bill.
+ *
+ * With more than one bill on the table (`BR-066`) there is nothing to guess
+ * at, so the cashier is asked which. Picking for them is how a waiter adds a
+ * round of drinks to the wrong party's bill.
+ */
 async function onTable(table: FloorTable): Promise<void> {
-  if (table.current_order) {
-    await router.push({ name: "order", params: { orderName: table.current_order } });
+  const bills = table.orders ?? [];
+
+  if (bills.length > 1) {
+    picking.value = table;
+    return;
+  }
+
+  if (bills.length === 1) {
+    await router.push({ name: "order", params: { orderName: bills[0].name } });
     return;
   }
 
@@ -123,6 +141,11 @@ async function onTable(table: FloorTable): Promise<void> {
 
   chosen.value = table;
   coverCount.value = Math.min(table.capacity || 2, 4) || 2;
+}
+
+async function openBill(orderName: string): Promise<void> {
+  picking.value = null;
+  await router.push({ name: "order", params: { orderName } });
 }
 
 async function startOrder(): Promise<void> {
@@ -252,11 +275,16 @@ async function startOrder(): Promise<void> {
           <span class="text-xs font-medium">{{ statusLabel[table.status] }}</span>
 
           <span
-            v-if="table.current_order"
+            v-if="(table.orders ?? []).length"
             class="rpos-numeric text-xs"
           >
-            {{ tn("count.minutes", table.order_minutes ?? 0) }} ·
-            {{ tn("count.items", table.item_count ?? 0) }}
+            <template v-if="table.orders.length > 1">
+              {{ tn("count.bills", table.orders.length) }}
+            </template>
+            <template v-else>
+              {{ tn("count.minutes", table.orders[0].minutes) }} ·
+              {{ tn("count.items", table.orders[0].item_count) }}
+            </template>
           </span>
           <span
             v-else-if="table.capacity"
@@ -286,6 +314,12 @@ async function startOrder(): Promise<void> {
         </span>
       </footer>
     </template>
+
+    <BillPicker
+      :table="picking"
+      @pick="openBill"
+      @close="picking = null"
+    />
 
     <BaseDialog
       :open="Boolean(chosen)"

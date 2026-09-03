@@ -297,9 +297,14 @@ class TestOneBranchCannotReadAnother(ShiftTestBase):
 	"""
 
 	CASHIER = "rpos_other_branch@example.com"
+	#: A real Branch, because `User Permission` validates the link — restricting
+	#: someone to a branch that does not exist is refused before the test starts.
+	OTHER = "_RPOS Other Branch"
 
 	def setUp(self):
 		super().setUp()
+		if not frappe.db.exists("Branch", self.OTHER):
+			frappe.get_doc({"doctype": "Branch", "branch": self.OTHER}).insert(ignore_permissions=True)
 		if not frappe.db.exists("User", self.CASHIER):
 			frappe.get_doc(
 				{
@@ -328,7 +333,7 @@ class TestOneBranchCannotReadAnother(ShiftTestBase):
 				"doctype": "User Permission",
 				"user": self.CASHIER,
 				"allow": "Branch",
-				"for_value": "_RPOS Somewhere Else",
+				"for_value": self.OTHER,
 			}
 		).insert(ignore_permissions=True)
 

@@ -156,9 +156,11 @@ hr { border: 0; border-top: 1px dashed #000; margin: 0.4rem 0; }
  * would be reading them off the wrong side of every line. A flex row puts the
  * first child at the start edge and the renderer has no say in it. */
 .kitem { padding: 0.3rem 0; }
-.kline { display: flex; gap: 0.6rem; align-items: baseline; }
+.kline { display: flex; align-items: baseline; }
+/* A margin, not the row's `gap`: this renderer ignores flex `gap`, and
+ * "2&times;برغر كلاسيك" came out with the quantity welded to the name. */
 .kline > .q { flex: 0 0 auto; font-size: 1.6rem; font-weight: bold;
-	direction: ltr; unicode-bidi: isolate; }
+	direction: ltr; unicode-bidi: isolate; margin-inline-end: 0.6rem; }
 .kline > .n { flex: 1 1 auto; min-width: 0; font-size: 1.5rem; font-weight: bold; }
 /* Not a heading — a warning. A cook who reads an addition ticket as a new order
  * cooks the whole order twice, and one who misses a void ticket cooks something

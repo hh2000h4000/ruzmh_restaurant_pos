@@ -215,7 +215,7 @@ defineExpose({ reload: load });
         {{ t("tables.empty") }}
       </p>
     </div>
-      <BillPicker
+    <BillPicker
       :table="picking"
       @pick="openBill"
       @close="picking = null"

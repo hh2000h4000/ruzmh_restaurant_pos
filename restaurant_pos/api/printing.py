@@ -190,10 +190,14 @@ def test_print(printer: str) -> dict:
 	The first question anybody asks a printer setup screen is "is this thing
 	plugged in?", and every professional POS answers it with a button. Without
 	one the first real test is a customer's receipt during service.
+
+	It also answers the second question, which is worse because it looks like a
+	template bug: **is the paper the width we think it is?** (`D-111`)
 	"""
 	doc = frappe.get_doc("POS Printer", printer)
 	validate_branch_access(doc.branch)
 
+	width = service.PAPER_DOTS[doc.paper_width]
 	rendered = service.png_to_escpos(
 		service.html_to_png(
 			frappe.render_template(
@@ -202,9 +206,13 @@ def test_print(printer: str) -> dict:
 					"printer": doc,
 					"now": frappe.utils.format_datetime(now_datetime()),
 					"agent": doc.print_agent,
+					"width": width,
+					"marks": sorted(
+						(dots, name) for name, dots in service.PAPER_DOTS.items() if dots <= width
+					),
 				},
 			),
-			width_dots=service.PAPER_DOTS[doc.paper_width],
+			width_dots=width,
 		),
 		cut=bool(doc.cut_after_print),
 	)
@@ -364,6 +372,25 @@ TEST_PAGE = """
 	<hr>
 	<div style="font-size: 13px; direction: rtl;">
 		إذا قرأت هذا السطر كاملاً فالطابعة والاتصال سليمان.
+	</div>
+
+	<!-- The width ruler. Each label is drawn to the *left* of its mark, so the
+	     label for the width that actually fits stays on the roll and the wider
+	     ones fall off with the paper. A plain bar cannot say this: sent 576
+	     dots wide to a printer that reaches 384, it runs to the edge of 58mm
+	     paper and looks perfectly complete. -->
+	<div style="position: relative; width: {{ width }}px; height: 58px; margin: 10px -8px 0;">
+		<div style="position: absolute; left: 0; top: 0; width: {{ width }}px;
+			height: 8px; background: #000;"></div>
+		{% for at, name in marks %}
+		<div style="position: absolute; left: {{ at - 3 }}px; top: 0;
+			width: 3px; height: 24px; background: #000;"></div>
+		<div style="position: absolute; left: {{ at - 63 }}px; top: {{ 26 if loop.index0 % 2 == 0 else 40 }}px;
+			width: 60px; direction: ltr; text-align: right; font-size: 12px;">{{ name }}</div>
+		{% endfor %}
+	</div>
+	<div style="font-size: 12px; direction: rtl; text-align: right;">
+		آخر مقاس تراه على الورق هو عرض الطابعة الحقيقي.
 	</div>
 </body></html>
 """

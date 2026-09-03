@@ -326,10 +326,19 @@ def assert_table_free(table: str, branch: str | None) -> frappe._dict:
 	if table_section_branch(state.section) != branch:
 		frappe.throw(_("Table {0} is not in this branch.").format(table))
 
-	if state.status not in ("available", "reserved"):
-		frappe.throw(_("Table {0} is {1}.").format(table, _(state.status)))
+	if state.status in ("available", "reserved"):
+		return state
 
-	return state
+	# A second bill on a table that already has one, when the restaurant allows
+	# it (`BR-066`). Two couples on a large table, or a group that asked to be
+	# billed separately from the start — ordinary in some restaurants and an
+	# error in others, so it is the restaurant's setting and it is off by
+	# default. A till that quietly opened a second bill on table four would turn
+	# one party into two, and the mistake surfaces when somebody pays half of it.
+	if state.status == "occupied" and allows_second_bill(branch):
+		return state
+
+	frappe.throw(_("Table {0} is {1}.").format(table, _(state.status)))
 
 
 def table_section_branch(section: str | None) -> str | None:
@@ -825,7 +834,7 @@ def cancel_order(order, *, reason: str, override_token: str | None = None) -> di
 	order.save(ignore_permissions=True)
 
 	if order.table:
-		set_table_status(order.table, "available", None)
+		release_table(order.table)
 
 	void_kots = kitchen.create_void_kot(order, sent_rows)
 
@@ -845,6 +854,49 @@ def cancel_order(order, *, reason: str, override_token: str | None = None) -> di
 # --------------------------------------------------------------------------- #
 # Tables
 # --------------------------------------------------------------------------- #
+
+
+def allows_second_bill(branch: str | None) -> bool:
+	"""Whether this branch lets a table carry more than one open bill (BR-066)."""
+	return bool(branch) and bool(
+		frappe.get_cached_value("Branch", branch, "allow_multiple_orders_per_table")
+	)
+
+
+def open_orders_on(table: str) -> list[str]:
+	"""The bills still live on a table, oldest first.
+
+	Oldest first so the one a tap opens is the party that sat down first, and so
+	releasing the table falls back to a bill that has been waiting rather than
+	to whichever was created last.
+	"""
+	return frappe.get_all(
+		"Restaurant Order",
+		filters={"table": table, "status": ("not in", FINAL_STATES)},
+		order_by="creation asc",
+		pluck="name",
+	)
+
+
+def release_table(table: str, *, to: str = "available") -> None:
+	"""Let go of a table when the bill leaving it was the last one (BR-066).
+
+	**Six paths release a table** — paid, cancelled, transferred away, order
+	type changed — and every one of them used to say "available, no order".
+	With more than one bill allowed that is wrong five times out of six: the
+	table is still occupied by whoever is left, and freeing it puts an empty
+	seat on the floor plan while people are still eating at it.
+
+	So the question is asked once, here, in the function they all already pass
+	through. A condition remembered in six places is a condition five of them
+	get right (`D-058`).
+	"""
+	remaining = open_orders_on(table)
+	if remaining:
+		set_table_status(table, "occupied", remaining[0])
+		return
+
+	set_table_status(table, to, None)
 
 
 def set_table_status(table: str, status: str, order_name: str | None) -> None:
@@ -983,7 +1035,7 @@ def change_order_type(
 	order.save(ignore_permissions=True)
 
 	if released:
-		set_table_status(released, "available", None)
+		release_table(released)
 	if order.table and order.table != before["table"]:
 		set_table_status(order.table, "occupied", order.name)
 
@@ -1170,7 +1222,7 @@ def seat_order(
 	# Released only after the save: a table freed for an order that then failed
 	# to save is a table the floor plan says is empty and the kitchen does not.
 	if leaving:
-		set_table_status(leaving, "available", None)
+		release_table(leaving)
 	set_table_status(table, "occupied", order.name)
 
 	if leaving:

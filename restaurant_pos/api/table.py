@@ -15,6 +15,7 @@ import frappe
 from frappe import _
 from frappe.utils import now_datetime, time_diff_in_seconds
 
+from restaurant_pos.utils.order import FINAL_STATES, open_orders_on, set_table_status
 from restaurant_pos.utils.permissions import validate_branch_access
 
 
@@ -64,44 +65,56 @@ def get_floor_plan(section: str) -> dict:
 
 
 def _annotate_orders(tables: list) -> None:
-	"""Add elapsed time and item count to occupied tables (FR-5.1).
+	"""Hang every open bill on its table, with elapsed time and item count.
 
-	One query for every open order rather than one per table: a busy section is
-	fifty tables, and the floor plan refreshes on every realtime event
+	Keyed by **table**, not by the table's `current_order`: a table may carry
+	more than one bill where the branch allows it (`BR-066`), and a floor plan
+	showing only the first would hide the other party's food and their money.
+
+	Still two queries for the whole section rather than two per table: a busy
+	section is fifty tables and the floor plan redraws on every realtime event
 	(``04`` §8 gives it 300ms).
 	"""
-	order_names = [row.current_order for row in tables if row.current_order]
-	if not order_names:
+	names = [table.name for table in tables]
+	if not names:
 		return
 
-	orders = {
-		row.name: row
-		for row in frappe.get_all(
-			"Restaurant Order",
-			filters={"name": ("in", order_names)},
-			fields=["name", "opened_at", "status", "total_amount"],
-		)
-	}
+	bills = frappe.get_all(
+		"Restaurant Order",
+		filters={"table": ("in", names), "status": ("not in", FINAL_STATES)},
+		fields=["name", "table", "daily_number", "opened_at", "status", "total_amount"],
+		order_by="creation asc",
+	)
+	if not bills:
+		for table in tables:
+			table.orders = []
+		return
 
 	counts: dict[str, int] = {}
 	for row in frappe.get_all(
 		"Restaurant Order Item",
-		filters={"parent": ("in", order_names), "parenttype": "Restaurant Order"},
+		filters={"parent": ("in", [bill.name for bill in bills]), "parenttype": "Restaurant Order"},
 		fields=["parent", "status"],
 	):
 		if row.status != "void":
 			counts[row.parent] = counts.get(row.parent, 0) + 1
 
 	now = now_datetime()
-	for table in tables:
-		order = orders.get(table.current_order)
-		if not order:
-			continue
+	by_table: dict[str, list] = {}
+	for bill in bills:
+		by_table.setdefault(bill.table, []).append(
+			{
+				"name": bill.name,
+				"daily_number": bill.daily_number,
+				"status": bill.status,
+				"total_amount": bill.total_amount,
+				"item_count": counts.get(bill.name, 0),
+				"minutes": int(time_diff_in_seconds(now, bill.opened_at) // 60) if bill.opened_at else 0,
+			}
+		)
 
-		table.order_status = order.status
-		table.order_total = order.total_amount
-		table.item_count = counts.get(order.name, 0)
-		table.order_minutes = int(time_diff_in_seconds(now, order.opened_at) // 60) if order.opened_at else 0
+	for table in tables:
+		table.orders = by_table.get(table.name, [])
 
 
 @frappe.whitelist()
@@ -111,21 +124,21 @@ def update_status(table: str, status: str) -> dict:
 	Refuses to free a table that still has an order on it; that is what closing
 	or cancelling the order is for (BR-061).
 	"""
-	from restaurant_pos.utils.order import set_table_status
-
 	allowed = {"available", "cleaning", "inactive"}
 	if status not in allowed:
 		frappe.throw(_("A table cannot be set to {0} by hand.").format(_(status)))
 
-	current = frappe.db.get_value("Restaurant Table", table, ["section", "current_order"], as_dict=True)
-	if not current:
+	section = frappe.db.get_value("Restaurant Table", table, "section")
+	if not section:
 		frappe.throw(_("Table {0} does not exist.").format(table))
 
-	branch = frappe.db.get_value("Restaurant Section", current.section, "branch")
-	validate_branch_access(branch)
+	validate_branch_access(frappe.db.get_value("Restaurant Section", section, "branch"))
 
-	if current.current_order and status == "available":
+	# Asked of the orders rather than of the table's own `current_order`, which
+	# names one bill and a table may now hold several (`BR-066`).
+	open_bills = open_orders_on(table)
+	if open_bills and status == "available":
 		frappe.throw(_("Table {0} still has an open order.").format(table), frappe.ValidationError)
 
-	set_table_status(table, status, current.current_order if status != "available" else None)
+	set_table_status(table, status, open_bills[0] if open_bills and status != "available" else None)
 	return {"table": table, "status": status}

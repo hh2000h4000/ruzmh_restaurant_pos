@@ -142,11 +142,26 @@ CUSTOM_FIELDS = {
 			"insert_after": "settlement_required",
 		},
 		{
+			# BR-066 — whether a table may carry more than one bill at a time.
+			"fieldname": "allow_multiple_orders_per_table",
+			"fieldtype": "Check",
+			"default": "0",
+			"label": "Allow more than one bill on a table",
+			"description": (
+				"On: a table can carry several open bills at once — two couples sharing a "
+				"large table, or a group that asked to be billed separately from the start. "
+				"Off: a table has one bill, and a second attempt is refused. Off by default: "
+				"a till that quietly opens a second bill on table four turns one party into "
+				"two, and the mistake surfaces when somebody pays half of it."
+			),
+			"insert_after": "close_open_orders_with_day",
+		},
+		{
 			"fieldname": "is_active",
 			"fieldtype": "Check",
 			"label": "Is Active",
 			"default": "1",
-			"insert_after": "close_open_orders_with_day",
+			"insert_after": "allow_multiple_orders_per_table",
 		},
 		{
 			"fieldname": "rpos_address_section",

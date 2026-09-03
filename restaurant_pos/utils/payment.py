@@ -27,7 +27,7 @@ from restaurant_pos.utils.audit import log_audit
 from restaurant_pos.utils.order import (
 	assert_mutable,
 	assert_transition,
-	set_table_status,
+	release_table,
 )
 from restaurant_pos.utils.permissions import (
 	assert_within_discount_limit,
@@ -82,8 +82,9 @@ def process_payment(
 	order.save(ignore_permissions=True)
 
 	if order.table:
-		# BR-061 / FR-2.7g — the table is not free until it has been cleaned.
-		set_table_status(order.table, "cleaning", None)
+		# BR-061 / FR-2.7g — the table is not free until it has been cleaned,
+		# and not even then while another bill is still open on it (BR-066).
+		release_table(order.table, to="cleaning")
 
 	kots = _send_kitchen_if_due(order)
 

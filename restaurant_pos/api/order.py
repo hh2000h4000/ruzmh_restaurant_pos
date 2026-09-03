@@ -394,6 +394,60 @@ def cancel_order(
 	return result
 
 
+@frappe.whitelist()
+def split_bill(
+	order_name: str,
+	rows: list | str,
+	cover_count: int | None = None,
+	manager_override_token: str | None = None,
+	queue_id: str | None = None,
+) -> dict:
+	"""Move some lines onto a bill of their own (FR-2.12, BR-067).
+
+	``rows`` is ``[{"idx": 3, "qty": 1}]``; omit ``qty`` to move the whole line.
+	"""
+	replay = idempotency.previous_result(queue_id)
+	if replay is not None:
+		return replay
+
+	order = _load(order_name)
+	outcome = service.split_order(
+		order,
+		frappe.parse_json(rows) if isinstance(rows, str) else rows,
+		cover_count=cover_count,
+		override_token=manager_override_token,
+	)
+
+	result = dict(_summary(order), **outcome)
+	idempotency.remember(
+		queue_id, "split_bill", result, reference_doctype="Restaurant Order", reference_name=order.name
+	)
+	return result
+
+
+@frappe.whitelist()
+def merge_bills(
+	order_name: str,
+	into: str,
+	manager_override_token: str | None = None,
+	queue_id: str | None = None,
+) -> dict:
+	"""Put one bill onto another and close the empty one (FR-2.12, BR-067)."""
+	replay = idempotency.previous_result(queue_id)
+	if replay is not None:
+		return replay
+
+	source = _load(order_name)
+	target = _load(into)
+	outcome = service.merge_orders(source, target, override_token=manager_override_token)
+
+	result = dict(_summary(target), **outcome)
+	idempotency.remember(
+		queue_id, "merge_bills", result, reference_doctype="Restaurant Order", reference_name=target.name
+	)
+	return result
+
+
 #: An order the cashier can still act on. Anything else belongs to history.
 OPEN_STATUSES = ("draft", "active", "in_kitchen", "pending_payment")
 

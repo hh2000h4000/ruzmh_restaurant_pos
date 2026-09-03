@@ -17,15 +17,21 @@ Refs: FR-7.2, FR-7.4, FR-7.5, D-084
 import frappe
 from frappe.utils import time_diff_in_seconds
 
-#: Root font size in px per paper width, so `rem` means the same physical size
-#: on every roll. 80mm prints 576 dots, 58mm prints 384 — two thirds of it.
-#: 11px on 58mm paper fitted about seventy characters to a line, which is denser
-#: than any receipt a customer is handed and was reported as simply too small to
-#: read. Long item names wrap sooner now, which is the right trade.
+#: Root font size per paper width, so `rem` means the same physical size on
+#: every roll. 80mm prints 576 dots, 58mm prints 384 — two thirds of it.
+#:
+#: **The unit here is a printer dot, 1/203 inch — not a screen pixel**, and
+#: reading it as one cost this receipt its legibility. 16 looked like an
+#: ordinary 16px body and is nothing of the kind: it is a 5.7pt font, and it
+#: fitted seventy characters to an 80mm line where a receipt holds forty-odd. A
+#: working ERPNext receipt from another site sets 10pt, which at 203 dpi is 28
+#: dots, and that difference is what "the text is small" meant.
+#:
+#: Sized for about 44 characters to a line on 80mm, 32 on 58mm.
 ROOT_PX = {
-	"58mm": 13,
-	"76mm": 14,
-	"80mm": 16,
+	"58mm": 22,
+	"76mm": 24,
+	"80mm": 26,
 }
 
 #: Shared by every template. Arabic first in the stack, then whatever the server
@@ -105,6 +111,19 @@ hr { border: 0; border-top: 1px dashed #000; margin: 0.4rem 0; }
 	margin: 0.4rem 0; padding: 0.25rem 0; font-size: 1.45rem; font-weight: bold; }
 .logo { max-width: 50%; }
 .stars { letter-spacing: 0.08em; }
+/* An item is two lines, not four columns.
+ *
+ * Taken from a working ERPNext receipt, which puts the name on a row of its
+ * own. Four columns leave the name about a third of the roll, and the font has
+ * to shrink until it fits — the columns were being paid for in legibility, on
+ * the one thing a customer actually reads. */
+.item { padding: 0.2rem 0; }
+.item .nm { font-weight: bold; }
+.item .fig { padding-inline-start: 1rem; font-size: 0.92rem; }
+/* Saudi practice, and the reference receipt says it in a box: a customer
+ * looking at a price needs to know the tax is already in it. */
+.notice { border: 1px dashed #000; padding: 0.25rem; margin: 0.35rem 0;
+	text-align: center; font-size: 0.9rem; font-weight: bold; }
 /* A kitchen ticket's modifiers and notes are not annotations — "بدون ملح" is
  * the whole instruction, and one a cook scanning a rail must not miss. Set
  * below the item name, but not so far below that it reads as small print. */
@@ -121,11 +140,21 @@ CUSTOMER_RECEIPT = """
 		{{% if branch %}}<div>{{{{ branch.branch | rtl }}}}</div>{{% endif %}}
 		{{% if company.tax_id %}}<div class="muted">TAX Number: {{{{ company.tax_id }}}}</div>{{% endif %}}
 	</div>
+	{{% if tax_inclusive %}}
+	<div class="notice">الأسعار شاملة ضريبة القيمة المضافة</div>
+	{{% endif %}}
 	<hr>
 	{{# Two columns, not the three-column row below: a fixed 30% column wrapped
 	    "Simplified Tax Invoice" onto two lines, and the heading of a receipt is
-	    the last place to save space. #}}
-	<div class="row b"><span>فاتورة ضريبية مبسطة</span><span>Simplified Tax Invoice</span></div>
+	    the last place to save space.
+
+	    A return is a credit note, and ZATCA treats it as a different document
+	    type. Printing one headed "invoice" with negative amounts is wrong on
+	    the paper the customer keeps. #}}
+	<div class="row b">
+		<span>{{% if doc.is_return %}}إشعار دائن{{% else %}}فاتورة ضريبية مبسطة{{% endif %}}</span>
+		<span>{{% if doc.is_return %}}Credit Note{{% else %}}Simplified Tax Invoice{{% endif %}}</span>
+	</div>
 	{{% if order.daily_number %}}
 	<div class="tri">
 		<span class="en huge">{{{{ order.daily_number }}}}</span>
@@ -157,16 +186,13 @@ CUSTOMER_RECEIPT = """
 	</div>
 	{{% endif %}}
 	<div class="rule"></div>
-	<div class="line head">
-		<span class="name">الصنف</span>
-		<span class="col">الكمية</span><span class="col">السعر</span><span class="col">الإجمالي</span>
-	</div>
 	{{% for item in doc.items %}}
-	<div class="line">
-		<span class="name">{{{{ item.item_name | rtl }}}}</span>
-		<span class="col">{{{{ item.qty | int }}}}</span>
-		<span class="col">{{{{ "%.2f" | format(item.rate) }}}}</span>
-		<span class="col">{{{{ "%.2f" | format(item.amount) }}}}</span>
+	<div class="item">
+		<div class="nm">{{{{ item.item_name | rtl }}}}</div>
+		<div class="row fig">
+			<span class="amt">{{{{ item.qty | int }}}} &times; {{{{ "%.2f" | format(item.rate) }}}}</span>
+			<span class="amt">{{{{ "%.2f" | format(item.amount) }}}}</span>
+		</div>
 	</div>
 	{{% endfor %}}
 	<div class="rule"></div>

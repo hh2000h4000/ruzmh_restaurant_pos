@@ -565,6 +565,10 @@ def receipt_context(invoice, order=None) -> dict:
 		"company": company,
 		"branch": frappe.get_cached_doc("Branch", order.branch) if order and order.branch else None,
 		"logo": logo_url(company),
+		# Whether the prices printed beside the items already contain the tax.
+		# Read from the invoice rather than from a setting, so the notice on the
+		# paper can never disagree with the arithmetic above it (`D-091`).
+		"tax_inclusive": any(tax.included_in_print_rate for tax in invoice.taxes),
 		# FR-7.5 — ZATCA Phase 1. Local arithmetic, no integration (`D-092`).
 		"zatca_qr": zatca.invoice_qr(invoice),
 	}

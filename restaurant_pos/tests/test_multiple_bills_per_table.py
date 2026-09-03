@@ -83,9 +83,7 @@ class BillsOnOneTable(OrderTestBase):
 		first.reload()
 		payment.process_payment(first, payments=[{"method": "Cash", "amount": float(first.total_amount)}])
 
-		state = frappe.db.get_value(
-			"Restaurant Table", self.table, ["status", "current_order"], as_dict=True
-		)
+		state = frappe.db.get_value("Restaurant Table", self.table, ["status", "current_order"], as_dict=True)
 		self.assertEqual(state.status, "occupied")
 		self.assertEqual(state.current_order, second.name)
 
@@ -107,9 +105,7 @@ class BillsOnOneTable(OrderTestBase):
 
 		service.cancel_order(first, reason="غيّروا رأيهم")
 
-		state = frappe.db.get_value(
-			"Restaurant Table", self.table, ["status", "current_order"], as_dict=True
-		)
+		state = frappe.db.get_value("Restaurant Table", self.table, ["status", "current_order"], as_dict=True)
 		self.assertEqual(state.status, "occupied")
 		self.assertEqual(state.current_order, second.name)
 

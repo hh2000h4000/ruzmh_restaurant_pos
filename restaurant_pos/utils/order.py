@@ -1054,9 +1054,7 @@ def cancel_order(order, *, reason: str, override_token: str | None = None) -> di
 
 def allows_second_bill(branch: str | None) -> bool:
 	"""Whether this branch lets a table carry more than one open bill (BR-066)."""
-	return bool(branch) and bool(
-		frappe.get_cached_value("Branch", branch, "allow_multiple_orders_per_table")
-	)
+	return bool(branch) and bool(frappe.get_cached_value("Branch", branch, "allow_multiple_orders_per_table"))
 
 
 def open_orders_on(table: str) -> list[str]:

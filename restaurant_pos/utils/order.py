@@ -879,9 +879,23 @@ def move_items(source, target, rows: list[dict], *, override_token: str | None =
 
 	authorise("can_split_bill", override_token)
 
-	moved = [_move_one_line(source, target, spec) for spec in (rows or [])]
-	if not moved:
+	# **Resolved in full before anything moves.** `Document.remove` renumbers
+	# `idx` the moment it takes a line out, so resolving the second spec after
+	# carrying the first looks for a row number that no longer means what the
+	# caller meant. Holding the row objects also makes the move all-or-nothing:
+	# a bill half split because the fourth line was voided is worse than one
+	# not split at all.
+	picked = [_resolve_line(source, spec) for spec in (rows or [])]
+	if not picked:
 		frappe.throw(_("Choose at least one item to move."))
+
+	seen = set()
+	for row, _qty in picked:
+		if row.name in seen:
+			frappe.throw(_("Row #{0} is listed twice.").format(row.idx))
+		seen.add(row.name)
+
+	moved = [_carry_line(source, target, row, qty) for row, qty in picked]
 
 	# A line that is already cooking takes the receiving bill's status with it.
 	# Without this the target stays a draft holding food that is on the pass,
@@ -920,8 +934,8 @@ def move_items(source, target, rows: list[dict], *, override_token: str | None =
 	return {"source": source.name, "target": target.name, "items": moved}
 
 
-def _move_one_line(source, target, spec: dict) -> dict:
-	"""Carry one line, or part of one, across. Raises on anything it cannot."""
+def _resolve_line(source, spec: dict):
+	"""Find the line a spec names and check it may move. Changes nothing."""
 	idx = cint(spec.get("idx"))
 	row = next((line for line in source.items if line.idx == idx), None)
 	if not row:
@@ -936,6 +950,11 @@ def _move_one_line(source, target, spec: dict) -> dict:
 	if qty > flt(row.qty):
 		frappe.throw(_("Row #{0} has only {1}.").format(idx, flt(row.qty)))
 
+	return row, qty
+
+
+def _carry_line(source, target, row, qty: float) -> dict:
+	"""Move one resolved line, or part of it, across."""
 	carried = target.append("items", {field: row.get(field) for field in MOVED_FIELDS})
 	carried.qty = qty
 	# Per unit, so moving part of a line keeps the modifier surcharges with it

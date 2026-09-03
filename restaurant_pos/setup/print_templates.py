@@ -148,6 +148,23 @@ hr { border: 0; border-top: 1px dashed #000; margin: 0.4rem 0; }
  * below the item name, but not so far below that it reads as small print. */
 .mod { font-size: 1.15rem; padding-inline-start: 1.2rem; }
 .note { font-size: 1.25rem; font-weight: bold; padding-inline-start: 1.2rem; }
+/* Quantity first, and placed by the layout rather than by the bidi algorithm.
+ *
+ * Written as one line — an isolated "2&times;" then the name — it printed with
+ * the quantity on the *left*, at the end of an RTL line, though the source has
+ * it first. A cook scans the right edge of an Arabic ticket for numbers, and
+ * would be reading them off the wrong side of every line. A flex row puts the
+ * first child at the start edge and the renderer has no say in it. */
+.kitem { padding: 0.3rem 0; }
+.kline { display: flex; gap: 0.6rem; align-items: baseline; }
+.kline > .q { flex: 0 0 auto; font-size: 1.6rem; font-weight: bold;
+	direction: ltr; unicode-bidi: isolate; }
+.kline > .n { flex: 1 1 auto; min-width: 0; font-size: 1.5rem; font-weight: bold; }
+/* Not a heading — a warning. A cook who reads an addition ticket as a new order
+ * cooks the whole order twice, and one who misses a void ticket cooks something
+ * nobody is paying for. Reversed out so it cannot be skimmed past. */
+.banner { background: #000; color: #fff; text-align: center; font-weight: bold;
+	font-size: 1.5rem; padding: 0.25rem; margin: 0.4rem 0; }
 """
 
 CUSTOMER_RECEIPT = """
@@ -307,29 +324,34 @@ KOT = """
 	<div class="c huge">{{{{ (doc.order_type_title or "") | rtl }}}}</div>
 	<div class="c huge">#{{{{ doc.daily_number }}}}</div>
 	{{% if doc.call_name %}}<div class="c big">{{{{ doc.call_name | rtl }}}}</div>{{% endif %}}
-	<hr>
-	<div class="row"><span>{{{{ station | rtl }}}}</span>
-		<span class="amt">{{{{ frappe.utils.format_datetime(doc.sent_at, "HH:mm") }}}}</span></div>
-	{{% if table_number %}}<div class="row"><span>الطاولة</span><b class="amt">{{{{ table_number }}}}</b></div>{{% endif %}}
-	<div class="row muted"><span>{{{{ doc.cashier_name }}}}</span><span class="amt">{{{{ doc.name }}}}</span></div>
+	{{# Before the food, not after it: by the time a cook reaches the items they
+	    have already decided what kind of ticket this is. #}}
 	{{% if doc.kot_type != "initial" %}}
-	<div class="c big">
+	<div class="banner">
 		{{% if doc.kot_type == "addition" %}}إضافة على الطلب
 		{{% elif doc.kot_type == "void" %}}إلغاء أصناف
 		{{% else %}}إعادة طباعة{{% endif %}}
 	</div>
 	{{% endif %}}
 	<hr>
+	<div class="row"><span>{{{{ station | rtl }}}}</span>
+		<span class="amt">{{{{ frappe.utils.format_datetime(doc.sent_at, "HH:mm") }}}}</span></div>
+	{{% if table_number %}}
+	<div class="row big"><span>الطاولة</span><span class="amt">{{{{ table_number }}}}</span></div>
+	{{% endif %}}
+	<hr>
 	{{% for item in doc.items %}}
-	<div style="margin-bottom: 0.4rem;">
-		{{# The quantity is its own isolated box rather than part of the sentence.
-		    A quantity, a multiplication sign and an Arabic name in one run are
-		    handed to the bidi algorithm mixed, and the digits land inside the
-		    name. A cook reading a smeared quantity makes the wrong number of
-		    plates. #}}
-		<div class="big">
-			<span class="amt">{{% if item.action == "void" %}}&#10005;{{% endif %}}{{{{ item.qty | int }}}}&times;</span>
-			{{{{ item.item_name | rtl }}}}
+	<div class="kitem">
+		{{# Quantity in its own cell, and placed by the flex row rather than by
+		    the bidi algorithm — as one line it printed at the *left* end, the
+		    wrong side of an Arabic ticket to scan for numbers. It stays an
+		    isolated LTR box for the older reason: a quantity, a multiplication
+		    sign and an Arabic name in one run get mixed, and the digits land
+		    inside the name. A cook reading a smeared quantity makes the wrong
+		    number of plates. #}}
+		<div class="kline">
+			<span class="q">{{% if item.action == "void" %}}&#10005;{{% endif %}}{{{{ item.qty | int }}}}&times;</span>
+			<span class="n">{{{{ item.item_name | rtl }}}}</span>
 		</div>
 		{{% if item.modifiers %}}
 		{{% for modifier in frappe.parse_json(item.modifiers) %}}
@@ -341,8 +363,12 @@ KOT = """
 	{{% endfor %}}
 	{{% if doc.order_notes %}}
 	<hr>
-	<div class="big">{{{{ doc.order_notes | rtl }}}}</div>
+	<div class="note">{{{{ doc.order_notes | rtl }}}}</div>
 	{{% endif %}}
+	{{# Last and smallest. A cook never needs it; the person working out why a
+	    plate was wrong an hour later does. #}}
+	<hr>
+	<div class="row muted"><span>{{{{ doc.cashier_name }}}}</span><span class="amt">{{{{ doc.name }}}}</span></div>
 </body></html>
 """
 

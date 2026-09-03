@@ -378,8 +378,16 @@ TEST_PAGE = """
 	     label for the width that actually fits stays on the roll and the wider
 	     ones fall off with the paper. A plain bar cannot say this: sent 576
 	     dots wide to a printer that reaches 384, it runs to the edge of 58mm
-	     paper and looks perfectly complete. -->
-	<div style="position: relative; width: {{ width }}px; height: 58px; margin: 10px -8px 0;">
+	     paper and looks perfectly complete.
+
+	     Anything meant to be read on a too-narrow printer has to live in the
+	     left of the page, because the right is the part that goes missing. An
+	     RTL line aligned right — the natural way to set it — is the first
+	     thing to fall off. -->
+	<div style="font-size: 12px; direction: rtl; text-align: left; margin-top: 12px;">
+		آخر مقاس يظهر أسفله هو عرض الطابعة الحقيقي.
+	</div>
+	<div style="position: relative; width: {{ width }}px; height: 58px; margin: 6px -8px 0;">
 		<div style="position: absolute; left: 0; top: 0; width: {{ width }}px;
 			height: 8px; background: #000;"></div>
 		{% for at, name in marks %}
@@ -388,9 +396,6 @@ TEST_PAGE = """
 		<div style="position: absolute; left: {{ at - 63 }}px; top: {{ 26 if loop.index0 % 2 == 0 else 40 }}px;
 			width: 60px; direction: ltr; text-align: right; font-size: 12px;">{{ name }}</div>
 		{% endfor %}
-	</div>
-	<div style="font-size: 12px; direction: rtl; text-align: right;">
-		آخر مقاس تراه على الورق هو عرض الطابعة الحقيقي.
 	</div>
 </body></html>
 """

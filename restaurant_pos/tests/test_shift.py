@@ -304,7 +304,16 @@ class TestOneBranchCannotReadAnother(ShiftTestBase):
 	def setUp(self):
 		super().setUp()
 		if not frappe.db.exists("Branch", self.OTHER):
-			frappe.get_doc({"doctype": "Branch", "branch": self.OTHER}).insert(ignore_permissions=True)
+			# Company, warehouse and cost centre are mandatory on a Branch here
+			# (`setup/install.py`), so it is copied from the real one rather
+			# than invented — the test is about the branch check, not about
+			# what a second branch would be configured with.
+			like = frappe.db.get_value(
+				"Branch", BRANCH, ["company", "default_warehouse", "default_cost_center"], as_dict=True
+			)
+			frappe.get_doc({"doctype": "Branch", "branch": self.OTHER, **like}).insert(
+				ignore_permissions=True
+			)
 		if not frappe.db.exists("User", self.CASHIER):
 			frappe.get_doc(
 				{

@@ -19,6 +19,10 @@ import { useSessionStore } from "@/stores/session";
  */
 const QUICK_DISCOUNTS = [10, 25, 50];
 
+//: Party sizes a table actually asks to split between. Beyond six the guests
+//: are usually paying by item, which is a different feature.
+const SPLIT_WAYS = [2, 3, 4, 5, 6];
+
 const route = useRoute();
 const router = useRouter();
 const session = useSessionStore();
@@ -29,6 +33,12 @@ const orderName = route.params.orderName as string;
 const summary = ref<PaymentSummary | null>(null);
 const preview = ref<TotalsPreview | null>(null);
 const lines = ref<PaymentLine[]>([]);
+
+//: The shares of an even split, and how many have been handed over. Computed
+//: on the server (`CLAUDE.md` §5.1) — the last five halalas of 100.00 between
+//: three are the whole difficulty.
+const shares = ref<number[]>([]);
+const settled = ref(0);
 const discountType = ref<"percentage" | "amount" | null>(null);
 const discountValue = ref(0);
 const overrideToken = ref<string | null>(null);
@@ -59,6 +69,9 @@ const tendered = computed(() =>
   lines.value.reduce((total, line) => total + (line.tendered ?? line.amount ?? 0), 0),
 );
 const change = computed(() => (remaining.value <= 0 ? round(tendered.value - due.value) : 0));
+
+/** True while a share is still waiting to be handed over. */
+const splitting = computed(() => settled.value < shares.value.length);
 
 const forcedMethod = computed(
   () => summary.value?.payment_methods.find((method) => method.is_forced)?.payment_method ?? null,
@@ -161,14 +174,50 @@ function setQuickDiscount(percentage: number): void {
 }
 
 function addMethod(method: string): void {
-  if (lines.value.some((line) => line.method === method)) return;
+  // FR-10.2 — a tap takes whatever is still owed, unless the table is paying
+  // share by share, in which case it takes the next person's share.
+  const amount = splitting.value ? shares.value[settled.value] : Math.max(remaining.value, 0);
 
-  // FR-10.2 — the newly added method takes whatever is still owed.
-  lines.value.push({ method, amount: Math.max(remaining.value, 0) });
+  const existing = lines.value.find((line) => line.method === method);
+  if (existing) {
+    // Four people paying cash are one cash line: the invoice records what the
+    // drawer holds, not who handed over which note. Without this a split would
+    // need the same method four times, and the till would reconcile against
+    // rows that mean nothing.
+    if (!splitting.value) return;
+    existing.amount = round(existing.amount + amount);
+  } else {
+    lines.value.push({ method, amount });
+  }
+
+  if (splitting.value) settled.value += 1;
 }
 
 function removeMethod(index: number): void {
   lines.value.splice(index, 1);
+  // The shares no longer describe what has been taken, and a progress line
+  // that lies is worse than none.
+  clearSplit();
+}
+
+function splitInto(ways: number): void {
+  if (!summary.value) return;
+
+  void paymentApi
+    .splitEvenly(orderName, ways)
+    .then((split) => {
+      shares.value = split.shares;
+      settled.value = 0;
+      lines.value = [];
+    })
+    .catch((cause) => {
+      failure.value = cause instanceof Error ? cause.message : String(cause);
+    });
+}
+
+function clearSplit(): void {
+  shares.value = [];
+  settled.value = 0;
 }
 
 async function approveDiscount(): Promise<void> {
@@ -353,13 +402,50 @@ async function confirm(): Promise<void> {
           {{ t("pay.forcedMethod", { method: forcedMethod ?? "" }) }}
         </p>
 
+        <div class="mb-3 flex flex-wrap items-center gap-2">
+          <span class="text-sm text-muted">{{ t("pay.split") }}</span>
+          <button
+            v-for="ways in SPLIT_WAYS"
+            :key="ways"
+            type="button"
+            class="min-h-tap min-w-tap rounded-rpos border border-line px-3 text-sm"
+            :class="{ 'border-accent font-bold': shares.length === ways }"
+            @click="splitInto(ways)"
+          >
+            {{ ways }}
+          </button>
+          <button
+            v-if="shares.length"
+            type="button"
+            class="min-h-tap px-2 text-xs text-danger"
+            @click="clearSplit"
+          >
+            {{ t("pay.splitClear") }}
+          </button>
+        </div>
+
+        <p
+          v-if="shares.length"
+          class="mb-3 rounded-rpos bg-surface px-3 py-2 text-sm"
+        >
+          {{
+            splitting
+              ? t("pay.splitProgress", {
+                done: settled,
+                ways: shares.length,
+                amount: money(shares[settled]),
+              })
+              : t("pay.splitSettled", { ways: shares.length })
+          }}
+        </p>
+
         <div class="mb-4 flex flex-wrap gap-2">
           <button
             v-for="method in summary.payment_methods"
             :key="method.payment_method"
             type="button"
             class="min-h-tap rounded-rpos border border-line px-4 text-sm disabled:opacity-40"
-            :disabled="lines.some((line) => line.method === method.payment_method)"
+            :disabled="!splitting && lines.some((line) => line.method === method.payment_method)"
             @click="addMethod(method.payment_method)"
           >
             {{ method.payment_method }}

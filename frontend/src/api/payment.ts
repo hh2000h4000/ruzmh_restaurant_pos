@@ -50,8 +50,27 @@ export interface PaymentResult {
   status: string;
 }
 
+export interface EvenSplit {
+  order_name: string;
+  total_amount: number;
+  ways: number;
+  /** One amount per person, summing to `total_amount` exactly. */
+  shares: number[];
+}
+
 export function getPaymentSummary(orderName: string): Promise<PaymentSummary> {
   return query<PaymentSummary>("payment.get_payment_summary", { order_name: orderName });
+}
+
+/**
+ * What each person owes when a table asks to split the bill.
+ *
+ * Asked of the server rather than divided here: the shares are money
+ * (`CLAUDE.md` §5.1), and dividing 100.00 three ways without losing five
+ * halalas is the entire difficulty — see `totals.split_evenly`.
+ */
+export function splitEvenly(orderName: string, ways: number): Promise<EvenSplit> {
+  return query<EvenSplit>("payment.split_evenly", { order_name: orderName, ways });
 }
 
 export function previewTotals(

@@ -85,6 +85,8 @@ def log_audit(
 #: about one bill, and has no place on its story.
 _ORDER_STORY = {
 	"void_item": "item_voided",
+	"bill_split": "items_moved_out",
+	"bill_merged": "merged",
 	"void_order": "cancelled",
 	"cancel_order": "cancelled",
 	"discount_applied": "discount_applied",

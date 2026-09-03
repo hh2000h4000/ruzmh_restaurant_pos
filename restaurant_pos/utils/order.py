@@ -809,6 +809,202 @@ def void_item(order, *, item_idx: int, reason: str, override_token: str | None =
 # --------------------------------------------------------------------------- #
 
 
+# --------------------------------------------------------------------------- #
+# Moving lines between bills — splitting and merging
+# --------------------------------------------------------------------------- #
+
+#: What a moved line carries with it. Everything that describes *what was
+#: ordered* comes across untouched, including `kot_reference`: the food is
+#: already cooking under that ticket, it goes to the table rather than to the
+#: bill, and re-firing it would cook it twice.
+MOVED_FIELDS = (
+	"item",
+	"item_name",
+	"item_name_en",
+	"rate",
+	"modifiers",
+	"notes",
+	"production_center",
+	"course",
+	"status",
+	"sent_at",
+	"kot_reference",
+)
+
+
+def move_items(source, target, rows: list[dict], *, override_token: str | None = None) -> dict:
+	"""Move lines from one bill to another (BR-067).
+
+	**The one operation behind both halves** of what a restaurant calls
+	splitting and merging: splitting moves lines onto a *new* order, merging
+	moves all of them onto an *existing* one. Written twice, "take this line
+	off that bill and put it on this one" is how two bills stop adding up to
+	what was eaten.
+
+	**The kitchen is never told.** A line already sent keeps its ticket
+	reference and its `sent` status, and no new ticket is printed. Every
+	serious POS splits a check without firing the kitchen again, for the plain
+	reason that the food is already on the pass.
+
+	``rows`` is ``[{"idx": 3, "qty": 1}]`` and ``qty`` may be less than the
+	line: two people sharing a "2 × cola" line is the ordinary case, not the
+	exception. Omit it to move the whole line.
+	"""
+	if source.name == target.name:
+		frappe.throw(_("A bill cannot be split into itself."))
+
+	assert_mutable(source)
+	assert_mutable(target)
+	validate_branch_access(source.branch)
+	validate_branch_access(target.branch)
+
+	# Prices follow the order type (`D-020` and the order-type price lists), so
+	# a line carried across would keep a rate the receiving bill does not sell
+	# at. Refused rather than re-priced: re-pricing changes what a guest was
+	# quoted, silently, in the middle of splitting their bill.
+	if source.order_type != target.order_type:
+		frappe.throw(_("Both bills must be the same order type to move items between them."))
+
+	# An order-level discount has no honest share. `02` §233 settled the same
+	# question for returns — "never split by ratio: a bill paid two ways has no
+	# right answer for one returned" — and it is the same arithmetic here. The
+	# cashier lifts the discount, splits, and applies it again where it belongs.
+	for bill in (source, target):
+		if flt(bill.discount_amount):
+			frappe.throw(
+				_("Remove the discount on {0} before moving items — a discount cannot be split.").format(
+					bill.name
+				)
+			)
+
+	authorise("can_split_bill", override_token)
+
+	moved = [_move_one_line(source, target, spec) for spec in (rows or [])]
+	if not moved:
+		frappe.throw(_("Choose at least one item to move."))
+
+	totals.calculate(source)
+	source.save(ignore_permissions=True)
+	totals.calculate(target)
+	target.save(ignore_permissions=True)
+
+	names = ", ".join(line["item_name"] for line in moved)
+
+	# The source side of the story is written by `log_audit` itself, which maps
+	# `bill_split` onto the bill's timeline (`utils/audit._ORDER_STORY`). Only
+	# the receiving bill needs telling separately — it is not the document the
+	# audit entry is about, and a bill that gained three dishes with nothing in
+	# its history to say where they came from is the question this log exists
+	# to answer.
+	log_audit(
+		"bill_split",
+		branch=source.branch,
+		pos_profile=source.pos_profile,
+		restaurant_order=source.name,
+		reason=names,
+		details={"to": target.name, "items": moved},
+	)
+	activity.log(
+		target,
+		"items_moved_in",
+		subject=names,
+		details={"from": source.name, "items": moved},
+	)
+
+	return {"source": source.name, "target": target.name, "items": moved}
+
+
+def _move_one_line(source, target, spec: dict) -> dict:
+	"""Carry one line, or part of one, across. Raises on anything it cannot."""
+	idx = cint(spec.get("idx"))
+	row = next((line for line in source.items if line.idx == idx), None)
+	if not row:
+		frappe.throw(_("Row #{0} is not on this order.").format(idx))
+
+	if row.status == "void":
+		frappe.throw(_("Row #{0} is voided.").format(idx))
+
+	qty = flt(spec.get("qty") or row.qty)
+	if qty <= 0:
+		frappe.throw(_("Quantity must be greater than zero."))
+	if qty > flt(row.qty):
+		frappe.throw(_("Row #{0} has only {1}.").format(idx, flt(row.qty)))
+
+	carried = target.append("items", {field: row.get(field) for field in MOVED_FIELDS})
+	carried.qty = qty
+	# Per unit, so moving part of a line keeps the modifier surcharges with it
+	# rather than leaving them all behind on the remainder.
+	carried.amount = totals.money(flt(row.amount) / flt(row.qty) * qty)
+
+	if qty < flt(row.qty):
+		remaining = flt(row.qty) - qty
+		row.amount = totals.money(flt(row.amount) / flt(row.qty) * remaining)
+		row.qty = remaining
+	else:
+		source.remove(row)
+
+	return {"item": carried.item, "item_name": carried.item_name, "qty": qty}
+
+
+def split_order(source, rows: list[dict], *, cover_count: int | None = None, **kwargs) -> dict:
+	"""Take some lines onto a bill of their own (FR-2.12).
+
+	A second bill on a seated table needs the branch to allow one (`BR-066`),
+	which is checked here so the cashier reads why rather than "table 4 is
+	occupied" from a rule they were not thinking about.
+	"""
+	if source.table and not allows_second_bill(source.branch):
+		frappe.throw(
+			_("This branch keeps one bill per table, so a seated bill cannot be split."),
+			frappe.ValidationError,
+		)
+
+	target = create_order(
+		order_type=source.order_type,
+		pos_profile=source.pos_profile,
+		table=source.table,
+		# The new bill is one party's share; how many people it covers is not
+		# knowable from the split and the cashier sets it if it matters.
+		cover_count=cover_count or 1,
+		waiter=source.waiter,
+	)
+
+	return move_items(source, target, rows, **kwargs)
+
+
+def merge_orders(source, target, **kwargs) -> dict:
+	"""Put one bill onto another and close the empty one (FR-2.12).
+
+	The inverse of a split, and the same primitive: everything moves, and the
+	bill left with nothing on it is cancelled rather than left open. An empty
+	bill on the floor plan is a table somebody has to go and check.
+	"""
+	rows = [{"idx": row.idx} for row in source.items if row.status != "void"]
+	if not rows:
+		frappe.throw(_("There is nothing on {0} to merge.").format(source.name))
+
+	result = move_items(source, target, rows, **kwargs)
+
+	# Closed here rather than through , which asks for
+	# . There is nothing left to cancel — no lines, and no
+	# kitchen tickets to void, because they went with the food — and making a
+	# cashier fetch a manager to tidy away an empty document would be a
+	# permission guarding nothing.
+	source.reload()
+	source.status = "cancelled"
+	source.cancel_reason = _("Merged into {0}").format(target.name)
+	source.cancelled_by = frappe.session.user
+	source.closed_at = now_datetime()
+	source.save(ignore_permissions=True)
+
+	if source.table:
+		release_table(source.table)
+
+	activity.log(source, "merged", subject=target.name, details={"into": target.name})
+
+	return result | {"merged": source.name}
+
+
 def cancel_order(order, *, reason: str, override_token: str | None = None) -> dict:
 	"""Cancel an unpaid order (FR-2.8, BR-014)."""
 	if order.status == "closed":

@@ -34,6 +34,9 @@ _CASHIER = {
 	"can_change_order_type": 0,
 	"can_transfer_table": 1,
 	"can_merge_tables": 0,
+	# Guests ask to be billed separately at the till, not in the office.
+	# It is audited, and it is reversible until somebody pays.
+	"can_split_bill": 1,
 	"can_reopen_closed_order": 0,
 	"can_change_item_price": 0,
 	"can_create_return": 0,

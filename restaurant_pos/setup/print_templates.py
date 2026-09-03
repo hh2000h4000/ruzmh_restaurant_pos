@@ -138,7 +138,7 @@ hr { border: 0; border-top: 1px dashed #000; margin: 0.4rem 0; }
  * the one thing a customer actually reads. */
 .item { padding: 0.2rem 0; }
 .item .nm { font-weight: bold; }
-.item .fig { padding-inline-start: 1rem; font-size: 0.92rem; }
+.item .fig { padding-left: 1rem; font-size: 0.92rem; }
 /* Saudi practice, and the reference receipt says it in a box: a customer
  * looking at a price needs to know the tax is already in it. */
 .notice { border: 1px dashed #000; padding: 0.25rem; margin: 0.35rem 0;
@@ -146,8 +146,8 @@ hr { border: 0; border-top: 1px dashed #000; margin: 0.4rem 0; }
 /* A kitchen ticket's modifiers and notes are not annotations — "بدون ملح" is
  * the whole instruction, and one a cook scanning a rail must not miss. Set
  * below the item name, but not so far below that it reads as small print. */
-.mod { font-size: 1.15rem; padding-inline-start: 1.2rem; }
-.note { font-size: 1.25rem; font-weight: bold; padding-inline-start: 1.2rem; }
+.mod { font-size: 1.15rem; padding-right: 1.2rem; }
+.note { font-size: 1.25rem; font-weight: bold; padding-right: 1.2rem; }
 /* Quantity first, and placed by the layout rather than by the bidi algorithm.
  *
  * Written as one line — an isolated "2&times;" then the name — it printed with
@@ -157,10 +157,15 @@ hr { border: 0; border-top: 1px dashed #000; margin: 0.4rem 0; }
  * first child at the start edge and the renderer has no say in it. */
 .kitem { padding: 0.3rem 0; }
 .kline { display: flex; align-items: baseline; }
-/* A margin, not the row's `gap`: this renderer ignores flex `gap`, and
- * "2&times;برغر كلاسيك" came out with the quantity welded to the name. */
+/* A physical margin, and not the row's `gap`. **This renderer supports
+ * neither flex `gap` nor CSS logical properties** — it drops both without
+ * complaint, and "2&times;برغر كلاسيك" printed with the quantity welded to
+ * the name while every modifier sat flush against the edge. Logical
+ * properties are the rule everywhere else in this project; a print template
+ * is always RTL and always drawn by this one engine, so here they are
+ * physical on purpose. */
 .kline > .q { flex: 0 0 auto; font-size: 1.6rem; font-weight: bold;
-	direction: ltr; unicode-bidi: isolate; margin-inline-end: 0.6rem; }
+	direction: ltr; unicode-bidi: isolate; margin-left: 0.6rem; }
 .kline > .n { flex: 1 1 auto; min-width: 0; font-size: 1.5rem; font-weight: bold; }
 /* Not a heading — a warning. A cook who reads an addition ticket as a new order
  * cooks the whole order twice, and one who misses a void ticket cooks something

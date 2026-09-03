@@ -275,7 +275,5 @@ class MovingLinesBetweenBills(OrderTestBase):
 		service.move_items(source, target, [{"idx": source.items[0].idx}])
 
 		self.assertTrue(
-			frappe.db.exists(
-				"POS Audit Log", {"restaurant_order": source.name, "action_type": "bill_split"}
-			)
+			frappe.db.exists("POS Audit Log", {"restaurant_order": source.name, "action_type": "bill_split"})
 		)

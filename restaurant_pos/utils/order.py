@@ -883,6 +883,12 @@ def move_items(source, target, rows: list[dict], *, override_token: str | None =
 	if not moved:
 		frappe.throw(_("Choose at least one item to move."))
 
+	# A line that is already cooking takes the receiving bill's status with it.
+	# Without this the target stays a draft holding food that is on the pass,
+	# and the orders pane files it under "not sent yet".
+	if any(line["was_sent"] for line in moved) and target.status in ("draft", "active"):
+		target.status = "in_kitchen"
+
 	totals.calculate(source)
 	source.save(ignore_permissions=True)
 	totals.calculate(target)
@@ -943,7 +949,12 @@ def _move_one_line(source, target, spec: dict) -> dict:
 	else:
 		source.remove(row)
 
-	return {"item": carried.item, "item_name": carried.item_name, "qty": qty}
+	return {
+		"item": carried.item,
+		"item_name": carried.item_name,
+		"qty": qty,
+		"was_sent": carried.status == "sent",
+	}
 
 
 def split_order(source, rows: list[dict], *, cover_count: int | None = None, **kwargs) -> dict:

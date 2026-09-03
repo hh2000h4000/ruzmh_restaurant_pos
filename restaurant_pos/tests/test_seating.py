@@ -17,7 +17,7 @@ Refs: BR-061, FR-2.1a, D-040
 
 import frappe
 
-from restaurant_pos.tests.test_order import OrderTestBase
+from restaurant_pos.tests.test_order import OrderTestBase, free_table
 from restaurant_pos.utils import order as service
 
 
@@ -28,15 +28,7 @@ class SeatingBase(OrderTestBase):
 			{"section": self.section, "is_active": 1, "name": ("!=", skip or "")},
 			"name",
 		)
-		# Genuinely free, not merely labelled free. Bills left on this table by
-		# earlier tests still pointed at it, and `release_table` believes the
-		# orders rather than the status field — so a fixture that only wrote
-		# "available" left the next test seating onto an occupied table.
-		for name in service.open_orders_on(table):
-			frappe.db.set_value("Restaurant Order", name, "status", "cancelled")
-
-		frappe.db.set_value("Restaurant Table", table, {"status": "available", "current_order": None})
-		return table
+		return free_table(table)
 
 
 class TestSeatingAnOpenOrder(SeatingBase):

@@ -9,7 +9,7 @@ Refs: 07 §4, BR-060, BR-061, FR-5.1
 import frappe
 
 from restaurant_pos.api import table as api
-from restaurant_pos.tests.test_order import ITEM, OrderTestBase
+from restaurant_pos.tests.test_order import ITEM, OrderTestBase, free_table
 from restaurant_pos.utils import order as orders
 
 
@@ -24,7 +24,7 @@ class TestFloorPlan(OrderTestBase):
 	def test_an_occupied_table_carries_its_order(self):
 		"""FR-5.1 — the plan shows order number, elapsed time and item count."""
 		table = frappe.db.get_value("Restaurant Table", {"section": self.section, "is_active": 1}, "name")
-		frappe.db.set_value("Restaurant Table", table, {"status": "available", "current_order": None})
+		free_table(table)
 
 		order = self._order(order_type=self.dine_in, table=table, cover_count=2)
 		orders.add_item(order, item=ITEM, qty=2)

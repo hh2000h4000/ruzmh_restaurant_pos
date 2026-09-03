@@ -22,7 +22,7 @@ Refs: BR-061, BR-066, FR-5.2, D-058
 
 import frappe
 
-from restaurant_pos.tests.test_order import BRANCH, ITEM, OrderTestBase
+from restaurant_pos.tests.test_order import BRANCH, ITEM, OrderTestBase, free_table
 from restaurant_pos.utils import order as service
 from restaurant_pos.utils import payment
 
@@ -43,9 +43,7 @@ class BillsOnOneTable(OrderTestBase):
 	def _free_the_table(self) -> None:
 		"""Cancel whatever is on it, so one test cannot seat the next one."""
 		frappe.set_user("Administrator")
-		for name in service.open_orders_on(self.table):
-			frappe.db.set_value("Restaurant Order", name, "status", "cancelled")
-		service.set_table_status(self.table, "available", None)
+		free_table(self.table)
 		frappe.db.commit()
 
 	def _allow(self, allowed: bool) -> None:

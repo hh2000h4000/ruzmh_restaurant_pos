@@ -128,6 +128,22 @@ def _ensure_till(profile: str) -> None:
 		frappe.set_user(user)
 
 
+def free_table(table: str) -> str:
+	"""Make a table genuinely empty, not merely labelled empty.
+
+	Writing `status = available` used to be enough because nothing looked past
+	it. `release_table` believes the orders instead (`BR-066`), so a bill left
+	behind by an earlier test keeps the table occupied — and the next test
+	seats a second party onto it without meaning to. Three fixtures were doing
+	this by hand and two of them were wrong.
+	"""
+	for name in service.open_orders_on(table):
+		frappe.db.set_value("Restaurant Order", name, "status", "cancelled")
+
+	frappe.db.set_value("Restaurant Table", table, {"status": "available", "current_order": None})
+	return table
+
+
 class OrderTestBase(FrappeTestCase):
 	@classmethod
 	def setUpClass(cls):

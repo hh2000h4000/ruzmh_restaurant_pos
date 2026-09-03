@@ -19,9 +19,12 @@ from frappe.utils import time_diff_in_seconds
 
 #: Root font size in px per paper width, so `rem` means the same physical size
 #: on every roll. 80mm prints 576 dots, 58mm prints 384 — two thirds of it.
+#: 11px on 58mm paper fitted about seventy characters to a line, which is denser
+#: than any receipt a customer is handed and was reported as simply too small to
+#: read. Long item names wrap sooner now, which is the right trade.
 ROOT_PX = {
-	"58mm": 11,
-	"76mm": 12,
+	"58mm": 13,
+	"76mm": 14,
 	"80mm": 16,
 }
 
@@ -119,11 +122,10 @@ CUSTOMER_RECEIPT = """
 		{{% if company.tax_id %}}<div class="muted">TAX Number: {{{{ company.tax_id }}}}</div>{{% endif %}}
 	</div>
 	<hr>
-	<div class="tri b">
-		<span class="en">Simplified Tax Invoice</span>
-		<span class="val"></span>
-		<span class="ar">فاتورة ضريبية مبسطة</span>
-	</div>
+	{{# Two columns, not the three-column row below: a fixed 30% column wrapped
+	    "Simplified Tax Invoice" onto two lines, and the heading of a receipt is
+	    the last place to save space. #}}
+	<div class="row b"><span>فاتورة ضريبية مبسطة</span><span>Simplified Tax Invoice</span></div>
 	{{% if order.daily_number %}}
 	<div class="tri">
 		<span class="en huge">{{{{ order.daily_number }}}}</span>
@@ -209,8 +211,13 @@ CUSTOMER_RECEIPT = """
 	<div class="c"><img src="{{{{ zatca_qr }}}}" alt=""></div>
 	{{% endif %}}
 	<hr>
+	{{# One line each. "THANK YOU · شكراً لزيارتكم" printed as overlapping
+	    fragments: a Latin run and an Arabic run in one line is the same shape
+	    that mangles a label beside a number, and the separator between them is
+	    not worth a garbled thank-you. #}}
 	<div class="c muted stars">********************************</div>
-	<div class="c b">THANK YOU &middot; شكراً لزيارتكم</div>
+	<div class="c b">THANK YOU</div>
+	<div class="c b">شكراً لزيارتكم</div>
 	<div class="c muted stars">********************************</div>
 </body></html>
 """

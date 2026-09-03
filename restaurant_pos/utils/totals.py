@@ -52,8 +52,11 @@ def rounding_step(currency: str = DEFAULT_CURRENCY) -> float:
 	Read here rather than in each caller so `pricing_inputs`, which ships it to
 	an offline device, and :func:`split_evenly`, which divides by it, cannot end
 	up reading two different fields one day.
+
+	Cached: it is read once per priced order and once per share of a split bill,
+	and a currency's rounding step changes about never.
 	"""
-	return flt(frappe.db.get_value("Currency", currency, "smallest_currency_fraction_value"))
+	return flt(frappe.get_cached_value("Currency", currency, "smallest_currency_fraction_value"))
 
 
 def split_evenly(total, ways: int, currency: str = DEFAULT_CURRENCY) -> list[float]:

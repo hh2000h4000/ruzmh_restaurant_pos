@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import base64
 import io
+import pathlib
 import subprocess
 from dataclasses import dataclass
 
@@ -556,14 +557,36 @@ def receipt_context(invoice, order=None) -> dict:
 	"""
 	from restaurant_pos.utils import zatca
 
+	company = frappe.get_cached_doc("Company", invoice.company)
+
 	return {
 		"doc": invoice,
 		"order": order or frappe._dict(),
-		"company": frappe.get_cached_doc("Company", invoice.company),
+		"company": company,
 		"branch": frappe.get_cached_doc("Branch", order.branch) if order and order.branch else None,
+		"logo": logo_url(company),
 		# FR-7.5 — ZATCA Phase 1. Local arithmetic, no integration (`D-092`).
 		"zatca_qr": zatca.invoice_qr(invoice),
 	}
+
+
+def logo_url(company) -> str | None:
+	"""The company logo as something wkhtmltoimage can actually open.
+
+	It renders with `--enable-local-file-access` and no network, so the
+	`/files/...` URL stored on the Company fetches nothing at all — the receipt
+	prints with a broken-image box where the logo should be. It needs the file
+	on disk.
+
+	Returns nothing when no logo is set or the file has been deleted, and the
+	template simply omits it: a missing logo must not cost a customer a receipt.
+	"""
+	url = (company.get("company_logo") or "").strip()
+	if not url.startswith("/files/"):
+		return None
+
+	path = pathlib.Path(frappe.get_site_path("public", url.lstrip("/")))
+	return path.as_uri() if path.exists() else None
 
 
 def _receipt_order(order_name: str | None):
@@ -592,6 +615,12 @@ def _receipt_order(order_name: str | None):
 	)
 	order.cashier_name = frappe.db.get_value("User", order.cashier, "full_name") or order.cashier
 	order.default_printer = _cashier_printer(order.pos_profile)
+	# The number a customer would say out loud, not the document id. Printing
+	# the id once widened an RTL ticket enough to shear the item names off the
+	# roll (`D-087`); it is also of no use to anybody holding the receipt.
+	order.table_number = (
+		frappe.db.get_value("Restaurant Table", order.table, "table_number") if order.table else None
+	)
 
 	return order
 

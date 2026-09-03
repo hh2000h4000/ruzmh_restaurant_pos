@@ -847,7 +847,7 @@ def move_items(source, target, rows: list[dict], *, override_token: str | None =
 	reason that the food is already on the pass.
 
 	``rows`` is ``[{"idx": 3, "qty": 1}]`` and ``qty`` may be less than the
-	line: two people sharing a "2 × cola" line is the ordinary case, not the
+	line: two people sharing a "2 x cola" line is the ordinary case, not the
 	exception. Omit it to move the whole line.
 	"""
 	if source.name == target.name:

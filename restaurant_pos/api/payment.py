@@ -100,6 +100,38 @@ def preview_totals(order_name: str, discount_type: str | None = None, discount_v
 
 
 @frappe.whitelist()
+def split_evenly(order_name: str, ways: int) -> dict:
+	"""What each person owes when a table pays "قسّمها علينا" (FR-10.1).
+
+	**This makes no second bill.** Guests asking to split are asking to hand
+	over money separately, not to be invoiced separately — so the order stays
+	one order, the payment takes several rows, and the sale keeps one Sales
+	Invoice, one ZATCA QR and one line in the day's takings. Every serious POS
+	treats an even split this way; a split that manufactured four invoices for
+	one table would be four documents to reconcile and four to report.
+
+	Splitting the bill *by item* is a different feature and does need a second
+	document, because the items themselves move.
+
+	The shares are computed here rather than on the till because they are money
+	(`CLAUDE.md` §5.1), and because getting the last five halalas right is the
+	entire difficulty — see :func:`totals.split_evenly`.
+	"""
+	order = frappe.get_doc("Restaurant Order", order_name)
+	validate_branch_access(order.branch)
+
+	currency = frappe.db.get_value("POS Profile", order.pos_profile, "currency") or totals.DEFAULT_CURRENCY
+	shares = totals.split_evenly(order.total_amount, ways, currency=currency)
+
+	return {
+		"order_name": order.name,
+		"total_amount": order.total_amount,
+		"ways": len(shares),
+		"shares": shares,
+	}
+
+
+@frappe.whitelist()
 def get_payment_summary(order_name: str) -> dict:
 	"""What the payment screen needs: totals and the permitted methods (FR-10.1)."""
 	order = frappe.get_doc("Restaurant Order", order_name)

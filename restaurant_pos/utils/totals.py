@@ -46,6 +46,49 @@ def money(amount) -> float:
 	return flt(amount, CURRENCY_PRECISION)
 
 
+def rounding_step(currency: str = DEFAULT_CURRENCY) -> float:
+	"""The currency's cash rounding step (BR-024) — 0.05 for SAR.
+
+	Read here rather than in each caller so `pricing_inputs`, which ships it to
+	an offline device, and :func:`split_evenly`, which divides by it, cannot end
+	up reading two different fields one day.
+	"""
+	return flt(frappe.db.get_value("Currency", currency, "smallest_currency_fraction_value"))
+
+
+def split_evenly(total, ways: int, currency: str = DEFAULT_CURRENCY) -> list[float]:
+	"""Divide a bill into `ways` shares that add back up to it **exactly**.
+
+	The obvious version is wrong, and wrong in a way nobody notices until the
+	drawer is counted: 100.00 over three is 33.3333, and rounding each share to
+	the 0.05 the riyal is settled in gives 33.35 three times — 100.05. Five
+	halalas the restaurant charged, never billed, and cannot bank. Rounding
+	down instead loses money on every split bill in the other direction.
+
+	So the arithmetic is done in **whole rounding steps** rather than in riyals.
+	The bill is a whole number of 0.05s; that number is divided by `ways`, and
+	the shares that cannot be equal differ by exactly one step. The sum is the
+	bill by construction, not by luck.
+
+	The odd steps go to the **first** shares. Somebody has to pay the extra
+	five halalas, and the person tendering first is the one standing there.
+
+	Refs: BR-024, FR-10.1
+	"""
+	ways = int(ways or 0)
+	if ways < 1:
+		frappe.throw(_("A bill is split between one person or more."))
+
+	# A currency with no step configured is settled to the last decimal place,
+	# so that is its step. Never zero: this divides by it.
+	step = rounding_step(currency) or 10**-CURRENCY_PRECISION
+
+	units = round(flt(total) / step)
+	base, extra = divmod(units, ways)
+
+	return [money((base + (1 if index < extra else 0)) * step) for index in range(ways)]
+
+
 def _tax_rows(pos_profile: str) -> list:
 	"""The proportional rows of the POS Profile's ERPNext tax template.
 
@@ -127,7 +170,7 @@ def pricing_inputs(pos_profile: str) -> dict:
 		"precision": CURRENCY_PRECISION,
 		"tax_rate": tax_rate_for(pos_profile),
 		"tax_inclusive": 1 if tax_is_inclusive(pos_profile) else 0,
-		"rounding_step": flt(frappe.db.get_value("Currency", currency, "smallest_currency_fraction_value")),
+		"rounding_step": rounding_step(currency),
 		"rounding_method": frappe.get_system_settings("rounding_method") or "Banker's Rounding (legacy)",
 	}
 

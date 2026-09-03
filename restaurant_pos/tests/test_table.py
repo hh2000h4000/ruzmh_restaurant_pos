@@ -33,9 +33,11 @@ class TestFloorPlan(OrderTestBase):
 		row = next(entry for entry in plan["tables"] if entry["name"] == table)
 
 		self.assertEqual(row["status"], "occupied")
-		self.assertEqual(row["current_order"], order.name)
-		self.assertEqual(row["item_count"], 1)
-		self.assertIn("order_minutes", row)
+		# One bill, read off the list rather than off the table's own link to
+		# one of them: a table may carry several (`BR-066`).
+		self.assertEqual([bill["name"] for bill in row["orders"]], [order.name])
+		self.assertEqual(row["orders"][0]["item_count"], 1)
+		self.assertIn("minutes", row["orders"][0])
 
 	def test_an_available_table_carries_no_order_fields(self):
 		table = frappe.db.get_value(
@@ -48,7 +50,7 @@ class TestFloorPlan(OrderTestBase):
 
 		plan = api.get_floor_plan(self.section)
 		row = next(entry for entry in plan["tables"] if entry["name"] == table)
-		self.assertIsNone(row["current_order"])
+		self.assertEqual(row["orders"], [])
 
 	def test_reading_the_plan_does_not_scale_with_table_count(self):
 		"""04 §8 — the plan refreshes on every realtime event, in 300ms."""

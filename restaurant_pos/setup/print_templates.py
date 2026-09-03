@@ -101,9 +101,17 @@ hr { border: 0; border-top: 1px dashed #000; margin: 0.4rem 0; }
  * or an amount in its own isolated LTR box cannot be reordered into the Arabic
  * label beside it, which is the failure this project keeps meeting. */
 .tri { display: flex; direction: ltr; gap: 0.3rem; align-items: baseline; padding: 0.08rem 0; }
-.tri > .en { flex: 0 0 30%; text-align: left; unicode-bidi: isolate; }
-.tri > .val { flex: 1 1 auto; min-width: 0; text-align: center; }
-.tri > .ar { flex: 0 0 32%; text-align: right; direction: rtl; unicode-bidi: isolate; }
+/* `min-width: 0` on every cell, for the reason spelled out at `.row` below: a
+ * flex item refuses to shrink under its own content by default, so a long
+ * Arabic label does not wrap — it overruns the figure beside it. The tax
+ * description printed straight through the amount. */
+.tri > * { min-width: 0; }
+.tri > .en { flex: 0 0 25%; text-align: left; unicode-bidi: isolate; }
+.tri > .val { flex: 1 1 auto; text-align: center; }
+.tri > .ar { flex: 0 0 30%; text-align: right; direction: rtl; unicode-bidi: isolate; }
+/* Dates and document numbers are reference, not headline: set smaller so they
+ * fit one line instead of wrapping mid-number. */
+.meta { font-size: 0.88rem; }
 .rule { border-top: 1px solid #000; margin: 0.35rem 0; }
 /* The one line a customer checks before walking away, so it is the one thing on
  * the receipt that is unmistakable at arm's length. */
@@ -163,23 +171,23 @@ CUSTOMER_RECEIPT = """
 	</div>
 	{{% endif %}}
 	<hr>
-	<div class="tri">
+	<div class="tri meta">
 		<span class="en">Date</span>
 		<span class="val">{{{{ frappe.utils.formatdate(doc.posting_date) }}}} {{{{ frappe.utils.format_time(doc.posting_time) }}}}</span>
 		<span class="ar">التاريخ</span>
 	</div>
-	<div class="tri">
+	<div class="tri meta">
 		<span class="en">Cashier</span>
 		<span class="val">{{{{ (order.cashier_name or doc.owner) | rtl }}}}</span>
 		<span class="ar">الكاشير</span>
 	</div>
-	<div class="tri">
+	<div class="tri meta">
 		<span class="en">Invoice</span>
 		<span class="val">{{{{ doc.name }}}}</span>
 		<span class="ar">رقم الفاتورة</span>
 	</div>
 	{{% if order.table_number %}}
-	<div class="tri">
+	<div class="tri meta">
 		<span class="en">Table</span>
 		<span class="val">{{{{ order.table_number }}}}</span>
 		<span class="ar">الطاولة</span>
@@ -212,7 +220,10 @@ CUSTOMER_RECEIPT = """
 	<div class="tri">
 		<span class="en">VAT {{{{ "%g" | format(tax.rate) }}}}%</span>
 		<span class="val amt">{{{{ "%.2f" | format(tax.tax_amount) }}}}</span>
-		<span class="ar">{{{{ tax.description | rtl }}}}</span>
+		{{# The description carries the rate ("ضريبة القيمة المضافة 15%"), and a
+		    digit in an Arabic label is the one thing this renderer cannot lay
+		    out. The rate is already in the English cell. #}}
+		<span class="ar">ضريبة القيمة المضافة</span>
 	</div>
 	{{% endfor %}}
 	<div class="row pay">

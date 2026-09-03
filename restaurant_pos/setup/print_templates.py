@@ -106,9 +106,16 @@ hr { border: 0; border-top: 1px dashed #000; margin: 0.4rem 0; }
  * Arabic label does not wrap — it overruns the figure beside it. The tax
  * description printed straight through the amount. */
 .tri > * { min-width: 0; }
-.tri > .en { flex: 0 0 25%; text-align: left; unicode-bidi: isolate; }
+/* **No `unicode-bidi: isolate` on these cells**, though every instinct says to
+ * put it there. In this renderer an isolated run will not break across lines:
+ * "الإجمالي قبل الضريبة" stopped wrapping and printed straight over the figure
+ * beside it, while "VAT 15%" in the plain cell next to it wrapped correctly.
+ * A flex item is a block box and already starts its own bidi context, so the
+ * `direction` below is the whole isolation these need. `.amt` keeps its
+ * isolate: an amount is short, must not wrap, and must not be reordered. */
+.tri > .en { flex: 0 0 25%; text-align: left; }
 .tri > .val { flex: 1 1 auto; text-align: center; }
-.tri > .ar { flex: 0 0 30%; text-align: right; direction: rtl; unicode-bidi: isolate; }
+.tri > .ar { flex: 0 0 30%; text-align: right; direction: rtl; }
 /* Dates and document numbers are reference, not headline: set smaller so they
  * fit one line instead of wrapping mid-number. */
 .meta { font-size: 0.88rem; }
@@ -152,17 +159,16 @@ CUSTOMER_RECEIPT = """
 	<div class="notice">الأسعار شاملة ضريبة القيمة المضافة</div>
 	{{% endif %}}
 	<hr>
-	{{# Two columns, not the three-column row below: a fixed 30% column wrapped
-	    "Simplified Tax Invoice" onto two lines, and the heading of a receipt is
-	    the last place to save space.
+	{{# A centred line each, not one row holding both. Side by side they came out
+	    printed over each other on 76mm paper: two long headings in one flex row
+	    is exactly the case this renderer lays out wrong, and a heading is the
+	    last thing on a receipt worth risking for one saved line.
 
 	    A return is a credit note, and ZATCA treats it as a different document
 	    type. Printing one headed "invoice" with negative amounts is wrong on
 	    the paper the customer keeps. #}}
-	<div class="row b">
-		<span>{{% if doc.is_return %}}إشعار دائن{{% else %}}فاتورة ضريبية مبسطة{{% endif %}}</span>
-		<span>{{% if doc.is_return %}}Credit Note{{% else %}}Simplified Tax Invoice{{% endif %}}</span>
-	</div>
+	<div class="c b">{{% if doc.is_return %}}إشعار دائن{{% else %}}فاتورة ضريبية مبسطة{{% endif %}}</div>
+	<div class="c b">{{% if doc.is_return %}}Credit Note{{% else %}}Simplified Tax Invoice{{% endif %}}</div>
 	{{% if order.daily_number %}}
 	<div class="tri">
 		<span class="en huge">{{{{ order.daily_number }}}}</span>

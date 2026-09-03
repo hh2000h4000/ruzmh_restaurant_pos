@@ -12,7 +12,7 @@ import frappe
 from frappe.utils import flt, getdate
 
 from restaurant_pos.api import payment as api
-from restaurant_pos.tests.test_order import ITEM, OrderTestBase
+from restaurant_pos.tests.test_order import ITEM, OrderTestBase, free_table
 from restaurant_pos.utils import order as orders
 from restaurant_pos.utils import payment as service
 from restaurant_pos.utils import totals
@@ -289,7 +289,7 @@ class TestPaymentSideEffects(PaymentTestBase):
 	def test_the_table_goes_to_cleaning(self):
 		"""FR-2.7g."""
 		table = frappe.db.get_value("Restaurant Table", {"section": self.section, "is_active": 1}, "name")
-		frappe.db.set_value("Restaurant Table", table, {"status": "available", "current_order": None})
+		free_table(table)
 
 		order = self._order(order_type=self.dine_in, table=table, cover_count=2)
 		orders.add_item(order, item=ITEM, qty=1)

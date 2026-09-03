@@ -16,7 +16,7 @@ Refs: D-038, D-036, FR-1.6, FR-2.1
 
 import frappe
 
-from restaurant_pos.tests.test_order import ITEM, TEST_ITEM_RATE, OrderTestBase
+from restaurant_pos.tests.test_order import ITEM, TEST_ITEM_RATE, OrderTestBase, free_table
 from restaurant_pos.utils import order as service
 
 #: The delivery platform's own list, priced above the dining room's.
@@ -67,7 +67,7 @@ class OrderTypeChangeBase(OrderTestBase):
 
 	def _free_table(self) -> str:
 		table = frappe.db.get_value("Restaurant Table", {"section": self.section, "is_active": 1}, "name")
-		frappe.db.set_value("Restaurant Table", table, {"status": "available", "current_order": None})
+		free_table(table)
 		return table
 
 

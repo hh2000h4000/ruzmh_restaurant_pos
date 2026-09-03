@@ -451,7 +451,7 @@ class TestVoidAndCancel(OrderTestBase):
 	def test_cancelling_frees_the_table(self):
 		"""BR-062."""
 		table = frappe.db.get_value("Restaurant Table", {"section": self.section, "is_active": 1}, "name")
-		frappe.db.set_value("Restaurant Table", table, {"status": "available", "current_order": None})
+		free_table(table)
 		order = self._order(order_type=self.dine_in, table=table, cover_count=2)
 
 		service.cancel_order(order, reason="Customer left")

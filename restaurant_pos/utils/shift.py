@@ -381,6 +381,13 @@ def summarise_till(opening_entry: str) -> dict:
 		as_dict=True,
 	)
 
+	# `summarise` above checks the branch and this did not, which let a cashier
+	# restricted to one branch read another branch's takings by naming its
+	# opening entry — and pop that branch's drawer, since `get_till_summary`
+	# opens it as it answers (`D-093`). Taken from the profile rather than the
+	# day, so it still holds when the entry predates the shift link.
+	validate_branch_access(day.branch if day else _profile(entry.pos_profile).branch)
+
 	filters = {
 		"pos_profile": entry.pos_profile,
 		"cashier": entry.user,

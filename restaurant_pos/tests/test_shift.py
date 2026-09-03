@@ -285,3 +285,53 @@ class TestEndOfDay(ShiftTestBase):
 
 		with self.assertRaises(frappe.ValidationError):
 			service.close_day(shift_name=outcome["shift"], force=True)
+
+
+class TestOneBranchCannotReadAnother(ShiftTestBase):
+	"""`summarise_till` checked no branch while `summarise` beside it did.
+
+	Found by `test_api_surface`, which walks every whitelisted endpoint looking
+	for a guard. A cashier restricted to one branch could name another branch's
+	opening entry and read its takings — and `get_till_summary` opens the cash
+	drawer as it answers (`D-093`), so it popped that branch's drawer too.
+	"""
+
+	CASHIER = "rpos_other_branch@example.com"
+
+	def setUp(self):
+		super().setUp()
+		if not frappe.db.exists("User", self.CASHIER):
+			frappe.get_doc(
+				{
+					"doctype": "User",
+					"email": self.CASHIER,
+					"first_name": "RPOS Other Branch",
+					"send_welcome_email": 0,
+					"roles": [{"role": "POS Cashier"}],
+				}
+			).insert(ignore_permissions=True)
+
+	def tearDown(self):
+		frappe.set_user("Administrator")
+		for name in frappe.get_all(
+			"User Permission", filters={"user": self.CASHIER, "allow": "Branch"}, pluck="name"
+		):
+			frappe.delete_doc("User Permission", name, force=True, ignore_permissions=True)
+		super().tearDown()
+
+	def test_a_till_summary_is_refused_across_branches(self):
+		entry = service.open_till(pos_profile=self.profile)["entry"]
+
+		# Restricted to a branch that is not the one holding this drawer.
+		frappe.get_doc(
+			{
+				"doctype": "User Permission",
+				"user": self.CASHIER,
+				"allow": "Branch",
+				"for_value": "_RPOS Somewhere Else",
+			}
+		).insert(ignore_permissions=True)
+
+		frappe.set_user(self.CASHIER)
+		with self.assertRaises(frappe.PermissionError):
+			service.summarise_till(entry)

@@ -106,20 +106,18 @@ hr { border: 0; border-top: 1px dashed #000; margin: 0.4rem 0; }
  * Arabic label does not wrap — it overruns the figure beside it. The tax
  * description printed straight through the amount. */
 .tri > * { min-width: 0; }
-/* **No `unicode-bidi: isolate` on these cells**, though every instinct says to
- * put it there. In this renderer an isolated run will not break across lines:
- * "الإجمالي قبل الضريبة" stopped wrapping and printed straight over the figure
- * beside it, while "VAT 15%" in the plain cell next to it wrapped correctly.
- * A flex item is a block box and already starts its own bidi context, so the
- * `direction` below is the whole isolation these need. `.amt` keeps its
- * isolate: an amount is short, must not wrap, and must not be reordered. */
-/* **Keep the Arabic labels short enough to fit on one line.** This renderer
- * will not break an Arabic run inside a narrow flex cell — it prints it over
- * whatever is beside it instead, and "الإجمالي قبل الضريبة" came out on top of
- * the amount on 76mm paper. Removing `unicode-bidi: isolate` did not help; not
- * needing the break is the only thing that does. About twelve characters at
- * 30% is the limit. */
-.tri > .en { flex: 0 0 25%; text-align: left; }
+/* **Keep the Arabic labels short enough to fit on one line — about twelve
+ * characters.** This renderer will not break an Arabic run inside a narrow flex
+ * cell. It does not clip it or wrap it: it prints it straight over whatever is
+ * beside it, and "الإجمالي قبل الضريبة" came out superimposed on the amount on
+ * 76mm paper while "VAT 15%" in the cell alongside wrapped correctly.
+ *
+ * Dropping `unicode-bidi: isolate` from these cells was the obvious suspect and
+ * changed nothing, so it is gone on its own merits — a flex item is a block box
+ * and starts its own bidi context anyway. Not needing the break is the only
+ * thing that works. `.amt` keeps its isolate: an amount is short, must not
+ * wrap, and must not be reordered into the label beside it. */
+.tri > .en { flex: 0 0 28%; text-align: left; }
 .tri > .val { flex: 1 1 auto; text-align: center; }
 .tri > .ar { flex: 0 0 30%; text-align: right; direction: rtl; }
 /* Dates and document numbers are reference, not headline: set smaller so they

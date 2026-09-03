@@ -113,6 +113,12 @@ hr { border: 0; border-top: 1px dashed #000; margin: 0.4rem 0; }
  * A flex item is a block box and already starts its own bidi context, so the
  * `direction` below is the whole isolation these need. `.amt` keeps its
  * isolate: an amount is short, must not wrap, and must not be reordered. */
+/* **Keep the Arabic labels short enough to fit on one line.** This renderer
+ * will not break an Arabic run inside a narrow flex cell — it prints it over
+ * whatever is beside it instead, and "الإجمالي قبل الضريبة" came out on top of
+ * the amount on 76mm paper. Removing `unicode-bidi: isolate` did not help; not
+ * needing the break is the only thing that does. About twelve characters at
+ * 30% is the limit. */
 .tri > .en { flex: 0 0 25%; text-align: left; }
 .tri > .val { flex: 1 1 auto; text-align: center; }
 .tri > .ar { flex: 0 0 30%; text-align: right; direction: rtl; }
@@ -213,7 +219,7 @@ CUSTOMER_RECEIPT = """
 	<div class="tri">
 		<span class="en">Subtotal</span>
 		<span class="val amt">{{{{ "%.2f" | format(doc.net_total) }}}}</span>
-		<span class="ar">الإجمالي قبل الضريبة</span>
+		<span class="ar">قبل الضريبة</span>
 	</div>
 	{{% if doc.discount_amount %}}
 	<div class="tri">
@@ -229,7 +235,7 @@ CUSTOMER_RECEIPT = """
 		{{# The description carries the rate ("ضريبة القيمة المضافة 15%"), and a
 		    digit in an Arabic label is the one thing this renderer cannot lay
 		    out. The rate is already in the English cell. #}}
-		<span class="ar">ضريبة القيمة المضافة</span>
+		<span class="ar">الضريبة</span>
 	</div>
 	{{% endfor %}}
 	<div class="row pay">

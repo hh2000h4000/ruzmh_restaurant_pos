@@ -654,7 +654,6 @@ def _annotate_open_orders(orders: list) -> None:
 		)
 	}
 
-	now = now_datetime()
 	for order in orders:
 		order_type = types.get(order.order_type)
 		order.order_type_title = order_type.title if order_type else order.order_type

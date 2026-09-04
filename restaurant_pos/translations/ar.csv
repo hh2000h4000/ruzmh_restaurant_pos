@@ -46,6 +46,7 @@ Row #{0} is already voided.,السطر رقم {0} ملغى أصلاً.
 Row #{0} is not on this order.,السطر رقم {0} ليس في هذا الطلب.
 Row #{0} is voided.,السطر رقم {0} ملغى.
 Select at least one payment method.,اختر طريقة دفع واحدة على الأقل.
+Set a default customer on POS Profile {0} before taking payment.,عيّن عميلاً افتراضياً على الطرفية {0} قبل استلام الدفع.
 Sign in first.,سجّل الدخول أولاً.
 Table {0} does not exist.,الطاولة {0} غير موجودة.
 Table {0} is not in this branch.,الطاولة {0} ليست في هذا الفرع.

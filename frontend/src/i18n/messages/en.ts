@@ -178,7 +178,6 @@ export const messages = {
   "nav.new": "New",
   "nav.newHint": "The order in hand stays open; find it again under Orders.",
   "orders.viewOpen": "Open",
-  "orders.viewDraft": "Drafts",
   "orders.viewClosed": "Closed today",
   "orders.viewReturned": "Refunded",
   "orders.viewAll": "All",

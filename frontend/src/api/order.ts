@@ -116,7 +116,7 @@ export interface ModifierChoice {
  * an order and can never appear in a list of orders — what the cashier is
  * looking for is *which bill was refunded*, and that is one.
  */
-export type OrderView = "open" | "draft" | "closed" | "returned" | "all";
+export type OrderView = "open" | "closed" | "returned" | "all";
 
 /** Branch-wide, not terminal-wide — see the docstring on the endpoint. */
 export function listOrders(posProfile: string, view: OrderView = "open"): Promise<OpenOrder[]> {

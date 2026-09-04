@@ -187,7 +187,7 @@ export function useOpenOrders() {
 
     await warm(
       profile,
-      (["open", "draft", "closed", "returned", "all"] as OrderView[]).filter(
+      (["open", "closed", "returned", "all"] as OrderView[]).filter(
         (candidate) => candidate !== view.value,
       ),
     );

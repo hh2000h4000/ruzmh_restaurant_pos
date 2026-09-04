@@ -65,7 +65,6 @@ const SORTS: { key: "oldest" | "newest" | "amount"; label: MessageKey }[] = [
  */
 const VIEWS: { key: OrderView; label: MessageKey }[] = [
   { key: "open", label: "orders.viewOpen" },
-  { key: "draft", label: "orders.viewDraft" },
   { key: "closed", label: "orders.viewClosed" },
   // FR-9, D-070 — the refunds were only visible inside the bill they came from.
   { key: "returned", label: "orders.viewReturned" },

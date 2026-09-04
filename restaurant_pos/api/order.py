@@ -464,7 +464,9 @@ OPEN_STATUSES = ("draft", "active", "in_kitchen", "pending_payment")
 #: What each tab of the orders pane asks for (06 Screen 3, D-042).
 VIEWS = {
 	"open": OPEN_STATUSES,
-	"draft": ("draft",),
+	# A "draft" view was here and is gone on purpose (`D-122`). A draft is an
+	# empty bill — the first line makes it active — so the tab filtered to bills
+	# with nothing on them, which the card already says in its item count.
 	"closed": ("closed", "cancelled"),
 	# FR-9, D-070 — the bills money went back out of. A credit note is not a
 	# `Restaurant Order`, so it can never appear in a list of orders; what the

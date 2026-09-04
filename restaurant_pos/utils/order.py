@@ -897,10 +897,19 @@ def move_items(source, target, rows: list[dict], *, override_token: str | None =
 
 	moved = [_carry_line(source, target, row, qty) for row, qty in picked]
 
-	# A line that is already cooking takes the receiving bill's status with it.
-	# Without this the target stays a draft holding food that is on the pass,
-	# and the orders pane files it under "not sent yet".
-	if any(line["was_sent"] for line in moved) and target.status in ("draft", "active"):
+	# The lines take the receiving bill's status with them.
+	#
+	# A **draft is an empty bill** — `add_item` promotes one the moment a line is
+	# added — so a bill that has just been handed food is not a draft. This was
+	# missed at first and the split's second bill sat in the list saying
+	# "مسودة" with a dish on it, which is how the distinction came to be
+	# questioned at all.
+	#
+	# And a line already cooking carries `in_kitchen` across, or the bill reads
+	# as not yet sent while its food is on the pass.
+	if target.status == "draft":
+		target.status = "active"
+	if any(line["was_sent"] for line in moved) and target.status == "active":
 		target.status = "in_kitchen"
 
 	totals.calculate(source)

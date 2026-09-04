@@ -171,7 +171,6 @@ const messages: Catalogue["messages"] = {
   "nav.new": "جديد",
   "nav.newHint": "الطلب الحالي يبقى مفتوحاً، وتجده في «الطلبات».",
   "orders.viewOpen": "مفتوحة",
-  "orders.viewDraft": "مسودّات",
   "orders.viewClosed": "مغلقة اليوم",
   "orders.viewReturned": "مرتجعات",
   "orders.viewAll": "الكل",

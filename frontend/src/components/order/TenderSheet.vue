@@ -72,14 +72,17 @@ watch(
     :wide="typing"
     @close="emit('close')"
   >
-    <div :class="typing ? 'grid gap-3 sm:grid-cols-2' : ''">
-      <div class="flex flex-col gap-2">
+    <!-- White keys on a grey tray, the way the reference draws it. The tray is
+         what makes a stack of buttons read as one control rather than as five
+         unrelated things, and it is the same shape the keypad beside it takes. -->
+    <div :class="typing ? 'grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]' : ''">
+      <div class="flex flex-col gap-2 rounded-rpos bg-background p-3">
         <button
           v-for="(amount, index) in options"
           :key="amount"
           type="button"
-          class="rpos-numeric min-h-tap rounded-rpos border text-lg font-bold"
-          :class="index === 0 ? 'border-primary bg-primary text-primary-contrast' : 'border-line'"
+          class="rpos-numeric min-h-tap rounded-rpos text-lg font-bold shadow-card"
+          :class="index === 0 ? 'bg-primary text-primary-contrast' : 'bg-surface'"
           @click="emit('pick', amount)"
         >
           {{ money(amount) }}
@@ -87,8 +90,8 @@ watch(
 
         <button
           type="button"
-          class="min-h-tap rounded-rpos border border-line"
-          :class="typing ? 'bg-surface font-bold' : ''"
+          class="min-h-tap rounded-rpos bg-surface font-medium shadow-card"
+          :class="typing ? 'ring-2 ring-primary' : ''"
           @click="typing = true"
         >
           {{ t("pay.customAmount") }}
@@ -96,7 +99,7 @@ watch(
 
         <button
           type="button"
-          class="min-h-tap rounded-rpos text-danger"
+          class="min-h-tap rounded-rpos bg-surface font-medium text-danger shadow-card"
           @click="emit('close')"
         >
           {{ t("action.cancel") }}
@@ -108,7 +111,7 @@ watch(
            would close the keypad *and* the sheet behind it (`D-049`). -->
       <div
         v-if="typing"
-        class="flex flex-col gap-2"
+        class="flex flex-col gap-2 rounded-rpos bg-background p-3"
       >
         <AmountKeypad
           :value="draft"
@@ -117,7 +120,7 @@ watch(
         />
         <button
           type="button"
-          class="min-h-tap rounded-rpos bg-primary font-medium text-primary-contrast disabled:opacity-50"
+          class="min-h-tap rounded-rpos bg-primary font-medium text-primary-contrast shadow-card disabled:opacity-50"
           :disabled="custom <= 0"
           @click="emit('pick', custom)"
         >

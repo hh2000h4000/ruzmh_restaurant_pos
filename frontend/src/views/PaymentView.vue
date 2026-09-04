@@ -517,12 +517,16 @@ async function confirm(): Promise<void> {
           {{ t("pay.covered") }}
         </p>
 
-        <div class="mb-4 flex flex-wrap gap-2">
+        <!-- A list, not a wrapped grid. Methods are read down a column and
+             tapped by name; a grid reflows as the list changes and moves the
+             one under the cashier's thumb. The bar on the leading edge is the
+             reference's, and it makes a row of them scannable. -->
+        <div class="mb-4 flex flex-col gap-2">
           <button
             v-for="method in summary.payment_methods"
             :key="method.payment_method"
             type="button"
-            class="min-h-tap rounded-rpos border border-line px-4 text-sm disabled:opacity-40"
+            class="min-h-tap w-full rounded-rpos border border-line border-s-4 border-s-primary bg-background px-4 text-start font-medium shadow-card disabled:opacity-40 disabled:shadow-none"
             :disabled="!canTakeMore"
             @click="tendering = method"
           >

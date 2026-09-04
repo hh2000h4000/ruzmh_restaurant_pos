@@ -449,6 +449,15 @@ async function confirm(): Promise<void> {
             @click="addMethod(method.payment_method)"
           >
             {{ method.payment_method }}
+            <!-- The share, on the button that would take it. Without it the
+                 first question anyone asks a split screen is whether they now
+                 need one payment method per person — they do not, and tapping
+                 the same one again is the answer. Saying "Cash 14.00" makes
+                 that visible instead of explained. -->
+            <span
+              v-if="splitting"
+              class="rpos-numeric ms-1 font-bold"
+            >{{ money(shares[settled]) }}</span>
           </button>
         </div>
 

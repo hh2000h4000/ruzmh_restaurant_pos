@@ -564,20 +564,35 @@ async function confirm(): Promise<void> {
 
         <div class="mb-3 flex flex-wrap items-center gap-2">
           <span class="text-sm text-muted">{{ t("pay.split") }}</span>
+          <!-- The chosen number fills, it does not merely embolden. A cashier
+               taking money at speed does not read font weights, and the old
+               `border-accent` was not even a colour: `accent` is a palette of
+               named shades with no default, so Tailwind generated nothing and
+               the only feedback in the screen was the bold. A filled block is
+               visible from arm's length, which is the distance a till is read
+               from. -->
           <button
             v-for="ways in SPLIT_WAYS"
             :key="ways"
             type="button"
-            class="min-h-tap min-w-tap rounded-rpos border border-line px-3 text-sm"
-            :class="{ 'border-accent font-bold': shares.length === ways }"
+            class="min-h-tap min-w-tap rounded-rpos border px-3 text-sm font-bold transition duration-200 ease-rpos"
+            :class="
+              shares.length === ways
+                ? 'border-primary bg-primary text-primary-contrast shadow-card'
+                : 'border-line bg-surface text-content'
+            "
             @click="splitInto(ways)"
           >
             {{ ways }}
           </button>
+
+          <!-- Boxed like its neighbours: it undoes what they did, so it is the
+               same kind of thing. As bare text it read as a caption and was
+               tapped by nobody. -->
           <button
             v-if="shares.length"
             type="button"
-            class="min-h-tap px-2 text-xs text-danger"
+            class="min-h-tap rounded-rpos border border-danger px-3 text-sm font-medium text-danger transition duration-200 ease-rpos"
             @click="clearSplit"
           >
             {{ t("pay.splitClear") }}

@@ -75,7 +75,9 @@ watch(
     <!-- White keys on a grey tray, the way the reference draws it. The tray is
          what makes a stack of buttons read as one control rather than as five
          unrelated things, and it is the same shape the keypad beside it takes. -->
-    <div :class="typing ? 'grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]' : ''">
+    <!-- The keypad gets a column of its own width; letting it size itself
+         squeezed it to a strip of digits nobody could hit. -->
+    <div :class="typing ? 'grid gap-3 sm:grid-cols-[minmax(0,1fr)_18rem]' : ''">
       <div class="flex flex-col gap-2 rounded-rpos bg-background p-3">
         <button
           v-for="(amount, index) in options"

@@ -595,7 +595,6 @@ async function confirm(): Promise<void> {
           >
             {{ ways }}
           </button>
-
         </div>
 
         <!-- What the split is doing, and how to stop it — one block, because

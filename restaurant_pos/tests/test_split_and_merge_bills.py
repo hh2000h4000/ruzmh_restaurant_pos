@@ -342,3 +342,53 @@ class ThePreviewMatchesTheSplit(OrderTestBase):
 
 		with self.assertRaises(frappe.ValidationError):
 			service.preview_split(order, [{"idx": order.items[0].idx, "qty": 5}])
+
+
+class ABillWithFoodOnItIsNotADraft(OrderTestBase):
+	"""A draft is an **empty** bill, and moving a line onto one ends that.
+
+	`add_item` has always promoted a draft to `active` on the first line.
+	`move_items` did not, so the second bill of every split sat in the orders
+	list saying "draft" with a dish on it. The user found it by asking what the
+	difference between the drafts tab and the open tab was — the answer being
+	that this bill was in the wrong one.
+
+	Refs: BR-067, D-122
+	"""
+
+	def _bill(self, *quantities):
+		order = self._order()
+		for qty in quantities:
+			service.add_item(order, item=ITEM, qty=qty)
+		order.save(ignore_permissions=True)
+		order.reload()
+		return order
+
+	def test_splitting_leaves_the_new_bill_active(self):
+		source = self._bill(1, 1)
+
+		outcome = service.split_order(source, [{"idx": source.items[0].idx}])
+
+		self.assertEqual(frappe.db.get_value("Restaurant Order", outcome["target"], "status"), "active")
+
+	def test_a_draft_that_receives_a_line_stops_being_one(self):
+		source = self._bill(1)
+		target = self._order()  # nothing on it: a real draft
+		self.assertEqual(target.status, "draft")
+
+		service.move_items(source, target, [{"idx": source.items[0].idx}])
+
+		self.assertEqual(target.status, "active")
+
+	def test_a_line_already_cooking_still_carries_the_kitchen(self):
+		"""The promotion must not overwrite the stronger status."""
+		from restaurant_pos.utils import kitchen
+
+		source = self._bill(1)
+		kitchen.send_to_kitchen(source)
+		source.reload()
+		target = self._order()
+
+		service.move_items(source, target, [{"idx": source.items[0].idx}])
+
+		self.assertEqual(target.status, "in_kitchen")

@@ -120,15 +120,18 @@ class TestOrderViews(OrderTestBase):
 		with self.assertRaises(frappe.ValidationError):
 			api.list_orders(self.profile, view="everything")
 
-	def test_drafts_are_only_the_untouched_ones(self):
+	def test_a_draft_is_an_empty_bill(self):
+		"""The whole content of the word (`D-122`).
+
+		Asserted on the status rather than through a "drafts" view, which is
+		gone: a tab filtering to bills with nothing on them showed what the card
+		already says in its item count.
+		"""
 		draft = self._order()
-		started = self._order()
-		service.add_item(started, item=self.item, qty=1)
+		self.assertEqual(draft.status, "draft")
 
-		listed = {row["name"] for row in api.list_orders(self.profile, view="draft")}
-
-		self.assertIn(draft.name, listed)
-		self.assertNotIn(started.name, listed, "an order with items is no longer a draft")
+		service.add_item(draft, item=self.item, qty=1)
+		self.assertEqual(draft.status, "active", "a bill with a line on it is not a draft")
 
 	def test_history_holds_what_the_floor_does_not(self):
 		order = self._order()

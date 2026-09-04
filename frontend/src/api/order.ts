@@ -312,3 +312,43 @@ export function setCallName(payload: {
 }): Promise<OrderSummary & { call_name: string | null; changed: boolean }> {
   return mutate("order.set_call_name", payload);
 }
+
+/** One line a cashier has chosen to move, whole or in part (`BR-067`). */
+export interface MovedLine {
+  idx: number;
+  qty?: number;
+}
+
+export interface SplitPreview {
+  source: { subtotal: number; tax_amount: number; total_amount: number };
+  target: { subtotal: number; tax_amount: number; total_amount: number };
+}
+
+/**
+ * What each side of a split would come to.
+ *
+ * Asked of the server because a total is money (`CLAUDE.md` §5.1), the same
+ * reason `previewTotals` exists for a discount: the figure the cashier reads to
+ * a customer has to be the figure the invoice will carry.
+ */
+export function previewSplit(orderName: string, rows: MovedLine[]): Promise<SplitPreview> {
+  return query<SplitPreview>("order.preview_split", { order_name: orderName, rows });
+}
+
+/** Move the chosen lines onto a bill of their own (`FR-2.12`). */
+export function splitBill(payload: {
+  order_name: string;
+  rows: MovedLine[];
+  queue_id?: string;
+}): Promise<OrderSummary & { target: string }> {
+  return mutate("order.split_bill", payload);
+}
+
+/** Empty one bill into another and close it (`FR-2.12`). */
+export function mergeBills(payload: {
+  order_name: string;
+  into: string;
+  queue_id?: string;
+}): Promise<OrderSummary & { merged: string }> {
+  return mutate("order.merge_bills", payload);
+}

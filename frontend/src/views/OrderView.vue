@@ -15,6 +15,8 @@ import NoteEditor from "@/components/order/NoteEditor.vue";
 import OrderPanel from "@/components/order/OrderPanel.vue";
 import OrderTypeChangeDialog from "@/components/order/OrderTypeChangeDialog.vue";
 import ActivityDialog from "@/components/order/ActivityDialog.vue";
+import JoinBillDialog from "@/components/order/JoinBillDialog.vue";
+import SplitBillDialog from "@/components/order/SplitBillDialog.vue";
 import ReturnDialog from "@/components/order/ReturnDialog.vue";
 import CloseDayDialog from "@/components/shift/CloseDayDialog.vue";
 import CloseTillDialog from "@/components/shift/CloseTillDialog.vue";
@@ -768,6 +770,24 @@ const moreActions = computed<OrderAction[]>(() => {
     });
   }
 
+  // FR-2.12 — both move food between bills, so both live here rather than in
+  // the row: a hand that lands without looking must not rearrange two bills.
+  // Foodics keeps them in the same menu, next to Assign Table (`D-120`).
+  if (session.can("can_split_bill")) {
+    entries.push({
+      key: "split",
+      label: "split.action",
+      icon: "swap",
+      disabled: locked.value || !orders.order?.item_count,
+    });
+    entries.push({
+      key: "join",
+      label: "join.action",
+      icon: "swap",
+      disabled: locked.value,
+    });
+  }
+
   // D-106 — the bill's own history. Never disabled: reading is allowed with
   // no shift open, which is exactly when somebody is working out what
   // happened last night (`D-058` drew that line).
@@ -798,6 +818,30 @@ function onAction(action: OrderAction): void {
   // FR-9 — a refund out of a counted drawer is a sale into one, backwards.
   else if (action.key === "return") returning.value = maySell();
   else if (action.key === "log") showingLog.value = true;
+  else if (action.key === "split") splitting.value = maySell();
+  else if (action.key === "join") joining.value = maySell();
+}
+
+// --------------------------------------------------------------------------
+// Splitting and joining bills (FR-2.12)
+// --------------------------------------------------------------------------
+
+const splitting = ref(false);
+const joining = ref(false);
+
+/**
+ * Follow the food. A split leaves the cashier on the original bill with the new
+ * one open beside it, which is what they asked for — they were dividing *this*
+ * bill, and the guest paying the other half is the next thing they deal with.
+ */
+async function onSplit(): Promise<void> {
+  splitting.value = false;
+  await reload();
+}
+
+async function onJoined(): Promise<void> {
+  joining.value = false;
+  await reload();
 }
 
 // --------------------------------------------------------------------------
@@ -1326,6 +1370,20 @@ async function send(): Promise<void> {
       v-model="showingLog"
       :order-name="orders.order?.order_name ?? null"
       :number="orders.order?.daily_number ?? null"
+    />
+
+    <SplitBillDialog
+      :open="splitting"
+      :order="orders.order"
+      @close="splitting = false"
+      @done="onSplit"
+    />
+
+    <JoinBillDialog
+      :open="joining"
+      :order="orders.order"
+      @close="joining = false"
+      @done="onJoined"
     />
 
     <ReturnDialog

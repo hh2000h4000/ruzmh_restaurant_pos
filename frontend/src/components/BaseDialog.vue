@@ -13,6 +13,12 @@ const props = defineProps<{
   title: string;
   /** Escape and the backdrop do not close a dialog that must be answered. */
   dismissible?: boolean;
+  /**
+   * Room for columns. The default is a form's width; splitting a bill puts two
+   * bills side by side and joining one puts three, and a cashier comparing them
+   * cannot do it through a letterbox.
+   */
+  wide?: boolean;
 }>();
 
 const emit = defineEmits<{ close: [] }>();
@@ -80,7 +86,7 @@ onUnmounted(() => document.removeEventListener("keydown", onKeydown));
         role="dialog"
         aria-modal="true"
         :aria-label="title"
-        class="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-rpos bg-surface p-5 shadow-xl"
+        :class="['max-h-[90vh] w-full overflow-y-auto rounded-rpos bg-surface p-5 shadow-xl', wide ? 'max-w-5xl' : 'max-w-lg']"
       >
         <h2 class="mb-4 text-lg font-semibold">
           {{ title }}

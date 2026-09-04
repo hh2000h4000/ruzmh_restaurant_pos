@@ -976,6 +976,46 @@ def _carry_line(source, target, row, qty: float) -> dict:
 	}
 
 
+def preview_split(source, rows: list[dict]) -> dict:
+	"""What the two bills would come to, before anything moves (FR-2.12).
+
+	The split screen shows a running total per side, and a total is money — so
+	it is computed here rather than on the till (`CLAUDE.md` §5.1). The same
+	reason `preview_totals` exists for a discount: a figure a cashier reads to a
+	customer must be the figure the invoice will carry.
+
+	Resolves through `_resolve_line`, so the screen refuses exactly what the
+	move itself would refuse, at the moment the cashier taps rather than after
+	they have arranged the whole bill.
+	"""
+	picked = [_resolve_line(source, spec) for spec in (rows or [])]
+	moving = {id(row): qty for row, qty in picked}
+
+	staying, going = [], []
+	for line in source.items:
+		if line.status == "void":
+			continue
+
+		qty = flt(line.qty)
+		moved = flt(moving.get(id(line), 0))
+		per_unit = flt(line.amount) / qty if qty else 0.0
+
+		if moved:
+			going.append(totals.money(per_unit * moved))
+		if qty - moved:
+			staying.append(totals.money(per_unit * (qty - moved)))
+
+	pricing = totals.pricing_inputs(source.pos_profile)
+
+	return {
+		# The discount is deliberately not carried into either side: a bill
+		# carrying one cannot be split at all (`BR-067`), so previewing it as if
+		# it could would show a figure the confirm button will refuse.
+		"source": totals.compute(staying, None, 0, pricing),
+		"target": totals.compute(going, None, 0, pricing),
+	}
+
+
 def split_order(source, rows: list[dict], *, cover_count: int | None = None, **kwargs) -> dict:
 	"""Take some lines onto a bill of their own (FR-2.12).
 

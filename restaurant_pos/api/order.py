@@ -395,6 +395,16 @@ def cancel_order(
 
 
 @frappe.whitelist()
+def preview_split(order_name: str, rows: list | str) -> dict:
+	"""What the two bills would come to, before anything moves (FR-2.12).
+
+	Read-only, so no `queue_id`: nothing has happened yet.
+	"""
+	order = _load(order_name)
+	return service.preview_split(order, frappe.parse_json(rows) if isinstance(rows, str) else rows)
+
+
+@frappe.whitelist()
 def split_bill(
 	order_name: str,
 	rows: list | str,

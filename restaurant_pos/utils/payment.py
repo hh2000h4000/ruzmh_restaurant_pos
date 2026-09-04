@@ -259,9 +259,7 @@ def invoice_blocker(order) -> str | None:
 	profile = frappe.get_cached_doc("POS Profile", order.pos_profile)
 
 	if not (order.customer or profile.customer):
-		return _("Set a default customer on POS Profile {0} before taking payment.").format(
-			order.pos_profile
-		)
+		return _("Set a default customer on POS Profile {0} before taking payment.").format(order.pos_profile)
 
 	return None
 

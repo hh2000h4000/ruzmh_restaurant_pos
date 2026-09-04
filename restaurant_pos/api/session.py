@@ -434,7 +434,7 @@ def _payment_methods(pos_profile: str) -> list[dict]:
 	to take a fifty for a thirty-five bill. Reading it here means the answer is
 	on the device before it is needed rather than at the moment it is not.
 	"""
-	from restaurant_pos.utils.payment import is_cash
+	from restaurant_pos.utils.payment import is_cash, is_credit_method
 
 	rows = frappe.get_all(
 		"POS Payment Method",
@@ -444,6 +444,7 @@ def _payment_methods(pos_profile: str) -> list[dict]:
 	)
 	for row in rows:
 		row["is_cash"] = 1 if is_cash(row["mode_of_payment"]) else 0
+		row["is_credit"] = 1 if is_credit_method(row["mode_of_payment"]) else 0
 
 	return rows
 

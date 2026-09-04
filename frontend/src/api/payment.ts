@@ -13,6 +13,8 @@ export interface PaymentMethodOption {
   is_default: 0 | 1;
   /** Takes notes, so it can be handed more than the bill and give change. */
   is_cash: 0 | 1;
+  /** Leaves the money owed rather than collected — a platform or an account. */
+  is_credit: 0 | 1;
 }
 
 export interface PaymentSummary {

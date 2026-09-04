@@ -114,6 +114,31 @@ const payable = computed(() => lines.value.filter((line) => (line.amount || 0) >
  */
 const canTakeMore = computed(() => splitting.value || remaining.value > 0.005);
 
+/**
+ * Which way this bill is being settled once the first tender is taken.
+ *
+ * `D-029` — an order is **settled at the till or billed to an account, never
+ * both**: half to a delivery platform and half in cash leaves a
+ * partly-outstanding invoice inside a cash-drawer reconciliation. The server
+ * has always refused the mix; it refused it at Confirm, after two tenders had
+ * been taken and the customer had been told a total. It is a rule about which
+ * *buttons* are available, so it belongs on the buttons (`D-125`).
+ */
+const settlementKind = computed<"credit" | "till" | null>(() => {
+  const first = lines.value[0];
+  if (!first) return null;
+
+  const method = summary.value?.payment_methods.find(
+    (row) => row.payment_method === first.method,
+  );
+  return method?.is_credit ? "credit" : "till";
+});
+
+function mixesSettlement(method: PaymentMethodOption): boolean {
+  if (!settlementKind.value) return false;
+  return (method.is_credit ? "credit" : "till") !== settlementKind.value;
+}
+
 const canConfirm = computed(
   () =>
     !busy.value &&
@@ -167,6 +192,7 @@ onMounted(async () => {
         is_forced: 0 as const,
         is_default: row.default,
         is_cash: row.is_cash,
+        is_credit: row.is_credit,
       })),
     };
     return;
@@ -523,6 +549,15 @@ async function confirm(): Promise<void> {
           {{ t("pay.covered") }}
         </p>
 
+        <!-- Why half the list went quiet. The rule is real and old (`D-029`);
+             what is new is saying it before the sale is refused over it. -->
+        <p
+          v-else-if="settlementKind"
+          class="mb-3 text-sm text-muted"
+        >
+          {{ settlementKind === "credit" ? t("pay.creditOnly") : t("pay.tillOnly") }}
+        </p>
+
         <!-- A list, not a wrapped grid. Methods are read down a column and
              tapped by name; a grid reflows as the list changes and moves the
              one under the cashier's thumb. The bar on the leading edge is the
@@ -533,7 +568,7 @@ async function confirm(): Promise<void> {
             :key="method.payment_method"
             type="button"
             class="min-h-tap w-full rounded-rpos border border-line border-s-4 border-s-primary bg-background px-4 text-start font-medium shadow-card disabled:opacity-40 disabled:shadow-none"
-            :disabled="!canTakeMore"
+            :disabled="!canTakeMore || mixesSettlement(method)"
             @click="tendering = method"
           >
             {{ method.payment_method }}

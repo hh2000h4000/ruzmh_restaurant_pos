@@ -314,6 +314,8 @@ export const messages = {
   "pay.newOrder": "New order",
   "pay.methods": "Payment methods",
   "pay.covered": "The bill is covered. Lower an amount below to pay part of it another way.",
+  "pay.tillOnly": "This bill is being settled at the till, so account methods are not offered.",
+  "pay.creditOnly": "This bill is billed to an account, so till methods are not offered.",
   "pay.split": "Split evenly between",
   "pay.total": "Total",
   "pay.tax": "Tax",

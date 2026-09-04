@@ -211,7 +211,12 @@ export interface PosSession {
   screen_layout: ScreenLayout | null;
   order_types: OrderType[];
   /** `is_cash` rides along so an offline till still knows what takes notes. */
-  payment_methods: { mode_of_payment: string; default: 0 | 1; is_cash: 0 | 1 }[];
+  payment_methods: {
+    mode_of_payment: string;
+    default: 0 | 1;
+    is_cash: 0 | 1;
+    is_credit: 0 | 1;
+  }[];
   active_shift: Shift | null;
   /**
    * BR-044 — may this cashier ring a sale right now (D-054).

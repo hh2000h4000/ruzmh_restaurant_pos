@@ -155,6 +155,11 @@ def get_payment_summary(order_name: str) -> dict:
 	# the drawer opens on (`D-093`) — a restaurant may call cash anything.
 	for row in allowed:
 		row["is_cash"] = 1 if service.is_cash(row["payment_method"]) else 0
+		# And which ones leave the money owed instead of collected. A bill is
+		# settled at the till **or** billed to an account, never both (`D-029`),
+		# and the screen has to stop the mix at the tap rather than let the
+		# server refuse it after the cashier has taken two tenders (`D-125`).
+		row["is_credit"] = 1 if service.is_credit_method(row["payment_method"]) else 0
 
 	return {
 		"order_name": order.name,

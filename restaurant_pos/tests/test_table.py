@@ -37,7 +37,8 @@ class TestFloorPlan(OrderTestBase):
 		# one of them: a table may carry several (`BR-066`).
 		self.assertEqual([bill["name"] for bill in row["orders"]], [order.name])
 		self.assertEqual(row["orders"][0]["item_count"], 1)
-		self.assertIn("minutes", row["orders"][0])
+		# When it opened, not how long ago (`D-121`).
+		self.assertIn("opened_at", row["orders"][0])
 
 	def test_an_available_table_carries_no_order_fields(self):
 		table = frappe.db.get_value(

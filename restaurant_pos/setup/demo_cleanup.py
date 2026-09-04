@@ -175,9 +175,7 @@ def _drop_test_traffic(report: Report) -> None:
 		# asks what is still open on the table — writing "available" here would
 		# empty a table that another party is still eating at (`BR-066`).
 		if order.table:
-			frappe.db.set_value(
-				"Restaurant Table", order.table, "current_order", None, update_modified=False
-			)
+			frappe.db.set_value("Restaurant Table", order.table, "current_order", None, update_modified=False)
 
 		frappe.delete_doc("Restaurant Order", order.name, force=True, ignore_permissions=True)
 		report.gone("Restaurant Order")

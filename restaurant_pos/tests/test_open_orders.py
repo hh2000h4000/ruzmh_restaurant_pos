@@ -199,9 +199,7 @@ class TheFloorIsSharedAndHistoryIsNot(OrderTestBase):
 
 		from restaurant_pos.utils import payment
 
-		payment.process_payment(
-			theirs, payments=[{"method": "Cash", "amount": float(theirs.total_amount)}]
-		)
+		payment.process_payment(theirs, payments=[{"method": "Cash", "amount": float(theirs.total_amount)}])
 
 		self._as_cashier()
 		self.assertNotIn(theirs.name, {row["name"] for row in api.list_orders(self.profile, "closed")})
@@ -218,9 +216,7 @@ class TheFloorIsSharedAndHistoryIsNot(OrderTestBase):
 
 		from restaurant_pos.utils import payment
 
-		payment.process_payment(
-			settled, payments=[{"method": "Cash", "amount": float(settled.total_amount)}]
-		)
+		payment.process_payment(settled, payments=[{"method": "Cash", "amount": float(settled.total_amount)}])
 
 		self._as_cashier()
 		names = {row["name"] for row in api.list_orders(self.profile, "all")}

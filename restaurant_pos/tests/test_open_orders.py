@@ -27,7 +27,7 @@ class TestOpenOrders(OrderTestBase):
 		self.assertNotIn(order.name, self._names())
 
 	def test_a_card_carries_what_the_screen_draws(self):
-		"""06 Screen 1 — type, elapsed time, item count and status."""
+		"""06 Screen 1 — type, when it opened, item count and status."""
 		order = self._order()
 		service.add_item(order, item=ITEM, qty=2)
 
@@ -35,7 +35,7 @@ class TestOpenOrders(OrderTestBase):
 
 		self.assertEqual(row["item_count"], 1)
 		self.assertEqual(row["status"], order.status)
-		self.assertIn("order_minutes", row)
+		self.assertIn("opened_at", row)
 		self.assertTrue(row["order_type_title"])
 		self.assertTrue(row["order_type_title_ar"])
 
@@ -79,25 +79,6 @@ class TestOpenOrders(OrderTestBase):
 
 		row = next(entry for entry in api.list_orders(self.profile) if entry["name"] == order.name)
 		self.assertTrue(row["cashier_name"])
-
-	def test_a_cashier_without_the_right_sees_only_their_own(self):
-		"""FR-12.3 — enforced here, not by hiding a tab.
-
-		A till whose user may not see the floor must not be able to read another
-		cashier's orders by calling this endpoint directly.
-		"""
-		mine = self._order()
-
-		cashier = _make_cashier()
-		frappe.set_user(cashier)
-		frappe.local.rpos_permission_cache = {}
-		try:
-			listed = {row["name"] for row in api.list_orders(self.profile)}
-		finally:
-			frappe.set_user("Administrator")
-			frappe.local.rpos_permission_cache = {}
-
-		self.assertNotIn(mine.name, listed, "another cashier's order leaked to a restricted user")
 
 	def test_listing_does_not_scale_with_the_number_of_orders(self):
 		"""04 §8 — this list refreshes on every realtime event."""

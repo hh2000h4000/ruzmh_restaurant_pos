@@ -67,11 +67,16 @@ function choose(where: "order" | "floor"): void {
       </div>
 
       <div class="flex shrink-0 items-start gap-1">
-        <!-- Draft says nothing: every order here is one until it moves. -->
-        <div
-          v-if="order.status !== 'draft'"
-          class="text-end"
-        >
+        <!-- A draft says so, like every other status.
+
+         It used to be left blank, on the reasoning that every bill on this
+         screen is a draft until it moves. That held while the screen showed one
+         kind of bill. It does not on a mixed list: one row reads "active" and
+         the row under it reads nothing, and a blank in a column every other row
+         fills is read as missing data rather than as a state. The user asked
+         what the difference between the two tabs was, and the answer was on the
+         screen the whole time — invisible. -->
+        <div class="text-end">
           <p
             class="font-bold"
             :class="STATUS_TEXT[order.status]"

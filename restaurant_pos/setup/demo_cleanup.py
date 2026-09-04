@@ -23,12 +23,32 @@ not the same thing, and only one of them is safe to delete.
 
 import frappe
 
+from restaurant_pos.utils.order import release_table
+
 #: Documents whose names or titles mark them as smoke-test leftovers.
 RESIDUE_PATTERNS = ("RPOS-TEST-%", "RPOS-PLAN-%", "RPOS Test%", "E2E %")
 
-#: The POS Profile `setup/test_fixtures.py` builds. Its presence means this is
-#: the site the suite runs against, where the residue is not residue.
+#: The POS Profile `setup/test_fixtures.py` builds.
 TEST_SITE_MARKER = "RPOS Test Terminal"
+
+
+def is_the_suites_site() -> bool:
+	"""Whether this is the site the tests own, where the residue is the fixtures.
+
+	The marker used to be the test terminal alone, and that was not enough. A
+	suite run aimed at the demo site by mistake leaves one there — and then this
+	module refused to clean up the very mess that run had made, on the grounds
+	that the mess proved it must not. It happened, and it left 209 orders on a
+	terminal nobody had ever sold from.
+
+	The demo's own price list is what the suite's site never has, so the two
+	together say which site this is rather than which documents it holds.
+	"""
+	from restaurant_pos.setup.demo import DEMO_PRICE_LIST
+
+	return bool(frappe.db.exists("POS Profile", TEST_SITE_MARKER)) and not frappe.db.exists(
+		"Price List", DEMO_PRICE_LIST
+	)
 
 
 class Report:
@@ -61,15 +81,17 @@ class Report:
 
 def clean() -> None:
 	"""Delete the residue, children first. Idempotent."""
-	if frappe.db.exists("POS Profile", TEST_SITE_MARKER):
+	if is_the_suites_site():
 		frappe.throw(
-			f"This site carries {TEST_SITE_MARKER}, so RPOS-TEST-* documents are the "
-			"test suite's fixtures rather than residue. Refusing to delete them."
+			f"This site carries {TEST_SITE_MARKER} and no demo price list, so it is the "
+			"suite's own site: RPOS-TEST-* documents are its fixtures rather than "
+			"residue. Refusing to delete them."
 		)
 
 	report = Report()
 
 	_drop_test_traffic(report)
+	_drop_terminals(report)
 	_drop_e2e_printing(report)
 	_tidy_printers(report)
 	_drop_items(report)
@@ -118,6 +140,18 @@ def _drop_test_traffic(report: Report) -> None:
 		)
 	)
 
+	# And every bill rung up on a terminal that should not be here. A suite run
+	# aimed at the demo site sells from its own POS Profile, so the orders it
+	# leaves reference no residue item and sit on no residue table — they are
+	# residue by the till they were sold on, and nothing else.
+	blocking.update(
+		frappe.get_all(
+			"Restaurant Order",
+			filters={"pos_profile": ("in", _residue_profiles() or [""])},
+			pluck="name",
+		)
+	)
+
 	for order_name in sorted(blocking):
 		order = frappe.db.get_value(
 			"Restaurant Order", order_name, ["name", "status", "sales_invoice", "table"], as_dict=True
@@ -136,17 +170,28 @@ def _drop_test_traffic(report: Report) -> None:
 			frappe.delete_doc("Kitchen Order Ticket", kot, force=True, ignore_permissions=True)
 		report.gone("Kitchen Order Ticket", len(kots))
 
-		# The table points back at the order; clear it or the delete is refused.
+		# The table points back at the order; clear the link or the delete is
+		# refused. The *status* is settled afterwards by `release_table`, which
+		# asks what is still open on the table — writing "available" here would
+		# empty a table that another party is still eating at (`BR-066`).
 		if order.table:
 			frappe.db.set_value(
-				"Restaurant Table",
-				order.table,
-				{"current_order": None, "status": "available"},
-				update_modified=False,
+				"Restaurant Table", order.table, "current_order", None, update_modified=False
 			)
 
 		frappe.delete_doc("Restaurant Order", order.name, force=True, ignore_permissions=True)
 		report.gone("Restaurant Order")
+
+		if order.table:
+			release_table(order.table)
+
+
+def _residue_profiles() -> list[str]:
+	"""Terminals that belong to the suite, not to this restaurant."""
+	found = []
+	for pattern in RESIDUE_PATTERNS:
+		found += frappe.get_all("POS Profile", filters={"name": ("like", pattern)}, pluck="name")
+	return found
 
 
 def _residue_tables() -> list[str]:
@@ -280,6 +325,38 @@ def _drop_production_centers(report: Report) -> None:
 
 		frappe.delete_doc("Production Center", center, force=True, ignore_permissions=True)
 		report.gone("Production Center")
+
+
+def _drop_terminals(report: Report) -> None:
+	"""The suite's own terminal, and the price lists it sells from.
+
+	Deleted before the sections, because a section holding a terminal is spared.
+	Anything still selling — a bill that reached an invoice, and so was kept —
+	keeps its terminal too: an order pointing at a deleted POS Profile is worse
+	than a terminal nobody uses.
+	"""
+	for profile in _residue_profiles():
+		orders = frappe.db.count("Restaurant Order", {"pos_profile": profile})
+		if orders:
+			report.spared(f"{profile} — {orders} order(s) still reference it")
+			continue
+
+		price_list = frappe.db.get_value("POS Profile", profile, "selling_price_list")
+		frappe.delete_doc("POS Profile", profile, force=True, ignore_permissions=True)
+		report.gone("POS Profile")
+
+		# The list goes with the terminal, and only if nothing else sells from it.
+		if not price_list or not price_list.startswith("RPOS Test"):
+			continue
+		if frappe.db.count("POS Profile", {"selling_price_list": price_list}):
+			continue
+
+		for row in frappe.get_all("Item Price", filters={"price_list": price_list}, pluck="name"):
+			frappe.delete_doc("Item Price", row, force=True, ignore_permissions=True)
+			report.gone("Item Price")
+
+		frappe.delete_doc("Price List", price_list, force=True, ignore_permissions=True)
+		report.gone("Price List")
 
 
 def _drop_sections(report: Report) -> None:

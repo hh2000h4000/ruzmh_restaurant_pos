@@ -431,14 +431,18 @@ async function confirm(): Promise<void> {
 
 <template>
   <main class="flex h-full min-h-0 flex-col">
-    <header class="flex items-center gap-3 border-b border-line bg-surface px-4 py-3">
+    <!-- The header sits on the page, not on a bar of its own: three cards on a
+         warm ground is the whole composition, and a white strip above them
+         adds a fourth surface that means nothing. -->
+    <header class="flex shrink-0 items-center gap-4 px-6 pb-4 pt-5">
       <RouterLink
         :to="{ name: 'order', params: { orderName } }"
-        class="rpos-tap inline-flex items-center px-2 text-primary"
+        class="grid h-10 w-10 shrink-0 place-items-center rounded-rpos border border-line bg-surface text-lg text-content transition duration-200 ease-rpos hover:bg-background"
+        :aria-label="t('action.back')"
       >
-        ←
+        <span class="rpos-flip">←</span>
       </RouterLink>
-      <h1 class="font-semibold">
+      <h1 class="text-2xl font-medium tracking-tight">
         {{ t("pay.title") }}
       </h1>
       <span class="rpos-numeric text-xs text-muted">{{ orderName }}</span>
@@ -517,9 +521,13 @@ async function confirm(): Promise<void> {
       {{ loadFailure }}
     </p>
 
+    <!-- Columns in the order the work happens: take the money, adjust the
+         price, read the bill out. The widths are the reference's — the methods
+         column is the widest because it is the one being worked in, and the
+         summary is capped so a long total never squeezes the other two. -->
     <div
       v-else-if="summary"
-      class="grid flex-1 gap-3 overflow-y-auto p-3 lg:min-h-0 lg:grid-cols-3 lg:overflow-hidden"
+      class="grid flex-1 gap-5 overflow-y-auto px-6 pb-7 lg:min-h-0 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)_minmax(268px,340px)] lg:overflow-hidden"
     >
       <!-- Something the cashier can fix, said **above** the screen and not
            instead of it: the amounts they typed are what they need in order to
@@ -527,7 +535,7 @@ async function confirm(): Promise<void> {
       <p
         v-if="failure"
         role="alert"
-        class="rounded-rpos bg-danger/10 px-3 py-2 text-sm text-danger lg:col-span-3"
+        class="rounded-rpos-lg bg-danger/10 px-4 py-3 text-sm text-danger lg:col-span-3"
       >
         {{ failure }}
       </p>
@@ -539,8 +547,10 @@ async function confirm(): Promise<void> {
            (`D-124`). Each column keeps its own scrollbar from `lg` up; below
            that the three stack and the page scrolls, which is right on a
            phone. -->
-      <section class="flex flex-col rounded-rpos bg-surface p-4 lg:min-h-0">
-        <h2 class="mb-3 text-sm font-medium text-muted">
+      <section
+        class="flex flex-col gap-4 rounded-rpos-lg border border-line bg-surface px-6 py-5 lg:min-h-0"
+      >
+        <h2 class="text-xs text-muted">
           {{ t("pay.methods") }}
         </h2>
 
@@ -550,19 +560,19 @@ async function confirm(): Promise<void> {
         <p
           v-if="blocker"
           role="alert"
-          class="mb-3 rounded-rpos bg-danger/10 p-2 text-sm text-danger"
+          class="rounded-rpos bg-danger/10 px-3 py-2 text-sm text-danger"
         >
           {{ blocker }}
         </p>
 
         <p
           v-if="forcedMethod"
-          class="mb-3 rounded-rpos bg-status-reserved/10 p-2 text-xs text-status-reserved"
+          class="rounded-rpos bg-accent-gold/10 px-3 py-2 text-xs text-accent-gold"
         >
           {{ t("pay.forcedMethod", { method: forcedMethod ?? "" }) }}
         </p>
 
-        <div class="mb-3 flex flex-wrap items-center gap-2">
+        <div class="flex flex-wrap items-center gap-2.5">
           <span class="text-sm text-muted">{{ t("pay.split") }}</span>
           <!-- The chosen number fills, it does not merely embolden. A cashier
                taking money at speed does not read font weights, and the old
@@ -575,73 +585,79 @@ async function confirm(): Promise<void> {
             v-for="ways in SPLIT_WAYS"
             :key="ways"
             type="button"
-            class="min-h-tap min-w-tap rounded-rpos border px-3 text-sm font-bold transition duration-200 ease-rpos"
+            class="rpos-numeric grid min-h-tap min-w-tap place-items-center rounded-rpos border px-3 text-base transition duration-200 ease-rpos"
             :class="
               shares.length === ways
-                ? 'border-primary bg-primary text-primary-contrast shadow-card'
-                : 'border-line bg-surface text-content'
+                ? 'border-primary bg-primary text-primary-contrast'
+                : 'border-line bg-background text-content hover:border-primary'
             "
             @click="splitInto(ways)"
           >
             {{ ways }}
           </button>
 
-          <!-- Boxed like its neighbours: it undoes what they did, so it is the
-               same kind of thing. As bare text it read as a caption and was
-               tapped by nobody. -->
+        </div>
+
+        <!-- What the split is doing, and how to stop it — one block, because
+             they are one thought. The reference sets the undo as bare text; it
+             is a box here because as plain words it read as a caption and was
+             tapped by nobody. -->
+        <div
+          v-if="shares.length || !canTakeMore || settlementKind"
+          class="flex flex-col items-start gap-2.5"
+        >
           <button
             v-if="shares.length"
             type="button"
-            class="min-h-tap rounded-rpos border border-danger px-3 text-sm font-medium text-danger transition duration-200 ease-rpos"
+            class="min-h-tap rounded-rpos border border-danger px-3 text-sm font-medium text-danger transition duration-200 ease-rpos hover:bg-danger/5"
             @click="clearSplit"
           >
             {{ t("pay.splitClear") }}
           </button>
+
+          <p
+            v-if="shares.length"
+            class="text-sm leading-relaxed text-muted"
+          >
+            {{
+              splitting
+                ? t("pay.splitProgress", {
+                  done: settled,
+                  ways: shares.length,
+                  amount: money(shares[settled]),
+                })
+                : t("pay.splitSettled", { ways: shares.length })
+            }}
+          </p>
+
+          <!-- Why the buttons went quiet. Without it a dimmed row of methods
+               reads as a broken screen rather than a bill that is covered. -->
+          <p
+            v-if="!canTakeMore && lines.length"
+            class="text-sm leading-relaxed text-muted"
+          >
+            {{ t("pay.covered") }}
+          </p>
+
+          <!-- Why half the list went quiet. The rule is real and old (`D-029`);
+               what is new is saying it before the sale is refused over it. -->
+          <p
+            v-else-if="settlementKind"
+            class="text-sm leading-relaxed text-muted"
+          >
+            {{ settlementKind === "credit" ? t("pay.creditOnly") : t("pay.tillOnly") }}
+          </p>
         </div>
-
-        <p
-          v-if="shares.length"
-          class="mb-3 rounded-rpos bg-surface px-3 py-2 text-sm"
-        >
-          {{
-            splitting
-              ? t("pay.splitProgress", {
-                done: settled,
-                ways: shares.length,
-                amount: money(shares[settled]),
-              })
-              : t("pay.splitSettled", { ways: shares.length })
-          }}
-        </p>
-
-        <!-- Why the buttons went quiet. Without it a dimmed row of methods
-             reads as a broken screen rather than a bill that is covered. -->
-        <p
-          v-if="!canTakeMore && lines.length"
-          class="mb-3 text-sm text-muted"
-        >
-          {{ t("pay.covered") }}
-        </p>
-
-        <!-- Why half the list went quiet. The rule is real and old (`D-029`);
-             what is new is saying it before the sale is refused over it. -->
-        <p
-          v-else-if="settlementKind"
-          class="mb-3 text-sm text-muted"
-        >
-          {{ settlementKind === "credit" ? t("pay.creditOnly") : t("pay.tillOnly") }}
-        </p>
 
         <!-- A list, not a wrapped grid. Methods are read down a column and
              tapped by name; a grid reflows as the list changes and moves the
-             one under the cashier's thumb. The bar on the leading edge is the
-             reference's, and it makes a row of them scannable. -->
-        <div class="mb-4 flex min-h-0 flex-1 flex-col gap-2 lg:overflow-y-auto">
+             one under the cashier's thumb. -->
+        <div class="flex min-h-0 flex-1 flex-col gap-2 lg:overflow-y-auto lg:pe-1">
           <button
             v-for="method in summary.payment_methods"
             :key="method.payment_method"
             type="button"
-            class="min-h-tap w-full rounded-rpos border border-line border-s-4 border-s-primary bg-background px-4 text-start font-medium shadow-card disabled:opacity-40 disabled:shadow-none"
+            class="flex min-h-[3.5rem] w-full shrink-0 items-center rounded-rpos border border-line bg-background px-[18px] text-start font-medium transition duration-200 ease-rpos hover:border-primary disabled:opacity-40 disabled:hover:border-line"
             :disabled="
               blocked ||
                 !canTakeMore ||
@@ -650,7 +666,10 @@ async function confirm(): Promise<void> {
             "
             @click="tendering = method"
           >
-            {{ method.payment_method }}
+            <!-- A method's name is a brand — Cash, mada, Jahez — and it is
+                 written the way it is written, not reordered by the paragraph
+                 it sits in. -->
+            <span dir="ltr">{{ method.payment_method }}</span>
           </button>
         </div>
 
@@ -668,21 +687,21 @@ async function confirm(): Promise<void> {
              Read-only: the amount was chosen on the sheet, and a field to
              correct it here is the form that produced a tender worth nothing
              (`D-123`). To change one, remove it and take it again. -->
-        <div
-          v-if="lines.length || remaining > 0"
-          class="mt-auto shrink-0 rounded-rpos bg-background p-3"
-        >
-          <h3 class="mb-2 text-sm font-medium text-muted">
-            {{ t("pay.taken") }}
-          </h3>
-
+        <div class="mt-auto shrink-0 border-t border-line pt-4">
+          <!-- Each tender, with its own way out. Read-only: the amount was
+               chosen on the sheet, and a field to correct it here is the form
+               that produced a tender worth nothing (`D-123`). To change one,
+               remove it and take it again. -->
           <div
             v-for="(line, index) in lines"
             :key="line.method"
-            class="mb-1 flex items-baseline gap-2"
+            class="mb-2.5 flex items-baseline gap-2 text-sm"
           >
-            <span class="flex-1 truncate">{{ line.method }}</span>
-            <span class="rpos-numeric font-bold">{{ money(line.amount) }}</span>
+            <span
+              dir="ltr"
+              class="flex-1 truncate text-start"
+            >{{ line.method }}</span>
+            <span class="rpos-numeric">{{ money(line.amount) }}</span>
             <!-- Only worth saying when more was handed over than the bill asked
                  for, because that is where the change comes from. -->
             <span
@@ -691,46 +710,60 @@ async function confirm(): Promise<void> {
             >({{ money(line.tendered ?? 0) }})</span>
             <button
               type="button"
-              class="text-xs text-danger"
+              class="min-h-0 text-xs text-danger hover:underline"
               @click="removeMethod(index)"
             >
               {{ t("action.remove") }}
             </button>
           </div>
 
+          <div class="flex items-baseline justify-between gap-3">
+            <span class="text-sm text-muted">{{ t("pay.taken") }}</span>
+            <span class="rpos-numeric text-base">{{ money(paid) }}</span>
+          </div>
+
+          <!-- The one figure the cashier is actually working towards, so it is
+               the largest thing in the column and the only coloured one. -->
           <div
             v-if="remaining > 0"
-            class="flex justify-between border-t border-line pt-1 font-bold text-status-reserved"
+            class="mt-2.5 flex items-baseline justify-between gap-3"
           >
-            <span>{{ t("pay.remaining") }}</span>
-            <span class="rpos-numeric">{{ money(remaining) }}</span>
+            <span class="text-sm font-medium">{{ t("pay.remaining") }}</span>
+            <span class="rpos-numeric text-2xl font-medium text-accent-gold">{{
+              money(remaining)
+            }}</span>
           </div>
           <div
             v-else-if="change > 0"
-            class="flex justify-between border-t border-line pt-1 text-lg font-bold"
+            class="mt-2.5 flex items-baseline justify-between gap-3"
           >
-            <span>{{ t("pay.change") }}</span>
-            <span class="rpos-numeric">{{ money(change) }}</span>
+            <span class="text-sm font-medium">{{ t("pay.change") }}</span>
+            <span class="rpos-numeric text-2xl font-medium">{{ money(change) }}</span>
           </div>
         </div>
       </section>
 
       <!-- 2 — discounts -->
-      <section class="rounded-rpos bg-surface p-4 lg:min-h-0 lg:overflow-y-auto">
-        <h2 class="mb-3 text-sm font-medium text-muted">
+      <section
+        class="flex flex-col content-start gap-4 rounded-rpos-lg border border-line bg-surface px-6 py-5 lg:min-h-0 lg:overflow-y-auto"
+      >
+        <h2 class="text-xs text-muted">
           {{ t("pay.discounts") }}
         </h2>
 
-        <div class="mb-4 flex gap-2">
+        <!-- Three of equal width, because they are three answers to one
+             question and a row of different sizes reads as a hierarchy that
+             is not there. -->
+        <div class="grid grid-cols-3 gap-2.5">
           <button
             v-for="percentage in QUICK_DISCOUNTS"
             :key="percentage"
             type="button"
-            class="min-h-tap flex-1 rounded-rpos border text-sm"
+            class="rpos-numeric grid min-h-[3.5rem] place-items-center rounded-rpos border text-lg transition duration-200 ease-rpos"
             :class="
               discountType === 'percentage' && discountValue === percentage
                 ? 'border-primary bg-primary text-primary-contrast'
-                : 'border-line'
+                : 'border-line bg-background hover:border-primary'
             "
             @click="setQuickDiscount(percentage)"
           >
@@ -738,39 +771,41 @@ async function confirm(): Promise<void> {
           </button>
         </div>
 
-        <label
-          for="manual-discount"
-          class="mb-1 block text-sm font-medium"
-        >{{ t("pay.manualDiscount") }}</label>
-        <div class="flex gap-2">
-          <input
-            id="manual-discount"
-            v-model.number="discountValue"
-            type="number"
-            min="0"
-            step="0.5"
-            class="rpos-numeric min-h-tap w-full rounded-rpos border border-line bg-background px-3"
-          >
-          <select
-            v-model="discountType"
-            :aria-label="t('pay.discountType')"
-            class="min-h-tap rounded-rpos border border-line bg-background px-2"
-          >
-            <option :value="null">
-              —
-            </option>
-            <option value="percentage">
-              %
-            </option>
-            <option value="amount">
-              {{ t("currency.sar") }}
-            </option>
-          </select>
+        <div class="flex flex-col gap-2.5">
+          <label
+            for="manual-discount"
+            class="block text-sm font-medium"
+          >{{ t("pay.manualDiscount") }}</label>
+          <div class="grid grid-cols-[minmax(0,1fr)_6rem] gap-2.5">
+            <input
+              id="manual-discount"
+              v-model.number="discountValue"
+              type="number"
+              min="0"
+              step="0.5"
+              class="rpos-numeric min-h-[3.375rem] w-full rounded-rpos border border-line bg-background px-[18px] text-base outline-none transition duration-200 ease-rpos focus:border-primary focus:bg-surface"
+            >
+            <select
+              v-model="discountType"
+              :aria-label="t('pay.discountType')"
+              class="min-h-[3.375rem] rounded-rpos border border-line bg-background px-4 outline-none transition duration-200 ease-rpos focus:border-primary focus:bg-surface"
+            >
+              <option :value="null">
+                —
+              </option>
+              <option value="percentage">
+                %
+              </option>
+              <option value="amount">
+                {{ t("currency.sar") }}
+              </option>
+            </select>
+          </div>
         </div>
 
         <p
           v-if="needsApproval"
-          class="mt-3 rounded-rpos bg-status-reserved/10 p-2 text-xs text-status-reserved"
+          class="rounded-rpos bg-accent-gold/10 px-3 py-2 text-xs text-accent-gold"
         >
           {{ t("pay.exceedsLimit", { limit: `${preview?.max_discount_percentage ?? 0}%` }) }}
           <span
@@ -779,54 +814,70 @@ async function confirm(): Promise<void> {
           >{{ t("pay.authorized") }} ✓</span>
         </p>
 
-        <p class="mt-4 text-xs text-muted">
+        <p class="text-xs text-muted">
           {{ t("pay.loyaltySoon") }}
         </p>
       </section>
 
       <!-- 3 — summary -->
-      <section class="flex flex-col rounded-rpos bg-surface p-4 lg:min-h-0">
-        <h2 class="mb-3 text-sm font-medium text-muted">
+      <section
+        class="flex flex-col gap-4 rounded-rpos-lg border border-line bg-surface px-6 py-5 lg:min-h-0"
+      >
+        <h2 class="text-xs text-muted">
           {{ t("pay.summary") }}
         </h2>
 
-        <dl class="min-h-0 flex-1 space-y-1 text-sm lg:overflow-y-auto">
-          <div class="flex justify-between">
-            <dt>{{ t("totals.subtotal") }}</dt>
+        <dl class="flex flex-col gap-3 text-sm">
+          <div class="flex items-baseline justify-between gap-3">
+            <dt class="text-muted">
+              {{ t("totals.subtotal") }}
+            </dt>
             <dd class="rpos-numeric">
               {{ money(preview?.subtotal ?? summary.subtotal) }}
             </dd>
           </div>
+          <!-- The discount is the one line that moves the total *down*, so it
+               is the one line that carries a colour. `rpos-numeric` isolates
+               it, which is what keeps the minus sign on the left of the figure
+               instead of drifting to the Arabic end of the row. -->
           <div
             v-if="(preview?.discount_amount ?? summary.discount_amount) > 0"
-            class="flex justify-between text-status-available"
+            class="flex items-baseline justify-between gap-3 text-secondary"
           >
             <dt>{{ t("totals.discount") }}</dt>
             <dd class="rpos-numeric">
               −{{ money(preview?.discount_amount ?? summary.discount_amount) }}
             </dd>
           </div>
-          <div class="flex justify-between">
-            <dt>{{ t("totals.tax") }}</dt>
+          <div class="flex items-baseline justify-between gap-3">
+            <dt class="text-muted">
+              {{ t("totals.tax") }}
+            </dt>
             <dd class="rpos-numeric">
               {{ money(preview?.tax_amount ?? summary.tax_amount) }}
             </dd>
           </div>
-          <div class="flex justify-between border-t border-line pt-2 text-lg font-bold">
-            <dt>{{ t("totals.total") }}</dt>
-            <dd class="rpos-numeric">
-              {{ money(due) }}
-            </dd>
-          </div>
         </dl>
+
+        <!-- The figure the customer is told. Set large enough to be read
+             across a counter, and given the whole middle of the card so
+             nothing competes with it. -->
+        <div
+          class="flex items-baseline justify-between gap-3 border-t border-line pt-4 lg:flex-1 lg:items-start"
+        >
+          <span class="text-base font-semibold">{{ t("totals.total") }}</span>
+          <span class="rpos-numeric text-[2rem] font-medium leading-none tracking-tighter">{{
+            money(due)
+          }}</span>
+        </div>
 
         <button
           type="button"
-          class="mt-auto min-h-tap w-full rounded-rpos bg-primary px-4 text-base font-medium text-primary-contrast disabled:opacity-50"
+          class="mt-auto min-h-[3.875rem] w-full rounded-rpos-lg bg-primary px-4 text-base font-medium text-primary-contrast shadow-primary transition duration-200 ease-rpos hover:brightness-110 disabled:opacity-50 disabled:shadow-none"
           :disabled="!canConfirm"
           @click="confirm"
         >
-          {{ busy ? "…" : `✅ ${t("pay.confirm")}` }}
+          {{ busy ? "…" : t("pay.confirm") }}
         </button>
       </section>
     </div>

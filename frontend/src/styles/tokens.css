@@ -18,23 +18,32 @@
  */
 
 :root {
-  /* Brand — themeable */
-  --rpos-primary: 22 119 255;
-  --rpos-primary-contrast: 255 255 255;
-  --rpos-secondary: 255 159 67;
-  --rpos-secondary-contrast: 255 255 255;
+  /*
+   * Brand — themeable. These must match `api/session.py:DEFAULT_THEME`, which
+   * the theme store writes over them once the session loads; a disagreement
+   * shows as a colour that changes a second after the terminal starts.
+   */
+  --rpos-primary: 31 75 67; /* #1F4B43 */
+  --rpos-primary-contrast: 246 244 240; /* #F6F4F0 */
+  --rpos-secondary: 47 109 97; /* #2F6D61 */
+  --rpos-secondary-contrast: 246 244 240;
   --rpos-surface: 255 255 255;
-  --rpos-background: 248 250 253;
-  --rpos-text: 23 32 51;
+  --rpos-background: 243 241 237; /* #F3F1ED — warm, not blue-grey */
+  --rpos-text: 20 23 26; /* #14171A */
 
   /* Derived, not themed directly: kept in step with the brand by the store. */
-  --rpos-muted: 104 116 138;
-  --rpos-border: 231 235 243;
+  --rpos-muted: 139 143 146; /* #8B8F92 */
+  /* #14171A at 8% over white — a hairline, not a drawn box. */
+  --rpos-border: 231 232 232;
 
   /* Touch geometry — 06 §Accessibility: nothing smaller than 48px. */
   --rpos-tap-target: 48px;
-  /* 16px cards, per the specification's radius scale. */
-  --rpos-radius: 1rem;
+  /*
+   * 14px controls; cards use `rounded-rpos-lg`, which is this × 1.4 ≈ 20px.
+   * One number produces the whole scale, so a rounder or squarer house style
+   * is still a single edit.
+   */
+  --rpos-radius: 14px;
 
   /*
    * Elevation.
@@ -45,9 +54,15 @@
    * a tight contact shadow plus a wider ambient one is how a real card sits on
    * a real surface.
    */
-  --rpos-shadow-card: 0 3px 12px rgb(23 32 51 / 0.05);
-  --rpos-shadow-lift: 0 6px 20px rgb(23 32 51 / 0.09);
-  --rpos-shadow-bar: 0 -2px 10px rgb(23 32 51 / 0.04);
+  --rpos-shadow-card: 0 3px 12px rgb(20 23 26 / 0.05);
+  --rpos-shadow-lift: 0 6px 20px rgb(20 23 26 / 0.09);
+  --rpos-shadow-bar: 0 -2px 10px rgb(20 23 26 / 0.04);
+  /*
+   * The one shadow that carries the brand's own colour, for the single filled
+   * button a screen ends on. A neutral shadow under a saturated block reads as
+   * grime; this one reads as the block sitting above the page.
+   */
+  --rpos-shadow-primary: 0 6px 18px rgb(var(--rpos-primary) / 0.22);
 }
 
 html {
@@ -72,9 +87,21 @@ html[dir="rtl"] .rpos-flip {
   transform: scaleX(-1);
 }
 
-/* Numbers stay readable in an RTL paragraph. */
+/*
+ * Numbers stay readable in an RTL paragraph, and are set in the mono face.
+ *
+ * `isolate` is what keeps a negative sign on the correct end: without it a
+ * discount reads as `26.00−` beside Arabic text, which is not the number the
+ * cashier is about to say out loud.
+ */
 .rpos-numeric {
   direction: ltr;
   unicode-bidi: isolate;
   font-variant-numeric: tabular-nums;
+  /* Written out rather than `theme()`: this file is imported ahead of
+     Tailwind's own layers, and a build-order dependency for one line is not
+     worth the surprise it causes later. Keep in step with `fontFamily.mono`. */
+  font-family:
+    "IBM Plex Mono", "SF Mono", "Cascadia Mono", Consolas, "Liberation Mono", monospace;
+  letter-spacing: -0.01em;
 }

@@ -33,14 +33,17 @@ from restaurant_pos.utils.permissions import get_pos_permission_set, validate_br
 #: replaces them with the resolved ``RPOS Theme`` record (FR-15.2, D-014).
 #: The Vue app reads its colours from here from day one, so no component ever
 #: needs a hardcoded brand colour.
+#: The house look, applied by `stores/theme.ts` over the CSS fallbacks in
+#: `tokens.css` — so **both** carry these values or the terminal shows one for a
+#: moment and then the other.
 DEFAULT_THEME = {
-	"primary": "#1677FF",
-	"primary_contrast": "#FFFFFF",
-	"secondary": "#FF9F43",
-	"secondary_contrast": "#FFFFFF",
+	"primary": "#1F4B43",
+	"primary_contrast": "#F6F4F0",
+	"secondary": "#2F6D61",
+	"secondary_contrast": "#F6F4F0",
 	"surface": "#FFFFFF",
-	"background": "#F8FAFD",
-	"text": "#172033",
+	"background": "#F3F1ED",
+	"text": "#14171A",
 	"brand_logo": None,
 }
 

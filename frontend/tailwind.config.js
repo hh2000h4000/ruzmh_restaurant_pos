@@ -37,6 +37,9 @@ const ACCENT = {
   violet: "#7357E8",
   rose: "#E94B87",
   slate: "#68748A",
+  // The figure that is still owed. Warmer and darker than `status.reserved`,
+  // which is a *table* state and must not drift to follow a house style.
+  gold: "#B8791F",
 };
 
 /** Order lifecycle, BR-010. Also fixed — cashiers scan by colour. */
@@ -83,6 +86,8 @@ export default {
         card: "var(--rpos-shadow-card)",
         lift: "var(--rpos-shadow-lift)",
         bar: "var(--rpos-shadow-bar)",
+        // Brand-tinted, for the single filled button a screen ends on.
+        primary: "var(--rpos-shadow-primary)",
       },
       transitionTimingFunction: {
         // A touch UI feels responsive when motion decelerates quickly rather
@@ -101,11 +106,13 @@ export default {
         tap: "var(--rpos-tap-target)",
       },
       fontFamily: {
-        // Cairo and Tajawal first, used when the terminal already has them.
+        // IBM Plex Sans Arabic is the house face; Cairo and Tajawal follow for
+        // terminals that already carry one of those.
         // Nothing is fetched from a CDN: this app has to start during an
         // outage, and a webfont over a dead link is a screen with no text on
         // it. Self-hosting the files is the way to guarantee them.
         sans: [
+          "'IBM Plex Sans Arabic'",
           "Cairo",
           "Tajawal",
           "'Segoe UI'",
@@ -113,6 +120,17 @@ export default {
           "'Noto Sans Arabic'",
           "system-ui",
           "sans-serif",
+        ],
+        // Every figure on a till is set in this: a bill read aloud to a
+        // customer is compared digit by digit against a printed slip, and
+        // proportional numerals make 1 and 7 argue at arm's length.
+        mono: [
+          "'IBM Plex Mono'",
+          "'SF Mono'",
+          "'Cascadia Mono'",
+          "Consolas",
+          "'Liberation Mono'",
+          "monospace",
         ],
       },
       fontSize: {

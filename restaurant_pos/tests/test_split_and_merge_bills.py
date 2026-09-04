@@ -277,3 +277,68 @@ class MovingLinesBetweenBills(OrderTestBase):
 		self.assertTrue(
 			frappe.db.exists("POS Audit Log", {"restaurant_order": source.name, "action_type": "bill_split"})
 		)
+
+
+class ThePreviewMatchesTheSplit(OrderTestBase):
+	"""The split screen shows a running total per side, and a total is money.
+
+	So the server prices both sides before anything moves (`CLAUDE.md` §5.1) —
+	the same reason `preview_totals` exists for a discount. A figure a cashier
+	reads to a customer has to be the figure the invoice will carry, which means
+	the preview and the split itself must agree exactly.
+	"""
+
+	def _bill(self, *quantities):
+		order = self._order()
+		for qty in quantities:
+			service.add_item(order, item=ITEM, qty=qty)
+		order.save(ignore_permissions=True)
+		order.reload()
+		return order
+
+	def test_the_two_sides_add_up_to_the_bill(self):
+		order = self._bill(1, 2, 3)
+		before = float(order.total_amount)
+
+		preview = service.preview_split(order, [{"idx": order.items[0].idx}])
+
+		self.assertAlmostEqual(
+			preview["source"]["total_amount"] + preview["target"]["total_amount"], before, places=2
+		)
+
+	def test_a_part_line_is_priced_per_unit(self):
+		order = self._bill(2)
+		rate = float(order.items[0].rate)
+
+		preview = service.preview_split(order, [{"idx": order.items[0].idx, "qty": 1}])
+
+		self.assertAlmostEqual(preview["target"]["subtotal"], rate, places=2)
+		self.assertAlmostEqual(preview["source"]["subtotal"], rate, places=2)
+
+	def test_it_matches_what_the_split_actually_does(self):
+		"""The property that makes the preview worth showing at all."""
+		order = self._bill(1, 2)
+		rows = [{"idx": order.items[0].idx}]
+
+		preview = service.preview_split(order, rows)
+		outcome = service.split_order(order, rows)
+
+		order.reload()
+		target = frappe.get_doc("Restaurant Order", outcome["target"])
+		self.assertAlmostEqual(float(order.total_amount), preview["source"]["total_amount"], places=2)
+		self.assertAlmostEqual(float(target.total_amount), preview["target"]["total_amount"], places=2)
+
+	def test_moving_nothing_leaves_the_bill_whole(self):
+		order = self._bill(1, 1)
+
+		preview = service.preview_split(order, [])
+
+		self.assertAlmostEqual(preview["source"]["total_amount"], float(order.total_amount), places=2)
+		self.assertEqual(preview["target"]["total_amount"], 0)
+
+	def test_it_refuses_what_the_move_would_refuse(self):
+		"""Told at the moment of the tap, not after the whole bill is arranged."""
+		order = self._bill(1)
+
+		with self.assertRaises(frappe.ValidationError):
+			service.preview_split(order, [{"idx": order.items[0].idx, "qty": 5}])

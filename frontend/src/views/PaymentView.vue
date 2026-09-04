@@ -172,10 +172,21 @@ function mixesSettlement(method: PaymentMethodOption): boolean {
  */
 const blocker = computed(() => summary.value?.blocker ?? null);
 
+/**
+ * Nothing can be tendered on this bill at all — a setup fault, or an order that
+ * already has an invoice (`BR-016`).
+ *
+ * The already-paid case put its sentence on the screen and then left every
+ * button live, so a cashier could compose a whole second payment on a bill that
+ * was settled and be refused at the end of it. A message the buttons contradict
+ * is a message nobody reads (`D-125`).
+ */
+const blocked = computed(() => Boolean(blocker.value) || Boolean(summary.value?.already_paid));
+
 const canConfirm = computed(
   () =>
     !busy.value &&
-    !blocker.value &&
+    !blocked.value &&
     payable.value.length > 0 &&
     remaining.value <= 0.005 &&
     !done.value,
@@ -617,7 +628,7 @@ async function confirm(): Promise<void> {
             type="button"
             class="min-h-tap w-full rounded-rpos border border-line border-s-4 border-s-primary bg-background px-4 text-start font-medium shadow-card disabled:opacity-40 disabled:shadow-none"
             :disabled="
-              Boolean(blocker) ||
+              blocked ||
                 !canTakeMore ||
                 isForbidden(method) ||
                 mixesSettlement(method)

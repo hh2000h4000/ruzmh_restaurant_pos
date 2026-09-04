@@ -80,8 +80,32 @@ export const useOrderStore = defineStore("order", () => {
     order.value.total_amount = summary.total_amount;
   }
 
+  /**
+   * One action at a time, and **it says so when it refuses** (`D-128`).
+   *
+   * `null` from here means one of two things — it failed, or it never started —
+   * and both set `error`, because every caller renders `error` and none of them
+   * can tell the two apart. It used to return `null` silently on the second
+   * count: `TablesView` then assigned that empty `error` to its own failure
+   * line and cleared the cashier's table with **nothing on the screen at all**,
+   * which is the worst report a till can give (`D-074`).
+   *
+   * **The refusal itself stays.** Queueing the second action instead would run
+   * it against a list that moved: `setQty`, `removeLine`, `voidLine` and
+   * `setLineNotes` all address a line by `idx`, and Frappe renumbers `idx` when
+   * a row is removed — so a queued call would edit the wrong dish. Dropping is
+   * the safe half of this contract; the silence was the unsafe half.
+   *
+   * A cashier rarely meets it: every control that calls a mutation is disabled
+   * while `busy` (`OrderView`'s `locked`). What it really guards against is a
+   * **programmatic** caller — a watcher, a route change, a timer — which is
+   * where it has actually bitten (`D-127`).
+   */
   async function run<T>(action: () => Promise<T>): Promise<T | null> {
-    if (busy.value) return null;
+    if (busy.value) {
+      error.value = t("order.busy");
+      return null;
+    }
 
     busy.value = true;
     error.value = null;

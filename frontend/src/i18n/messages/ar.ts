@@ -146,6 +146,7 @@ const messages: Catalogue["messages"] = {
 
   // Order screen
   "order.typeUnavailable": "نوع الطلب غير متاح على هذا الجهاز.",
+  "order.busy": "التِل ما زال يُنهي العملية السابقة. لم يتغيّر شيء — أعد المحاولة.",
   "order.notRouted": "لم يُوجَّه للمطبخ: {items} — ستُطبع على طابعة الكاشير.",
   "order.sendToKitchen": "إرسال للمطبخ",
   "order.pay": "دفع",

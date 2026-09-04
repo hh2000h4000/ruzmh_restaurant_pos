@@ -153,6 +153,7 @@ export const messages = {
 
   // Order screen
   "order.typeUnavailable": "That order type is not available on this device.",
+  "order.busy": "The till was still finishing the last thing. Nothing was changed — try again.",
   "order.notRouted": "Not routed to a kitchen: {items} — printing on the cashier printer.",
   "order.sendToKitchen": "Send to kitchen",
   "order.pay": "Pay",

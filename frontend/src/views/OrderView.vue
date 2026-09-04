@@ -200,8 +200,14 @@ const navEntries = computed<NavEntry[]>(() => [
 
 function onNavigate(key: string): void {
   // Walking away from the question cancels it; a table still marked "waiting"
-  // would seat the next type the cashier taps for an unrelated reason.
-  if (key !== "new") pendingTable.value = null;
+  // would seat the next type the cashier taps for an unrelated reason. The same
+  // is true of an item tapped before there was a bill: a cashier who goes to
+  // the floor instead of answering **جديد** has changed their mind, and a dish
+  // arriving on whatever bill they open next is worse than no dish.
+  if (key !== "new") {
+    pendingTable.value = null;
+    waitingPick.value = null;
+  }
 
   if (key === "menu") {
     menuOpen.value = !menuOpen.value;
@@ -562,14 +568,27 @@ function onTillOpened(): void {
   if (session.canSell && startupError.value) void startFromRoute();
 }
 
+/**
+ * The item tapped before there was a bill to put it on.
+ *
+ * Which type the order should be is a real question — a table, a customer, a
+ * price list hang off it — so the tap opens **جديد** rather than guessing one
+ * (`D-056`). But the tap was still an order for a dish, and it used to be
+ * thrown away: the cashier chose the type, landed on a menu, and had to find
+ * the same item and tap it again. The second tap is the cashier doing the
+ * screen's remembering for it.
+ *
+ * Held here and replayed once the order exists, whichever of the four creation
+ * paths made it.
+ */
+const waitingPick = ref<{ item: CatalogItem; qty: number } | null>(null);
+
 /** FR-2.2 — an item with modifier groups opens the popup first. */
 function onPick(item: CatalogItem, qty: number): void {
   if (!maySell()) return;
 
-  // Nothing to put it on yet. Which type the order should be is a real question
-  // — a table, a customer, a price list hang off it — so the tap opens **جديد**
-  // rather than guessing one (D-056).
   if (!orders.order) {
+    waitingPick.value = { item, qty };
     pane.value = "new";
     return;
   }
@@ -601,6 +620,29 @@ function clearPending(): void {
   pendingItem.value = null;
   pendingQty.value = 1;
 }
+
+/**
+ * The bill now exists — put the tap that asked for it on the bill.
+ *
+ * Watched on the store rather than added at the end of each creation path:
+ * there are four of them (straight, seated, named, counted) and they end in
+ * three different functions. A step remembered in four places is a step
+ * forgotten in one (`CLAUDE.md` §5.5), and the one it is forgotten in is the
+ * one the cashier meets.
+ *
+ * It replays `onPick`, so an item with modifier groups still opens its popup
+ * rather than landing plain.
+ */
+watch(
+  () => orders.order?.order_name ?? null,
+  (name) => {
+    const pick = waitingPick.value;
+    if (!name || !pick) return;
+
+    waitingPick.value = null;
+    onPick(pick.item, pick.qty);
+  },
+);
 
 function repeat(line: OrderLine): void {
   if (!maySell()) return;

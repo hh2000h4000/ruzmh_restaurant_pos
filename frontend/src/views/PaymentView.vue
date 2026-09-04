@@ -445,7 +445,7 @@ async function confirm(): Promise<void> {
 
     <div
       v-else-if="summary"
-      class="grid flex-1 gap-3 overflow-y-auto p-3 lg:grid-cols-3"
+      class="grid flex-1 gap-3 overflow-y-auto p-3 lg:min-h-0 lg:grid-cols-3 lg:overflow-hidden"
     >
       <!-- Something the cashier can fix, said **above** the screen and not
            instead of it: the amounts they typed are what they need in order to
@@ -458,8 +458,14 @@ async function confirm(): Promise<void> {
         {{ failure }}
       </p>
 
-      <!-- 1 — methods -->
-      <section class="rounded-rpos bg-surface p-4">
+      <!-- 1 — methods.
+           **The column scrolls, not the screen.** A shop with nine payment
+           methods pushed the page down and took the Pay button off the bottom
+           of it, which on a till is the one control that must never move
+           (`D-124`). Each column keeps its own scrollbar from `lg` up; below
+           that the three stack and the page scrolls, which is right on a
+           phone. -->
+      <section class="flex flex-col rounded-rpos bg-surface p-4 lg:min-h-0">
         <h2 class="mb-3 text-sm font-medium text-muted">
           {{ t("pay.methods") }}
         </h2>
@@ -521,7 +527,7 @@ async function confirm(): Promise<void> {
              tapped by name; a grid reflows as the list changes and moves the
              one under the cashier's thumb. The bar on the leading edge is the
              reference's, and it makes a row of them scannable. -->
-        <div class="mb-4 flex flex-col gap-2">
+        <div class="mb-4 flex min-h-0 flex-1 flex-col gap-2 lg:overflow-y-auto">
           <button
             v-for="method in summary.payment_methods"
             :key="method.payment_method"
@@ -534,35 +540,69 @@ async function confirm(): Promise<void> {
           </button>
         </div>
 
-        <!-- What has been taken so far. Read-only: the amount was chosen on the
-             sheet, and a field to correct it here is the form that produced a
-             tender worth nothing (`D-123`). To change one, remove it and take
-             it again — which is one tap more and no wrong states. -->
+        <!-- What has been taken, and what is left — together, at the bottom of
+             the column where the work is happening.
+             
+             **Not written onto the method buttons themselves**, which was the
+             obvious idea and is wrong: a button that says "tap to take money"
+             cannot also say "this much was taken", and the moment three people
+             pay cash it would have to say both about one control. The list is a
+             record, the buttons are a menu, and Foodics keeps them apart for
+             the same reason. Removing a tender also needs its own control, and
+             a button inside a button is a mis-tap waiting on a touch screen.
+             
+             Read-only: the amount was chosen on the sheet, and a field to
+             correct it here is the form that produced a tender worth nothing
+             (`D-123`). To change one, remove it and take it again. -->
         <div
-          v-for="(line, index) in lines"
-          :key="line.method"
-          class="mb-2 flex items-baseline gap-2 rounded-rpos bg-background px-3 py-2"
+          v-if="lines.length || remaining > 0"
+          class="mt-auto shrink-0 rounded-rpos bg-background p-3"
         >
-          <span class="flex-1 truncate font-medium">{{ line.method }}</span>
-          <span class="rpos-numeric font-bold">{{ money(line.amount) }}</span>
-          <!-- Only worth saying when more was handed over than the bill asked
-               for, because that is where the change comes from. -->
-          <span
-            v-if="(line.tendered ?? line.amount) > line.amount + 0.005"
-            class="rpos-numeric text-xs text-muted"
-          >({{ money(line.tendered ?? 0) }})</span>
-          <button
-            type="button"
-            class="text-xs text-danger"
-            @click="removeMethod(index)"
+          <h3 class="mb-2 text-sm font-medium text-muted">
+            {{ t("pay.taken") }}
+          </h3>
+
+          <div
+            v-for="(line, index) in lines"
+            :key="line.method"
+            class="mb-1 flex items-baseline gap-2"
           >
-            {{ t("action.remove") }}
-          </button>
+            <span class="flex-1 truncate">{{ line.method }}</span>
+            <span class="rpos-numeric font-bold">{{ money(line.amount) }}</span>
+            <!-- Only worth saying when more was handed over than the bill asked
+                 for, because that is where the change comes from. -->
+            <span
+              v-if="(line.tendered ?? line.amount) > line.amount + 0.005"
+              class="rpos-numeric text-xs text-muted"
+            >({{ money(line.tendered ?? 0) }})</span>
+            <button
+              type="button"
+              class="text-xs text-danger"
+              @click="removeMethod(index)"
+            >
+              {{ t("action.remove") }}
+            </button>
+          </div>
+
+          <div
+            v-if="remaining > 0"
+            class="flex justify-between border-t border-line pt-1 font-bold text-status-reserved"
+          >
+            <span>{{ t("pay.remaining") }}</span>
+            <span class="rpos-numeric">{{ money(remaining) }}</span>
+          </div>
+          <div
+            v-else-if="change > 0"
+            class="flex justify-between border-t border-line pt-1 text-lg font-bold"
+          >
+            <span>{{ t("pay.change") }}</span>
+            <span class="rpos-numeric">{{ money(change) }}</span>
+          </div>
         </div>
       </section>
 
       <!-- 2 — discounts -->
-      <section class="rounded-rpos bg-surface p-4">
+      <section class="rounded-rpos bg-surface p-4 lg:min-h-0 lg:overflow-y-auto">
         <h2 class="mb-3 text-sm font-medium text-muted">
           {{ t("pay.discounts") }}
         </h2>
@@ -631,12 +671,12 @@ async function confirm(): Promise<void> {
       </section>
 
       <!-- 3 — summary -->
-      <section class="flex flex-col rounded-rpos bg-surface p-4">
+      <section class="flex flex-col rounded-rpos bg-surface p-4 lg:min-h-0">
         <h2 class="mb-3 text-sm font-medium text-muted">
           {{ t("pay.summary") }}
         </h2>
 
-        <dl class="space-y-1 text-sm">
+        <dl class="min-h-0 flex-1 space-y-1 text-sm lg:overflow-y-auto">
           <div class="flex justify-between">
             <dt>{{ t("totals.subtotal") }}</dt>
             <dd class="rpos-numeric">
@@ -665,23 +705,6 @@ async function confirm(): Promise<void> {
             </dd>
           </div>
         </dl>
-
-        <div class="mt-4 space-y-1 text-sm">
-          <div
-            v-if="remaining > 0"
-            class="flex justify-between text-status-reserved"
-          >
-            <span>{{ t("pay.remaining") }}</span>
-            <span class="rpos-numeric">{{ money(remaining) }}</span>
-          </div>
-          <div
-            v-if="change > 0"
-            class="flex justify-between text-lg font-semibold"
-          >
-            <span>{{ t("pay.change") }}</span>
-            <span class="rpos-numeric">{{ money(change) }}</span>
-          </div>
-        </div>
 
         <button
           type="button"

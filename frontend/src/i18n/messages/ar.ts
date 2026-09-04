@@ -342,6 +342,7 @@ const messages: Catalogue["messages"] = {
   "pay.loyaltySoon": "الولاء غير متاح بعد.",
   "pay.summary": "ملخص الطلب",
   "pay.remaining": "المتبقي",
+  "pay.taken": "المستلم",
   "pay.change": "الباقي للعميل",
   "pay.confirm": "تأكيد الدفع وإصدار الفاتورة",
   "pay.needsManager": "يتطلب تفويض المدير",

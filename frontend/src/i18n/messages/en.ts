@@ -350,6 +350,7 @@ export const messages = {
   "pay.loyaltySoon": "Loyalty is not available yet.",
   "pay.summary": "Order summary",
   "pay.remaining": "Remaining",
+  "pay.taken": "Taken so far",
   "pay.change": "Change due",
   "pay.confirm": "Confirm payment and issue the invoice",
   "pay.needsManager": "Manager authorization required",

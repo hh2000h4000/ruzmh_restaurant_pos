@@ -13,7 +13,6 @@ Refs: 07_API_Design.md §4, BR-060, BR-061, FR-5.1, FR-5.2
 
 import frappe
 from frappe import _
-from frappe.utils import now_datetime, time_diff_in_seconds
 
 from restaurant_pos.utils.order import FINAL_STATES, open_orders_on, set_table_status
 from restaurant_pos.utils.permissions import validate_branch_access
@@ -65,7 +64,7 @@ def get_floor_plan(section: str) -> dict:
 
 
 def _annotate_orders(tables: list) -> None:
-	"""Hang every open bill on its table, with elapsed time and item count.
+	"""Hang every open bill on its table, with when it opened and what is on it.
 
 	Keyed by **table**, not by the table's `current_order`: a table may carry
 	more than one bill where the branch allows it (`BR-066`), and a floor plan
@@ -99,7 +98,6 @@ def _annotate_orders(tables: list) -> None:
 		if row.status != "void":
 			counts[row.parent] = counts.get(row.parent, 0) + 1
 
-	now = now_datetime()
 	by_table: dict[str, list] = {}
 	for bill in bills:
 		by_table.setdefault(bill.table, []).append(
@@ -109,7 +107,9 @@ def _annotate_orders(tables: list) -> None:
 				"status": bill.status,
 				"total_amount": bill.total_amount,
 				"item_count": counts.get(bill.name, 0),
-				"minutes": int(time_diff_in_seconds(now, bill.opened_at) // 60) if bill.opened_at else 0,
+				# When it was opened, not how long ago (`D-121`). "4,625 minutes"
+				# is a true figure nobody can read; a bill from Tuesday says so.
+				"opened_at": bill.opened_at,
 			}
 		)
 

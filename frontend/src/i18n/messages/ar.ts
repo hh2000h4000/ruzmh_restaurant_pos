@@ -378,14 +378,6 @@ const plurals: Catalogue["plurals"] = {
     many: "{n} كرسياً",
     other: "{n} كرسي",
   },
-  "count.minutes": {
-    zero: "الآن",
-    one: "دقيقة",
-    two: "دقيقتان",
-    few: "{n} دقائق",
-    many: "{n} دقيقة",
-    other: "{n} دقيقة",
-  },
   "count.queued": {
     zero: "لا شيء بانتظار المزامنة",
     one: "عملية بانتظار المزامنة",

@@ -22,7 +22,8 @@ export interface TableBill {
   total_amount: number;
   /** Lines, not plates: two of the same dish is one row. */
   item_count: number;
-  minutes: number;
+  /** When the bill was opened. */
+  opened_at: string;
 }
 
 export interface FloorPlan {

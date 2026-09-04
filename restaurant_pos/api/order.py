@@ -510,10 +510,21 @@ def list_orders(pos_profile: str, view: str = "open") -> list[dict]:
 	if history_only:
 		filters["opened_at"] = (">=", get_datetime(f"{nowdate()} 00:00:00"))
 
-	# FR-12.x — whose orders this cashier may see is a permission, enforced
-	# here and not by hiding a button. A till without the right must not be
-	# able to read another cashier's floor by calling this directly.
-	if not get_pos_permission_set().get("can_view_all_orders"):
+	# FR-12.x — whose orders a cashier may see is a permission, enforced here
+	# and not by hiding a button. But it scopes **history**, not the floor
+	# (`D-121`).
+	#
+	# It used to scope both, and that was wrong twice over. It contradicted this
+	# function's own promise two paragraphs up — that a bill left by the cashier
+	# who went on break is findable by the one taking over — and it did not even
+	# restrict: the floor plan lists a table's bills without asking, so the
+	# cashier tapped table eleven and opened the bill this list had hidden. A
+	# rule enforced on one screen and not the other is not a rule.
+	#
+	# So an open bill in the branch belongs to whoever is working, and the
+	# permission decides who may read the day's closed ones.
+	mine_only = not get_pos_permission_set().get("can_view_all_orders")
+	if mine_only and history_only:
 		filters["cashier"] = frappe.session.user
 
 	if branch:
@@ -546,6 +557,18 @@ def list_orders(pos_profile: str, view: str = "open") -> list[dict]:
 		order_by="opened_at desc" if history_only else "opened_at asc",
 		limit=CLOSED_LIMIT if history_only else 0,
 	)
+
+	# The "all" tab is the one view that mixes the floor with the day's history.
+	# Filtering it in the query would have hidden other people's *open* bills
+	# too, which is the thing `D-121` set out to stop, so its closed half is
+	# dropped here instead.
+	if mine_only and not history_only:
+		orders = [
+			row
+			for row in orders
+			if row.status not in ("closed", "cancelled") or row.cashier == frappe.session.user
+		]
+
 	if not orders:
 		return []
 
@@ -583,7 +606,7 @@ def _annotate_refunds(orders: list) -> None:
 
 
 def _annotate_open_orders(orders: list) -> None:
-	"""Add item count, elapsed minutes and display labels.
+	"""Add item count and display labels.
 
 	Three lookups for the whole list rather than three per order: a lunch rush
 	is fifty open orders and this list refreshes on every realtime event
@@ -641,7 +664,6 @@ def _annotate_open_orders(orders: list) -> None:
 		order.table_number = table_numbers.get(order.table)
 		order.cashier_name = cashiers.get(order.cashier) or order.cashier
 		order.item_count = counts.get(order.name, 0)
-		order.order_minutes = int(time_diff_in_seconds(now, order.opened_at) // 60) if order.opened_at else 0
 
 
 @frappe.whitelist()

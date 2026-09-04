@@ -5,7 +5,7 @@ import { useRoute, useRouter } from "vue-router";
 import { getFloorPlan, type FloorTable } from "@/api/table";
 import BaseDialog from "@/components/BaseDialog.vue";
 import BillPicker from "@/components/order/BillPicker.vue";
-import { pick, t, tn } from "@/i18n";
+import { pick, t, timeOnly, tn } from "@/i18n";
 import { useOrderStore } from "@/stores/order";
 import { useSessionStore } from "@/stores/session";
 
@@ -282,7 +282,7 @@ async function startOrder(): Promise<void> {
               {{ tn("count.bills", table.orders.length) }}
             </template>
             <template v-else>
-              {{ tn("count.minutes", table.orders[0].minutes) }} ·
+              {{ timeOnly(table.orders[0].opened_at) }} ·
               {{ tn("count.items", table.orders[0].item_count) }}
             </template>
           </span>

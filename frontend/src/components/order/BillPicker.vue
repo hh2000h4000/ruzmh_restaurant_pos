@@ -13,7 +13,7 @@
  */
 import type { FloorTable } from "@/api/table";
 import BaseDialog from "@/components/BaseDialog.vue";
-import { t, tn } from "@/i18n";
+import { dateOnly, t, timeOnly, tn } from "@/i18n";
 
 defineProps<{ table: FloorTable | null }>();
 const emit = defineEmits<{ pick: [orderName: string]; close: [] }>();
@@ -35,7 +35,7 @@ const emit = defineEmits<{ pick: [orderName: string]; close: [] }>();
       >
         <span class="rpos-numeric text-lg font-bold">#{{ bill.daily_number }}</span>
         <span class="rpos-numeric ms-2 text-sm opacity-70">
-          {{ tn("count.minutes", bill.minutes) }} ·
+          {{ dateOnly(bill.opened_at) }} {{ timeOnly(bill.opened_at) }} ·
           {{ tn("count.items", bill.item_count) }}
         </span>
       </button>

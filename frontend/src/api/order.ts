@@ -101,7 +101,6 @@ export interface OpenOrder {
   /** FR-9 — what went back to the customer, `0` when nothing did (D-070). */
   returned_amount: number;
   opened_at: string;
-  order_minutes: number;
   item_count: number;
 }
 

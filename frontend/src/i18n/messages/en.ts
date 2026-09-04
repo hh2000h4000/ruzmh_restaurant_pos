@@ -361,7 +361,6 @@ export const plurals = {
   "count.items": { one: "{n} item", other: "{n} items" },
   "count.bills": { one: "{n} bill", other: "{n} bills" },
   "count.seats": { one: "{n} seat", other: "{n} seats" },
-  "count.minutes": { one: "{n} min", other: "{n} min" },
   "count.queued": { one: "{n} action waiting", other: "{n} actions waiting" },
   "count.syncFailed": { one: "{n} action failed", other: "{n} actions failed" },
 } as const;

@@ -81,7 +81,6 @@ export function useOpenOrders() {
         total_amount: totals.total_amount ?? 0,
         returned_amount: 0,
         opened_at: entry.created_at,
-        order_minutes: 0,
         item_count: lines.length,
       } satisfies OpenOrder;
     });

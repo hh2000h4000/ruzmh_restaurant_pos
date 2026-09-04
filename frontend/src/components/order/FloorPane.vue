@@ -4,7 +4,7 @@ import { computed, onMounted, ref, watch } from "vue";
 import { getFloorPlan, type FloorTable } from "@/api/table";
 import AppIcon from "@/components/AppIcon.vue";
 import BillPicker from "@/components/order/BillPicker.vue";
-import { pick, t, tn } from "@/i18n";
+import { pick, t, timeOnly, tn } from "@/i18n";
 import { useSessionStore } from "@/stores/session";
 
 /**
@@ -195,7 +195,7 @@ defineExpose({ reload: load });
               {{ tn("count.bills", table.orders.length) }}
             </template>
             <template v-else>
-              {{ tn("count.minutes", table.orders[0].minutes) }} ·
+              {{ timeOnly(table.orders[0].opened_at) }} ·
               {{ tn("count.items", table.orders[0].item_count) }}
             </template>
           </span>

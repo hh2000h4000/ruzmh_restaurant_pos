@@ -26,6 +26,12 @@ export interface PaymentSummary {
   payment_methods: PaymentMethodOption[];
   already_paid: boolean;
   sales_invoice: string | null;
+  /**
+   * Why this bill cannot be invoiced at all — a terminal missing its default
+   * customer, say — or `null` when it can. Already translated by the server,
+   * because it names a document the cashier has to go and look at.
+   */
+  blocker: string | null;
 }
 
 export interface TotalsPreview {

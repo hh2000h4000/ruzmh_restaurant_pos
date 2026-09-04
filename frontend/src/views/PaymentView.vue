@@ -89,9 +89,32 @@ const change = computed(() => (remaining.value <= 0 ? round(tendered.value - due
 /** True while a share is still waiting to be handed over. */
 const splitting = computed(() => settled.value < shares.value.length);
 
-const forcedMethod = computed(
-  () => summary.value?.payment_methods.find((method) => method.is_forced)?.payment_method ?? null,
+/**
+ * `BR-023` — the methods an order type *forces*, when it forces any.
+ *
+ * An app order is settled by the app, and taking cash for one puts money in the
+ * till that the platform also pays out. The server has always refused it; it
+ * refused it at Confirm, while this screen showed a sentence above a list of
+ * live buttons — so a cashier could tap Cash on a delivery order, count out the
+ * change, and only then be told (`D-125`). A rule about which buttons may be
+ * used belongs on the buttons.
+ *
+ * A list rather than the first row, matching `_validate_methods` exactly: a
+ * type that forces two methods accepts either, and disabling the second here
+ * would forbid what the shop allows.
+ */
+const forcedMethods = computed(() =>
+  (summary.value?.payment_methods ?? [])
+    .filter((method) => method.is_forced)
+    .map((method) => method.payment_method),
 );
+
+/** The one named in the hint — the same row the server's message names. */
+const forcedMethod = computed(() => forcedMethods.value[0] ?? null);
+
+function isForbidden(method: PaymentMethodOption): boolean {
+  return forcedMethods.value.length > 0 && !forcedMethods.value.includes(method.payment_method);
+}
 /**
  * The tenders worth sending. A row of zero is not a payment (`D-123`).
  *
@@ -139,9 +162,20 @@ function mixesSettlement(method: PaymentMethodOption): boolean {
   return (method.is_credit ? "credit" : "till") !== settlementKind.value;
 }
 
+/**
+ * A setup fault that stops the sale before it starts (`D-125`).
+ *
+ * The server reports it when the screen opens instead of throwing it out of the
+ * Sales Invoice at Confirm. There is nothing the cashier can do about it at the
+ * till, so the methods go quiet and the sentence names the document a manager
+ * has to fix.
+ */
+const blocker = computed(() => summary.value?.blocker ?? null);
+
 const canConfirm = computed(
   () =>
     !busy.value &&
+    !blocker.value &&
     payable.value.length > 0 &&
     remaining.value <= 0.005 &&
     !done.value,
@@ -184,6 +218,9 @@ onMounted(async () => {
       total_amount: bill.total_amount,
       already_paid: false,
       sales_invoice: null,
+      // Offline the invoice is not written here, so there is nothing to block
+      // yet; the replay asks the same question when it reaches the server.
+      blocker: null,
       // The terminal's own methods. Which ones an order *type* forbids
       // (`BR-023`) is on the server, so the replay is what enforces it — a
       // device that guessed would refuse a method the shop allows.
@@ -496,6 +533,17 @@ async function confirm(): Promise<void> {
           {{ t("pay.methods") }}
         </h2>
 
+        <!-- Nothing on this bill can be paid until a manager fixes the
+             terminal. Said first and in the danger colour, because it is the
+             only thing on the column that matters. -->
+        <p
+          v-if="blocker"
+          role="alert"
+          class="mb-3 rounded-rpos bg-danger/10 p-2 text-sm text-danger"
+        >
+          {{ blocker }}
+        </p>
+
         <p
           v-if="forcedMethod"
           class="mb-3 rounded-rpos bg-status-reserved/10 p-2 text-xs text-status-reserved"
@@ -568,7 +616,12 @@ async function confirm(): Promise<void> {
             :key="method.payment_method"
             type="button"
             class="min-h-tap w-full rounded-rpos border border-line border-s-4 border-s-primary bg-background px-4 text-start font-medium shadow-card disabled:opacity-40 disabled:shadow-none"
-            :disabled="!canTakeMore || mixesSettlement(method)"
+            :disabled="
+              Boolean(blocker) ||
+                !canTakeMore ||
+                isForbidden(method) ||
+                mixesSettlement(method)
+            "
             @click="tendering = method"
           >
             {{ method.payment_method }}

@@ -208,6 +208,45 @@ class TestPaymentValidation(PaymentTestBase):
 		self.assertEqual(len(invoice.payments), 2)
 
 
+class TestTheTillIsToldBeforeTheMoney(PaymentTestBase):
+	"""D-125 — a fault the terminal already knows about is said on the screen.
+
+	A POS Profile with no default customer used to raise from inside
+	`_create_sales_invoice`, which is after the cashier has taken the cash and
+	the drawer is open. Nothing the cashier types can get past it, so it belongs
+	on the screen the moment it opens.
+	"""
+
+	def _without_a_default_customer(self):
+		customer = frappe.db.get_value("POS Profile", self.profile, "customer")
+		frappe.db.set_value("POS Profile", self.profile, "customer", None)
+		frappe.clear_document_cache("POS Profile", self.profile)
+		self.addCleanup(frappe.clear_document_cache, "POS Profile", self.profile)
+		self.addCleanup(frappe.db.set_value, "POS Profile", self.profile, "customer", customer)
+
+	def test_the_payment_screen_is_told_when_it_opens(self):
+		order = self._payable_order()
+		self._without_a_default_customer()
+
+		self.assertTrue(api.get_payment_summary(order.name)["blocker"])
+
+	def test_a_terminal_that_is_set_up_blocks_nothing(self):
+		order = self._payable_order()
+		self.assertIsNone(api.get_payment_summary(order.name)["blocker"])
+
+	def test_nothing_is_charged_when_it_is_ignored(self):
+		"""The screen is a courtesy; the refusal is still the server's."""
+		order = self._payable_order()
+		self._without_a_default_customer()
+
+		with self.assertRaises(frappe.ValidationError):
+			self._pay(order)
+
+		order.reload()
+		self.assertFalse(order.sales_invoice)
+		self.assertNotEqual(order.status, "closed")
+
+
 class TestSalesInvoice(PaymentTestBase):
 	def test_payment_submits_an_invoice_and_closes_the_order(self):
 		"""BR-016 / FR-2.7."""

@@ -61,6 +61,10 @@ def process_payment(
 	if not order.items or all(row.status == "void" for row in order.items):
 		frappe.throw(_("An empty order cannot be paid."))
 
+	blocker = invoice_blocker(order)
+	if blocker:
+		frappe.throw(blocker)
+
 	payments = _normalise(payments)
 	_apply_discount(order, discount_type, discount_value, override_token)
 
@@ -237,6 +241,31 @@ def _normalise(payments) -> list[dict]:
 	return rows
 
 
+def invoice_blocker(order) -> str | None:
+	"""Why this order can never become an invoice, whatever is tendered (`D-125`).
+
+	Not a check on what the cashier typed — those belong on the buttons — but a
+	setup fault no tender can get past. A POS Profile with no default customer
+	used to surface as a `throw` from inside `_create_sales_invoice`, which is
+	*after* the customer has counted out the money and the drawer is open. It is
+	the shop's configuration, known the moment the order is loaded, so the
+	payment screen asks for it when it opens and says so instead of offering
+	methods.
+
+	One function, two callers: `get_payment_summary` to warn, `process_payment`
+	to refuse. A condition remembered in two places is a condition forgotten in
+	one (`CLAUDE.md` §5.5).
+	"""
+	profile = frappe.get_cached_doc("POS Profile", order.pos_profile)
+
+	if not (order.customer or profile.customer):
+		return _("Set a default customer on POS Profile {0} before taking payment.").format(
+			order.pos_profile
+		)
+
+	return None
+
+
 def is_credit_method(method: str) -> bool:
 	"""Whether this method leaves the money owed rather than collected.
 
@@ -362,9 +391,9 @@ def _create_sales_invoice(order, payments, promotion_applied, settlement: str = 
 	posts the ledger, moves stock and gives ZATCA integrations something to sign.
 	"""
 	profile = frappe.get_cached_doc("POS Profile", order.pos_profile)
+	# Guaranteed to exist: `process_payment` refuses the sale on `invoice_blocker`
+	# before anything is charged, and the payment screen says so before that.
 	customer = order.customer or profile.customer
-	if not customer:
-		frappe.throw(_("Set a default customer on POS Profile {0}.").format(order.pos_profile))
 
 	invoice = frappe.new_doc("Sales Invoice")
 	invoice.update(

@@ -170,4 +170,8 @@ def get_payment_summary(order_name: str) -> dict:
 		"payment_methods": allowed,
 		"already_paid": bool(order.sales_invoice),
 		"sales_invoice": order.sales_invoice,
+		# A setup fault that no tender can get past, said while the queue can
+		# still be told rather than thrown from the invoice after the money has
+		# been handed over (`D-125`).
+		"blocker": service.invoice_blocker(order),
 	}

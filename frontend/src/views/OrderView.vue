@@ -622,7 +622,7 @@ function clearPending(): void {
 }
 
 /**
- * The bill now exists — put the tap that asked for it on the bill.
+ * The bill now exists **and the store is idle** — put the tap on the bill.
  *
  * Watched on the store rather than added at the end of each creation path:
  * there are four of them (straight, seated, named, counted) and they end in
@@ -630,14 +630,22 @@ function clearPending(): void {
  * forgotten in one (`CLAUDE.md` §5.5), and the one it is forgotten in is the
  * one the cashier meets.
  *
+ * **`busy` is half of the condition, not decoration.** The store runs one
+ * action at a time and a second one taken while the first is in flight is
+ * dropped and returns `null` — silently. `create` sets the order from *inside*
+ * that flight, so flushing on the order alone put `addItem` into exactly that
+ * window: an item with modifier groups worked, because its popup waits for the
+ * cashier, and a plain item vanished. Waiting for idle also means the watcher
+ * retries itself — the pick is only cleared once it has been replayed.
+ *
  * It replays `onPick`, so an item with modifier groups still opens its popup
  * rather than landing plain.
  */
 watch(
-  () => orders.order?.order_name ?? null,
-  (name) => {
+  () => [orders.order?.order_name ?? null, orders.busy] as const,
+  ([name, busy]) => {
     const pick = waitingPick.value;
-    if (!name || !pick) return;
+    if (!name || busy || !pick) return;
 
     waitingPick.value = null;
     onPick(pick.item, pick.qty);

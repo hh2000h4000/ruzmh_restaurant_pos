@@ -3,8 +3,14 @@ import { computed, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 
 import * as paymentApi from "@/api/payment";
-import type { PaymentLine, PaymentSummary, TotalsPreview } from "@/api/payment";
+import type {
+  PaymentLine,
+  PaymentMethodOption,
+  PaymentSummary,
+  TotalsPreview,
+} from "@/api/payment";
 import BaseDialog from "@/components/BaseDialog.vue";
+import TenderSheet from "@/components/order/TenderSheet.vue";
 import { formatNumber, t } from "@/i18n";
 import { useOrderStore } from "@/stores/order";
 import { useSessionStore } from "@/stores/session";
@@ -160,6 +166,7 @@ onMounted(async () => {
         payment_method: row.mode_of_payment,
         is_forced: 0 as const,
         is_default: row.default,
+        is_cash: row.is_cash,
       })),
     };
     return;
@@ -205,24 +212,43 @@ function setQuickDiscount(percentage: number): void {
   discountValue.value = percentage;
 }
 
-function addMethod(method: string): void {
-  // FR-10.2 — a tap takes whatever is still owed, unless the table is paying
-  // share by share, in which case it takes the next person's share.
-  const amount = splitting.value ? shares.value[settled.value] : Math.max(remaining.value, 0);
+/** The method whose amount is being chosen, or `null` while the sheet is shut. */
+const tendering = ref<PaymentMethodOption | null>(null);
 
-  const existing = lines.value.find((line) => line.method === method);
+/** What the sheet offers first: this person's share, or the whole balance. */
+const nextDue = computed(() =>
+  splitting.value ? shares.value[settled.value] : Math.max(remaining.value, 0),
+);
+
+/**
+ * FR-10.2 — take a tender on the method the cashier chose.
+ *
+ * `amount` is what goes onto the bill and can never exceed what is owed;
+ * `tendered` is what was handed over, which for cash may be more and is where
+ * the change comes from. A card is never handed more than the bill, so the two
+ * are the same figure there.
+ */
+function takeTender(chosen: number): void {
+  const method = tendering.value;
+  if (!method) return;
+
+  const amount = round(Math.min(chosen, nextDue.value));
+  const tendered = method.is_cash ? chosen : amount;
+
+  const existing = lines.value.find((line) => line.method === method.payment_method);
   if (existing) {
     // Four people paying cash are one cash line: the invoice records what the
     // drawer holds, not who handed over which note. Without this a split would
     // need the same method four times, and the till would reconcile against
     // rows that mean nothing.
-    if (!splitting.value) return;
     existing.amount = round(existing.amount + amount);
+    existing.tendered = round((existing.tendered ?? existing.amount) + tendered);
   } else {
-    lines.value.push({ method, amount });
+    lines.value.push({ method: method.payment_method, amount, tendered });
   }
 
   if (splitting.value) settled.value += 1;
+  tendering.value = null;
 }
 
 function removeMethod(index: number): void {
@@ -497,62 +523,37 @@ async function confirm(): Promise<void> {
             :key="method.payment_method"
             type="button"
             class="min-h-tap rounded-rpos border border-line px-4 text-sm disabled:opacity-40"
-            :disabled="!canTakeMore || (!splitting && lines.some((line) => line.method === method.payment_method))"
-            @click="addMethod(method.payment_method)"
+            :disabled="!canTakeMore"
+            @click="tendering = method"
           >
             {{ method.payment_method }}
-            <!-- The share, on the button that would take it. Without it the
-                 first question anyone asks a split screen is whether they now
-                 need one payment method per person — they do not, and tapping
-                 the same one again is the answer. Saying "Cash 14.00" makes
-                 that visible instead of explained. -->
-            <span
-              v-if="splitting"
-              class="rpos-numeric ms-1 font-bold"
-            >{{ money(shares[settled]) }}</span>
           </button>
         </div>
 
+        <!-- What has been taken so far. Read-only: the amount was chosen on the
+             sheet, and a field to correct it here is the form that produced a
+             tender worth nothing (`D-123`). To change one, remove it and take
+             it again — which is one tap more and no wrong states. -->
         <div
           v-for="(line, index) in lines"
           :key="line.method"
-          class="mb-3"
+          class="mb-2 flex items-baseline gap-2 rounded-rpos bg-background px-3 py-2"
         >
-          <div class="mb-1 flex items-center justify-between">
-            <label
-              :for="`amount-${index}`"
-              class="text-sm font-medium"
-            >{{ line.method }}</label>
-            <button
-              type="button"
-              class="text-xs text-danger"
-              @click="removeMethod(index)"
-            >
-              {{ t("action.remove") }}
-            </button>
-          </div>
-          <input
-            :id="`amount-${index}`"
-            v-model.number="line.amount"
-            type="number"
-            step="0.05"
-            min="0"
-            class="rpos-numeric min-h-tap w-full rounded-rpos border border-line bg-background px-3"
+          <span class="flex-1 truncate font-medium">{{ line.method }}</span>
+          <span class="rpos-numeric font-bold">{{ money(line.amount) }}</span>
+          <!-- Only worth saying when more was handed over than the bill asked
+               for, because that is where the change comes from. -->
+          <span
+            v-if="(line.tendered ?? line.amount) > line.amount + 0.005"
+            class="rpos-numeric text-xs text-muted"
+          >({{ money(line.tendered ?? 0) }})</span>
+          <button
+            type="button"
+            class="text-xs text-danger"
+            @click="removeMethod(index)"
           >
-          <label
-            :for="`tendered-${index}`"
-            class="mt-1 block text-xs text-muted"
-          >
-            {{ t("pay.received") }}
-          </label>
-          <input
-            :id="`tendered-${index}`"
-            v-model.number="line.tendered"
-            type="number"
-            step="0.05"
-            min="0"
-            class="rpos-numeric min-h-tap w-full rounded-rpos border border-line bg-background px-3"
-          >
+            {{ t("action.remove") }}
+          </button>
         </div>
       </section>
 
@@ -703,6 +704,14 @@ async function confirm(): Promise<void> {
     </p>
 
     <!-- Screen 9 — manager authorisation -->
+    <TenderSheet
+      :method="tendering?.payment_method ?? null"
+      :due="nextDue"
+      :is-cash="Boolean(tendering?.is_cash)"
+      @pick="takeTender"
+      @close="tendering = null"
+    />
+
     <BaseDialog
       :open="askingPin"
       :title="`🔐 ${t('pay.needsManager')}`"

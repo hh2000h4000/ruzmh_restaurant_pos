@@ -393,5 +393,5 @@ def _apply_refund(credit, refund_method: str | None) -> None:
 	# D-093 — a cash refund is money leaving the drawer, so the drawer opens.
 	# The same rule as taking cash, for the same reason and in the same place as
 	# the decision about which method it is.
-	if credit.is_pos and payment._is_cash(method):
+	if credit.is_pos and payment.is_cash(method):
 		printing.open_drawer(credit.pos_profile, reason=f"cash refund on {credit.return_against}")

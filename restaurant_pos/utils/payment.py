@@ -112,7 +112,7 @@ def process_payment(
 	# D-093 — cash has to go in and change has to come out, so the drawer opens
 	# on a cash payment and only on a cash payment. Opening it for a card sale
 	# is how a drawer ends up sitting open through a queue.
-	if any(_is_cash(row["method"]) for row in payments):
+	if any(is_cash(row["method"]) for row in payments):
 		printing.open_drawer(order.pos_profile, reason=f"cash payment on {order.name}")
 
 	activity.log(
@@ -247,7 +247,7 @@ def is_credit_method(method: str) -> bool:
 	return bool(frappe.db.get_value("Mode of Payment", method, "rpos_is_credit"))
 
 
-def _is_cash(method: str) -> bool:
+def is_cash(method: str) -> bool:
 	"""Whether notes and coins actually change hands (`D-093`).
 
 	ERPNext's own `Mode of Payment.type`, not a name match: a restaurant may call

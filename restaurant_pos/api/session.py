@@ -427,12 +427,25 @@ def _order_types(profile) -> list[dict]:
 
 
 def _payment_methods(pos_profile: str) -> list[dict]:
-	return frappe.get_all(
+	"""The terminal's methods, and which of them take notes.
+
+	`is_cash` rides along because the payment screen offers round denominations
+	only for cash (`D-124`), and a device that has lost the connection still has
+	to take a fifty for a thirty-five bill. Reading it here means the answer is
+	on the device before it is needed rather than at the moment it is not.
+	"""
+	from restaurant_pos.utils.payment import is_cash
+
+	rows = frappe.get_all(
 		"POS Payment Method",
 		filters={"parent": pos_profile, "parenttype": "POS Profile"},
 		fields=["mode_of_payment", "default", "allow_in_returns"],
 		order_by="idx",
 	)
+	for row in rows:
+		row["is_cash"] = 1 if is_cash(row["mode_of_payment"]) else 0
+
+	return rows
 
 
 def _active_shift(profile) -> dict | None:

@@ -149,6 +149,13 @@ def get_payment_summary(order_name: str) -> dict:
 			for row in frappe.get_all("Mode of Payment", filters={"enabled": 1}, fields=["name"])
 		]
 
+	# Only a method that takes notes can be handed more than the bill and give
+	# change back, so only those are offered round denominations to tap
+	# (`D-124`). Read from ERPNext's own `Mode of Payment.type`, the same source
+	# the drawer opens on (`D-093`) — a restaurant may call cash anything.
+	for row in allowed:
+		row["is_cash"] = 1 if service.is_cash(row["payment_method"]) else 0
+
 	return {
 		"order_name": order.name,
 		"subtotal": order.subtotal,

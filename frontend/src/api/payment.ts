@@ -11,6 +11,8 @@ export interface PaymentMethodOption {
   payment_method: string;
   is_forced: 0 | 1;
   is_default: 0 | 1;
+  /** Takes notes, so it can be handed more than the bill and give change. */
+  is_cash: 0 | 1;
 }
 
 export interface PaymentSummary {

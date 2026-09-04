@@ -45,6 +45,16 @@ const overrideToken = ref<string | null>(null);
 const busy = ref(false);
 const failure = ref<string | null>(null);
 /**
+ * The screen could not be shown at all — no bill, no methods, nothing to fix.
+ *
+ * Kept apart from `failure` because the two want opposite things. A bill that
+ * would not load has nothing to render, so it takes the screen. A refused
+ * payment is the cashier's next move: showing it *instead of* the screen threw
+ * away the amounts they had just typed and left them a red sentence and a back
+ * button (`D-123`).
+ */
+const loadFailure = ref<string | null>(null);
+/**
  * BR-044 — set when the cashier presses Confirm with no shift open, never
  * standing (D-058).
  *
@@ -76,10 +86,32 @@ const splitting = computed(() => settled.value < shares.value.length);
 const forcedMethod = computed(
   () => summary.value?.payment_methods.find((method) => method.is_forced)?.payment_method ?? null,
 );
+/**
+ * The tenders worth sending. A row of zero is not a payment (`D-123`).
+ *
+ * A cashier who taps a second method after the first took the whole bill gets a
+ * row worth nothing, and the old screen let them carry it all the way to
+ * Confirm before the server said "a payment amount must be greater than zero" —
+ * by which time the message is about a row nobody is looking at any more.
+ * Adding one is prevented below; typing one into an existing row is simply
+ * ignored, because an empty tender is nothing and refusing the sale over it
+ * would be pedantry at a till with a queue.
+ */
+const payable = computed(() => lines.value.filter((line) => (line.amount || 0) > 0));
+
+/**
+ * Whether tapping a method would do anything at all.
+ *
+ * Nothing left to pay means a new row would be worth zero. Square and Toast do
+ * not let an empty tender be created; the button goes quiet instead, and the
+ * cashier edits an amount above to free some of the bill up.
+ */
+const canTakeMore = computed(() => splitting.value || remaining.value > 0.005);
+
 const canConfirm = computed(
   () =>
     !busy.value &&
-    lines.value.length > 0 &&
+    payable.value.length > 0 &&
     remaining.value <= 0.005 &&
     !done.value,
 );
@@ -109,7 +141,7 @@ onMounted(async () => {
     // nothing to pay. Said out loud: this screen used to render its header and
     // then nothing at all, which reads as a broken app rather than a lost bill.
     if (!bill) {
-      failure.value = t("offline.billGone");
+      loadFailure.value = t("offline.billGone");
       return;
     }
 
@@ -139,7 +171,7 @@ onMounted(async () => {
       failure.value = t("pay.alreadyPaid", { invoice: summary.value.sales_invoice ?? "" });
     }
   } catch (cause) {
-    failure.value = cause instanceof Error ? cause.message : String(cause);
+    loadFailure.value = cause instanceof Error ? cause.message : String(cause);
   }
 });
 
@@ -269,7 +301,7 @@ async function confirm(): Promise<void> {
       const total = due.value;
       const change = Math.max(round(tendered.value - total), 0);
 
-      if (await orders.payOffline(lines.value.map((line) => ({ ...line })))) {
+      if (await orders.payOffline(payable.value.map((line) => ({ ...line })))) {
         done.value = {
           order_name: orderName,
           sales_invoice: "",
@@ -284,7 +316,7 @@ async function confirm(): Promise<void> {
 
     done.value = await paymentApi.processPayment({
       order_name: orderName,
-      payments: lines.value,
+      payments: payable.value,
       discount_type: discountType.value,
       discount_value: discountValue.value,
       manager_override_token: overrideToken.value,
@@ -378,17 +410,28 @@ async function confirm(): Promise<void> {
     </section>
 
     <p
-      v-else-if="failure"
+      v-else-if="loadFailure"
       role="alert"
       class="m-4 rounded-rpos bg-danger/10 p-4 text-danger"
     >
-      {{ failure }}
+      {{ loadFailure }}
     </p>
 
     <div
       v-else-if="summary"
       class="grid flex-1 gap-3 overflow-y-auto p-3 lg:grid-cols-3"
     >
+      <!-- Something the cashier can fix, said **above** the screen and not
+           instead of it: the amounts they typed are what they need in order to
+           fix it (`D-123`). -->
+      <p
+        v-if="failure"
+        role="alert"
+        class="rounded-rpos bg-danger/10 px-3 py-2 text-sm text-danger lg:col-span-3"
+      >
+        {{ failure }}
+      </p>
+
       <!-- 1 — methods -->
       <section class="rounded-rpos bg-surface p-4">
         <h2 class="mb-3 text-sm font-medium text-muted">
@@ -439,13 +482,22 @@ async function confirm(): Promise<void> {
           }}
         </p>
 
+        <!-- Why the buttons went quiet. Without it a dimmed row of methods
+             reads as a broken screen rather than a bill that is covered. -->
+        <p
+          v-if="!canTakeMore && lines.length"
+          class="mb-3 text-sm text-muted"
+        >
+          {{ t("pay.covered") }}
+        </p>
+
         <div class="mb-4 flex flex-wrap gap-2">
           <button
             v-for="method in summary.payment_methods"
             :key="method.payment_method"
             type="button"
             class="min-h-tap rounded-rpos border border-line px-4 text-sm disabled:opacity-40"
-            :disabled="!splitting && lines.some((line) => line.method === method.payment_method)"
+            :disabled="!canTakeMore || (!splitting && lines.some((line) => line.method === method.payment_method))"
             @click="addMethod(method.payment_method)"
           >
             {{ method.payment_method }}

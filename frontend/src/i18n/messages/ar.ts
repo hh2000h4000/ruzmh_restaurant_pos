@@ -305,6 +305,7 @@ const messages: Catalogue["messages"] = {
   "pay.alreadyPaid": "هذا الطلب مدفوع — الفاتورة {invoice}",
   "pay.newOrder": "طلب جديد",
   "pay.methods": "طرق الدفع",
+  "pay.covered": "المبلغ مغطّى بالكامل. أنقص مبلغاً أدناه لتدفع جزءاً منه بطريقة أخرى.",
   "pay.split": "قسّم بالتساوي على",
   "pay.total": "الإجمالي",
   "pay.tax": "الضريبة",

@@ -313,6 +313,7 @@ export const messages = {
   "pay.alreadyPaid": "This order is paid — invoice {invoice}",
   "pay.newOrder": "New order",
   "pay.methods": "Payment methods",
+  "pay.covered": "The bill is covered. Lower an amount below to pay part of it another way.",
   "pay.split": "Split evenly between",
   "pay.total": "Total",
   "pay.tax": "Tax",

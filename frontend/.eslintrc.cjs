@@ -52,6 +52,19 @@ module.exports = {
     },
     {
       /**
+       * Tests read the screen the way a cashier does (`D-130`).
+       *
+       * The rule exists so a component never *renders* untranslated text. A
+       * test renders nothing: its Arabic is either a label it looks for — the
+       * words on the button a cashier would press — or fixture data standing in
+       * for a menu. Routing those through `t()` would only prove the catalogue
+       * agrees with itself.
+       */
+      files: ["src/**/*.test.ts"],
+      rules: { "no-restricted-syntax": "off" },
+    },
+    {
+      /**
        * The service worker (D-078).
        *
        * Linted like everything else — it caught a function this file called and

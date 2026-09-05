@@ -169,7 +169,7 @@ function priceOf(item: CatalogItem): number | null {
         >{{ t("picker.search") }}</label>
         <div class="relative min-w-0 flex-1">
           <span
-            class="pointer-events-none absolute inset-y-0 start-3.5 grid place-items-center text-muted"
+            class="pointer-events-none absolute inset-y-0 start-4 grid place-items-center text-muted"
           >
             <AppIcon
               name="search"
@@ -181,16 +181,18 @@ function priceOf(item: CatalogItem): number | null {
             v-model="search"
             type="search"
             :placeholder="t('picker.search')"
-            class="h-[46px] w-full rounded-full bg-background ps-11 pe-4 text-base outline-none transition duration-200 ease-rpos focus:bg-surface focus:ring-2 focus:ring-primary/30"
+            class="h-14 w-full rounded-rpos border border-line-strong bg-background ps-12 pe-4 text-base outline-none transition duration-200 ease-rpos focus:border-primary focus:bg-surface"
           >
         </div>
 
         <!-- Set the quantity, then tap the item. -->
-        <div class="flex h-[46px] shrink-0 items-center gap-1 rounded-full bg-background px-2">
-          <span class="ps-2 text-sm font-medium text-muted">{{ t("picker.qty") }}</span>
+        <div
+          class="flex h-14 shrink-0 items-center gap-1 rounded-rpos border border-line-strong bg-background px-2"
+        >
+          <span class="px-2 text-sm text-muted">{{ t("picker.qty") }}</span>
           <button
             type="button"
-            class="grid h-10 w-10 place-items-center rounded-full text-muted transition duration-200 ease-rpos hover:bg-surface disabled:opacity-40"
+            class="grid h-11 w-11 place-items-center rounded-rpos text-content transition duration-200 ease-rpos hover:bg-surface disabled:opacity-40"
             :disabled="qty <= 1"
             :aria-label="t('picker.qtyLess')"
             @click="bumpQty(-1)"
@@ -201,12 +203,12 @@ function priceOf(item: CatalogItem): number | null {
             />
           </button>
           <span
-            class="rpos-numeric w-8 text-center text-lg font-bold"
+            class="rpos-numeric min-w-[1.875rem] text-center text-[17px]"
             aria-live="polite"
           >{{ formatNumber(qty) }}</span>
           <button
             type="button"
-            class="grid h-10 w-10 place-items-center rounded-full text-muted transition duration-200 ease-rpos hover:bg-surface disabled:opacity-40"
+            class="grid h-11 w-11 place-items-center rounded-rpos text-content transition duration-200 ease-rpos hover:bg-surface disabled:opacity-40"
             :disabled="qty >= 99"
             :aria-label="t('picker.qtyMore')"
             @click="bumpQty(1)"
@@ -310,17 +312,17 @@ function priceOf(item: CatalogItem): number | null {
     -->
     <div
       v-else-if="layout"
-      class="grid content-start gap-2 overflow-y-auto"
+      class="grid content-start gap-3.5 overflow-y-auto"
       :style="{
         gridTemplateColumns: `repeat(${layout.grid_columns}, minmax(0, 1fr))`,
-        gridAutoRows: 'minmax(4.5rem, auto)',
+        gridAutoRows: 'minmax(9.375rem, auto)',
       }"
     >
       <button
         v-for="button in layout.buttons"
         :key="button.idx"
         type="button"
-        class="flex items-center justify-center rounded-rpos border border-line bg-surface p-3 text-center font-semibold transition duration-200 ease-rpos hover:-translate-y-px hover:shadow-card disabled:cursor-not-allowed disabled:opacity-40"
+        class="flex items-center justify-center rounded-rpos-lg border border-line bg-surface p-[18px] text-center text-[19px] font-medium transition duration-200 ease-rpos hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-40"
         :style="buttonStyle(button)"
         :disabled="disabled || !isUsable(button)"
         @click="onLayoutButton(button)"
@@ -338,7 +340,7 @@ function priceOf(item: CatalogItem): number | null {
         v-for="group in groups"
         :key="group.name"
         type="button"
-        class="flex min-h-[4.5rem] items-center justify-center rounded-rpos border border-line bg-surface p-3 text-center font-semibold transition duration-200 ease-rpos hover:-translate-y-px hover:border-primary/40 hover:shadow-card"
+        class="flex min-h-[9.375rem] items-center justify-center rounded-rpos-lg border border-line-strong bg-background p-[18px] text-center text-[19px] font-medium transition duration-200 ease-rpos hover:-translate-y-0.5 hover:border-primary"
         @click="activeGroup = group.name"
       >
         {{ group.item_group_name }}

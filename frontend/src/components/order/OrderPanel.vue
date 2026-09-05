@@ -95,7 +95,7 @@ function money(value: number | undefined): string {
 
 <template>
   <section
-    class="grid min-h-0 grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden rounded-rpos bg-surface shadow-card"
+    class="grid min-h-0 grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden rounded-rpos-lg border border-line bg-surface"
   >
     <!--
       Two lines, the way the reference reads: the number and the state, then
@@ -105,22 +105,23 @@ function money(value: number | undefined): string {
          not resize under the cashier's eye between customers (D-059). -->
     <header
       v-if="order"
-      class="border-b border-line px-5 py-4"
+      class="border-b border-line px-[22px] pb-[18px] pt-5"
     >
-      <div class="flex items-baseline justify-between gap-3">
-        <p class="rpos-numeric text-2xl font-bold leading-none">
+      <div class="flex items-start justify-between gap-3">
+        <p class="rpos-numeric text-[26px] font-medium leading-none tracking-tight">
           {{ formatNumber(shortNumber) }}
         </p>
         <p
-          class="text-sm font-bold uppercase tracking-wide"
+          class="flex items-center gap-2 text-sm"
           :class="STATUS_CLASS[order.status] ?? 'text-muted'"
         >
+          <span class="h-[7px] w-[7px] shrink-0 rounded-full bg-current" />
           {{ statusLabel }}
         </p>
       </div>
 
-      <div class="mt-1.5 flex items-center justify-between gap-3">
-        <p class="flex min-w-0 items-center gap-2 truncate text-sm font-semibold text-muted">
+      <div class="mt-2.5 flex items-center justify-between gap-3">
+        <p class="flex min-w-0 items-center gap-2 truncate text-sm text-muted">
           <span
             v-if="orderType?.color"
             class="h-2.5 w-2.5 shrink-0 rounded-full"
@@ -164,7 +165,7 @@ function money(value: number | undefined): string {
         <span class="truncate">{{ order.delivery_address_line }}</span>
       </p>
 
-      <p class="rpos-numeric mt-1 truncate text-xs text-muted">
+      <p class="rpos-numeric mt-2 truncate text-xs text-muted">
         {{ order.order_name }}
       </p>
     </header>
@@ -173,15 +174,15 @@ function money(value: number | undefined): string {
          below it does not jump when a bill opens. -->
     <header
       v-else
-      class="border-b border-line px-5 py-4"
+      class="border-b border-line px-[22px] pb-[18px] pt-5"
     >
-      <p class="rpos-numeric text-2xl font-bold leading-none text-muted opacity-30">
+      <p class="rpos-numeric text-[26px] font-medium leading-none text-muted opacity-30">
         —
       </p>
-      <p class="mt-1.5 text-sm font-semibold text-muted">
+      <p class="mt-2.5 text-sm text-muted">
         {{ t("panel.noOrder") }}
       </p>
-      <p class="mt-1 text-xs text-muted opacity-0">
+      <p class="mt-2 text-xs text-muted opacity-0">
         &nbsp;
       </p>
     </header>
@@ -222,7 +223,7 @@ function money(value: number | undefined): string {
       </li>
     </ul>
 
-    <dl class="space-y-2 border-t border-line p-5">
+    <dl class="space-y-3 border-t border-line px-[22px] pb-5 pt-[18px]">
       <div class="flex justify-between text-muted">
         <dt>{{ t("totals.subtotal") }}</dt>
         <dd class="rpos-numeric">
@@ -245,10 +246,10 @@ function money(value: number | undefined): string {
         </dd>
       </div>
       <div class="flex items-baseline justify-between border-t border-line pt-3">
-        <dt class="text-lg font-bold">
+        <dt class="text-base font-semibold">
           {{ t("totals.total") }}
         </dt>
-        <dd class="rpos-numeric text-[26px] font-bold text-primary">
+        <dd class="rpos-numeric text-[30px] font-medium tracking-tighter">
           {{ money(order?.total_amount) }}
         </dd>
       </div>
@@ -257,13 +258,14 @@ function money(value: number | undefined): string {
            customer is being told, where the cashier is already looking. -->
       <button
         type="button"
-        class="mt-2 flex h-16 w-full items-center justify-center gap-3 rounded-rpos bg-primary text-lg font-bold text-primary-contrast shadow-card transition duration-200 ease-rpos hover:shadow-lift disabled:cursor-not-allowed disabled:opacity-40"
+        class="mt-1 flex min-h-[4.125rem] w-full items-center justify-center gap-2.5 rounded-rpos-lg bg-primary text-[17px] font-medium text-primary-contrast shadow-primary transition duration-200 ease-rpos hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none"
         :disabled="!canPay"
         @click="emit('pay')"
       >
         <AppIcon
           name="card"
-          :size="24"
+          :size="22"
+          class="opacity-85"
         />
         {{ t("order.payWithTotal", { total: money(order?.total_amount) }) }}
       </button>

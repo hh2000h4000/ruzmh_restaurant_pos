@@ -36,11 +36,29 @@
   [role="button"],
   a.rpos-tap {
     min-height: var(--rpos-tap-target);
+    /*
+     * No 300ms wait, and no grey flash behind the tap.
+     *
+     * `manipulation` tells the browser this element will never be
+     * double-tap-zoomed, which is what the delay is reserved for. It is the
+     * honest way to make a till feel immediate — the other way is to act on
+     * `pointerdown`, which fires before the browser knows a finger is
+     * scrolling rather than tapping, and on a screen whose menu and bill both
+     * scroll that puts the wrong dish on the wrong order.
+     */
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
   }
 
   /* A cashier taps fast; text selection on a double tap is noise. */
   button {
     user-select: none;
+  }
+
+  /* The press is felt rather than waited for. */
+  button:not(:disabled):active,
+  [role="button"]:not([aria-disabled="true"]):active {
+    transform: scale(0.98);
   }
 
   :focus-visible {

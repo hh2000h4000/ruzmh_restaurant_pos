@@ -26,13 +26,15 @@ import { formatNumber, t, type MessageKey } from "@/i18n";
  * says where you are. At 48px it is exactly the minimum a finger needs
  * (`--rpos-tap-target`) and not a pixel more.
  *
- * **Fixed width, not stretched.** Entries sized to the bar make each button a
- * quarter of the screen wide, which reads as four slabs rather than four
- * signposts — and the widths then shift whenever the column does. 104px spaced
- * evenly keeps the bar the same shape on every terminal.
+ * **Five equal columns on a card.** They were fixed-width and evenly spaced,
+ * on the argument that stretched entries read as slabs rather than signposts.
+ * Sized to the bar they read as a segmented control instead, which is what
+ * they are — and the bar keeps its shape because the column above it does.
  *
- * Every entry carries the same weight. One filled block among four is a shout,
- * and what would be shouted is navigation.
+ * **The one you are on is filled.** The earlier rule was that no entry should
+ * outweigh another, since navigation is not worth shouting. That was answering
+ * the wrong question: the fill is not emphasis on a destination, it is the
+ * answer to *where am I* — and a tint alone is not visible across a counter.
  */
 export interface NavEntry {
   key: string;
@@ -47,34 +49,39 @@ const emit = defineEmits<{ select: [key: string] }>();
 </script>
 
 <template>
-  <nav class="flex shrink-0 items-center justify-around gap-1 rounded-rpos bg-surface p-1 shadow-card">
+  <nav
+    class="grid shrink-0 grid-cols-5 gap-2 rounded-rpos-lg border border-line bg-surface p-2.5"
+  >
     <button
       v-for="entry in entries"
       :key="entry.key"
       type="button"
-      class="flex h-tap w-[104px] shrink-0 items-center justify-center gap-2 rounded-[0.75rem] text-sm font-semibold transition duration-200 ease-rpos"
+      class="flex min-h-[3.75rem] items-center justify-center gap-2.5 rounded-rpos text-sm font-medium transition duration-200 ease-rpos"
       :class="
         active === entry.key
-          ? 'bg-primary/10 text-primary'
+          ? 'bg-primary text-primary-contrast'
           : 'text-muted hover:bg-background hover:text-content'
       "
       :aria-current="active === entry.key ? 'page' : undefined"
       @click="emit('select', entry.key)"
     >
+      <AppIcon
+        :name="entry.icon"
+        :size="18"
+        class="shrink-0 opacity-85"
+      />
+      <span class="truncate">{{ t(entry.label) }}</span>
+      <!-- Beside the label, not floating over the icon. A count that overlaps
+           what it counts is unreadable the moment it reaches two digits. -->
       <span
-        class="relative shrink-0"
-        :class="active === entry.key ? '' : 'text-primary'"
-      >
-        <AppIcon
-          :name="entry.icon"
-          :size="18"
-        />
-        <span
-          v-if="entry.count"
-          class="rpos-numeric absolute -top-1 grid h-4 min-w-[1rem] place-items-center rounded-full bg-primary px-1 text-[10px] font-bold text-primary-contrast start-full -ms-1.5"
-        >{{ formatNumber(entry.count) }}</span>
-      </span>
-      {{ t(entry.label) }}
+        v-if="entry.count"
+        class="rpos-numeric grid h-[1.375rem] min-w-[1.375rem] shrink-0 place-items-center rounded-full px-1.5 text-xs"
+        :class="
+          active === entry.key
+            ? 'bg-primary-contrast/20 text-primary-contrast'
+            : 'bg-primary text-primary-contrast'
+        "
+      >{{ formatNumber(entry.count) }}</span>
     </button>
   </nav>
 </template>

@@ -749,6 +749,8 @@ const rowActions = computed<OrderAction[]>(() => [
     label: "order.sendToKitchen",
     icon: "kitchen",
     disabled: locked.value || !orders.hasUnsent,
+    // The one action that moves the order on; the rest are corrections to it.
+    primary: true,
   },
   {
     // FR-2.9 — the note every station reads. In the row, not the menu: an
@@ -1004,7 +1006,7 @@ async function send(): Promise<void> {
     the button beside the tabs.
   -->
   <main class="grid h-full grid-rows-[minmax(0,1fr)] bg-background">
-    <div class="grid min-h-0 grid-rows-[minmax(0,1fr)] p-5">
+    <div class="grid min-h-0 grid-rows-[minmax(0,1fr)] p-[18px]">
       <!--
         Two columns while a bill is in hand, one when there is not: the working
         column is the screen either way, and stretching it over the whole width
@@ -1016,7 +1018,29 @@ async function send(): Promise<void> {
         screen a cashier has to re-read, and the empty panel says what to do
         next in the place the bill will appear.
       -->
-      <div class="grid min-h-0 gap-4 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+      <!--
+        **The bill takes the leading edge.** It was on the far side, with the
+        menu under the reading hand. The bill is the thing being read — by the
+        cashier and, on a two-screen till, by the customer — and in Arabic the
+        eye starts on the right. It is also the narrower of the two, so a fixed
+        band rather than a share of the width: the menu should take whatever a
+        wider terminal offers, and the bill should not grow to 600px on one.
+      -->
+      <div class="grid min-h-0 gap-[18px] lg:grid-cols-[minmax(310px,380px)_minmax(0,1fr)]">
+        <!-- Drawn whether a bill is in hand or not (D-059): the bill is
+             furniture, and a till that rearranges itself between customers is
+             one the cashier has to re-read every time. -->
+        <OrderPanel
+          :order="orders.order"
+          :lines="orders.lines"
+          :busy="locked"
+          :can-pay="!locked && !orders.isEmpty"
+          @void="askVoid"
+          @repeat="repeat"
+          @inspect="inspect"
+          @pay="goToPayment"
+        />
+
         <!--
           A column, not a row template. The notices below are `empty:hidden`, so
           on a quiet screen they are not a grid item at all — and every child
@@ -1029,7 +1053,7 @@ async function send(): Promise<void> {
           pane grows and the two bars keep their own height whatever is on
           screen.
         -->
-        <div class="flex min-h-0 flex-col gap-3">
+        <div class="flex min-h-0 flex-col gap-4">
           <!-- What the order can do. Where the cashier goes is the bar along
                the bottom; the two never mix (D-042). Nothing in hand, nothing
                to act on — the row is not drawn rather than drawn all disabled. -->
@@ -1097,7 +1121,7 @@ async function send(): Promise<void> {
 
           <div
             v-if="pane === 'items'"
-            class="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)] rounded-rpos bg-surface p-4 shadow-card"
+            class="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)] rounded-rpos-lg border border-line bg-surface p-[18px]"
           >
             <ItemPicker
               :order-type="orderType"
@@ -1159,20 +1183,6 @@ async function send(): Promise<void> {
             />
           </div>
         </div>
-
-        <!-- Drawn whether a bill is in hand or not (D-059): the bill is
-             furniture, and a till that rearranges itself between customers is
-             one the cashier has to re-read every time. -->
-        <OrderPanel
-          :order="orders.order"
-          :lines="orders.lines"
-          :busy="locked"
-          :can-pay="!locked && !orders.isEmpty"
-          @void="askVoid"
-          @repeat="repeat"
-          @inspect="inspect"
-          @pay="goToPayment"
-        />
       </div>
     </div>
 

@@ -27,6 +27,14 @@ export interface OrderAction {
   disabled?: boolean;
   /** Rendered in the danger colour and kept out of the primary row. */
   destructive?: boolean;
+  /**
+   * The one that moves the order forward, filled in the brand colour.
+   *
+   * At most one. Two filled buttons in a row is the same as none — the eye has
+   * nothing to land on — which is why this is a flag on a single action rather
+   * than a style each caller picks.
+   */
+  primary?: boolean;
 }
 
 defineProps<{ actions: OrderAction[]; more: OrderAction[] }>();
@@ -47,13 +55,19 @@ function choose(action: OrderAction): void {
       v-for="action in actions"
       :key="action.key"
       type="button"
-      class="flex min-h-tap items-center gap-2 rounded-rpos bg-surface px-4 text-sm font-semibold shadow-card transition duration-200 ease-rpos hover:-translate-y-px hover:shadow-lift disabled:cursor-not-allowed disabled:opacity-40"
+      class="flex min-h-[3.375rem] items-center gap-2.5 whitespace-nowrap rounded-rpos px-[22px] text-sm font-medium transition duration-200 ease-rpos disabled:cursor-not-allowed disabled:opacity-40"
+      :class="
+        action.primary
+          ? 'bg-primary text-primary-contrast shadow-primary disabled:shadow-none'
+          : 'border border-line-strong bg-surface hover:border-primary'
+      "
       :disabled="action.disabled"
       @click="choose(action)"
     >
       <AppIcon
         :name="action.icon"
-        :size="20"
+        :size="19"
+        class="opacity-85"
       />
       {{ t(action.label) }}
     </button>
@@ -64,13 +78,14 @@ function choose(action: OrderAction): void {
     >
       <button
         type="button"
-        class="flex min-h-tap items-center gap-2 rounded-rpos bg-surface px-4 text-sm font-semibold shadow-card transition duration-200 ease-rpos hover:-translate-y-px hover:shadow-lift"
+        class="flex min-h-[3.375rem] items-center gap-2.5 whitespace-nowrap rounded-rpos border border-line-strong bg-surface px-[22px] text-sm font-medium transition duration-200 ease-rpos hover:border-primary"
         :aria-expanded="menuOpen"
         @click="menuOpen = !menuOpen"
       >
         <AppIcon
           name="moreHorizontal"
-          :size="20"
+          :size="19"
+          class="opacity-85"
         />
         {{ t("order.more") }}
       </button>

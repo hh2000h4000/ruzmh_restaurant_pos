@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import frappe
 from frappe import _
-from frappe.utils import now_datetime
+from frappe.utils import add_to_date, now_datetime, time_diff_in_seconds
 
 IN, OUT = "IN", "OUT"
 
@@ -80,6 +80,91 @@ def is_available() -> bool:
 	rather than raising, so the screen offers a button that throws.
 	"""
 	return bool(frappe.db.exists("DocType", CHECKIN))
+
+
+def roster(branch: str | None = None, *, days: int = 1) -> dict:
+	"""Who is at work, and how long each of them has worked (`FR-8.4`).
+
+	The manager's half of attendance, and the half that makes recording it worth
+	anything: punches nobody at the restaurant can read are a table only payroll
+	will ever open, months later, when the argument is already lost.
+
+	**Hours are computed from the punches in the window, in order.** An `IN`
+	still open when the window ends counts up to now — that is the whole point
+	of the "on duty" column — and an `OUT` with no `IN` before it is skipped
+	rather than guessed at, because a punch a manager corrected by hand is more
+	trustworthy than any repair this could invent.
+
+	Scoped by branch through the `Employee` record. An employee with no branch
+	set is shown to everyone: a restaurant that never filled the field would
+	otherwise see an empty screen and conclude the feature is broken.
+	"""
+	if not is_available():
+		return {"available": False, "since": None, "on_duty": [], "people": []}
+
+	since = add_to_date(now_datetime(), days=-max(int(days or 1), 1))
+
+	employees = frappe.get_all(
+		"Employee",
+		filters={"status": "Active"},
+		fields=["name", "employee_name", "branch"],
+		limit_page_length=0,
+	)
+	if branch:
+		employees = [row for row in employees if not row.branch or row.branch == branch]
+
+	by_name = {row.name: row for row in employees}
+	if not by_name:
+		return {"available": True, "since": since, "on_duty": [], "people": []}
+
+	punches = frappe.get_all(
+		CHECKIN,
+		filters={"employee": ("in", list(by_name)), "time": (">=", since)},
+		fields=["employee", "log_type", "time"],
+		order_by="employee asc, time asc",
+		limit_page_length=0,
+	)
+
+	people = [_worked(by_name[name], rows) for name, rows in _by_employee(punches).items()]
+	people.sort(key=lambda row: (not row["on_duty"], -row["minutes"]))
+
+	return {
+		"available": True,
+		"since": since,
+		"on_duty": [row for row in people if row["on_duty"]],
+		"people": people,
+	}
+
+
+def _by_employee(punches) -> dict[str, list]:
+	grouped: dict[str, list] = {}
+	for row in punches:
+		grouped.setdefault(row.employee, []).append(row)
+	return grouped
+
+
+def _worked(employee, punches) -> dict:
+	"""Minutes between each IN and the OUT that follows it."""
+	minutes = 0.0
+	started = None
+
+	for row in punches:
+		if row.log_type == IN:
+			started = row.time
+		elif started:
+			minutes += time_diff_in_seconds(row.time, started) / 60
+			started = None
+
+	if started:
+		minutes += time_diff_in_seconds(now_datetime(), started) / 60
+
+	return {
+		"employee": employee.name,
+		"employee_name": employee.employee_name,
+		"on_duty": bool(started),
+		"since": started,
+		"minutes": int(minutes),
+	}
 
 
 def punch(user: str, *, log_type: str, pos_profile: str | None = None) -> dict:

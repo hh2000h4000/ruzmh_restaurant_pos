@@ -12,6 +12,7 @@ Refs: FR-8.4, FR-12.2, D-057, D-094
 
 import frappe
 from frappe.tests.utils import FrappeTestCase
+from frappe.utils import add_to_date, now_datetime
 
 from restaurant_pos.utils import attendance
 from restaurant_pos.utils import manager_pin as pins
@@ -311,3 +312,108 @@ def _a_gender() -> str:
 		return existing
 
 	return frappe.get_doc({"doctype": "Gender", "gender": "Other"}).insert(ignore_permissions=True).name
+
+
+class TestWhoIsAtWork(FrappeTestCase):
+	"""The manager's half of `FR-8.4`.
+
+	Punches nobody at the restaurant can read are a table only payroll will ever
+	open, months later, when the argument is already lost. These cover the
+	arithmetic, because that is where a roster is wrong in a way nobody notices:
+	the total looks plausible either way.
+	"""
+
+	@classmethod
+	def setUpClass(cls):
+		super().setUpClass()
+		_user(STAFF)
+		frappe.db.commit()
+
+	def setUp(self):
+		super().setUp()
+		if not attendance.is_available():
+			self.skipTest("hrms is not installed on this site")
+
+		self.employee = _employee_for(STAFF)
+		if not self.employee:
+			self.skipTest("this site cannot create an Employee")
+
+		frappe.db.delete("Employee Checkin", {"employee": self.employee})
+
+	def _punch_at(self, log_type: str, minutes_ago: int) -> None:
+		frappe.get_doc(
+			{
+				"doctype": "Employee Checkin",
+				"employee": self.employee,
+				"log_type": log_type,
+				"time": add_to_date(now_datetime(), minutes=-minutes_ago),
+			}
+		).insert(ignore_permissions=True)
+
+	def _me(self, roster: dict) -> dict | None:
+		return next((row for row in roster["people"] if row["employee"] == self.employee), None)
+
+	def test_a_closed_pair_counts_the_time_between_them(self):
+		self._punch_at(attendance.IN, 120)
+		self._punch_at(attendance.OUT, 60)
+
+		row = self._me(attendance.roster())
+
+		self.assertFalse(row["on_duty"])
+		self.assertAlmostEqual(row["minutes"], 60, delta=1)
+
+	def test_an_open_punch_counts_up_to_now_and_shows_on_duty(self):
+		"""The whole point of the column: somebody still here has no OUT yet."""
+		self._punch_at(attendance.IN, 90)
+
+		roster = attendance.roster()
+		row = self._me(roster)
+
+		self.assertTrue(row["on_duty"])
+		self.assertAlmostEqual(row["minutes"], 90, delta=1)
+		self.assertIn(self.employee, [person["employee"] for person in roster["on_duty"]])
+
+	def test_two_spells_in_one_day_add_up(self):
+		"""A break in the middle is two pairs, not one long shift."""
+		self._punch_at(attendance.IN, 300)
+		self._punch_at(attendance.OUT, 240)
+		self._punch_at(attendance.IN, 120)
+		self._punch_at(attendance.OUT, 60)
+
+		self.assertAlmostEqual(self._me(attendance.roster())["minutes"], 120, delta=2)
+
+	def test_an_out_with_no_in_before_it_is_skipped_not_guessed(self):
+		"""A punch a manager corrected by hand beats any repair invented here."""
+		self._punch_at(attendance.OUT, 100)
+		self._punch_at(attendance.IN, 60)
+		self._punch_at(attendance.OUT, 30)
+
+		self.assertAlmostEqual(self._me(attendance.roster())["minutes"], 30, delta=1)
+
+	def test_punches_older_than_the_window_are_left_out(self):
+		self._punch_at(attendance.IN, 60 * 24 * 5)
+		self._punch_at(attendance.OUT, 60 * 24 * 5 - 120)
+
+		row = self._me(attendance.roster(days=1))
+
+		self.assertIsNone(row, "a person who did not work in the window is not on the list")
+
+
+class TestTheRosterAlwaysAnswers(FrappeTestCase):
+	"""Whatever the site is missing, the screen gets something to render.
+
+	Deliberately outside the class above, which skips without hrms — a guard
+	that only runs where the thing works proves nothing about where it does not
+	(`D-074`, `D-135`).
+	"""
+
+	def test_the_shape_is_the_same_with_or_without_hrms(self):
+		roster = attendance.roster()
+
+		self.assertEqual(
+			set(roster),
+			{"available", "since", "on_duty", "people"},
+		)
+		self.assertIsInstance(roster["people"], list)
+		self.assertIsInstance(roster["on_duty"], list)
+		self.assertEqual(roster["available"], attendance.is_available())

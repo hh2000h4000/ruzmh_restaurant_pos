@@ -49,12 +49,23 @@ PRODUCTION_CENTERS = [
 # Menu — group -> production center, then the dishes
 # --------------------------------------------------------------------------- #
 
+#: The menu, and the colour each group's tile carries on the till.
+#:
+#: These are **muted** rather than the saturated defaults they started as
+#: (`D-134`). Six full-strength tiles filling the working half of the screen is
+#: a wall of signal with nothing to say — every one is shouting, so none of them
+#: marks anything. Dropped in chroma they still separate at a glance, which is
+#: all a category tile has to do, and the one saturated thing left on the screen
+#: is the button that takes money.
+#:
+#: Colour lives here, in **data**, and not in a component: a hex in a component
+#: is a lint error and freezes what a restaurant can change (`FR-15.5`).
 MENU = [
 	{
 		"group": "Grills",
 		"group_ar": "مشاوي",
 		"centre": "Grill",
-		"colour": "#B91C1C",
+		"colour": "#8C2F2A",
 		"items": [
 			("شيش طاووق", 32.00),
 			("كباب لحم", 38.00),
@@ -67,7 +78,7 @@ MENU = [
 		"group": "Burgers",
 		"group_ar": "برغر",
 		"centre": "Fryer",
-		"colour": "#C2410C",
+		"colour": "#A8551F",
 		"items": [
 			("برغر كلاسيك", 25.00),
 			("برغر دجاج مقرمش", 23.00),
@@ -79,7 +90,7 @@ MENU = [
 		"group": "Starters",
 		"group_ar": "مقبلات",
 		"centre": "Fryer",
-		"colour": "#A16207",
+		"colour": "#8A6B1D",
 		"items": [
 			("بطاطس مقلية", 12.00),
 			("أصابع موزاريلا", 18.00),
@@ -92,7 +103,7 @@ MENU = [
 		"group": "Salads",
 		"group_ar": "سلطات",
 		"centre": "Cold Station",
-		"colour": "#15803D",
+		"colour": "#1F5C3D",
 		"items": [
 			("فتوش", 16.00),
 			("تبولة", 14.00),
@@ -104,7 +115,7 @@ MENU = [
 		"group": "Drinks",
 		"group_ar": "مشروبات",
 		"centre": "Bar",
-		"colour": "#1D4ED8",
+		"colour": "#2B4A86",
 		"items": [
 			("بيبسي", 8.00),
 			("ماء", 3.00),
@@ -118,7 +129,7 @@ MENU = [
 		"group": "Desserts",
 		"group_ar": "حلويات",
 		"centre": "Cold Station",
-		"colour": "#7E22CE",
+		"colour": "#5F3574",
 		"items": [
 			("كنافة بالجبن", 22.00),
 			("تشيز كيك", 24.00),

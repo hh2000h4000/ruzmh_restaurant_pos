@@ -801,7 +801,9 @@ class TestAskingForThePaperAgain(ReturnTestBase):
 			again = api.reprint_receipt(order.sales_invoice, queue_id="reprint-once")
 
 		queued.assert_called_once()
-		self.assertEqual(first, again)
+		self.assertEqual(again["invoice"], first["invoice"])
+		# The replay says so, rather than pretending to be a fresh print.
+		self.assertTrue(again["already_processed"])
 
 	def test_an_invoice_nobody_here_issued_is_refused_by_name(self):
 		"""And with a sentence — never a bare framework error (`CLAUDE.md` §5.4)."""

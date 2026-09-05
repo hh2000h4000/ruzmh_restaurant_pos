@@ -116,7 +116,35 @@ function isUsable(button: LayoutButton): boolean {
   return button.button_type === "item" || button.button_type === "item_group";
 }
 
+/**
+ * Where the grid comes from, and when it comes from nowhere (`D-141`).
+ *
+ * **`flow` is the mode a restaurant should use.** The buttons go down in the
+ * order the manager dragged them into, three across, and the coordinates are
+ * ignored — so arranging a menu is dragging rows in a table rather than
+ * inventing `col_start = 3`. It is the whole feature the designer was going to
+ * be, at none of the cost.
+ *
+ * `grid` is for a screen somebody has deliberately drawn, and it means exactly
+ * what its numbers say.
+ *
+ * **A row, not a tile**, in both: the reference's 150px is the height of a
+ * *button*, and the demo's buttons span two rows — putting 150 here made every
+ * tile 314px and six of them a wall.
+ */
+const layoutStyle = computed<Record<string, string>>(() => ({
+  gridTemplateColumns:
+    layout.value?.layout_mode === "grid"
+      ? `repeat(${layout.value.grid_columns}, minmax(0, 1fr))`
+      : "repeat(3, minmax(0, 1fr))",
+  gridAutoRows: layout.value?.layout_mode === "grid" ? "minmax(4.5rem, auto)" : "minmax(9.375rem, auto)",
+}));
+
 function gridStyle(button: LayoutButton): Record<string, string> {
+  // In flow the button takes the next cell going: a coordinate here would be
+  // the thing this mode exists to stop anyone having to think about.
+  if (layout.value?.layout_mode !== "grid") return {};
+
   return {
     gridColumn: `${button.col_start} / span ${button.col_span}`,
     gridRow: `${button.row_start} / span ${button.row_span}`,
@@ -313,14 +341,7 @@ function priceOf(item: CatalogItem): number | null {
     <div
       v-else-if="layout"
       class="grid content-start gap-3.5 overflow-y-auto"
-      :style="{
-        gridTemplateColumns: `repeat(${layout.grid_columns}, minmax(0, 1fr))`,
-        // **A row, not a tile.** The reference's 150px is the height of a
-        // *button*, and the demo's buttons span two rows — so putting 150 here
-        // made every tile 314px and six of them a wall. 72px × 2 plus the gap
-        // is the 150 the reference actually draws.
-        gridAutoRows: 'minmax(4.5rem, auto)',
-      }"
+      :style="layoutStyle"
     >
       <button
         v-for="button in layout.buttons"

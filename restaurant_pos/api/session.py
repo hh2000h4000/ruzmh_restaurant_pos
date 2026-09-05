@@ -314,14 +314,19 @@ def _branch(branch: str | None) -> dict | None:
 
 
 def _screen_layout(layout: str | None) -> dict | None:
-	"""FR-3.5 — the layout assigned to this terminal, with its buttons."""
+	"""FR-3.5 — the layout assigned to this terminal, with its buttons.
+
+	`layout_mode` decides what the coordinates mean (`D-141`): in `flow` the
+	till lays the buttons out in `idx` order and the grid fields are ignored, so
+	arranging a menu is dragging rows in a table rather than inventing numbers.
+	"""
 	if not layout:
 		return None
 
 	doc = frappe.db.get_value(
 		"POS Screen Layout",
 		layout,
-		["name", "title", "grid_columns", "grid_rows", "background_color", "is_active"],
+		["name", "title", "layout_mode", "grid_columns", "grid_rows", "background_color", "is_active"],
 		as_dict=True,
 	)
 	if not doc or not doc.is_active:

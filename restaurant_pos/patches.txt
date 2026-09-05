@@ -8,3 +8,4 @@ restaurant_pos.patches.v1_0.mark_delivery_apps_as_credit
 restaurant_pos.patches.v1_0.use_icon_names_on_order_types
 restaurant_pos.patches.v1_0.set_order_type_counterparty
 restaurant_pos.patches.v1_0.grant_change_order_type
+restaurant_pos.patches.v1_0.keep_existing_layouts_on_the_grid

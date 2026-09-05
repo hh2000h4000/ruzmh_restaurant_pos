@@ -13,6 +13,7 @@
   "identity_cb",
   "is_active",
   "grid_section",
+  "layout_mode",
   "grid_columns",
   "grid_rows",
   "grid_cb",
@@ -61,12 +62,23 @@
    "label": "Grid"
   },
   {
+   "default": "flow",
+   "description": "Flow lays the buttons out in the order below and ignores the grid; Grid places each one by its own row and column.",
+   "fieldname": "layout_mode",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Layout Mode",
+   "options": "flow\ngrid",
+   "reqd": 1
+  },
+  {
    "default": "8",
    "fieldname": "grid_columns",
    "fieldtype": "Int",
    "in_list_view": 1,
    "label": "Grid Columns",
-   "reqd": 1
+   "depends_on": "eval:doc.layout_mode == \"grid\"",
+   "mandatory_depends_on": "eval:doc.layout_mode == \"grid\""
   },
   {
    "default": "6",
@@ -74,7 +86,8 @@
    "fieldtype": "Int",
    "in_list_view": 1,
    "label": "Grid Rows",
-   "reqd": 1
+   "depends_on": "eval:doc.layout_mode == \"grid\"",
+   "mandatory_depends_on": "eval:doc.layout_mode == \"grid\""
   },
   {
    "fieldname": "grid_cb",
@@ -100,7 +113,7 @@
  "index_web_pages_for_search": 1,
  "istable": 0,
  "links": [],
- "modified": "2026-08-09 00:00:00.000000",
+ "modified": "2026-09-05 18:00:00.000000",
  "modified_by": "Administrator",
  "module": "Restaurant POS",
  "name": "POS Screen Layout",

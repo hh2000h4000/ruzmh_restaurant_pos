@@ -7,6 +7,7 @@ Refs: 07 §2, 09 §3, FR-1.3, FR-3.5, FR-15.4, 04 §8
 """
 
 import frappe
+from frappe.tests.utils import FrappeTestCase
 
 from restaurant_pos.api import session
 from restaurant_pos.tests.test_order import ITEM, OrderTestBase
@@ -280,3 +281,64 @@ class TestPing(OrderTestBase):
 		result = session.ping()
 		self.assertEqual(result["status"], "ok")
 		self.assertIn("timestamp", result)
+
+
+class TestTheScreenLayoutMode(FrappeTestCase):
+	"""What a layout's coordinates mean, and when they mean nothing (`D-141`).
+
+	`flow` is the mode a restaurant should use: the buttons go down in the order
+	a manager dragged them into, and `col_start` is a number nobody has to
+	invent. `grid` is for a screen somebody deliberately drew.
+
+	The mode has to reach the terminal or the till cannot tell them apart — and
+	the failure would be silent, because a flow layout rendered on a grid still
+	draws *something*.
+	"""
+
+	def _layout(self, mode: str) -> str:
+		doc = frappe.get_doc(
+			{
+				"doctype": "POS Screen Layout",
+				"title": f"RPOS Test {mode}",
+				"layout_mode": mode,
+				"grid_columns": 4,
+				"grid_rows": 3,
+				"is_active": 1,
+				"buttons": [
+					{
+						"button_type": "item_group",
+						"item_group": frappe.db.get_value("Item Group", {"is_group": 0}, "name"),
+						"col_start": 1,
+						"col_span": 1,
+						"row_start": 1,
+						"row_span": 1,
+					}
+				],
+			}
+		).insert(ignore_permissions=True)
+		self.addCleanup(frappe.delete_doc, "POS Screen Layout", doc.name, force=True)
+		return doc.name
+
+	def test_the_mode_reaches_the_terminal(self):
+		from restaurant_pos.api.session import _screen_layout
+
+		self.assertEqual(_screen_layout(self._layout("flow"))["layout_mode"], "flow")
+		self.assertEqual(_screen_layout(self._layout("grid"))["layout_mode"], "grid")
+
+	def test_a_new_layout_flows_by_default(self):
+		"""Nobody should have to choose the mode to get the easy one."""
+		doc = frappe.get_doc(
+			{"doctype": "POS Screen Layout", "title": "RPOS Test default", "is_active": 1}
+		).insert(ignore_permissions=True)
+		self.addCleanup(frappe.delete_doc, "POS Screen Layout", doc.name, force=True)
+
+		self.assertEqual(doc.layout_mode, "flow")
+
+	def test_a_flow_layout_needs_no_grid_size(self):
+		"""The point of the mode: no numbers to invent."""
+		doc = frappe.get_doc(
+			{"doctype": "POS Screen Layout", "title": "RPOS Test sizeless", "layout_mode": "flow"}
+		).insert(ignore_permissions=True)
+		self.addCleanup(frappe.delete_doc, "POS Screen Layout", doc.name, force=True)
+
+		self.assertTrue(doc.name)

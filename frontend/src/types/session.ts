@@ -77,6 +77,15 @@ export interface LayoutButton {
 export interface ScreenLayout {
   name: string;
   title: string;
+  /**
+   * What the buttons' coordinates mean (`D-141`).
+   *
+   * `flow` ignores them and lays the buttons out in the order the manager
+   * dragged them into — which is the mode a restaurant should reach for, and
+   * the one that needs no designer. `grid` places each button at its own row
+   * and column, for a screen somebody has deliberately drawn.
+   */
+  layout_mode: "flow" | "grid";
   grid_columns: number;
   grid_rows: number;
   background_color: string | null;

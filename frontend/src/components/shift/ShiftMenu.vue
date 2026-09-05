@@ -2,7 +2,8 @@
 import { computed } from "vue";
 
 import AppIcon, { type IconName } from "@/components/AppIcon.vue";
-import { dateOnly, t, type MessageKey } from "@/i18n";
+import { dateOnly, t, timeOnly, type MessageKey } from "@/i18n";
+import { useAuthStore } from "@/stores/auth";
 import { useSessionStore } from "@/stores/session";
 import { useShiftStore } from "@/stores/shift";
 
@@ -40,9 +41,41 @@ const emit = defineEmits<{ select: [key: string]; close: [] }>();
 
 const session = useSessionStore();
 const shift = useShiftStore();
+const auth = useAuthStore();
+
+/**
+ * Clocking out where the day is ended (`FR-8.4` step 4).
+ *
+ * It was only on the sign-in screen, which is the wrong end of the shift: a
+ * cashier finishing up closes the drawer from this menu, and had to sign out
+ * and meet the PIN pad again to say they had gone home. The two are one errand
+ * and they belong in one place.
+ *
+ * **Above the drawer entries, not among them.** A clock-in is a person and a
+ * till shift is a drawer (`D-057`); the row is separated so the menu does not
+ * quietly teach that ending one ends the other.
+ *
+ * Absent for anyone with no `Employee` behind their login — an administrator or
+ * an integration user is not on a payroll, and a button that always refuses is
+ * worse than no button.
+ */
+const attendance = computed<MenuEntry | null>(() => {
+  if (!auth.isEmployee) return null;
+
+  return {
+    key: "clock",
+    label: auth.clockedIn ? "auth.clockOut" : "auth.clockIn",
+    icon: "hourglass",
+    // Since when, because "am I still clocked in from yesterday?" is the
+    // question this row is usually opened to answer.
+    detail:
+      auth.clockedIn && auth.attendance?.since ? timeOnly(auth.attendance.since) : undefined,
+  };
+});
 
 const entries = computed<MenuEntry[]>(() => {
   const rows: MenuEntry[] = [];
+  if (attendance.value) rows.push(attendance.value);
 
   if (!shift.dayOpen) {
     rows.push({ key: "openTill", label: "shift.openTill", icon: "card" });

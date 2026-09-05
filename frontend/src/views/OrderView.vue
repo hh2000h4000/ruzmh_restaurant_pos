@@ -234,6 +234,21 @@ function onMenu(key: string): void {
   else if (key === "closeTill") closingTill.value = true;
   else if (key === "closeDay") closingDay.value = true;
   else if (key === "logout") signingOut.value = true;
+  else if (key === "clock") void punchClock();
+}
+
+/**
+ * `FR-8.4` — start or end this person's working time, from the till.
+ *
+ * No confirmation. A clock-in is one tap by design, and the direction is
+ * decided by the server from the last punch — the screen only asks; a second
+ * press in the same direction comes back refused rather than writing a shift
+ * whose length cannot be computed.
+ */
+async function punchClock(): Promise<void> {
+  const auth = useAuthStore();
+  await auth.punch(session.profile?.name ?? null);
+  if (auth.error) orders.error = auth.error;
 }
 
 /** Confirmed, because signing out by accident mid-rush is a real annoyance. */

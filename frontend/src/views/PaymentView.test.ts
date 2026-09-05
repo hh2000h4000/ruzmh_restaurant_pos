@@ -105,12 +105,39 @@ async function tender(wrapper: Wrapper, name: string) {
   await methodButton(wrapper, name).trigger("click");
   await flushPromises();
 
-  const amount = wrapper
+  // Inside the sheet only. The screen behind it also has buttons labelled with
+  // bare numbers — the split chips — and reaching one of those from here would
+  // be the test doing something no cashier can do while the sheet is open.
+  const sheet = wrapper.find('[role="dialog"]');
+  if (!sheet.exists()) throw new Error(`tapping ${name} opened no tender sheet`);
+
+  const amount = sheet
     .findAll("button")
     .find((button) => /^[\d,.]+$/.test(button.text().trim()));
 
   if (!amount) throw new Error("the tender sheet offered no amount");
   await amount.trigger("click");
+  await flushPromises();
+}
+
+/**
+ * Take a part of the bill: tap the method, ask for another amount, key it in.
+ *
+ * The sheet's ready-made options are the balance and the notes above it, so a
+ * *partial* tender can only be reached through the keypad — which is also the
+ * only way a real cashier reaches one.
+ */
+async function tenderSome(wrapper: Wrapper, name: string, digits: string) {
+  await methodButton(wrapper, name).trigger("click");
+  await flushPromises();
+
+  const sheet = wrapper.find('[role="dialog"]');
+  const inSheet = (label: string) =>
+    sheet.findAll("button").find((button) => button.text().trim() === label);
+
+  await inSheet("مبلغ آخر")!.trigger("click");
+  for (const digit of digits) await inSheet(digit)!.trigger("click");
+  await inSheet("تم")!.trigger("click");
   await flushPromises();
 }
 
@@ -192,16 +219,12 @@ describe("what the payment screen lets a cashier reach", () => {
       }),
     );
 
-    // Half the bill, so the screen is still asking for more and the quiet
-    // buttons cannot be blamed on the balance being covered.
-    await methodButton(wrapper, "Cash").trigger("click");
-    await flushPromises();
-    const custom = wrapper.findAll("button").find((b) => b.text().includes("مبلغ آخر"));
-    expect(custom).toBeTruthy();
-
-    await tender(wrapper, "Cash");
+    // Fifty of two hundred, deliberately: with the bill still uncovered, a
+    // quiet Jahez can only be the settlement rule and not the balance.
+    await tenderSome(wrapper, "Cash", "50");
 
     expect(isDisabled(wrapper, "Jahez")).toBe(true);
+    expect(isDisabled(wrapper, "Cash")).toBe(false);
   });
 
   it("stops offering methods once the bill is covered", async () => {

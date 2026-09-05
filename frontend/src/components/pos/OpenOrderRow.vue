@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { computed, ref } from "vue";
 
 import type { OpenOrder } from "@/api/order";
 import AppIcon from "@/components/AppIcon.vue";
@@ -23,8 +23,22 @@ import { dateOnly, formatNumber, pick, t, timeOnly } from "@/i18n";
  * a refund — and half of it is worth nothing. So it takes the width it needs
  * and the columns that can lose a few characters, do.
  */
-const props = defineProps<{ order: OpenOrder }>();
-const emit = defineEmits<{ open: []; floorPlan: [] }>();
+const props = defineProps<{
+  order: OpenOrder;
+  /** UX only — the server checks `can_reprint_receipt` again (`CLAUDE.md` §5.4). */
+  mayReprint?: boolean;
+}>();
+const emit = defineEmits<{ open: []; floorPlan: []; reprint: [] }>();
+
+/**
+ * What this row would put on paper, if anything (`D-145`).
+ *
+ * A refund row **is** its credit note; a closed row is its sale. An open bill
+ * has no invoice yet — there is nothing to reprint until it is paid for.
+ */
+const receipt = computed<string | null>(
+  () => props.order.credit_note ?? props.order.sales_invoice ?? null,
+);
 
 const menuOpen = ref(false);
 
@@ -59,15 +73,19 @@ function whereLabel(order: OpenOrder): string {
 }
 
 /**
- * The menu is navigation only (D-033).
+ * Where the cashier goes — and the one thing this row can do (`D-145`).
  *
- * A control that acts on "the highlighted order" needs a selection mode, and at
- * a busy till that is how an action lands on the wrong bill. Both entries here
- * take the cashier somewhere; neither changes anything.
+ * `D-033` kept actions off the **bottom bar**, because a control acting on "the
+ * highlighted card" needs a selection mode and at a busy till that is how a
+ * refund lands on the wrong bill. This menu belongs to one row and opens from
+ * it, so there is no highlight to be wrong about — and a reprint is the one
+ * request that has no other home: a refund is a row here and nowhere else.
+ * It changes no document; it asks for paper.
  */
-function choose(where: "order" | "floor"): void {
+function choose(where: "order" | "floor" | "reprint"): void {
   menuOpen.value = false;
   if (where === "order") emit("open");
+  else if (where === "reprint") emit("reprint");
   else emit("floorPlan");
 }
 </script>
@@ -220,6 +238,16 @@ function choose(where: "order" | "floor"): void {
         @click.stop="choose('floor')"
       >
         {{ t("card.goToTable") }}
+      </button>
+      <!-- FR-7.5 — the receipt the customer holds, again. A refund's own
+           credit note when this row is one (`D-143`). -->
+      <button
+        v-if="receipt && mayReprint"
+        type="button"
+        class="block w-full px-4 text-start text-sm transition duration-200 ease-rpos hover:bg-background"
+        @click.stop="choose('reprint')"
+      >
+        {{ t("print.receiptAgain") }}
       </button>
     </div>
   </div>

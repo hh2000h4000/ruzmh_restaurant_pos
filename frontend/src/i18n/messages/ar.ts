@@ -15,6 +15,7 @@ const messages: Catalogue["messages"] = {
   "action.refresh": "تحديث",
   "action.remove": "إزالة",
   "action.authorize": "تفويض",
+  "action.dismiss": "إخفاء",
   "common.loading": "جارٍ التحميل…",
   "common.listSeparator": "، ",
   "currency.sar": "ريال",
@@ -208,6 +209,8 @@ const messages: Catalogue["messages"] = {
   "customer.withoutAddress": "المتابعة بدون عنوان",
   // المرتجعات (FR-9)
   "ret.rowLabel": "مرتجع",
+  "print.receiptAgain": "طباعة الإيصال مرة أخرى",
+  "print.receiptSent": "أُرسل إيصال {number} إلى الطابعة",
   "ret.against": "مرتجع للفاتورة {number}",
   "ret.action": "مرتجع",
   "ret.title": "إرجاع أصناف",

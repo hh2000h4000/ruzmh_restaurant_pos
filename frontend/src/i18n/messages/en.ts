@@ -17,6 +17,7 @@ export const messages = {
   "action.refresh": "Refresh",
   "action.remove": "Remove",
   "action.authorize": "Authorize",
+  "action.dismiss": "Dismiss",
   "common.loading": "Loading…",
   "common.listSeparator": ", ",
   "currency.sar": "SAR",
@@ -215,6 +216,10 @@ export const messages = {
   "customer.withoutAddress": "Continue without one",
   // Returns (FR-9)
   "ret.rowLabel": "Refund",
+  // FR-7.5 — paper, asked for a second time. The receipt is named by the
+  // number the cashier reads on the row, not by `ACC-SINV-2026-00042`.
+  "print.receiptAgain": "Print receipt again",
+  "print.receiptSent": "Receipt {number} sent to the printer",
   "ret.against": "Refund of bill {number}",
   "ret.action": "Return",
   "ret.title": "Send items back",

@@ -28,10 +28,18 @@ defineProps<{
    * is not on it and ring it again.
    */
   staleAt?: string | null;
+  /**
+   * Whether this cashier may ask for paper again (`can_reprint_receipt`).
+   *
+   * Passed in rather than read here, like `scope` above: the panel shows a
+   * list, the screen owns who the cashier is. The server checks it again.
+   */
+  mayReprint?: boolean;
 }>();
 
 const emit = defineEmits<{
   open: [order: OpenOrder];
+  reprint: [order: OpenOrder];
   floorPlan: [];
   "update:scope": [scope: "mine" | "all"];
   "update:view": [view: OrderView];
@@ -224,9 +232,11 @@ const VIEWS: { key: OrderView; label: MessageKey }[] = [
       >
         <OpenOrderRow
           v-for="order in orders"
-          :key="order.name"
+          :key="order.credit_note ?? order.name"
           :order="order"
+          :may-reprint="mayReprint"
           @open="emit('open', order)"
+          @reprint="emit('reprint', order)"
           @floor-plan="emit('floorPlan')"
         />
       </div>
@@ -238,9 +248,11 @@ const VIEWS: { key: OrderView; label: MessageKey }[] = [
       >
         <OpenOrderCard
           v-for="order in orders"
-          :key="order.name"
+          :key="order.credit_note ?? order.name"
           :order="order"
+          :may-reprint="mayReprint"
           @open="emit('open', order)"
+          @reprint="emit('reprint', order)"
           @floor-plan="emit('floorPlan')"
         />
       </div>

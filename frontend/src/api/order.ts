@@ -113,6 +113,8 @@ export interface OpenOrder {
   is_return?: 0 | 1;
   /** The credit note behind a refund row, for reprinting it. */
   credit_note?: string;
+  /** The sale's invoice, once there is one — what a closed row reprints. */
+  sales_invoice?: string | null;
   /** The bill this refund reverses, so the card can name it. */
   returns_daily_number?: number;
 }

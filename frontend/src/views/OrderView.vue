@@ -4,6 +4,7 @@ import { useRoute, useRouter } from "vue-router";
 
 import { recordView } from "@/api/activity";
 import type { ModifierChoice, OpenOrder, OrderLine } from "@/api/order";
+import { reprintReceipt } from "@/api/printing";
 import AppIcon from "@/components/AppIcon.vue";
 import BaseDialog from "@/components/BaseDialog.vue";
 import CustomerDialog from "@/components/order/CustomerDialog.vue";
@@ -535,6 +536,30 @@ function openOrder(orderName: string): void {
   pane.value = "items";
   if (orderName === orders.order?.order_name) return;
   void router.replace({ name: "order", params: { orderName } });
+}
+
+/**
+ * The receipt again, for a sale or for a refund (`FR-7.5`, `D-145`).
+ *
+ * The answer is said out loud either way. A print is the one action whose
+ * result the cashier cannot see from the screen — the paper comes out behind
+ * them — so a silent success is indistinguishable from a dead printer, which is
+ * the report this product refuses to give (`D-074`).
+ */
+const printNotice = ref<string | null>(null);
+
+async function reprint(order: OpenOrder): Promise<void> {
+  const invoice = order.credit_note ?? order.sales_invoice;
+  if (!invoice) return;
+
+  printNotice.value = null;
+  floorError.value = null;
+  try {
+    await reprintReceipt(invoice);
+    printNotice.value = t("print.receiptSent", { number: formatNumber(order.daily_number) });
+  } catch (cause) {
+    floorError.value = cause instanceof Error ? cause.message : String(cause);
+  }
 }
 
 /** The screen never unmounts, so the address is what tells it to change. */
@@ -1129,6 +1154,29 @@ async function send(): Promise<void> {
             >
               {{ t("order.notRouted", { items: orders.unrouted.join(t("common.listSeparator")) }) }}
             </p>
+
+            <!-- FR-7.5 — paper was asked for. Dismissible, because it is news
+                 about one action and not a state of the till. -->
+            <p
+              v-if="printNotice"
+              role="status"
+              class="flex items-center justify-between gap-2 rounded-rpos bg-status-available/10 p-3 text-sm text-status-available"
+            >
+              <span class="flex items-center gap-2">
+                <AppIcon
+                  name="receipt"
+                  :size="18"
+                />
+                {{ printNotice }}
+              </span>
+              <button
+                type="button"
+                class="shrink-0 font-semibold underline"
+                @click="printNotice = null"
+              >
+                {{ t("action.dismiss") }}
+              </button>
+            </p>
           </div>
 
           <div
@@ -1158,7 +1206,9 @@ async function send(): Promise<void> {
             :scope="floorMaySeeEveryone ? floorScope : null"
             :view="floorView"
             :stale-at="floorStaleAt"
+            :may-reprint="session.can('can_reprint_receipt')"
             @open="switchTo"
+            @reprint="reprint"
             @floor-plan="pane = 'tables'"
             @update:scope="floorScope = $event"
             @update:view="floorView = $event"

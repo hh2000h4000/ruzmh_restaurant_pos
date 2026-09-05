@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { computed, ref } from "vue";
 
 import type { OpenOrder } from "@/api/order";
 import AppIcon from "@/components/AppIcon.vue";
@@ -13,8 +13,17 @@ import { dateOnly, formatNumber, pick, t, timeOnly } from "@/i18n";
  * spread. Two views of one list that disagree about what an order is would
  * make the toggle a trap rather than a preference.
  */
-const props = defineProps<{ order: OpenOrder }>();
-const emit = defineEmits<{ open: []; floorPlan: [] }>();
+const props = defineProps<{
+  order: OpenOrder;
+  /** UX only — the server checks `can_reprint_receipt` again (`CLAUDE.md` §5.4). */
+  mayReprint?: boolean;
+}>();
+const emit = defineEmits<{ open: []; floorPlan: []; reprint: [] }>();
+
+/** What this card would put on paper: a refund's credit note, or the sale. */
+const receipt = computed<string | null>(
+  () => props.order.credit_note ?? props.order.sales_invoice ?? null,
+);
 
 const menuOpen = ref(false);
 
@@ -44,10 +53,11 @@ function whereLabel(order: OpenOrder): string {
   return pick(order.order_type_title_ar, order.order_type_title);
 }
 
-/** Navigation only, like the row's (D-033). */
-function choose(where: "order" | "floor"): void {
+/** The same three entries as the row's, for the same reasons (`D-145`). */
+function choose(where: "order" | "floor" | "reprint"): void {
   menuOpen.value = false;
   if (where === "order") emit("open");
+  else if (where === "reprint") emit("reprint");
   else emit("floorPlan");
 }
 </script>
@@ -203,6 +213,15 @@ function choose(where: "order" | "floor"): void {
         @click.stop="choose('floor')"
       >
         {{ t("card.goToTable") }}
+      </button>
+      <!-- FR-7.5 — the receipt the customer holds, again. -->
+      <button
+        v-if="receipt && mayReprint"
+        type="button"
+        class="block w-full px-4 text-start text-sm transition duration-200 ease-rpos hover:bg-background"
+        @click.stop="choose('reprint')"
+      >
+        {{ t("print.receiptAgain") }}
       </button>
     </div>
   </div>

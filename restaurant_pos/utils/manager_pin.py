@@ -60,6 +60,8 @@ def hold_pin_aside(doc, method=None):
 
 	Proven, not guessed: a `middle_name` edit and a save took the PIN away.
 	"""
+	_keep_frappe_off_the_pin(doc)
+
 	pin = (doc.get(FIELDNAME) or "").strip()
 	doc._new_manager_pin = None
 
@@ -73,6 +75,36 @@ def hold_pin_aside(doc, method=None):
 	validate_format(pin)
 	assert_pin_is_unique(pin, doc.name)
 	doc._new_manager_pin = pin
+
+
+def _keep_frappe_off_the_pin(doc) -> None:
+	"""Stop `BaseDocument._save_passwords` from deleting the PIN (`D-136`).
+
+	It runs on **every** save and reads an empty `Password` field as an
+	instruction:
+
+	    new_password = self.get(df.fieldname)
+	    if not new_password:
+	        remove_encrypted_password(...)
+
+	Our column is always empty — the value lives in `__Auth` as a one-way hash
+	written by `_write`, not as Frappe's reversible copy — so every ordinary
+	edit to a User silently destroyed that person's PIN. Adding a role to a
+	cashier locked them out of the till, and the pad said only "not recognised"
+	because the refusal is deliberately vague (`D-099`).
+
+	`ignore_save_passwords` is Frappe's own way of saying *this field is not
+	yours*. Appended rather than assigned: another app may have named its own
+	fields, and taking the list from it would move the bug rather than fix it.
+	"""
+	current = doc.flags.ignore_save_passwords
+
+	if current is True:
+		return
+
+	doc.flags.ignore_save_passwords = (
+		[*current, FIELDNAME] if isinstance(current, list | tuple | set) else [FIELDNAME]
+	)
 
 
 def store_pin_hashed(doc, method=None):

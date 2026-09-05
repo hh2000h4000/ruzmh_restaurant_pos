@@ -60,11 +60,14 @@ function orderType(extra: Partial<OrderType> = {}): OrderType {
   } as unknown as OrderType;
 }
 
+const GROUP = "burgers";
+
 function dish(extra: Partial<CatalogItem> = {}): CatalogItem {
   return {
     item_code: DISH,
     item_name: "برغر",
-    item_group: "برجر",
+    display_name: "برغر",
+    item_group: GROUP,
     rate: 25,
     rates: {},
     modifier_groups: [],
@@ -78,7 +81,8 @@ function till(items: CatalogItem[] = [dish()]): void {
     can_sell: true,
     order_types: [orderType()],
     items,
-    item_groups: [],
+    item_groups: [{ name: GROUP, item_group_name: "برجر" }],
+    screen_layout: null,
     pos_profile: { name: "T1" },
     permissions: {},
   } as unknown as SessionData;
@@ -97,6 +101,21 @@ function button(wrapper: Wrapper, label: string) {
   if (found) return found;
 
   throw new Error(`no "${label}" on the screen`);
+}
+
+/** An item's button carries its price too, so it is matched by its name. */
+function itemButton(wrapper: Wrapper, name: string) {
+  const found = wrapper.findAll("button").find((b) => b.text().includes(name));
+  if (found) return found;
+
+  throw new Error(`no item called "${name}" on the screen`);
+}
+
+/** The menu opens on its groups; the dish is one drill-in below (`06` Screen 3). */
+async function tapDish(wrapper: Wrapper, group: string, name: string) {
+  await button(wrapper, group).trigger("click");
+  await itemButton(wrapper, name).trigger("click");
+  await flushPromises();
 }
 
 beforeEach(() => {
@@ -120,8 +139,7 @@ describe("a dish tapped before there is a bill", () => {
     till();
     const wrapper = await open();
 
-    await button(wrapper, "برغر").trigger("click");
-    await flushPromises();
+    await tapDish(wrapper, "برجر", "برغر");
 
     // The screen asked which kind of order this is, and nothing was ordered yet.
     expect(orderApi.createOrder).not.toHaveBeenCalled();
@@ -145,7 +163,7 @@ describe("a dish tapped before there is a bill", () => {
     till([dish({ modifier_groups: [] } as Partial<CatalogItem>)]);
     const wrapper = await open();
 
-    await button(wrapper, "برغر").trigger("click");
+    await tapDish(wrapper, "برجر", "برغر");
     await button(wrapper, TAKEAWAY).trigger("click");
     await flushPromises();
 
@@ -156,8 +174,7 @@ describe("a dish tapped before there is a bill", () => {
     till();
     const wrapper = await open();
 
-    await button(wrapper, "برغر").trigger("click");
-    await flushPromises();
+    await tapDish(wrapper, "برجر", "برغر");
 
     // Off to the floor instead of answering: they changed their mind, and a
     // dish appearing on whatever bill they open next is worse than no dish.

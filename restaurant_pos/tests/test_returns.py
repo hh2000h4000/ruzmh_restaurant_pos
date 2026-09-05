@@ -253,3 +253,56 @@ class TestTheShiftGate(ReturnTestBase):
 				service.create_return(order, items=[{"row": row, "qty": 1}], reason_code=REASON)
 		finally:
 			frappe.db.set_value("POS Opening Entry", till.name, "status", "Open")
+
+
+class TestAReturnIsADocumentOfItsOwn(ReturnTestBase):
+	"""A refund is an invoice in reverse, and the till has to be able to say so.
+
+	Two things were missing and both were invisible from the code (`D-143`):
+	the credit note carried no short number, so a cashier could only name it as
+	`ACC-SINV-2026-00042`; and nothing printed at all, so money went back across
+	the counter with no paper — while the receipt template had known how to draw
+	`إشعار دائن` since it was written.
+	"""
+
+	def test_each_return_takes_the_next_number_in_the_day(self):
+		"""The user's own model: sale 20, part of it back is 21, the rest is 22."""
+		order = self._paid(qty=2)
+		row = self._row(order)
+
+		first = service.create_return(order, items=[{"row": row, "qty": 1}], reason_code=REASON)
+		second = service.create_return(order, items=[{"row": row, "qty": 1}], reason_code=REASON)
+
+		numbers = [first["daily_number"], second["daily_number"]]
+
+		self.assertTrue(all(numbers), "a credit note with no number cannot be read out at a till")
+		self.assertEqual(numbers[1], numbers[0] + 1, "two returns are two documents, not one")
+		self.assertGreater(numbers[0], order.daily_number, "the return comes after the sale it reverses")
+
+	def test_the_number_is_on_the_credit_note_itself(self):
+		"""Not only in the reply: the list reads it off the document."""
+		order = self._paid()
+		result = service.create_return(
+			order, items=[{"row": self._row(order), "qty": 1}], reason_code=REASON
+		)
+
+		self.assertEqual(
+			frappe.db.get_value("Sales Invoice", result["credit_note"], "rpos_daily_number"),
+			result["daily_number"],
+		)
+
+	def test_the_customer_leaves_with_the_paper(self):
+		"""A sale prints from `process_payment`; a refund printed nothing."""
+		order = self._paid()
+
+		result = service.create_return(
+			order, items=[{"row": self._row(order), "qty": 1}], reason_code=REASON
+		)
+
+		self.assertTrue(
+			frappe.db.exists(
+				"POS Print Job",
+				{"reference_doctype": "Sales Invoice", "reference_name": result["credit_note"]},
+			),
+			"no receipt was queued for the credit note",
+		)

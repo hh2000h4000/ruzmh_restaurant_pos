@@ -33,6 +33,13 @@ const STATUS_TEXT: Record<OpenOrder["status"], string> = {
 };
 
 function whereLabel(order: OpenOrder): string {
+  // A refund says which bill it reverses, because that is the only thing about
+  // it a cashier needs to place it (`D-143`). The table it was eaten at is the
+  // sale's business, and by now somebody else is sitting there.
+  if (order.is_return) {
+    return t("ret.against", { number: formatNumber(order.returns_daily_number ?? 0) });
+  }
+
   if (order.table_number) return t("card.table", { number: order.table_number });
   return pick(order.order_type_title_ar, order.order_type_title);
 }
@@ -105,13 +112,22 @@ function choose(where: "order" | "floor"): void {
 
     <div class="grid grid-cols-2 gap-4">
       <div>
-        <p class="rpos-numeric text-[22px] font-bold leading-tight text-primary">
+        <p
+          class="rpos-numeric text-[22px] font-bold leading-tight"
+          :class="order.is_return ? 'text-danger' : 'text-primary'"
+        >
           {{ formatNumber(order.total_amount, 2) }}
         </p>
         <!-- FR-9, D-070 — the same signal as the row: a refunded bill reads
              differently from a kept one, where the money is read. -->
         <p
-          v-if="order.returned_amount"
+          v-if="order.is_return"
+          class="text-sm text-danger"
+        >
+          {{ t("ret.rowLabel") }}
+        </p>
+        <p
+          v-else-if="order.returned_amount"
           class="rpos-numeric text-sm font-semibold text-danger"
         >
           −{{ formatNumber(order.returned_amount, 2) }}

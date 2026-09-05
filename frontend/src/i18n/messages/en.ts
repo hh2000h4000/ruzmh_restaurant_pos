@@ -214,6 +214,8 @@ export const messages = {
   "customer.noAddresses": "No address saved for this customer yet.",
   "customer.withoutAddress": "Continue without one",
   // Returns (FR-9)
+  "ret.rowLabel": "Refund",
+  "ret.against": "Refund of bill {number}",
   "ret.action": "Return",
   "ret.title": "Send items back",
   "ret.body": "How many of each is coming back?",

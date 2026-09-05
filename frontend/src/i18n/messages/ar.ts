@@ -207,6 +207,8 @@ const messages: Catalogue["messages"] = {
   "customer.noAddresses": "لا يوجد عنوان محفوظ لهذا العميل.",
   "customer.withoutAddress": "المتابعة بدون عنوان",
   // المرتجعات (FR-9)
+  "ret.rowLabel": "مرتجع",
+  "ret.against": "مرتجع للفاتورة {number}",
   "ret.action": "مرتجع",
   "ret.title": "إرجاع أصناف",
   "ret.body": "كم يرجع من كل صنف؟",

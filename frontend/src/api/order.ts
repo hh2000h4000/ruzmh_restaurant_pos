@@ -102,6 +102,19 @@ export interface OpenOrder {
   returned_amount: number;
   opened_at: string;
   item_count: number;
+  /**
+   * This row **is** a refund, not a sale that had one (`D-143`).
+   *
+   * Only the `returned` tab produces these: one row per credit note, with its
+   * own number, its own time, and `total_amount` negative because that is the
+   * direction the money went. The rest of the card is the sale's — the type,
+   * the table, the customer are all still true of it.
+   */
+  is_return?: 0 | 1;
+  /** The credit note behind a refund row, for reprinting it. */
+  credit_note?: string;
+  /** The bill this refund reverses, so the card can name it. */
+  returns_daily_number?: number;
 }
 
 export interface ModifierChoice {
@@ -112,9 +125,10 @@ export interface ModifierChoice {
 /**
  * Which orders the pane is asking for (06 Screen 3).
  *
- * `returned` is the bills money went back out of (D-070). A credit note is not
- * an order and can never appear in a list of orders — what the cashier is
- * looking for is *which bill was refunded*, and that is one.
+ * `returned` is the day's refunds, one row per credit note (`D-143`). It used to
+ * list the *bills* money had gone back out of, on the reasoning that a credit
+ * note is not an order — sound, and answering the wrong question: these history
+ * tabs are the day's transactions, and a refund is one of them.
  */
 export type OrderView = "open" | "closed" | "returned" | "all";
 

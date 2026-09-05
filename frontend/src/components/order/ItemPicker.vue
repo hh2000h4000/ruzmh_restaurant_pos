@@ -117,28 +117,63 @@ function isUsable(button: LayoutButton): boolean {
 }
 
 /**
+ * How many across a flow layout runs (`D-142`).
+ *
+ * **The count decides it, because the screen has to hold all of them.** Three
+ * across was a number written for a demo with six groups; a restaurant with
+ * fifty would have got seventeen rows and a scroll on every order — and a
+ * cashier hunting for a category through a scrollbar is the slow till this
+ * product exists to replace. The tiles shrink instead, which is what a manager
+ * would do by hand and the only thing that *guarantees* the fit: a layout drawn
+ * on a grid can always be drawn too big for its screen.
+ *
+ * The steps are coarse on purpose. A formula would keep changing the shape of
+ * the menu as a group is added or removed, and a cashier learns positions by
+ * hand — a screen that reflows on every menu edit is one they have to re-read.
+ */
+const FLOW_COLUMNS = [
+  { upTo: 6, columns: 3 },
+  { upTo: 12, columns: 4 },
+  { upTo: 20, columns: 5 },
+  { upTo: 30, columns: 6 },
+  { upTo: 42, columns: 7 },
+  { upTo: Number.POSITIVE_INFINITY, columns: 8 },
+];
+
+/**
  * Where the grid comes from, and when it comes from nowhere (`D-141`).
  *
- * **`flow` is the mode a restaurant should use.** The buttons go down in the
- * order the manager dragged them into, three across, and the coordinates are
- * ignored — so arranging a menu is dragging rows in a table rather than
- * inventing `col_start = 3`. It is the whole feature the designer was going to
- * be, at none of the cost.
+ * **`flow` is the mode a restaurant should use.** The buttons go in the order
+ * the manager dragged them into and the coordinates are ignored, so arranging a
+ * menu is dragging rows in a table rather than inventing `col_start = 3`.
  *
  * `grid` is for a screen somebody has deliberately drawn, and it means exactly
  * what its numbers say.
  *
- * **A row, not a tile**, in both: the reference's 150px is the height of a
- * *button*, and the demo's buttons span two rows — putting 150 here made every
- * tile 314px and six of them a wall.
+ * **The rows divide the height rather than setting it** in flow: `1fr` shares
+ * what the card has, and `minmax` refuses to go under a finger. Past that many
+ * buttons it scrolls — the honest end, because tiles below a touch target are
+ * not a menu, they are a picture of one.
  */
-const layoutStyle = computed<Record<string, string>>(() => ({
-  gridTemplateColumns:
-    layout.value?.layout_mode === "grid"
-      ? `repeat(${layout.value.grid_columns}, minmax(0, 1fr))`
-      : "repeat(3, minmax(0, 1fr))",
-  gridAutoRows: layout.value?.layout_mode === "grid" ? "minmax(4.5rem, auto)" : "minmax(9.375rem, auto)",
-}));
+const layoutStyle = computed<Record<string, string>>(() => {
+  if (layout.value?.layout_mode === "grid") {
+    return {
+      gridTemplateColumns: `repeat(${layout.value.grid_columns}, minmax(0, 1fr))`,
+      gridAutoRows: "minmax(4.5rem, auto)",
+    };
+  }
+
+  const count = layout.value?.buttons.length ?? 0;
+  const columns = FLOW_COLUMNS.find((step) => count <= step.upTo)!.columns;
+
+  return {
+    gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
+    gridAutoRows: "minmax(var(--rpos-tap-target), 1fr)",
+  };
+});
+
+/** Flow fills the card; a drawn grid keeps its rows the size it drew them. */
+const layoutFills = computed(() => layout.value?.layout_mode !== "grid");
 
 function gridStyle(button: LayoutButton): Record<string, string> {
   // In flow the button takes the next cell going: a coordinate here would be
@@ -340,7 +375,8 @@ function priceOf(item: CatalogItem): number | null {
     -->
     <div
       v-else-if="layout"
-      class="grid content-start gap-3.5 overflow-y-auto"
+      class="grid gap-3.5 overflow-y-auto"
+      :class="layoutFills ? 'h-full' : 'content-start'"
       :style="layoutStyle"
     >
       <button

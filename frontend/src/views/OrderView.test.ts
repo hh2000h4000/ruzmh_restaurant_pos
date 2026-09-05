@@ -24,7 +24,7 @@ import OrderView from "@/views/OrderView.vue";
 
 const ORDER = "RO-2026-09-00001";
 const DISH = "RPOS-BURGER";
-const TAKEAWAY = "Takeaway";
+const TAKEAWAY = "سفري";
 
 vi.mock("vue-router", () => ({
   useRoute: () => ({ params: {}, query: {} }),
@@ -50,8 +50,11 @@ const totals = {
 
 function orderType(extra: Partial<OrderType> = {}): OrderType {
   return {
-    name: TAKEAWAY,
-    title: TAKEAWAY,
+    name: "OT-TAKEAWAY",
+    title: "Takeaway",
+    title_ar: TAKEAWAY,
+    icon: null,
+    counterparty: "walk_in",
     requires_table: 0,
     requires_cover_count: 0,
     customer_mode: "optional",
@@ -96,6 +99,7 @@ async function open() {
 
 type Wrapper = Awaited<ReturnType<typeof open>>;
 
+/** A nav or type button, matched on the label a cashier reads. */
 function button(wrapper: Wrapper, label: string) {
   const found = wrapper.findAll("button").find((b) => b.text().trim() === label);
   if (found) return found;
@@ -126,7 +130,7 @@ beforeEach(() => {
   vi.mocked(orderApi.createOrder).mockResolvedValue({ order_name: ORDER } as never);
   vi.mocked(orderApi.getOrder).mockResolvedValue({
     order_name: ORDER,
-    order_type: TAKEAWAY,
+    order_type: "OT-TAKEAWAY",
     status: "draft",
     items: [],
     ...totals,
@@ -144,7 +148,7 @@ describe("a dish tapped before there is a bill", () => {
     // The screen asked which kind of order this is, and nothing was ordered yet.
     expect(orderApi.createOrder).not.toHaveBeenCalled();
 
-    await button(wrapper, TAKEAWAY).trigger("click");
+    await itemButton(wrapper, TAKEAWAY).trigger("click");
     await flushPromises();
 
     expect(orderApi.createOrder).toHaveBeenCalledOnce();
@@ -164,7 +168,7 @@ describe("a dish tapped before there is a bill", () => {
     const wrapper = await open();
 
     await tapDish(wrapper, "برجر", "برغر");
-    await button(wrapper, TAKEAWAY).trigger("click");
+    await itemButton(wrapper, TAKEAWAY).trigger("click");
     await flushPromises();
 
     expect(orderApi.addItem).toHaveBeenCalledOnce();
@@ -180,7 +184,7 @@ describe("a dish tapped before there is a bill", () => {
     // dish appearing on whatever bill they open next is worse than no dish.
     await button(wrapper, "الطاولات").trigger("click");
     await button(wrapper, "جديد").trigger("click");
-    await button(wrapper, TAKEAWAY).trigger("click");
+    await itemButton(wrapper, TAKEAWAY).trigger("click");
     await flushPromises();
 
     expect(orderApi.createOrder).toHaveBeenCalledOnce();

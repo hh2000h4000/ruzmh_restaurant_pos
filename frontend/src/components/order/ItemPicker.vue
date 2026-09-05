@@ -315,7 +315,11 @@ function priceOf(item: CatalogItem): number | null {
       class="grid content-start gap-3.5 overflow-y-auto"
       :style="{
         gridTemplateColumns: `repeat(${layout.grid_columns}, minmax(0, 1fr))`,
-        gridAutoRows: 'minmax(9.375rem, auto)',
+        // **A row, not a tile.** The reference's 150px is the height of a
+        // *button*, and the demo's buttons span two rows — so putting 150 here
+        // made every tile 314px and six of them a wall. 72px × 2 plus the gap
+        // is the 150 the reference actually draws.
+        gridAutoRows: 'minmax(4.5rem, auto)',
       }"
     >
       <button

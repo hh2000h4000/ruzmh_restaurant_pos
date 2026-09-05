@@ -20,7 +20,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { PaymentMethodOption, PaymentSummary } from "@/api/payment";
 import * as paymentApi from "@/api/payment";
 import { useSessionStore } from "@/stores/session";
-import type { SessionData } from "@/types/session";
+import type { PosSession } from "@/types/session";
 import PaymentView from "@/views/PaymentView.vue";
 
 const ORDER = "RO-2026-09-00001";
@@ -106,10 +106,6 @@ function confirmButton(wrapper: Wrapper) {
 }
 
 /**
- * Take money on a method the way a cashier does: tap it, then tap the first
- * amount the sheet offers — which is always what is still owed (`D-124`).
- */
-/**
  * Everything tappable inside the open sheet.
  *
  * Scoped deliberately: the screen behind it also carries buttons labelled with
@@ -132,6 +128,7 @@ function tap(buttons: ReturnType<typeof sheetButtons>, label: string) {
   );
 }
 
+/** Take money on a method the way a cashier does: tap it, then tap an amount. */
 async function tender(wrapper: Wrapper, name: string) {
   await methodButton(wrapper, name).trigger("click");
   await flushPromises();
@@ -172,7 +169,7 @@ beforeEach(() => {
   // rather than standing on the screen (`D-058`), so without this every
   // Confirm stops at "open a shift first" and never reaches the server —
   // which is correct behaviour, and would quietly hollow out the tests below.
-  useSessionStore().data = { can_sell: true } as SessionData;
+  useSessionStore().data = { can_sell: true } as PosSession;
 });
 
 describe("what the payment screen lets a cashier reach", () => {

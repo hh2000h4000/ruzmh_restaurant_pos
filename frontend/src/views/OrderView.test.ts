@@ -19,7 +19,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import * as orderApi from "@/api/order";
 import { useSessionStore } from "@/stores/session";
-import type { CatalogItem, OrderType, SessionData } from "@/types/session";
+import type { CatalogItem, OrderType, PosSession } from "@/types/session";
 import OrderView from "@/views/OrderView.vue";
 
 const ORDER = "RO-2026-09-00001";
@@ -88,7 +88,7 @@ function till(items: CatalogItem[] = [dish()]): void {
     screen_layout: null,
     pos_profile: { name: "T1" },
     permissions: {},
-  } as unknown as SessionData;
+  } as unknown as PosSession;
 }
 
 async function open() {

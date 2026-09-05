@@ -644,21 +644,20 @@ def _tables(section: str) -> list[str]:
 
 
 def _screen_layout(profile) -> str | None:
-	"""A 4x3 grid of menu groups, assigned to the terminal (FR-3.1, FR-3.5)."""
+	"""The menu groups as tiles, assigned to the terminal (FR-3.1, FR-3.5)."""
 	title = "قائمة المطعم"
 	existing = frappe.db.get_value("POS Screen Layout", {"title": title}, "name")
 
 	if not existing:
+		# **Flow, and no coordinates** (`D-141`). The order below is the order on
+		# the screen, which is the whole point of the mode: a restaurant adds a
+		# group by adding a row, not by working out that it belongs at column 3.
 		buttons = []
-		for index, section in enumerate(MENU):
+		for section in MENU:
 			buttons.append(
 				{
 					"button_type": "item_group",
 					"item_group": section["group"],
-					"col_start": (index % 3) * 2 + 1,
-					"col_span": 2,
-					"row_start": (index // 3) * 2 + 1,
-					"row_span": 2,
 					"display_text": section["group"],
 					"display_text_ar": section["group_ar"],
 					"bg_color": section["colour"],
@@ -672,8 +671,7 @@ def _screen_layout(profile) -> str | None:
 				{
 					"doctype": "POS Screen Layout",
 					"title": title,
-					"grid_columns": 6,
-					"grid_rows": 4,
+					"layout_mode": "flow",
 					"is_active": 1,
 					"buttons": buttons,
 				}

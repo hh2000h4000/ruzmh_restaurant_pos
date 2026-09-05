@@ -89,6 +89,12 @@ const entries = computed<MenuEntry[]>(() => {
     rows.push({ key: "openTill", label: "shift.openTill", icon: "card" });
   }
 
+  // Who is at work — for whoever may read a report. Above the destructive pair
+  // and below the drawer, because it changes nothing: it only answers.
+  if (session.can("can_access_reports")) {
+    rows.push({ key: "roster", label: "roster.title", icon: "hourglass" });
+  }
+
   rows.push({
     key: "closeDay",
     label: "shift.closeDay",

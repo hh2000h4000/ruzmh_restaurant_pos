@@ -193,3 +193,108 @@ class TestClockingInAndOut(FrappeTestCase):
 	def test_clocking_in_without_an_employee_record_says_so(self):
 		with self.assertRaises(frappe.ValidationError):
 			attendance.punch(STAFF, log_type=attendance.IN)
+
+
+class TestAPunchThatActuallyLands(FrappeTestCase):
+	"""The half of `FR-8.4` nothing covered, and what that cost.
+
+	Every test above this one runs with **no** `Employee` behind the login, so
+	the service returned early and the punch itself was never executed. It hid a
+	fault the size of the feature: `Employee Checkin` ships in **hrms**, which
+	was installed on no site, and the first member of staff to press حضور would
+	have met an internal error (`D-135`). `frappe.db.get_value` on an absent
+	table answers `None` rather than raising, so nothing anywhere said so.
+
+	These tests need a real employee, so they skip where there is none to build
+	one from — but on a site with hrms they exercise the write.
+	"""
+
+	@classmethod
+	def setUpClass(cls):
+		super().setUpClass()
+		_user(STAFF)
+		frappe.db.commit()
+
+	def setUp(self):
+		super().setUp()
+		if not frappe.db.exists("DocType", "Employee Checkin"):
+			self.skipTest("hrms is not installed on this site")
+
+		self.employee = _employee_for(STAFF)
+		if not self.employee:
+			self.skipTest("this site cannot create an Employee (no company or holiday list)")
+
+		frappe.db.delete("Employee Checkin", {"employee": self.employee})
+
+	def test_a_punch_lands_and_the_state_says_so(self):
+		state = attendance.punch(STAFF, log_type=attendance.IN)
+
+		self.assertTrue(state["clocked_in"])
+		self.assertIsNotNone(state["since"])
+		self.assertEqual(state["employee"], self.employee)
+
+	def test_the_punch_records_which_terminal_it_happened_at(self):
+		"""So a manager reading it back knows where somebody started."""
+		attendance.punch(STAFF, log_type=attendance.IN, pos_profile="T1")
+
+		self.assertEqual(
+			frappe.db.get_value(
+				"Employee Checkin", {"employee": self.employee}, "device_id", order_by="creation desc"
+			),
+			"T1",
+		)
+
+	def test_clocking_in_twice_is_refused(self):
+		"""Not a harmless duplicate: it is a shift whose length cannot be
+		computed, and it is what a doubled tap produces."""
+		attendance.punch(STAFF, log_type=attendance.IN)
+
+		with self.assertRaises(frappe.ValidationError):
+			attendance.punch(STAFF, log_type=attendance.IN)
+
+	def test_clocking_out_when_never_in_is_refused(self):
+		with self.assertRaises(frappe.ValidationError):
+			attendance.punch(STAFF, log_type=attendance.OUT)
+
+	def test_in_then_out_closes_the_day(self):
+		attendance.punch(STAFF, log_type=attendance.IN)
+		state = attendance.punch(STAFF, log_type=attendance.OUT)
+
+		self.assertFalse(state["clocked_in"])
+		self.assertIsNone(state["since"])
+
+
+def _employee_for(user: str) -> str | None:
+	"""An Active employee tied to this login, made once and reused.
+
+	`Employee` is mandatory-heavy — a company, a date of joining, a gender, a
+	date of birth — so this builds the smallest record ERPNext will accept and
+	gives up rather than failing the suite on a site set up differently.
+	"""
+	existing = frappe.db.get_value("Employee", {"user_id": user, "status": "Active"}, "name")
+	if existing:
+		return existing
+
+	company = frappe.db.get_value("Company", {}, "name")
+	if not company:
+		return None
+
+	try:
+		return (
+			frappe.get_doc(
+				{
+					"doctype": "Employee",
+					"first_name": "RPOS Attendance",
+					"user_id": user,
+					"company": company,
+					"gender": frappe.db.get_value("Gender", {}, "name") or "Other",
+					"date_of_birth": "1990-01-01",
+					"date_of_joining": "2020-01-01",
+					"status": "Active",
+				}
+			)
+			.insert(ignore_permissions=True)
+			.name
+		)
+	except Exception:
+		return None

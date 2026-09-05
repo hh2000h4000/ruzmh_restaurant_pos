@@ -35,6 +35,16 @@
   --rpos-muted: 139 143 146; /* #8B8F92 */
   /* #14171A at 8% over white — a hairline, not a drawn box. */
   --rpos-border: 231 232 232;
+  /*
+   * The same ink at 12%, for **controls**.
+   *
+   * A card only has to separate from the page; a key has to look like a thing
+   * you press. At the card's weight a keypad key on the warm fill differs from
+   * its own edge by ten points in each channel, which is no edge at arm's
+   * length under a shop's lighting. The reference draws the two strengths
+   * apart for the same reason.
+   */
+  --rpos-border-strong: 216 215 212;
 
   /* Touch geometry — 06 §Accessibility: nothing smaller than 48px. */
   --rpos-tap-target: 48px;

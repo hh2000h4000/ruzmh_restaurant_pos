@@ -69,7 +69,11 @@ export default {
         background: themed("background"),
         content: themed("text"),
         muted: themed("muted"),
-        line: themed("border"),
+        // `line` edges a card; `line-strong` edges a control you press.
+        line: {
+          DEFAULT: themed("border"),
+          strong: themed("border-strong"),
+        },
 
         accent: ACCENT,
 

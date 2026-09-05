@@ -58,7 +58,7 @@ function clear(): void {
       v-for="key in KEYS"
       :key="key"
       type="button"
-      class="rpos-numeric h-14 rounded-rpos border border-line bg-background text-xl font-medium transition duration-200 ease-rpos hover:border-primary hover:text-primary"
+      class="rpos-numeric h-14 rounded-rpos border border-line-strong bg-background text-xl font-medium transition duration-200 ease-rpos hover:border-primary hover:text-primary"
       @click="press(key)"
     >
       {{ key }}
@@ -66,7 +66,7 @@ function clear(): void {
 
     <button
       type="button"
-      class="h-14 rounded-rpos border border-line bg-background text-base font-medium text-danger transition duration-200 ease-rpos hover:border-danger"
+      class="h-14 rounded-rpos border border-line-strong bg-background text-base font-medium text-danger transition duration-200 ease-rpos hover:border-danger"
       :aria-label="t('keypad.clear')"
       @click="clear"
     >
@@ -74,14 +74,14 @@ function clear(): void {
     </button>
     <button
       type="button"
-      class="rpos-numeric h-14 rounded-rpos border border-line bg-background text-xl font-medium transition duration-200 ease-rpos hover:border-primary hover:text-primary"
+      class="rpos-numeric h-14 rounded-rpos border border-line-strong bg-background text-xl font-medium transition duration-200 ease-rpos hover:border-primary hover:text-primary"
       @click="press('0')"
     >
       0
     </button>
     <button
       type="button"
-      class="grid h-14 place-items-center rounded-rpos border border-line bg-background text-muted transition duration-200 ease-rpos hover:border-primary hover:text-primary disabled:opacity-40 disabled:hover:border-line"
+      class="grid h-14 place-items-center rounded-rpos border border-line-strong bg-background text-muted transition duration-200 ease-rpos hover:border-primary hover:text-primary disabled:opacity-40 disabled:hover:border-line"
       :disabled="!value"
       :aria-label="t('keypad.back')"
       @click="back"

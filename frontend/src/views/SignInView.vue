@@ -166,7 +166,7 @@ async function punch(): Promise<void> {
         <button
           v-if="auth.isEmployee"
           type="button"
-          class="h-14 w-full rounded-rpos border border-line bg-background text-base font-medium text-content transition duration-200 ease-rpos hover:border-primary disabled:opacity-50"
+          class="h-14 w-full rounded-rpos border border-line-strong bg-background text-base font-medium text-content transition duration-200 ease-rpos hover:border-primary disabled:opacity-50"
           :disabled="auth.busy"
           @click="punch"
         >

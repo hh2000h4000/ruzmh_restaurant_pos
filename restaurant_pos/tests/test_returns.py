@@ -403,18 +403,14 @@ class TestARealCashierCanRefund(ReturnTestBase):
 		self.assertGreater(quoted["refund_amount"], 0)
 
 	def test_a_cashier_can_actually_refund(self):
-		result = service.create_return(
-			self.order, items=[{"row": self.row, "qty": 1}], reason_code=REASON
-		)
+		result = service.create_return(self.order, items=[{"row": self.row, "qty": 1}], reason_code=REASON)
 
 		self.assertTrue(result["credit_note"])
 		self.assertGreater(result["daily_number"], self.order.daily_number)
 
 	def test_the_credit_note_carries_the_cashier_name_not_the_frameworks(self):
 		"""The rights are borrowed for the mapping only, never for the document."""
-		result = service.create_return(
-			self.order, items=[{"row": self.row, "qty": 1}], reason_code=REASON
-		)
+		result = service.create_return(self.order, items=[{"row": self.row, "qty": 1}], reason_code=REASON)
 
 		self.assertEqual(frappe.db.get_value("Sales Invoice", result["credit_note"], "owner"), self.senior)
 
@@ -434,8 +430,6 @@ class TestARealCashierCanRefund(ReturnTestBase):
 			side_effect=frappe.ValidationError("no"),
 		):
 			with self.assertRaises(frappe.ValidationError):
-				service.create_return(
-					self.order, items=[{"row": self.row, "qty": 1}], reason_code=REASON
-				)
+				service.create_return(self.order, items=[{"row": self.row, "qty": 1}], reason_code=REASON)
 
 		self.assertEqual(frappe.session.user, self.senior)

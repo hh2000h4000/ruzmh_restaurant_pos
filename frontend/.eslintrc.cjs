@@ -22,7 +22,9 @@ module.exports = {
     "@vue/eslint-config-typescript",
   ],
   parserOptions: { ecmaVersion: "latest", sourceType: "module" },
-  ignorePatterns: ["dist/", "node_modules/"],
+  // `public/` is copied verbatim into the build — fonts and other binaries.
+  // There is no source in it to lint, and walking it costs minutes.
+  ignorePatterns: ["dist/", "node_modules/", "public/"],
   rules: {
     "no-restricted-syntax": [
       "error",

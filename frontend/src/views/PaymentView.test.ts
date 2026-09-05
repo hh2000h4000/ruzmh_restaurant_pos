@@ -66,7 +66,13 @@ function summary(extra: Partial<PaymentSummary> = {}): PaymentSummary {
 async function open(payload: PaymentSummary) {
   vi.mocked(paymentApi.getPaymentSummary).mockResolvedValue(payload);
 
-  const wrapper = mount(PaymentView, { global: { stubs: { RouterLink: true } } });
+  const wrapper = mount(PaymentView, {
+    // `BaseDialog` teleports to `<body>`, which is right in the app and puts
+    // the tender sheet outside the wrapper's tree here. Stubbing the teleport
+    // renders it where it was written, so the sheet can be reached the way the
+    // cashier reaches it — through the screen that opened it.
+    global: { stubs: { RouterLink: true, teleport: true } },
+  });
   await flushPromises();
   return wrapper;
 }

@@ -90,6 +90,71 @@ class TestFindingSomebodyByPin(FrappeTestCase):
 		self.assertIsNone(pins.find_user_by_pin("51234"))
 
 
+class TestAnOrdinarySaveDoesNotDestroyAPin(FrappeTestCase):
+	"""The defect that logged people out of the till for no reason (`D-136`).
+
+	`BaseDocument._save_passwords` runs on **every** save and reads an empty
+	`Password` field as "delete the stored one". Our column is always empty —
+	the value lives in `__Auth` as a one-way hash this app writes itself — so
+	adding a role to a cashier, or correcting the spelling of their name, took
+	their PIN away. Nothing said so: the pad answers "not recognised" for every
+	refusal on purpose (`D-099`), and the lookup digest stayed behind, so the
+	account was still found and then failed to verify.
+
+	It cost a live account on the demo site before it was understood.
+	"""
+
+	@classmethod
+	def setUpClass(cls):
+		super().setUpClass()
+		_user(STAFF)
+		frappe.db.commit()
+
+	def setUp(self):
+		super().setUp()
+		pins.set_pin(STAFF, "53791")
+
+	def test_editing_something_unrelated_leaves_the_pin_alone(self):
+		doc = frappe.get_doc("User", STAFF)
+		doc.middle_name = "Edited"
+		doc.save(ignore_permissions=True)
+
+		self.assertEqual(pins.find_user_by_pin("53791"), STAFF)
+
+	def test_granting_a_role_leaves_the_pin_alone(self):
+		"""The exact edit that did it: a manager adding a permission."""
+		doc = frappe.get_doc("User", STAFF)
+		doc.append("roles", {"role": "POS Manager"})
+		doc.save(ignore_permissions=True)
+
+		self.assertEqual(pins.find_user_by_pin("53791"), STAFF)
+
+	def test_it_survives_being_saved_repeatedly(self):
+		for index in range(3):
+			doc = frappe.get_doc("User", STAFF)
+			doc.middle_name = f"Edit {index}"
+			doc.save(ignore_permissions=True)
+
+		self.assertEqual(pins.find_user_by_pin("53791"), STAFF)
+
+	def test_changing_the_pin_still_replaces_it(self):
+		"""The guard must not freeze the field: a PIN is still changeable."""
+		doc = frappe.get_doc("User", STAFF)
+		doc.set(pins.FIELDNAME, "57913")
+		doc.save(ignore_permissions=True)
+
+		self.assertIsNone(pins.find_user_by_pin("53791"))
+		self.assertEqual(pins.find_user_by_pin("57913"), STAFF)
+
+	def test_the_pin_never_lands_in_the_column(self):
+		"""What the blanking is actually for: no reversible copy, ever."""
+		doc = frappe.get_doc("User", STAFF)
+		doc.set(pins.FIELDNAME, "57913")
+		doc.save(ignore_permissions=True)
+
+		self.assertIsNone(frappe.db.get_value("User", STAFF, pins.FIELDNAME))
+
+
 class TestTwoPeopleCannotShareAPin(FrappeTestCase):
 	@classmethod
 	def setUpClass(cls):

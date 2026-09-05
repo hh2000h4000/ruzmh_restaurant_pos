@@ -383,12 +383,19 @@ class TestWhoIsAtWork(FrappeTestCase):
 		self.assertAlmostEqual(self._me(attendance.roster())["minutes"], 120, delta=2)
 
 	def test_an_out_with_no_in_before_it_is_skipped_not_guessed(self):
-		"""A punch a manager corrected by hand beats any repair invented here."""
-		self._punch_at(attendance.OUT, 100)
-		self._punch_at(attendance.IN, 60)
-		self._punch_at(attendance.OUT, 30)
+		"""A punch a manager corrected by hand beats any repair invented here.
 
-		self.assertAlmostEqual(self._me(attendance.roster())["minutes"], 30, delta=1)
+		The orphan is placed **after** a closed pair on purpose. Put first it
+		proves nothing — every plausible wrong implementation also scores it
+		zero, which a mutation of `_worked` demonstrated. Here a repair that
+		anchored it to the previous punch, or to the start of the window, would
+		add ninety minutes that nobody worked.
+		"""
+		self._punch_at(attendance.IN, 200)
+		self._punch_at(attendance.OUT, 190)
+		self._punch_at(attendance.OUT, 100)
+
+		self.assertAlmostEqual(self._me(attendance.roster())["minutes"], 10, delta=1)
 
 	def test_punches_older_than_the_window_are_left_out(self):
 		self._punch_at(attendance.IN, 60 * 24 * 5)

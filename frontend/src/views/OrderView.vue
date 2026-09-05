@@ -21,6 +21,7 @@ import ReturnDialog from "@/components/order/ReturnDialog.vue";
 import CloseDayDialog from "@/components/shift/CloseDayDialog.vue";
 import CloseTillDialog from "@/components/shift/CloseTillDialog.vue";
 import OpenTillDialog from "@/components/shift/OpenTillDialog.vue";
+import RosterDialog from "@/components/shift/RosterDialog.vue";
 import ShiftMenu from "@/components/shift/ShiftMenu.vue";
 import FloorPane from "@/components/order/FloorPane.vue";
 import NewOrderPane from "@/components/order/NewOrderPane.vue";
@@ -235,6 +236,7 @@ function onMenu(key: string): void {
   else if (key === "closeDay") closingDay.value = true;
   else if (key === "logout") signingOut.value = true;
   else if (key === "clock") void punchClock();
+  else if (key === "roster") showingRoster.value = true;
 }
 
 /**
@@ -254,6 +256,7 @@ async function punchClock(): Promise<void> {
 /** Confirmed, because signing out by accident mid-rush is a real annoyance. */
 const signingOut = ref(false);
 const showingLog = ref(false);
+const showingRoster = ref(false);
 
 async function signOut(): Promise<void> {
   // **Stays inside the app** (`D-098`). This used to hand the browser to
@@ -1208,6 +1211,12 @@ async function send(): Promise<void> {
         />
       </div>
     </div>
+
+    <RosterDialog
+      :open="showingRoster"
+      :pos-profile="session.profile?.name ?? null"
+      @close="showingRoster = false"
+    />
 
     <!-- The only way out of the app, so it asks first (D-055). -->
     <BaseDialog

@@ -48,13 +48,27 @@ LOOKUP_FIELD = "rpos_pin_lookup"
 
 
 def hold_pin_aside(doc, method=None):
-	"""``User.validate`` — keep the PIN out of reversible storage."""
+	"""``User.validate`` — keep the PIN out of reversible storage.
+
+	**Nothing is touched unless a PIN was actually typed** (`D-136`). This used
+	to blank the field on every save, and Frappe reads a `Password` field saved
+	empty as "delete the stored one" — so *any* edit to a User destroyed their
+	PIN. Adding a role to a cashier logged them out of the till, permanently,
+	and the pad said only "not recognised" because the refusal is deliberately
+	vague (`D-099`). The lookup digest stayed behind, so the account was still
+	*found* and then failed to verify.
+
+	Proven, not guessed: a `middle_name` edit and a save took the PIN away.
+	"""
 	pin = (doc.get(FIELDNAME) or "").strip()
-	doc.set(FIELDNAME, None)
 	doc._new_manager_pin = None
 
 	if not pin:
 		return
+
+	# Only now, and only because it is about to be hashed into `__Auth` by
+	# `store_pin_hashed`: what must not persist is the reversible copy.
+	doc.set(FIELDNAME, None)
 
 	validate_format(pin)
 	assert_pin_is_unique(pin, doc.name)

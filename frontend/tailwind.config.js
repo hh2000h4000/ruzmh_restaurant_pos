@@ -22,21 +22,19 @@ const STATUS = {
 };
 
 /**
- * Soft accents for chrome — icon tiles, toolbar buttons.
+ * Soft accents for chrome.
  *
  * Decoration, not meaning: nothing here tells a cashier a table is free or an
  * order is late, so unlike STATUS these carry no operational weight. They live
  * in this file rather than in a component because a raw hex in a component is
  * a lint error (03_frontend_vue_rules.md).
+ *
+ * **One entry, because one is used.** Seven shipped here for "icon tiles and
+ * toolbar buttons" and not a single component ever referenced any of them —
+ * dead paint that a reader has to decide about every time they open this file
+ * (`CLAUDE.md` §5.5). They are in the history if a use appears.
  */
 const ACCENT = {
-  blue: "#1677FF",
-  teal: "#13B8A6",
-  green: "#13B8A6",
-  amber: "#FF9F43",
-  violet: "#7357E8",
-  rose: "#E94B87",
-  slate: "#68748A",
   // The figure that is still owed. Warmer and darker than `status.reserved`,
   // which is a *table* state and must not drift to follow a house style.
   gold: "#B8791F",

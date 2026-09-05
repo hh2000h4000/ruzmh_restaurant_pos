@@ -14,15 +14,18 @@
     "test": "vitest run"
   },
   "//resolutions": [
-    "`@vue/test-utils` pulls `js-beautify` for snapshot pretty-printing, which",
-    "pulls `editorconfig@3`, which demands Node 20. The bench in WSL runs Node",
-    "18 and builds ERPNext's assets with it, so raising Node there to satisfy a",
-    "test formatter is the wrong end to fix. `editorconfig@1` is the last line",
-    "that runs on 18 — `@2` says `>=18` but drags in `minimatch@10`, which does",
-    "not. Remove this pin when the bench moves to Node 20."
+    "`@vue/test-utils` pulls `js-beautify` only to pretty-print snapshots, and",
+    "its newer releases drag in `editorconfig@3`, `minimatch@10` and `nopt@10`,",
+    "each of which demands Node 20 or later. The bench in WSL runs Node 18 and",
+    "builds ERPNext's assets with it, so raising Node there to satisfy a test",
+    "formatter is the wrong end of the problem to pull. Pinning the formatter",
+    "to its last Node-18 line costs nothing: it is not in the app bundle and",
+    "not in a single assertion. Remove when the bench moves to Node 20."
   ],
   "resolutions": {
-    "editorconfig": "^1.0.4"
+    "js-beautify": "1.15.1",
+    "editorconfig": "^1.0.4",
+    "nopt": "^7.2.0"
   },
   "dependencies": {
     "idb": "^8.0.0",

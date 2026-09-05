@@ -1019,28 +1019,22 @@ async function send(): Promise<void> {
         next in the place the bill will appear.
       -->
       <!--
-        **The bill takes the leading edge.** It was on the far side, with the
-        menu under the reading hand. The bill is the thing being read — by the
-        cashier and, on a two-screen till, by the customer — and in Arabic the
-        eye starts on the right. It is also the narrower of the two, so a fixed
-        band rather than a share of the width: the menu should take whatever a
-        wider terminal offers, and the bill should not grow to 600px on one.
-      -->
-      <div class="grid min-h-0 gap-[18px] lg:grid-cols-[minmax(310px,380px)_minmax(0,1fr)]">
-        <!-- Drawn whether a bill is in hand or not (D-059): the bill is
-             furniture, and a till that rearranges itself between customers is
-             one the cashier has to re-read every time. -->
-        <OrderPanel
-          :order="orders.order"
-          :lines="orders.lines"
-          :busy="locked"
-          :can-pay="!locked && !orders.isEmpty"
-          @void="askVoid"
-          @repeat="repeat"
-          @inspect="inspect"
-          @pay="goToPayment"
-        />
+        **The menu starts, the bill ends** — and the screen mirrors itself with
+        the language, without a single test on the language (`D-133`).
 
+        Arabic puts the menu on the right and the bill on the left; English
+        does the reverse. That is not two layouts: it is one order — you work
+        through the menu and arrive at the total — laid along the inline axis.
+        Grid already follows `dir`, which `i18n` sets on `<html>`, so the
+        mirroring is free. A `locale === 'ar'` here would be the same thing
+        written by hand, and it would drift the first time a third language or
+        a per-user direction appears.
+
+        The bill is a fixed band rather than a share of the width: the menu
+        should take whatever a wider terminal offers, and the bill should not
+        grow to 600px on one.
+      -->
+      <div class="grid min-h-0 gap-[18px] lg:grid-cols-[minmax(0,1fr)_minmax(310px,380px)]">
         <!--
           A column, not a row template. The notices below are `empty:hidden`, so
           on a quiet screen they are not a grid item at all — and every child
@@ -1183,6 +1177,20 @@ async function send(): Promise<void> {
             />
           </div>
         </div>
+
+        <!-- Drawn whether a bill is in hand or not (D-059): the bill is
+             furniture, and a till that rearranges itself between customers is
+             one the cashier has to re-read every time. -->
+        <OrderPanel
+          :order="orders.order"
+          :lines="orders.lines"
+          :busy="locked"
+          :can-pay="!locked && !orders.isEmpty"
+          @void="askVoid"
+          @repeat="repeat"
+          @inspect="inspect"
+          @pay="goToPayment"
+        />
       </div>
     </div>
 

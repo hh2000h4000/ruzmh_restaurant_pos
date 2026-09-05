@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 import vue from "@vitejs/plugin-vue";
@@ -10,6 +10,9 @@ const ASSET_BASE = "/assets/restaurant_pos/frontend/";
 
 /** Build output, inside the Frappe app's public folder. */
 const OUT_DIR = resolve(__dirname, "../restaurant_pos/public/frontend");
+
+/** Self-hosted faces, copied verbatim by Vite and precached by the worker. */
+const FONT_DIR = resolve(__dirname, "public/fonts");
 
 /** The Jinja page Frappe renders at /restaurant-pos. */
 const WWW_PAGE = resolve(__dirname, "../restaurant_pos/www/restaurant-pos.html");
@@ -111,8 +114,18 @@ function buildServiceWorker(files: string[]): string {
   // The manifest and the icon are served from `www/`, not from the bundle, so
   // the build does not know them — but an installed terminal that opens offline
   // should still have its own name and mark (D-079). Both are tiny.
+  //
+  // The faces are here for the same reason and read from disk rather than
+  // listed: a weight added to `public/fonts/` and forgotten here would work on
+  // every terminal that has been online and fail only on the one that has not,
+  // which is the hardest kind of fault to be told about (`D-134`).
+  const fonts = readdirSync(FONT_DIR)
+    .filter((file) => file.endsWith(".woff2"))
+    .map((file) => `${ASSET_BASE}fonts/${file}`);
+
   const urls = [
     ...files.map((file) => ASSET_BASE + file),
+    ...fonts,
     "/rpos-manifest.json",
     "/rpos-icon.svg",
   ].sort();

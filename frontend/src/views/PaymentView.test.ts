@@ -19,6 +19,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { PaymentMethodOption, PaymentSummary } from "@/api/payment";
 import * as paymentApi from "@/api/payment";
+import { useSessionStore } from "@/stores/session";
+import type { SessionData } from "@/types/session";
 import PaymentView from "@/views/PaymentView.vue";
 
 const ORDER = "RO-2026-09-00001";
@@ -165,6 +167,12 @@ async function tenderSome(wrapper: Wrapper, name: string, digits: string) {
 beforeEach(() => {
   setActivePinia(createPinia());
   vi.clearAllMocks();
+
+  // A drawer of this cashier's own, open. `BR-044` is checked on the press
+  // rather than standing on the screen (`D-058`), so without this every
+  // Confirm stops at "open a shift first" and never reaches the server —
+  // which is correct behaviour, and would quietly hollow out the tests below.
+  useSessionStore().data = { can_sell: true } as SessionData;
 });
 
 describe("what the payment screen lets a cashier reach", () => {

@@ -13,6 +13,16 @@
     "typecheck": "vue-tsc --noEmit",
     "test": "vitest run"
   },
+  "//resolutions": [
+    "`@vue/test-utils` pulls `js-beautify` for snapshot pretty-printing, which",
+    "pulls `editorconfig@3`, which demands Node 20. The bench in WSL runs Node",
+    "18 and builds ERPNext's assets with it, so raising Node there to satisfy a",
+    "test formatter is the wrong end to fix. `editorconfig@2` is the same",
+    "library one major earlier and runs on 18."
+  ],
+  "resolutions": {
+    "editorconfig": "^2.0.0"
+  },
   "dependencies": {
     "idb": "^8.0.0",
     "pinia": "^2.2.0",

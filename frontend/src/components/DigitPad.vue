@@ -45,15 +45,20 @@ function clear(): void {
 </script>
 
 <template>
+  <!-- Bordered keys, not flat tiles. A pad on a white card with nothing but a
+       tint behind each digit has no edge at arm's length under a shop's
+       lighting, which is where this is read; the hairline is what makes the
+       twelve of them look like keys. Taller than the 48px minimum too — it is
+       the first control of every shift and the one typed without looking. -->
   <div
-    class="grid grid-cols-3 gap-2"
+    class="grid grid-cols-3 gap-2.5"
     dir="ltr"
   >
     <button
       v-for="key in KEYS"
       :key="key"
       type="button"
-      class="rpos-numeric h-12 rounded-rpos bg-background text-xl font-bold transition duration-200 ease-rpos hover:bg-primary/10 hover:text-primary"
+      class="rpos-numeric h-14 rounded-rpos border border-line bg-background text-xl font-medium transition duration-200 ease-rpos hover:border-primary hover:text-primary"
       @click="press(key)"
     >
       {{ key }}
@@ -61,7 +66,7 @@ function clear(): void {
 
     <button
       type="button"
-      class="h-12 rounded-rpos bg-background text-base font-bold text-danger transition duration-200 ease-rpos hover:bg-danger/10"
+      class="h-14 rounded-rpos border border-line bg-background text-base font-medium text-danger transition duration-200 ease-rpos hover:border-danger"
       :aria-label="t('keypad.clear')"
       @click="clear"
     >
@@ -69,14 +74,14 @@ function clear(): void {
     </button>
     <button
       type="button"
-      class="rpos-numeric h-12 rounded-rpos bg-background text-xl font-bold transition duration-200 ease-rpos hover:bg-primary/10 hover:text-primary"
+      class="rpos-numeric h-14 rounded-rpos border border-line bg-background text-xl font-medium transition duration-200 ease-rpos hover:border-primary hover:text-primary"
       @click="press('0')"
     >
       0
     </button>
     <button
       type="button"
-      class="grid h-12 place-items-center rounded-rpos bg-background text-muted transition duration-200 ease-rpos hover:bg-surface hover:text-content disabled:opacity-30"
+      class="grid h-14 place-items-center rounded-rpos border border-line bg-background text-muted transition duration-200 ease-rpos hover:border-primary hover:text-primary disabled:opacity-40 disabled:hover:border-line"
       :disabled="!value"
       :aria-label="t('keypad.back')"
       @click="back"

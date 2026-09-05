@@ -73,14 +73,18 @@ async function punch(): Promise<void> {
 
 <template>
   <main class="grid min-h-dvh place-items-center bg-background p-6">
-    <div class="w-full max-w-sm">
+    <!-- One card on the warm ground, the same shape the rest of the app uses.
+         It is the first thing a cashier touches every shift and the only screen
+         they meet before the house style has told them anything, so it says it
+         here. -->
+    <div class="w-full max-w-sm rounded-rpos-lg border border-line bg-surface px-8 py-9 shadow-card">
       <div class="mb-8 text-center">
-        <h1 class="text-3xl font-bold tracking-tight text-content">
+        <h1 class="text-3xl font-semibold tracking-tight text-content">
           RPOS
         </h1>
         <p
           v-if="session.branch"
-          class="mt-1 text-sm text-muted"
+          class="mt-1.5 text-sm text-muted"
         >
           {{ session.branch }}
         </p>
@@ -90,10 +94,7 @@ async function punch(): Promise<void> {
           new one — and this is the only place the answer is visible without
           opening devtools.
         -->
-        <p
-          class="mt-2 text-xs text-muted/60"
-          dir="ltr"
-        >
+        <p class="rpos-numeric mt-2 text-xs text-muted/70">
           {{ build }}
         </p>
       </div>
@@ -107,18 +108,25 @@ async function punch(): Promise<void> {
           {{ t("auth.enterPin") }}
         </p>
 
+        <!-- `border-border` was not a colour — the config's token is `line`, so
+             the class generated nothing and every box fell back to Tailwind's
+             default grey. The boxes also say **where the next digit lands**: a
+             fixed-length secret with no cursor gives a cashier who mistyped no
+             way to see how far along they are. -->
         <div
-          class="flex justify-center gap-2"
+          class="flex justify-center gap-2.5"
           dir="ltr"
         >
           <span
             v-for="box in boxes"
             :key="box"
-            class="h-11 w-9 rounded-rpos border transition duration-200 ease-rpos"
+            class="h-12 w-10 rounded-rpos border transition duration-200 ease-rpos"
             :class="
               box < pin.length
-                ? 'border-primary bg-primary/10'
-                : 'border-border bg-surface'
+                ? 'border-primary bg-primary'
+                : box === pin.length
+                  ? 'border-primary bg-background'
+                  : 'border-line bg-background'
             "
           />
         </div>
@@ -158,16 +166,19 @@ async function punch(): Promise<void> {
         <button
           v-if="auth.isEmployee"
           type="button"
-          class="h-14 w-full rounded-rpos bg-surface text-base font-bold text-content transition duration-200 ease-rpos hover:bg-primary/10 disabled:opacity-50"
+          class="h-14 w-full rounded-rpos border border-line bg-background text-base font-medium text-content transition duration-200 ease-rpos hover:border-primary disabled:opacity-50"
           :disabled="auth.busy"
           @click="punch"
         >
           {{ auth.clockedIn ? t("auth.clockOut") : t("auth.clockIn") }}
         </button>
 
+        <!-- `text-on-primary` was not a colour either: the contrast token is
+             `primary-contrast`, so the label on the one filled button in the
+             app was inheriting whatever it found. -->
         <button
           type="button"
-          class="h-14 w-full rounded-rpos bg-primary text-base font-bold text-on-primary transition duration-200 ease-rpos hover:opacity-90 disabled:opacity-50"
+          class="h-14 w-full rounded-rpos bg-primary text-base font-medium text-primary-contrast shadow-primary transition duration-200 ease-rpos hover:brightness-110 disabled:opacity-50 disabled:shadow-none"
           :disabled="auth.busy"
           @click="enterTill"
         >
@@ -192,7 +203,7 @@ async function punch(): Promise<void> {
         </button>
       </section>
 
-      <div class="mt-8 flex justify-center">
+      <div class="mt-8 flex justify-center border-t border-line pt-6">
         <LocaleToggle />
       </div>
     </div>

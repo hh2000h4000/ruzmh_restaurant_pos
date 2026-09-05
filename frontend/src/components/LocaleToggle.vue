@@ -14,7 +14,7 @@ function toggle(): void {
 <template>
   <button
     type="button"
-    class="min-h-tap rounded-rpos border border-muted/30 px-3 py-1.5 text-sm font-medium transition hover:bg-surface focus:outline-none focus:ring-2 focus:ring-primary"
+    class="min-h-tap rounded-rpos border border-line bg-background px-5 text-sm font-medium transition duration-200 ease-rpos hover:border-primary hover:text-primary"
     :lang="locale === 'ar' ? 'en' : 'ar'"
     @click="toggle"
   >

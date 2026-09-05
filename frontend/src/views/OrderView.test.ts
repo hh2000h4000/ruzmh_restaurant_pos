@@ -129,11 +129,11 @@ beforeEach(() => {
   vi.mocked(orderApi.listOrders).mockResolvedValue([]);
   vi.mocked(orderApi.createOrder).mockResolvedValue({ order_name: ORDER } as never);
   vi.mocked(orderApi.getOrder).mockResolvedValue({
+    ...totals,
     order_name: ORDER,
     order_type: "OT-TAKEAWAY",
     status: "draft",
     items: [],
-    ...totals,
   } as never);
   vi.mocked(orderApi.addItem).mockResolvedValue(totals as never);
 });

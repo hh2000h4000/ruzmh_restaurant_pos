@@ -796,9 +796,14 @@ class TestAskingForThePaperAgain(ReturnTestBase):
 		"""09 §8 — a queued reprint replayed after an outage is not two receipts."""
 		order = self._paid()
 
+		# A fresh id every run: the sync entry outlives the test that wrote it,
+		# so a fixed one would be "already handled" from the second run onwards
+		# and this test would pass without ever calling the endpoint.
+		queue_id = frappe.generate_hash(length=12)
+
 		with patch("restaurant_pos.api.printing.service.enqueue_print") as queued:
-			first = api.reprint_receipt(order.sales_invoice, queue_id="reprint-once")
-			again = api.reprint_receipt(order.sales_invoice, queue_id="reprint-once")
+			first = api.reprint_receipt(order.sales_invoice, queue_id=queue_id)
+			again = api.reprint_receipt(order.sales_invoice, queue_id=queue_id)
 
 		queued.assert_called_once()
 		self.assertEqual(again["invoice"], first["invoice"])

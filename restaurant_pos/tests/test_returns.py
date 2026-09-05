@@ -10,6 +10,8 @@ at all.
 Refs: FR-9.1..FR-9.3, BR-050..BR-055, D-064
 """
 
+from unittest.mock import patch
+
 import frappe
 
 from restaurant_pos.tests.test_order import ITEM, OrderTestBase
@@ -292,17 +294,20 @@ class TestAReturnIsADocumentOfItsOwn(ReturnTestBase):
 		)
 
 	def test_the_customer_leaves_with_the_paper(self):
-		"""A sale prints from `process_payment`; a refund printed nothing."""
+		"""A sale prints from `process_payment`; a refund printed nothing.
+
+		Asserted on the **request**, not on a `POS Print Job`: the job is made by
+		a worker running after commit, so a test looking for one would be
+		checking the queue rather than this module — and would pass or fail for
+		reasons that have nothing to do with returns.
+		"""
 		order = self._paid()
 
-		result = service.create_return(
-			order, items=[{"row": self._row(order), "qty": 1}], reason_code=REASON
-		)
+		with patch("restaurant_pos.utils.returns.printing.enqueue_print") as queued:
+			result = service.create_return(
+				order, items=[{"row": self._row(order), "qty": 1}], reason_code=REASON
+			)
 
-		self.assertTrue(
-			frappe.db.exists(
-				"POS Print Job",
-				{"reference_doctype": "Sales Invoice", "reference_name": result["credit_note"]},
-			),
-			"no receipt was queued for the credit note",
+		queued.assert_called_once_with(
+			"print_receipt", invoice_name=result["credit_note"], order_name=order.name
 		)

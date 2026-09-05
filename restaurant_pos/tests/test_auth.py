@@ -287,7 +287,7 @@ def _employee_for(user: str) -> str | None:
 					"first_name": "RPOS Attendance",
 					"user_id": user,
 					"company": company,
-					"gender": frappe.db.get_value("Gender", {}, "name") or "Other",
+					"gender": _a_gender(),
 					"date_of_birth": "1990-01-01",
 					"date_of_joining": "2020-01-01",
 					"status": "Active",
@@ -298,3 +298,16 @@ def _employee_for(user: str) -> str | None:
 		)
 	except Exception:
 		return None
+
+
+def _a_gender() -> str:
+	"""Any one, because `Employee.gender` is mandatory and this is a fixture.
+
+	Like the fiscal year in `test_payment`, `Gender` is setup-wizard data and
+	this bench never ran it (`D-012`). Nothing here reads the value back.
+	"""
+	existing = frappe.db.get_value("Gender", {}, "name")
+	if existing:
+		return existing
+
+	return frappe.get_doc({"doctype": "Gender", "gender": "Other"}).insert(ignore_permissions=True).name

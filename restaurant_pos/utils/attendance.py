@@ -52,7 +52,7 @@ def state(user: str) -> dict:
 	administrator carries the time it should have had, and the question here is
 	about the working day, not about data entry.
 	"""
-	employee = employee_for(user)
+	employee = employee_for(user) if is_available() else None
 	if not employee:
 		return {"employee": None, "clocked_in": False, "since": None}
 
@@ -67,6 +67,21 @@ def state(user: str) -> dict:
 	}
 
 
+#: Where the punches live, and the app they come from.
+CHECKIN = "Employee Checkin"
+
+
+def is_available() -> bool:
+	"""Whether this site can record attendance at all (`D-135`).
+
+	`hooks.required_apps` names hrms so a fresh install cannot miss it, but a
+	site installed before that declaration will not have it — and the symptom
+	there is silence: `frappe.db.get_value` answers `None` on an absent table
+	rather than raising, so the screen offers a button that throws.
+	"""
+	return bool(frappe.db.exists("DocType", CHECKIN))
+
+
 def punch(user: str, *, log_type: str, pos_profile: str | None = None) -> dict:
 	"""Record one clock-in or clock-out.
 
@@ -75,6 +90,11 @@ def punch(user: str, *, log_type: str, pos_profile: str | None = None) -> dict:
 	is what a cashier produces by pressing a button twice when the first press
 	seemed not to respond.
 	"""
+	if not is_available():
+		# Named rather than raw: a cashier meeting `DoesNotExistError` learns
+		# nothing, and the person who can fix it is not in the room.
+		frappe.throw(_("Attendance needs the HR app. Ask an administrator to install it."))
+
 	employee = employee_for(user)
 	if not employee:
 		frappe.throw(_("This login is not linked to an employee record."))

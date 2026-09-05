@@ -8,7 +8,14 @@ app_email = "hh2000h4000@gmail.com"
 app_license = "MIT"
 
 # The app extends ERPNext masters (Item, Item Group, POS Profile, Branch, POS Profile).
-required_apps = ["frappe/erpnext"]
+#
+# **hrms is not optional** (`D-135`). Attendance records punches in
+# `Employee Checkin`, which ships there — and the dependency went undeclared for
+# weeks while `frappe.db.get_value` answered `None` on the absent table instead
+# of raising. The feature looked present and would have failed under the first
+# member of staff who pressed it. Declared here so a fresh site cannot repeat
+# it: `install-app` refuses rather than installing something half-wired.
+required_apps = ["frappe/erpnext", "frappe/hrms"]
 
 # ---------------------------------------------------------------------------
 # Installation

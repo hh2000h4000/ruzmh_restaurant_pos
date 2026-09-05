@@ -206,7 +206,7 @@ def _load_profile(pos_profile: str) -> frappe._dict:
 	if not profile.restaurant_section:
 		frappe.throw(_("POS Profile {0} has no Restaurant Section configured.").format(pos_profile))
 
-	profile.branch = frappe.db.get_value("Restaurant Section", profile.restaurant_section, "branch")
+	profile.branch = table_section_branch(profile.restaurant_section)
 	return profile
 
 
@@ -343,6 +343,21 @@ def assert_table_free(table: str, branch: str | None) -> frappe._dict:
 
 def table_section_branch(section: str | None) -> str | None:
 	return frappe.db.get_value("Restaurant Section", section, "branch") if section else None
+
+
+def branch_of_profile(pos_profile: str | None) -> str | None:
+	"""Which branch a terminal belongs to.
+
+	**Through its section, because `POS Profile` has no branch of its own** —
+	the column does not exist, and code that asked for one got `None` and
+	carried on. Three places already reached for the section by hand before
+	this existed; a fourth would be the copy `CLAUDE.md` §5.5 is about.
+	"""
+	if not pos_profile:
+		return None
+
+	section = frappe.db.get_value("POS Profile", pos_profile, "restaurant_section")
+	return table_section_branch(section)
 
 
 def section_of_table(table: str | None, profile) -> str | None:

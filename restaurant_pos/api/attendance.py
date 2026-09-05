@@ -13,6 +13,7 @@ Refs: FR-8.4, D-057, D-135
 import frappe
 
 from restaurant_pos.utils import attendance as service
+from restaurant_pos.utils.order import branch_of_profile
 from restaurant_pos.utils.permissions import assert_permission, validate_branch_access
 
 
@@ -30,7 +31,7 @@ def roster(pos_profile: str, days: int = 1) -> dict:
 	"""
 	assert_permission("can_access_reports")
 
-	branch = frappe.db.get_value("POS Profile", pos_profile, "branch")
+	branch = branch_of_profile(pos_profile)
 	if branch:
 		validate_branch_access(branch)
 

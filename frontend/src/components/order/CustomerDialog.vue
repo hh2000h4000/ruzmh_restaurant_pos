@@ -259,7 +259,6 @@ async function saveAddress(): Promise<void> {
   <BaseDialog
     :open="open"
     :title="title"
-    :dismissible="true"
     @close="emit('close')"
   >
     <p

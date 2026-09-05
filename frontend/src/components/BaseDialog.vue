@@ -8,18 +8,33 @@ import { onMounted, onUnmounted, ref, watch } from "vue";
  * dialog that swallows the keyboard is worse than no dialog. Destructive
  * confirmations use this too (06 §Design Principles 4).
  */
-const props = defineProps<{
-  open: boolean;
-  title: string;
-  /** Escape and the backdrop do not close a dialog that must be answered. */
-  dismissible?: boolean;
-  /**
-   * Room for columns. The default is a form's width; splitting a bill puts two
-   * bills side by side and joining one puts three, and a cashier comparing them
-   * cannot do it through a letterbox.
-   */
-  wide?: boolean;
-}>();
+const props = withDefaults(
+  defineProps<{
+    open: boolean;
+    title: string;
+    /**
+     * Escape and the backdrop do not close a dialog that must be answered.
+     *
+     * **Defaulted explicitly, and that is the whole point** (`D-138`). Vue casts
+     * an absent Boolean prop to `false`, so every dialog that did not pass this
+     * was silently sealed: no Escape, no backdrop, and for some of them no way
+     * out but the one button somebody remembered to draw. Seven of them were
+     * like that, including the tender sheet a cashier meets on every sale.
+     *
+     * Nothing in the app ever passed `false`, so the case this was invented for
+     * has never existed — it is kept because a destructive confirmation is a
+     * real thing to want, and now it costs a deliberate word to get.
+     */
+    dismissible?: boolean;
+    /**
+     * Room for columns. The default is a form's width; splitting a bill puts two
+     * bills side by side and joining one puts three, and a cashier comparing them
+     * cannot do it through a letterbox.
+     */
+    wide?: boolean;
+  }>(),
+  { dismissible: true, wide: false },
+);
 
 const emit = defineEmits<{ close: [] }>();
 

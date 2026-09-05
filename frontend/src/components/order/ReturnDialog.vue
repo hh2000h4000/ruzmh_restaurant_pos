@@ -165,7 +165,6 @@ function money(value: number): string {
   <BaseDialog
     :open="open"
     :title="t('ret.title')"
-    :dismissible="true"
     @close="emit('close')"
   >
     <p

@@ -91,7 +91,6 @@ function apply(): void {
   <BaseDialog
     :open="Boolean(line)"
     :title="line?.item_name ?? ''"
-    :dismissible="true"
     @close="emit('close')"
   >
     <template v-if="line">

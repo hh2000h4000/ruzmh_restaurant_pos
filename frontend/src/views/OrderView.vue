@@ -1222,7 +1222,6 @@ async function send(): Promise<void> {
     <BaseDialog
       :open="signingOut"
       :title="t('home.logoutConfirm')"
-      :dismissible="true"
       @close="signingOut = false"
     >
       <p class="mb-4 text-sm text-muted">
@@ -1250,7 +1249,6 @@ async function send(): Promise<void> {
     <BaseDialog
       :open="editingCallName"
       :title="t('call.title')"
-      :dismissible="true"
       @close="editingCallName = false"
     >
       <p class="mb-3 text-sm text-muted">
@@ -1288,7 +1286,6 @@ async function send(): Promise<void> {
     <BaseDialog
       :open="editingNotes"
       :title="t('note.orderTitle')"
-      :dismissible="true"
       @close="editingNotes = false"
     >
       <p class="mb-3 text-sm text-muted">
@@ -1328,7 +1325,6 @@ async function send(): Promise<void> {
     <BaseDialog
       :open="Boolean(seatHere)"
       :title="t('tables.seatTitle', { number: seatHere?.table_number ?? '' })"
-      :dismissible="true"
       @close="seatHere = null"
     >
       <p class="mb-4 text-sm text-muted">
@@ -1366,7 +1362,6 @@ async function send(): Promise<void> {
     <BaseDialog
       :open="Boolean(countingType)"
       :title="t('covers.title')"
-      :dismissible="true"
       @close="countingType = null"
     >
       <p class="mb-4 text-sm text-muted">
@@ -1431,7 +1426,6 @@ async function send(): Promise<void> {
     <BaseDialog
       :open="askingForShift"
       :title="t('home.shiftClosed')"
-      :dismissible="true"
       @close="askingForShift = false"
     >
       <p class="mb-4 text-sm text-muted">
@@ -1543,7 +1537,6 @@ async function send(): Promise<void> {
     <BaseDialog
       :open="Boolean(voidTarget)"
       :title="t('order.voidReason')"
-      :dismissible="true"
       @close="voidTarget = null"
     >
       <p class="mb-3 text-sm text-muted">

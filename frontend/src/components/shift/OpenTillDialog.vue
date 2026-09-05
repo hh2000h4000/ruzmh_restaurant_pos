@@ -81,7 +81,6 @@ async function confirm(): Promise<void> {
   <BaseDialog
     :open="open"
     :title="t('shift.openTillTitle')"
-    :dismissible="true"
     @close="emit('close')"
   >
     <p class="mb-3 text-sm text-muted">

@@ -144,7 +144,6 @@ function money(value: number): string {
   <BaseDialog
     :open="open"
     :title="t('convert.title')"
-    :dismissible="true"
     @close="emit('close')"
   >
     <p class="mb-4 text-sm text-muted">

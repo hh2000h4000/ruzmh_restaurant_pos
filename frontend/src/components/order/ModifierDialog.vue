@@ -135,7 +135,6 @@ function confirm(): void {
   <BaseDialog
     :open="Boolean(item)"
     :title="item ? pick(item.pos_display_name_ar, item.item_name) : ''"
-    :dismissible="true"
     @close="emit('cancel')"
   >
     <p

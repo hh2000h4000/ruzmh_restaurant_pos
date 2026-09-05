@@ -60,7 +60,6 @@ const count = computed(() => entries.value.length);
   <BaseDialog
     :open="open"
     :title="t('log.title', { number: number ?? '' })"
-    :dismissible="true"
     @close="open = false"
   >
     <p

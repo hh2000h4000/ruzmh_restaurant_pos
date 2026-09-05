@@ -44,11 +44,11 @@ describe("one action at a time", () => {
 
     // Held open on purpose: this is the window `create` used to set the order
     // from inside, which is how a watcher's `addItem` landed in it (`D-127`).
-    let land!: (value: unknown) => void;
+    let land!: () => void;
     vi.mocked(orderApi.addItem).mockReturnValue(
-      new Promise((resolve) => {
-        land = resolve;
-      }) as ReturnType<typeof orderApi.addItem>,
+      new Promise<never>((resolve) => {
+        land = () => resolve(null as never);
+      }),
     );
 
     const inFlight = orders.addItem("RPOS-BURGER");
@@ -58,7 +58,7 @@ describe("one action at a time", () => {
     expect(orderApi.setCallName).not.toHaveBeenCalled();
     expect(orders.error).toBe(t("order.busy"));
 
-    land(null);
+    land();
     await inFlight;
   });
 

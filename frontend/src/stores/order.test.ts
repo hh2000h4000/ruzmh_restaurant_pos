@@ -66,9 +66,12 @@ describe("one action at a time", () => {
     const orders = useOrderStore();
     orders.order = bill();
 
-    vi.mocked(orderApi.addItem).mockResolvedValue(null as never);
+    // The server answers with the recalculated totals; the store reads any
+    // answer as "it happened" and a `null` as "it did not".
+    const totals = { status: "active", subtotal: 0, discount_amount: 0, tax_amount: 0, total_amount: 0 };
+    vi.mocked(orderApi.addItem).mockResolvedValue(totals as never);
     vi.mocked(orderApi.getOrder).mockResolvedValue(bill());
-    vi.mocked(orderApi.setCallName).mockResolvedValue(null as never);
+    vi.mocked(orderApi.setCallName).mockResolvedValue(totals as never);
 
     await orders.addItem("RPOS-BURGER");
     const accepted = await orders.setCallName("سعيد");

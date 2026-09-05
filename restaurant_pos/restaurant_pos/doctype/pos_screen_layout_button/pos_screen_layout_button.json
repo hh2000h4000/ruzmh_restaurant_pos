@@ -78,20 +78,18 @@
    "label": "Position"
   },
   {
-   "columns": 1,
    "default": "1",
    "fieldname": "col_start",
    "fieldtype": "Int",
-   "in_list_view": 1,
+   "in_list_view": 0,
    "label": "Column Start",
    "reqd": 1
   },
   {
-   "columns": 1,
    "default": "1",
    "fieldname": "col_span",
    "fieldtype": "Int",
-   "in_list_view": 1,
+   "in_list_view": 0,
    "label": "Column Span",
    "reqd": 1
   },
@@ -100,20 +98,18 @@
    "fieldtype": "Column Break"
   },
   {
-   "columns": 1,
    "default": "1",
    "fieldname": "row_start",
    "fieldtype": "Int",
-   "in_list_view": 1,
+   "in_list_view": 0,
    "label": "Row Start",
    "reqd": 1
   },
   {
-   "columns": 1,
    "default": "1",
    "fieldname": "row_span",
    "fieldtype": "Int",
-   "in_list_view": 1,
+   "in_list_view": 0,
    "label": "Row Span",
    "reqd": 1
   },
@@ -131,7 +127,9 @@
    "fieldname": "display_text_ar",
    "fieldtype": "Data",
    "label": "Display Text (Arabic)",
-   "translatable": 1
+   "translatable": 1,
+   "in_list_view": 1,
+   "columns": 3
   },
   {
    "fieldname": "image",
@@ -162,7 +160,7 @@
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2026-08-09 00:00:00.000000",
+ "modified": "2026-09-05 19:00:00.000000",
  "modified_by": "Administrator",
  "module": "Restaurant POS",
  "name": "POS Screen Layout Button",

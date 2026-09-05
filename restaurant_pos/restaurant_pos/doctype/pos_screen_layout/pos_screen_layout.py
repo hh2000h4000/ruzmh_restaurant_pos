@@ -12,7 +12,22 @@ class POSScreenLayout(Document):
 		self.validate_grid()
 		self.validate_buttons()
 
+	@property
+	def is_grid(self) -> bool:
+		"""Whether the coordinates on the buttons mean anything (`D-142`).
+
+		In `flow` they do not: the till lays the buttons out in the order of the
+		table below and never reads a column. So every rule about columns is off
+		here — and it has to be, because the fields default to 1 and a manager
+		adding a second row would otherwise be told it collides with the first,
+		about a grid the form does not even show them.
+		"""
+		return self.layout_mode == "grid"
+
 	def validate_grid(self):
+		if not self.is_grid:
+			return
+
 		if cint(self.grid_columns) < 1:
 			frappe.throw(_("Grid Columns must be at least 1."))
 		if cint(self.grid_rows) < 1:
@@ -44,8 +59,9 @@ class POSScreenLayout(Document):
 			if row.button_type == "goto_screen" and row.goto_screen == self.name:
 				frappe.throw(_("Row #{0}: A button cannot navigate to its own screen.").format(row.idx))
 
-			self.validate_button_geometry(row)
-			self.validate_button_overlap(row, occupied)
+			if self.is_grid:
+				self.validate_button_geometry(row)
+				self.validate_button_overlap(row, occupied)
 
 	def validate_button_geometry(self, row):
 		if cint(row.col_span) < 1 or cint(row.row_span) < 1:

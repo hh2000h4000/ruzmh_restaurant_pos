@@ -334,6 +334,52 @@ class TestTheScreenLayoutMode(FrappeTestCase):
 
 		self.assertEqual(doc.layout_mode, "flow")
 
+	def test_a_flow_layout_takes_a_second_button_without_a_quarrel(self):
+		"""The defect the user found within a minute of being handed this.
+
+		Every coordinate field defaults to 1, and the grid rules were still on
+		in flow — so adding a second row was refused with "Cell (column 1, row
+		1) is already used by row #1", about a grid the form does not show and
+		the till does not read. Hiding the fields and ignoring them in the
+		renderer was half a change (`D-142`).
+		"""
+		group = frappe.db.get_value("Item Group", {"is_group": 0}, "name")
+		doc = frappe.get_doc(
+			{
+				"doctype": "POS Screen Layout",
+				"title": "RPOS Test crowded flow",
+				"layout_mode": "flow",
+				"buttons": [
+					{"button_type": "item_group", "item_group": group},
+					{"button_type": "item_group", "item_group": group},
+					{"button_type": "item_group", "item_group": group},
+				],
+			}
+		).insert(ignore_permissions=True)
+		self.addCleanup(frappe.delete_doc, "POS Screen Layout", doc.name, force=True)
+
+		self.assertEqual(len(doc.buttons), 3)
+		self.assertEqual([row.idx for row in doc.buttons], [1, 2, 3])
+
+	def test_a_grid_layout_still_refuses_two_buttons_in_one_cell(self):
+		"""The rule is right where it applies — it was only in the wrong place."""
+		group = frappe.db.get_value("Item Group", {"is_group": 0}, "name")
+
+		with self.assertRaises(frappe.ValidationError):
+			frappe.get_doc(
+				{
+					"doctype": "POS Screen Layout",
+					"title": "RPOS Test collision",
+					"layout_mode": "grid",
+					"grid_columns": 4,
+					"grid_rows": 4,
+					"buttons": [
+						{"button_type": "item_group", "item_group": group},
+						{"button_type": "item_group", "item_group": group},
+					],
+				}
+			).insert(ignore_permissions=True)
+
 	def test_a_flow_layout_needs_no_grid_size(self):
 		"""The point of the mode: no numbers to invent."""
 		doc = frappe.get_doc(

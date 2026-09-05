@@ -259,6 +259,23 @@ CUSTOM_FIELDS = {
 	# at the till: the customer owes the restaurant and pays monthly. ERPNext
 	# has no "credit" mode of payment type, so the distinction is a flag
 	# (DECISIONS.md D-029).
+	# A return is an invoice in reverse, and a cashier reads a bill by its short
+	# daily number — not by `ACC-SINV-2026-00042` (`D-143`). The credit note
+	# takes the next number in the branch's own sequence, so a day reads 20 for
+	# the sale and 21 for the return of part of it. `Restaurant Order` carries
+	# the same number for a sale; this is where a document that is *not* an
+	# order carries one.
+	"Sales Invoice": [
+		{
+			"fieldname": "rpos_daily_number",
+			"fieldtype": "Int",
+			"label": "RPOS Daily Number",
+			"read_only": 1,
+			"no_copy": 1,
+			"description": "The short number the till shows for this document, in the branch's daily sequence.",
+			"insert_after": "is_return",
+		},
+	],
 	"Mode of Payment": [
 		{
 			"fieldname": "rpos_is_credit",

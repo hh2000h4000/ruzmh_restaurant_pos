@@ -22,7 +22,7 @@ import frappe
 from frappe import _
 from frappe.utils import flt, now_datetime
 
-from restaurant_pos.utils import payment, printing
+from restaurant_pos.utils import numbering, payment, printing
 from restaurant_pos.utils.audit import log_audit
 from restaurant_pos.utils.payment import is_credit_method
 from restaurant_pos.utils.permissions import consume_override_token
@@ -197,7 +197,7 @@ def create_return(
 	approved_by = _authorise_return(order, override_token)
 	wanted = _validate_quantities(order, items)
 
-	credit = _build_credit_note(invoice, wanted, reason, refund_method)
+	credit = _build_credit_note(order, invoice, wanted, reason, refund_method)
 
 	log_audit(
 		"return_created",
@@ -215,10 +215,19 @@ def create_return(
 		},
 	)
 
+	# **The customer leaves with the paper** (`D-143`). A sale prints its receipt
+	# from `process_payment`; a refund printed nothing at all, so money went back
+	# across the counter with no document — and the template has known how to
+	# draw a credit note since it was written (`إشعار دائن`). Off the request
+	# like every other print: the agent inside the restaurant is what reaches
+	# paper (`D-084`).
+	printing.enqueue_print("print_receipt", invoice_name=credit.name, order_name=order.name)
+
 	return {
 		"order_name": order.name,
 		"sales_invoice": invoice,
 		"credit_note": credit.name,
+		"daily_number": credit.rpos_daily_number,
 		# Positive, because a cashier hands this much back. The document carries
 		# it negative, which is the ledger's business and not the screen's.
 		"refund_amount": abs(flt(credit.rounded_total or credit.grand_total)),
@@ -338,7 +347,7 @@ def _compose(invoice: str, wanted: dict[str, float]):
 	return credit
 
 
-def _build_credit_note(invoice: str, wanted: dict[str, float], reason: str, refund_method: str | None):
+def _build_credit_note(order, invoice: str, wanted: dict[str, float], reason: str, refund_method: str | None):
 	credit = _compose(invoice, wanted)
 
 	_apply_refund(credit, refund_method)
@@ -346,6 +355,13 @@ def _build_credit_note(invoice: str, wanted: dict[str, float], reason: str, refu
 	# credit note has to carry one, and this is where a ZATCA integration will
 	# read it from (D-065).
 	credit.remarks = _("Return of {0}: {1}").format(invoice, reason)
+
+	# **Its own number, in the day's own sequence** (`D-143`). A return is an
+	# invoice in reverse and a cashier reads a bill by its short number, not by
+	# `ACC-SINV-2026-00042`: the sale is 20, returning part of it is 21, and
+	# returning the rest later is 22. Three documents, three numbers, each
+	# naming the bill it reverses.
+	credit.rpos_daily_number = numbering.next_order_number(branch=order.branch, shift=order.restaurant_shift)
 
 	credit.flags.ignore_permissions = True
 	credit.insert()

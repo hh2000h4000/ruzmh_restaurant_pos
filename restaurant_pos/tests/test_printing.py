@@ -12,6 +12,7 @@ Refs: FR-6.4, FR-7.2, FR-7.3, FR-7.5, BR-070, BR-072, D-084, D-085
 
 import base64
 import io
+from unittest.mock import patch
 
 import frappe
 from frappe.tests.utils import FrappeTestCase
@@ -20,11 +21,14 @@ from frappe.utils import add_to_date, now_datetime
 from restaurant_pos.api import printing as api
 from restaurant_pos.restaurant_pos.doctype.pos_print_agent import pos_print_agent
 from restaurant_pos.setup import print_templates
-from restaurant_pos.tests.test_order import BRANCH, ITEM, OrderTestBase
+from restaurant_pos.tests.test_order import BRANCH, ITEM, OrderTestBase, _make_cashier
 from restaurant_pos.tests.test_payment import PaymentTestBase
+from restaurant_pos.tests.test_returns import REASON as RETURN_REASON
+from restaurant_pos.tests.test_returns import ReturnTestBase
 from restaurant_pos.utils import kitchen
 from restaurant_pos.utils import order as orders
 from restaurant_pos.utils import printing as service
+from restaurant_pos.utils import returns as service_returns
 
 
 def _white_png(width: int, height: int) -> bytes:
@@ -731,3 +735,95 @@ class TestTheTestPage(PrintingTestBase):
 		compare against — so it must not be editable alongside the receipt.
 		"""
 		self.assertFalse(frappe.db.exists("POS Print Template", {"template_type": "test"}))
+
+
+class TestAskingForThePaperAgain(ReturnTestBase):
+	"""Reprinting a receipt — a sale's, and a refund's (`FR-7.5`, `D-143`).
+
+	The cashier could reprint a *kitchen ticket* and nothing else: the receipt
+	the customer actually holds had no way back to paper, for a sale or for a
+	return. A till that cannot reprint sends the customer to the office.
+
+	One endpoint answers both, so these tests hold it to the harder half: a
+	credit note is on no order — it reverses one — and it still has to find the
+	printer it belongs to.
+	"""
+
+	def _refund(self, order) -> str:
+		result = service_returns.create_return(
+			order, items=[{"row": self._row(order), "qty": 1}], reason_code=RETURN_REASON
+		)
+		return result["credit_note"]
+
+	def test_a_sale_goes_back_on_the_printer(self):
+		order = self._paid()
+
+		with patch("restaurant_pos.api.printing.service.enqueue_print") as queued:
+			result = api.reprint_receipt(order.sales_invoice)
+
+		queued.assert_called_once_with(
+			"print_receipt", invoice_name=order.sales_invoice, order_name=order.name
+		)
+		self.assertTrue(result["queued"])
+
+	def test_a_refund_finds_the_bill_it_reverses(self):
+		"""The credit note is linked to no order; `return_against` is the way home."""
+		order = self._paid()
+		credit = self._refund(order)
+
+		with patch("restaurant_pos.api.printing.service.enqueue_print") as queued:
+			api.reprint_receipt(credit)
+
+		queued.assert_called_once_with("print_receipt", invoice_name=credit, order_name=order.name)
+
+	def test_it_is_audited(self):
+		"""08 §5 — paper handed out twice is a thing somebody may have to explain."""
+		order = self._paid()
+		credit = self._refund(order)
+
+		with patch("restaurant_pos.api.printing.service.enqueue_print"):
+			api.reprint_receipt(credit)
+
+		entries = frappe.get_all(
+			"POS Audit Log",
+			filters={"restaurant_order": order.name, "action_type": "reprint_receipt"},
+			fields=["details"],
+		)
+		details = [frappe.parse_json(row.details) for row in entries]
+		self.assertIn({"sales_invoice": credit, "is_return": 1}, details)
+
+	def test_the_same_request_twice_prints_once(self):
+		"""09 §8 — a queued reprint replayed after an outage is not two receipts."""
+		order = self._paid()
+
+		with patch("restaurant_pos.api.printing.service.enqueue_print") as queued:
+			first = api.reprint_receipt(order.sales_invoice, queue_id="reprint-once")
+			again = api.reprint_receipt(order.sales_invoice, queue_id="reprint-once")
+
+		queued.assert_called_once()
+		self.assertEqual(first, again)
+
+	def test_an_invoice_nobody_here_issued_is_refused_by_name(self):
+		"""And with a sentence — never a bare framework error (`CLAUDE.md` §5.4)."""
+		with self.assertRaises(frappe.ValidationError) as caught:
+			api.reprint_receipt("ACC-SINV-NOT-A-THING")
+
+		self.assertIn("ACC-SINV-NOT-A-THING", str(caught.exception))
+
+	def test_a_cashier_without_the_right_gets_nothing(self):
+		order = self._paid()
+		frappe.db.set_value("POS Permission Set", "POS Cashier", "can_reprint_receipt", 0)
+		cashier = _make_cashier()
+
+		frappe.set_user(cashier)
+		frappe.local.rpos_permission_cache = {}
+		try:
+			with patch("restaurant_pos.api.printing.service.enqueue_print") as queued:
+				with self.assertRaises(frappe.PermissionError):
+					api.reprint_receipt(order.sales_invoice)
+
+			queued.assert_not_called()
+		finally:
+			frappe.set_user("Administrator")
+			frappe.local.rpos_permission_cache = {}
+			frappe.db.set_value("POS Permission Set", "POS Cashier", "can_reprint_receipt", 1)

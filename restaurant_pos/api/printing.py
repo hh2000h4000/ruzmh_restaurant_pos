@@ -19,8 +19,10 @@ from frappe import _
 from frappe.utils import add_to_date, now_datetime
 
 from restaurant_pos.restaurant_pos.doctype.pos_print_agent import pos_print_agent
+from restaurant_pos.utils import idempotency
 from restaurant_pos.utils import printing as service
-from restaurant_pos.utils.permissions import validate_branch_access
+from restaurant_pos.utils.audit import log_audit
+from restaurant_pos.utils.permissions import assert_permission, validate_branch_access
 
 #: How long a job may sit with an agent before another claim may take it back.
 #:
@@ -181,6 +183,70 @@ def _connection(printer: str) -> dict:
 # --------------------------------------------------------------------------- #
 # The till and the desk
 # --------------------------------------------------------------------------- #
+
+
+@frappe.whitelist()
+def reprint_receipt(invoice_name: str, queue_id: str | None = None) -> dict:
+	"""Print a receipt the customer has already been given (`FR-7.5`, `D-143`).
+
+	**One endpoint for a sale and for a refund**, because it is one question: put
+	this invoice on the cashier's printer again. A credit note is an invoice in
+	reverse — it is asked for by the same cashier, at the same counter, for the
+	same reason (the paper tore, the customer wants it for their employer), and a
+	second endpoint would be a second thing to keep working (`CLAUDE.md` §5.5).
+
+	Nothing is created. The reprint renders the document that exists, so the
+	receipt that comes out is the receipt that was issued, and the trail lives in
+	the audit log — which is exactly how a kitchen ticket reprints (`FR-6.4`).
+	"""
+	replay = idempotency.previous_result(queue_id)
+	if replay is not None:
+		return replay
+
+	invoice = frappe.db.get_value(
+		"Sales Invoice", invoice_name, ["name", "docstatus", "is_return", "return_against"], as_dict=True
+	)
+	if not invoice:
+		frappe.throw(_("Invoice {0} does not exist.").format(invoice_name))
+
+	if invoice.docstatus != 1:
+		frappe.throw(_("Invoice {0} is not submitted.").format(invoice_name))
+
+	# The bill behind the paper. A credit note's own `sales_invoice` link is on
+	# no order — it reverses one — so a refund is traced through the sale it was
+	# taken against. Both branches end at the same order, which is what carries
+	# the branch, the terminal and the printer this is going to.
+	order = frappe.db.get_value(
+		"Restaurant Order",
+		{"sales_invoice": invoice.return_against or invoice.name},
+		["name", "branch", "pos_profile"],
+		as_dict=True,
+	)
+	if not order:
+		frappe.throw(_("Invoice {0} did not come from this till.").format(invoice_name))
+
+	validate_branch_access(order.branch)
+	assert_permission("can_reprint_receipt")
+
+	service.enqueue_print("print_receipt", invoice_name=invoice.name, order_name=order.name)
+
+	log_audit(
+		"reprint_receipt",
+		branch=order.branch,
+		pos_profile=order.pos_profile,
+		restaurant_order=order.name,
+		details={"sales_invoice": invoice.name, "is_return": int(invoice.is_return or 0)},
+	)
+
+	result = {"invoice": invoice.name, "order_name": order.name, "queued": True}
+	idempotency.remember(
+		queue_id,
+		"reprint_receipt",
+		result,
+		reference_doctype="Sales Invoice",
+		reference_name=invoice.name,
+	)
+	return result
 
 
 @frappe.whitelist()

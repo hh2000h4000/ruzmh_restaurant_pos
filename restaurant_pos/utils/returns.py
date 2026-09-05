@@ -18,6 +18,8 @@ rather than a parallel tally of ours (`FR-9.3`).
 Refs: FR-9.1..FR-9.3, BR-050..BR-055, D-064
 """
 
+from contextlib import contextmanager
+
 import frappe
 from frappe import _
 from frappe.utils import flt, now_datetime
@@ -316,6 +318,47 @@ def preview(order, *, items: list) -> dict:
 	}
 
 
+@contextmanager
+def _server_rights():
+	"""Borrow the framework's own rights for the length of one mapping call.
+
+	**No POS role may read or create a `Sales Invoice`** — deliberately. RPOS
+	authorises through `POS Permission Set` and inserts the sale itself with
+	`ignore_permissions` (`08_Security.md` §1), so a cashier never needs desk
+	rights on an accounting document, and cannot list one either.
+
+	ERPNext's `make_return_doc` asks the **session** before it maps anything,
+	and takes no flag to say otherwise. So every refund by a real cashier died
+	inside the mapper on a bare `PermissionError` — no message, no number,
+	nothing on screen. It went unseen because every test here ran as
+	Administrator, who is allowed everything (`D-144`).
+
+	The alternative was to grant POS roles read on `Sales Invoice`, which hands
+	every cashier every invoice the company has ever issued to satisfy one
+	framework check. This is the smaller door: `frappe.session.user` and the two
+	caches keyed on it, restored in `finally`, around a call that maps one
+	document we have already authorised — `assert_may_sell`, `can_create_return`
+	(with a manager's PIN when the shift is not the cashier's), branch access
+	and the quantities have all run by the time we arrive here. The credit note
+	is still inserted by the cashier, so it carries their name, not this one.
+	"""
+	session = frappe.local.session
+	cashier = session.user
+
+	def _reset(user: str) -> None:
+		session.user = user
+		# Both are keyed on the session user and would otherwise answer for the
+		# wrong one on the way in *and* on the way out.
+		frappe.local.role_permissions = {}
+		frappe.local.user_perms = None
+
+	_reset("Administrator")
+	try:
+		yield
+	finally:
+		_reset(cashier)
+
+
 def _compose(invoice: str, wanted: dict[str, float]):
 	"""ERPNext builds it; we trim it to what is actually coming back.
 
@@ -328,7 +371,8 @@ def _compose(invoice: str, wanted: dict[str, float]):
 	"""
 	from erpnext.controllers.sales_and_purchase_return import make_return_doc
 
-	credit = make_return_doc("Sales Invoice", invoice)
+	with _server_rights():
+		credit = make_return_doc("Sales Invoice", invoice)
 
 	kept = []
 	for row in credit.items:

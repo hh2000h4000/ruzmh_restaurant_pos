@@ -359,3 +359,83 @@ class TestTheReturnsTabListsTheReturns(ReturnTestBase):
 		order = self._paid()
 
 		self.assertNotIn(order.name, [entry["name"] for entry in self._returns()])
+
+
+class TestARealCashierCanRefund(ReturnTestBase):
+	"""The test that was missing, and the defect it was hiding (`D-144`).
+
+	Every test above runs as Administrator, who is allowed everything by the
+	first line of `frappe.has_permission`. Under a real login the refund never
+	got as far as our own rules: ERPNext's mapper asked the session for rights
+	on `Sales Invoice`, no POS role has any, and the cashier got a bare
+	`PermissionError` — an empty screen for a customer standing at the counter
+	with their money in the till.
+
+	So the assertion is not about the amount. It is that the whole path runs
+	**as a cashier**: preview, refund, and the number it comes back with.
+	"""
+
+	@classmethod
+	def setUpClass(cls):
+		super().setUpClass()
+		from restaurant_pos.tests.test_permissions import SENIOR, _make_user
+
+		# A senior holds `can_create_return` outright, which is the shortest
+		# real login that reaches the mapper — a plain cashier needs a manager's
+		# PIN first, and that is a different rule, tested elsewhere.
+		cls.senior = _make_user(SENIOR, "POS Senior Cashier")
+
+	def setUp(self):
+		super().setUp()
+		self.order = self._paid(qty=2)
+		self.row = self._row(self.order)
+		frappe.set_user(self.senior)
+		frappe.local.rpos_permission_cache = {}
+
+	def tearDown(self):
+		frappe.set_user("Administrator")
+		frappe.local.rpos_permission_cache = {}
+		super().tearDown()
+
+	def test_a_cashier_can_price_a_return_before_committing_to_it(self):
+		quoted = service.preview(self.order, items=[{"row": self.row, "qty": 1}])
+
+		self.assertGreater(quoted["refund_amount"], 0)
+
+	def test_a_cashier_can_actually_refund(self):
+		result = service.create_return(
+			self.order, items=[{"row": self.row, "qty": 1}], reason_code=REASON
+		)
+
+		self.assertTrue(result["credit_note"])
+		self.assertGreater(result["daily_number"], self.order.daily_number)
+
+	def test_the_credit_note_carries_the_cashier_name_not_the_frameworks(self):
+		"""The rights are borrowed for the mapping only, never for the document."""
+		result = service.create_return(
+			self.order, items=[{"row": self.row, "qty": 1}], reason_code=REASON
+		)
+
+		self.assertEqual(frappe.db.get_value("Sales Invoice", result["credit_note"], "owner"), self.senior)
+
+	def test_the_session_is_handed_back(self):
+		service.create_return(self.order, items=[{"row": self.row, "qty": 1}], reason_code=REASON)
+
+		self.assertEqual(frappe.session.user, self.senior)
+
+	def test_the_session_is_handed_back_even_when_the_mapping_fails(self):
+		"""Borrowed rights are given back on the way out of a failure too.
+
+		A cashier left holding Administrator's session because ERPNext raised
+		mid-map would be a far worse defect than the one being fixed.
+		"""
+		with patch(
+			"erpnext.controllers.sales_and_purchase_return.make_return_doc",
+			side_effect=frappe.ValidationError("no"),
+		):
+			with self.assertRaises(frappe.ValidationError):
+				service.create_return(
+					self.order, items=[{"row": self.row, "qty": 1}], reason_code=REASON
+				)
+
+		self.assertEqual(frappe.session.user, self.senior)

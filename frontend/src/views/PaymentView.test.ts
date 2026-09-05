@@ -107,21 +107,38 @@ function confirmButton(wrapper: Wrapper) {
  * Take money on a method the way a cashier does: tap it, then tap the first
  * amount the sheet offers — which is always what is still owed (`D-124`).
  */
+/**
+ * Everything tappable inside the open sheet.
+ *
+ * Scoped deliberately: the screen behind it also carries buttons labelled with
+ * bare numbers — the split chips — and reaching one of those from here would be
+ * the test doing something no cashier can do while a sheet is over them.
+ */
+function sheetButtons(wrapper: Wrapper, opened: string) {
+  const sheet = wrapper.find('[role="dialog"]');
+  if (!sheet.exists()) throw new Error(`tapping ${opened} opened no tender sheet`);
+
+  return sheet.findAll("button");
+}
+
+function tap(buttons: ReturnType<typeof sheetButtons>, label: string) {
+  const found = buttons.find((button) => button.text().trim() === label);
+  if (found) return found;
+
+  throw new Error(
+    `no "${label}" in the sheet — it offers: ${buttons.map((b) => b.text().trim()).join(" | ")}`,
+  );
+}
+
 async function tender(wrapper: Wrapper, name: string) {
   await methodButton(wrapper, name).trigger("click");
   await flushPromises();
 
-  // Inside the sheet only. The screen behind it also has buttons labelled with
-  // bare numbers — the split chips — and reaching one of those from here would
-  // be the test doing something no cashier can do while the sheet is open.
-  const sheet = wrapper.find('[role="dialog"]');
-  if (!sheet.exists()) throw new Error(`tapping ${name} opened no tender sheet`);
-
-  const amount = sheet
-    .findAll("button")
-    .find((button) => /^[\d,.]+$/.test(button.text().trim()));
-
+  // The first option is always what is still owed (`D-124`), and it is the
+  // first thing in the sheet carrying a figure.
+  const amount = sheetButtons(wrapper, name).find((button) => /\d/.test(button.text()));
   if (!amount) throw new Error("the tender sheet offered no amount");
+
   await amount.trigger("click");
   await flushPromises();
 }
@@ -137,13 +154,11 @@ async function tenderSome(wrapper: Wrapper, name: string, digits: string) {
   await methodButton(wrapper, name).trigger("click");
   await flushPromises();
 
-  const sheet = wrapper.find('[role="dialog"]');
-  const inSheet = (label: string) =>
-    sheet.findAll("button").find((button) => button.text().trim() === label);
-
-  await inSheet("مبلغ آخر")!.trigger("click");
-  for (const digit of digits) await inSheet(digit)!.trigger("click");
-  await inSheet("تم")!.trigger("click");
+  await tap(sheetButtons(wrapper, name), "مبلغ آخر").trigger("click");
+  for (const digit of digits) {
+    await tap(sheetButtons(wrapper, name), digit).trigger("click");
+  }
+  await tap(sheetButtons(wrapper, name), "تم").trigger("click");
   await flushPromises();
 }
 

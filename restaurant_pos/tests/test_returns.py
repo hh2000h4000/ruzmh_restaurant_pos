@@ -284,9 +284,7 @@ class TestAReturnIsADocumentOfItsOwn(ReturnTestBase):
 	def test_the_number_is_on_the_credit_note_itself(self):
 		"""Not only in the reply: the list reads it off the document."""
 		order = self._paid()
-		result = service.create_return(
-			order, items=[{"row": self._row(order), "qty": 1}], reason_code=REASON
-		)
+		result = service.create_return(order, items=[{"row": self._row(order), "qty": 1}], reason_code=REASON)
 
 		self.assertEqual(
 			frappe.db.get_value("Sales Invoice", result["credit_note"], "rpos_daily_number"),
@@ -311,3 +309,53 @@ class TestAReturnIsADocumentOfItsOwn(ReturnTestBase):
 		queued.assert_called_once_with(
 			"print_receipt", invoice_name=result["credit_note"], order_name=order.name
 		)
+
+
+class TestTheReturnsTabListsTheReturns(ReturnTestBase):
+	"""What the user reported twice: a refund the till shows as a note (`D-143`).
+
+	The tab listed the **bills** money had gone back out of, with the refunds
+	summed into one figure per bill. So a bill refunded twice looked like one
+	event, and there was no row belonging to a particular credit note — nothing
+	to reprint from, and nothing to check a drawer against.
+	"""
+
+	def _returns(self):
+		from restaurant_pos.api.order import list_orders
+
+		return list_orders(self.profile, view="returned")
+
+	def test_two_refunds_on_one_bill_are_two_rows(self):
+		order = self._paid(qty=2)
+		row = self._row(order)
+		service.create_return(order, items=[{"row": row, "qty": 1}], reason_code=REASON)
+		service.create_return(order, items=[{"row": row, "qty": 1}], reason_code=REASON)
+
+		mine = [entry for entry in self._returns() if entry["name"] == order.name]
+
+		self.assertEqual(len(mine), 2, "one row per credit note, not one per bill")
+		self.assertEqual(len({entry["credit_note"] for entry in mine}), 2)
+		self.assertEqual(len({entry["daily_number"] for entry in mine}), 2)
+
+	def test_the_amount_is_negative_because_that_is_the_direction(self):
+		order = self._paid()
+		service.create_return(order, items=[{"row": self._row(order), "qty": 1}], reason_code=REASON)
+
+		mine = next(entry for entry in self._returns() if entry["name"] == order.name)
+
+		self.assertLess(mine["total_amount"], 0)
+		self.assertEqual(mine["is_return"], 1)
+
+	def test_a_row_names_the_bill_it_reverses(self):
+		order = self._paid()
+		service.create_return(order, items=[{"row": self._row(order), "qty": 1}], reason_code=REASON)
+
+		mine = next(entry for entry in self._returns() if entry["name"] == order.name)
+
+		self.assertEqual(mine["returns_daily_number"], order.daily_number)
+		self.assertNotEqual(mine["daily_number"], order.daily_number)
+
+	def test_a_bill_with_nothing_returned_is_not_in_the_tab(self):
+		order = self._paid()
+
+		self.assertNotIn(order.name, [entry["name"] for entry in self._returns()])

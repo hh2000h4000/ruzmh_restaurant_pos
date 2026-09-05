@@ -576,12 +576,74 @@ def list_orders(pos_profile: str, view: str = "open") -> list[dict]:
 
 	_annotate_refunds(orders)
 	if view == "returned":
-		orders = [row for row in orders if row.returned_amount]
-		if not orders:
-			return []
+		return _returns_of(orders)
 
 	_annotate_open_orders(orders)
 	return orders
+
+
+def _returns_of(orders: list) -> list[dict]:
+	"""One row per credit note, not one per refunded bill (`D-143`).
+
+	This tab used to list the **orders** money had gone back out of, on the
+	reasoning that a credit note is not a `Restaurant Order` so no list of
+	orders could hold one. The reasoning was sound and answered the wrong
+	question: these history tabs are the **day's transactions**, and a refund is
+	one. Listing the original instead failed three ways —
+
+	* two refunds on one bill collapsed into a single figure, so the events were
+	  invisible;
+	* the list could not be reconciled line by line against a drawer that had
+	  paid those refunds out;
+	* and there was no row to reprint a particular credit note from.
+
+	A refund keeps the card it reverses — the type, the table, the customer are
+	all the sale's — and replaces the parts that are its own: its number, its
+	time, and an amount that is **negative**, because that is the direction the
+	money went.
+	"""
+	by_invoice = {row.sales_invoice: row for row in orders if row.get("sales_invoice")}
+	if not by_invoice:
+		return []
+
+	credits = frappe.get_all(
+		"Sales Invoice",
+		filters={"return_against": ("in", list(by_invoice)), "docstatus": 1},
+		fields=[
+			"name",
+			"return_against",
+			"rpos_daily_number",
+			"grand_total",
+			"rounded_total",
+			"posting_date",
+			"creation",
+		],
+		order_by="creation desc",
+		limit=CLOSED_LIMIT,
+	)
+
+	rows = []
+	for credit in credits:
+		sale = by_invoice[credit.return_against]
+		refund = abs(flt(credit.rounded_total or credit.grand_total))
+
+		rows.append(
+			{
+				**sale,
+				# The document this row *is*, replacing the one it came from.
+				"name": sale.name,
+				"credit_note": credit.name,
+				"daily_number": credit.rpos_daily_number or sale.daily_number,
+				"total_amount": -refund,
+				"returned_amount": refund,
+				"opened_at": credit.creation,
+				# Which bill it reverses, so the row can say so out loud.
+				"returns_daily_number": sale.daily_number,
+				"is_return": 1,
+			}
+		)
+
+	return rows
 
 
 def _annotate_refunds(orders: list) -> None:

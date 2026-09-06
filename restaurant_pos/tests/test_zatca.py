@@ -12,7 +12,6 @@ Refs: FR-7.5, D-092
 
 import base64
 import io
-
 from unittest.mock import patch
 
 import frappe

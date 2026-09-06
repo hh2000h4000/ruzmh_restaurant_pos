@@ -40,6 +40,16 @@ const receipt = computed<string | null>(
   () => props.order.credit_note ?? props.order.sales_invoice ?? null,
 );
 
+/**
+ * The moment this row is about (`D-146`).
+ *
+ * An open bill is dated by when it opened — that is what the cashier is
+ * waiting on. A closed one, and a refund, are dated by when they happened;
+ * showing the opening time under a tab called "today" is how a bill paid at
+ * one in the morning reads as yesterday's.
+ */
+const happenedAt = computed(() => props.order.closed_at ?? props.order.opened_at);
+
 const menuOpen = ref(false);
 
 /**
@@ -147,10 +157,10 @@ function choose(where: "order" | "floor" | "reprint"): void {
          took room from the number beside it. -->
     <div class="hidden shrink-0 lg:block">
       <p class="rpos-numeric font-bold">
-        {{ dateOnly(order.opened_at) }}
+        {{ dateOnly(happenedAt) }}
       </p>
       <p class="rpos-numeric text-sm text-muted">
-        {{ timeOnly(order.opened_at) }}
+        {{ timeOnly(happenedAt) }}
       </p>
     </div>
 

@@ -461,24 +461,36 @@ def merge_bills(
 #: An order the cashier can still act on. Anything else belongs to history.
 OPEN_STATUSES = ("draft", "active", "in_kitchen", "pending_payment")
 
-#: What each tab of the orders pane asks for (06 Screen 3, D-042).
-VIEWS = {
-	"open": OPEN_STATUSES,
-	# A "draft" view was here and is gone on purpose (`D-122`). A draft is an
-	# empty bill — the first line makes it active — so the tab filtered to bills
-	# with nothing on them, which the card already says in its item count.
-	"closed": ("closed", "cancelled"),
-	# FR-9, D-070 — the bills money went back out of. A credit note is not a
-	# `Restaurant Order`, so it can never appear in a list of orders; what the
-	# cashier is actually looking for is **which bill was refunded**, and that is
-	# an order. Same card, same list, one more tab.
-	"returned": ("closed",),
-	"all": (*OPEN_STATUSES, "closed", "cancelled"),
-}
+#: A bill that is no longer on the floor, whichever way it ended.
+HISTORY_STATUSES = ("closed", "cancelled")
+
+#: The four tabs of the orders pane (06 Screen 3, D-042).
+#:
+#: A "draft" view was here and is gone on purpose (`D-122`): a draft is an empty
+#: bill, so the tab filtered to bills with nothing on them.
+VIEWS = ("open", "closed", "returned", "all")
 
 #: A day's history is what a till needs — a reprint, a return, "what did table
 #: four have". Anything older is a report, and a report is not this list.
 CLOSED_LIMIT = 200
+
+#: What every card is drawn from, whichever tab asked for it.
+LIST_FIELDS = (
+	"name",
+	# What the cashier reads on a card and says out loud (FR-2.10).
+	"daily_number",
+	"call_name",
+	"order_type",
+	"status",
+	"table",
+	"cover_count",
+	"customer",
+	"cashier",
+	"sales_invoice",
+	"total_amount",
+	"opened_at",
+	"closed_at",
+)
 
 
 @frappe.whitelist()
@@ -494,23 +506,26 @@ def list_orders(pos_profile: str, view: str = "open") -> list[dict]:
 	one that needs attention (06 §Screen 1 behaviour). History comes newest
 	first and only for today, because what a cashier wants from a closed order
 	is the one they just closed.
+
+	**Each tab is bounded by its own event** (`D-146`). "Closed today" means
+	closed today, and "returns" means refunded today — not *opened* today, which
+	is what all three history tabs used to measure and is a different day for
+	every bill that outlives midnight.
 	"""
-	statuses = VIEWS.get(view)
-	if not statuses:
+	if view not in VIEWS:
 		frappe.throw(_("Unknown order view {0}.").format(view))
 
-	# A POS Profile has no branch of its own; it inherits one from the section
-	# it serves, the same way `session._profile` resolves it.
-	section = frappe.db.get_value("POS Profile", pos_profile, "restaurant_section")
-	branch = frappe.db.get_value("Restaurant Section", section, "branch") if section else None
+	branch = service.branch_of_profile(pos_profile)
+	scope: dict = {}
 
-	filters: dict = {"status": ("in", statuses)}
-
-	# History is bounded by the day, so the list cannot grow without limit and a
-	# cashier is never scrolling through last month to reprint this morning.
-	history_only = view in ("closed", "returned")
-	if history_only:
-		filters["opened_at"] = (">=", get_datetime(f"{nowdate()} 00:00:00"))
+	if branch:
+		validate_branch_access(branch)
+		scope["branch"] = branch
+	else:
+		# A terminal attached to no section has no branch to scope by. Falling
+		# back to the terminal is narrower than right; listing every branch's
+		# floor would be wrong.
+		scope["pos_profile"] = pos_profile
 
 	# FR-12.x — whose orders a cashier may see is a permission, enforced here
 	# and not by hiding a button. But it scopes **history**, not the floor
@@ -526,63 +541,130 @@ def list_orders(pos_profile: str, view: str = "open") -> list[dict]:
 	# So an open bill in the branch belongs to whoever is working, and the
 	# permission decides who may read the day's closed ones.
 	mine_only = not get_pos_permission_set().get("can_view_all_orders")
-	if mine_only and history_only:
-		filters["cashier"] = frappe.session.user
 
-	if branch:
-		validate_branch_access(branch)
-		filters["branch"] = branch
-	else:
-		# A terminal attached to no section has no branch to scope by. Falling
-		# back to the terminal is narrower than right; listing every branch's
-		# floor would be wrong.
-		filters["pos_profile"] = pos_profile
+	if view == "returned":
+		return _refunds_today(scope, mine_only=mine_only)
 
-	orders = frappe.get_all(
-		"Restaurant Order",
-		filters=filters,
-		fields=[
-			"name",
-			# What the cashier reads on a card and says out loud (FR-2.10).
-			"daily_number",
-			"call_name",
-			"order_type",
-			"status",
-			"table",
-			"cover_count",
-			"customer",
-			"cashier",
-			"sales_invoice",
-			"total_amount",
-			"opened_at",
-		],
-		order_by="opened_at desc" if history_only else "opened_at asc",
-		limit=CLOSED_LIMIT if history_only else 0,
-	)
-
-	# The "all" tab is the one view that mixes the floor with the day's history.
-	# Filtering it in the query would have hidden other people's *open* bills
-	# too, which is the thing `D-121` set out to stop, so its closed half is
-	# dropped here instead.
-	if mine_only and not history_only:
-		orders = [
-			row
-			for row in orders
-			if row.status not in ("closed", "cancelled") or row.cashier == frappe.session.user
-		]
+	orders = []
+	if view in ("open", "all"):
+		orders += _floor(scope)
+	if view in ("closed", "all"):
+		orders += _closed_today(scope, mine_only=mine_only)
 
 	if not orders:
 		return []
 
 	_annotate_refunds(orders)
-	if view == "returned":
-		return _returns_of(orders)
-
 	_annotate_open_orders(orders)
 	return orders
 
 
-def _returns_of(orders: list) -> list[dict]:
+def _since_midnight():
+	"""Where a till's day starts, for every tab that says "today"."""
+	return get_datetime(f"{nowdate()} 00:00:00")
+
+
+def _floor(scope: dict) -> list:
+	"""Every bill still open, oldest first — and **at any age**.
+
+	Deliberately unbounded by date: a tab that runs past midnight, or a bill
+	carried over because the branch lets the day end without it (`D-105`), is
+	still open and still the cashier's to finish. Bounding the floor by today
+	would strand exactly those.
+	"""
+	return frappe.get_all(
+		"Restaurant Order",
+		filters={**scope, "status": ("in", OPEN_STATUSES)},
+		fields=list(LIST_FIELDS),
+		order_by="opened_at asc",
+	)
+
+
+def _closed_today(scope: dict, *, mine_only: bool) -> list:
+	"""Bills that **ended** today, newest first.
+
+	`closed_at`, not `opened_at`. A bill opened at eleven last night and paid at
+	one in the morning belongs to the shift that took the money, and reading the
+	opening time hid it from the tab the moment it was paid — the cashier closed
+	a bill and it left the till altogether (`D-146`).
+	"""
+	filters = {**scope, "status": ("in", HISTORY_STATUSES), "closed_at": (">=", _since_midnight())}
+	if mine_only:
+		filters["cashier"] = frappe.session.user
+
+	return frappe.get_all(
+		"Restaurant Order",
+		filters=filters,
+		fields=list(LIST_FIELDS),
+		order_by="closed_at desc",
+		limit=CLOSED_LIMIT,
+	)
+
+
+def _refunds_today(scope: dict, *, mine_only: bool) -> list[dict]:
+	"""Every refund made **today**, one row per credit note (`D-143`, `D-146`).
+
+	**It starts from the credit notes, not from the sales.** The tab used to
+	list today's orders and then look for refunds against them, which asked the
+	wrong question twice: a bill refunded today but sold yesterday was missing —
+	and `BR-055` exists precisely because refunding an older bill is a thing
+	that happens, with a manager's PIN — while a bill sold today and refunded
+	tomorrow would appear today with nothing on it.
+
+	What the till needs from this tab is the drawer's day: the money that went
+	back out since midnight, reconcilable line by line against a count.
+	"""
+	credits = frappe.get_all(
+		"Sales Invoice",
+		filters={
+			"is_return": 1,
+			"docstatus": 1,
+			"creation": (">=", _since_midnight()),
+			**({"pos_profile": ("in", _profiles_in(scope["branch"]))} if scope.get("branch") else {}),
+		},
+		fields=[
+			"name",
+			"return_against",
+			"rpos_daily_number",
+			"grand_total",
+			"rounded_total",
+			"posting_date",
+			"creation",
+		],
+		order_by="creation desc",
+		limit=CLOSED_LIMIT,
+	)
+	if not credits:
+		return []
+
+	filters = {**scope, "sales_invoice": ("in", [credit.return_against for credit in credits])}
+	if mine_only:
+		filters["cashier"] = frappe.session.user
+
+	# The sales the refunds were taken against — and the **authority** on who may
+	# see them: a credit note whose bill is not in this branch, or not this
+	# cashier's when the permission says so, has no row here.
+	sales = frappe.get_all("Restaurant Order", filters=filters, fields=list(LIST_FIELDS))
+	_annotate_refunds(sales)
+	_annotate_open_orders(sales)
+
+	return _returns_of(credits, {row.sales_invoice: row for row in sales})
+
+
+def _profiles_in(branch: str) -> list[str]:
+	"""The terminals of one branch, through the sections they serve.
+
+	`POS Profile` has no branch column — `branch_of_profile` walks the same two
+	links the other way.
+	"""
+	sections = frappe.get_all("Restaurant Section", filters={"branch": branch}, pluck="name")
+	if not sections:
+		return []
+
+	return frappe.get_all("POS Profile", filters={"restaurant_section": ("in", sections)}, pluck="name")
+
+
+def _returns_of(credits: list, by_invoice: dict) -> list[dict]:
 	"""One row per credit note, not one per refunded bill (`D-143`).
 
 	This tab used to list the **orders** money had gone back out of, on the
@@ -602,29 +684,13 @@ def _returns_of(orders: list) -> list[dict]:
 	time, and an amount that is **negative**, because that is the direction the
 	money went.
 	"""
-	by_invoice = {row.sales_invoice: row for row in orders if row.get("sales_invoice")}
-	if not by_invoice:
-		return []
-
-	credits = frappe.get_all(
-		"Sales Invoice",
-		filters={"return_against": ("in", list(by_invoice)), "docstatus": 1},
-		fields=[
-			"name",
-			"return_against",
-			"rpos_daily_number",
-			"grand_total",
-			"rounded_total",
-			"posting_date",
-			"creation",
-		],
-		order_by="creation desc",
-		limit=CLOSED_LIMIT,
-	)
-
 	rows = []
 	for credit in credits:
-		sale = by_invoice[credit.return_against]
+		sale = by_invoice.get(credit.return_against)
+		if not sale:
+			# Not this branch's, or not this cashier's to see.
+			continue
+
 		refund = abs(flt(credit.rounded_total or credit.grand_total))
 
 		rows.append(
@@ -636,7 +702,11 @@ def _returns_of(orders: list) -> list[dict]:
 				"daily_number": credit.rpos_daily_number or sale.daily_number,
 				"total_amount": -refund,
 				"returned_amount": refund,
+				# **When the refund happened**, in both fields, because the card
+				# reads whichever the row has: the sale's own times belong to the
+				# sale and would date this row to somebody else's event.
 				"opened_at": credit.creation,
+				"closed_at": credit.creation,
 				# Which bill it reverses, so the row can say so out loud.
 				"returns_daily_number": sale.daily_number,
 				"is_return": 1,

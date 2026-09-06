@@ -101,6 +101,14 @@ export interface OpenOrder {
   /** FR-9 — what went back to the customer, `0` when nothing did (D-070). */
   returned_amount: number;
   opened_at: string;
+  /**
+   * When the bill ended — payment or cancellation — and `null` while it is open.
+   *
+   * A history row is dated by **this**, not by when it was opened (`D-146`): a
+   * bill opened at eleven and paid at one belongs to the day that took the
+   * money. On a refund row it is when the refund happened.
+   */
+  closed_at: string | null;
   item_count: number;
   /**
    * This row **is** a refund, not a sale that had one (`D-143`).

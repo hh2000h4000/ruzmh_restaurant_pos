@@ -7,10 +7,16 @@ Refs: 06 Screen 1, 07 §3, 04 §8
 """
 
 import frappe
+from frappe.utils import add_days, nowdate
 
 from restaurant_pos.api import order as api
 from restaurant_pos.tests.test_order import ITEM, OrderTestBase, _make_cashier
+from restaurant_pos.tests.test_returns import REASON, ReturnTestBase
 from restaurant_pos.utils import order as service
+from restaurant_pos.utils import returns
+
+#: A bill from before midnight — the case every history tab used to lose.
+YESTERDAY = add_days(nowdate(), -1)
 
 
 class TestOpenOrders(OrderTestBase):
@@ -158,8 +164,9 @@ class TestOrderViews(OrderTestBase):
 		if len(rows) < 2:
 			self.skipTest("fewer than two closed orders today")
 
-		opened = [row["opened_at"] for row in rows]
-		self.assertEqual(opened, sorted(opened, reverse=True))
+		# By when they **closed** (`D-146`) — the order the tab is sorted in.
+		closed = [row["closed_at"] for row in rows]
+		self.assertEqual(closed, sorted(closed, reverse=True))
 
 
 class TheFloorIsSharedAndHistoryIsNot(OrderTestBase):
@@ -225,3 +232,104 @@ class TheFloorIsSharedAndHistoryIsNot(OrderTestBase):
 		names = {row["name"] for row in api.list_orders(self.profile, "all")}
 		self.assertIn(still_open.name, names)
 		self.assertNotIn(settled.name, names)
+
+
+def _stamp(order_name: str, field: str, when: str) -> None:
+	"""Move a bill's opening or closing time, without touching anything else."""
+	frappe.db.set_value("Restaurant Order", order_name, field, when, update_modified=False)
+
+
+class TestEachTabIsBoundedByItsOwnEvent(ReturnTestBase):
+	"""`D-146` — the defect the user reported, and the two beside it.
+
+	*"هذه الفواتير إذا أغلقتها لا تظهر ضمن الفواتير المغلقة"* — and they were
+	right. All three history tabs measured **when the bill opened**, so a bill
+	opened before midnight and paid after it disappeared from the till the
+	moment it was paid: not on the floor any more, and not in today's history
+	either. A restaurant that serves past midnight is the ordinary case, not the
+	edge one.
+
+	The rule these hold to is one sentence: **a tab is bounded by the event it
+	is named after.** Closed today means closed today; refunds mean refunds
+	taken today; the floor is not bounded at all, because a bill left open is
+	still the cashier's whatever day it started.
+	"""
+
+	def _names(self, view: str) -> set[str]:
+		return {row["name"] for row in api.list_orders(self.profile, view=view)}
+
+	def test_a_bill_opened_yesterday_and_paid_today_is_in_todays_history(self):
+		"""The user's own case, exactly."""
+		order = self._paid()
+		_stamp(order.name, "opened_at", f"{YESTERDAY} 23:40:00")
+
+		self.assertIn(order.name, self._names("closed"))
+
+	def test_a_bill_that_closed_yesterday_is_not(self):
+		"""The other half — or "today" would just mean "ever"."""
+		order = self._paid()
+		_stamp(order.name, "closed_at", f"{YESTERDAY} 23:40:00")
+
+		self.assertNotIn(order.name, self._names("closed"))
+
+	def test_a_bill_still_open_from_yesterday_is_always_on_the_floor(self):
+		"""A tab running past midnight, or carried over by `D-105`."""
+		order = self._order()
+		service.add_item(order, item=ITEM, qty=1)
+		_stamp(order.name, "opened_at", f"{YESTERDAY} 21:00:00")
+
+		self.assertIn(order.name, self._names("open"))
+		self.assertIn(order.name, self._names("all"))
+
+	def test_the_mixed_view_is_bounded_too(self):
+		"""`all` had no limit and no date at all — the branch's whole history."""
+		order = self._paid()
+		_stamp(order.name, "closed_at", f"{YESTERDAY} 23:40:00")
+
+		self.assertNotIn(order.name, self._names("all"))
+
+	def test_a_refund_taken_today_on_an_older_bill_is_listed(self):
+		"""`BR-055` exists because refunding an older bill happens.
+
+		It takes a manager's PIN — and then the refund did not appear in the
+		tab that exists to show the day's refunds, while the drawer it was paid
+		out of counted it.
+		"""
+		order = self._paid()
+		refund = returns.create_return(
+			order, items=[{"row": self._row(order), "qty": 1}], reason_code=REASON
+		)
+		_stamp(order.name, "opened_at", f"{YESTERDAY} 20:00:00")
+		_stamp(order.name, "closed_at", f"{YESTERDAY} 20:30:00")
+
+		rows = api.list_orders(self.profile, view="returned")
+		self.assertIn(refund["credit_note"], {row["credit_note"] for row in rows})
+
+	def test_a_refund_taken_yesterday_is_not_in_todays(self):
+		order = self._paid()
+		refund = returns.create_return(
+			order, items=[{"row": self._row(order), "qty": 1}], reason_code=REASON
+		)
+		frappe.db.set_value(
+			"Sales Invoice", refund["credit_note"], "creation", f"{YESTERDAY} 20:00:00", update_modified=False
+		)
+
+		rows = api.list_orders(self.profile, view="returned")
+		self.assertNotIn(refund["credit_note"], {row["credit_note"] for row in rows})
+
+	def test_a_refund_row_is_dated_by_the_refund(self):
+		"""Not by the sale, which may be any age (`D-143`)."""
+		order = self._paid()
+		refund = returns.create_return(
+			order, items=[{"row": self._row(order), "qty": 1}], reason_code=REASON
+		)
+		_stamp(order.name, "opened_at", f"{YESTERDAY} 20:00:00")
+		_stamp(order.name, "closed_at", f"{YESTERDAY} 20:30:00")
+
+		row = next(
+			entry
+			for entry in api.list_orders(self.profile, view="returned")
+			if entry["credit_note"] == refund["credit_note"]
+		)
+		self.assertEqual(str(row["opened_at"])[:10], nowdate())
+		self.assertEqual(str(row["closed_at"])[:10], nowdate())

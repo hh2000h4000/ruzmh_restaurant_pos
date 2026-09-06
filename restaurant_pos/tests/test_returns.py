@@ -394,9 +394,7 @@ class TestTheScreenIsToldBeforeTheButton(ReturnTestBase):
 		order.reload()
 
 		with self.assertRaises(frappe.PermissionError):
-			service.create_return(
-				order, items=[{"row": self._row(order), "qty": 1}], reason_code=REASON
-			)
+			service.create_return(order, items=[{"row": self._row(order), "qty": 1}], reason_code=REASON)
 
 	def test_a_manager_token_opens_it(self):
 		"""And the door the screen now offers actually leads somewhere."""

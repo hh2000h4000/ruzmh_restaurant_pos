@@ -296,9 +296,7 @@ class TestEachTabIsBoundedByItsOwnEvent(ReturnTestBase):
 		out of counted it.
 		"""
 		order = self._paid()
-		refund = returns.create_return(
-			order, items=[{"row": self._row(order), "qty": 1}], reason_code=REASON
-		)
+		refund = returns.create_return(order, items=[{"row": self._row(order), "qty": 1}], reason_code=REASON)
 		_stamp(order.name, "opened_at", f"{YESTERDAY} 20:00:00")
 		_stamp(order.name, "closed_at", f"{YESTERDAY} 20:30:00")
 
@@ -307,9 +305,7 @@ class TestEachTabIsBoundedByItsOwnEvent(ReturnTestBase):
 
 	def test_a_refund_taken_yesterday_is_not_in_todays(self):
 		order = self._paid()
-		refund = returns.create_return(
-			order, items=[{"row": self._row(order), "qty": 1}], reason_code=REASON
-		)
+		refund = returns.create_return(order, items=[{"row": self._row(order), "qty": 1}], reason_code=REASON)
 		frappe.db.set_value(
 			"Sales Invoice", refund["credit_note"], "creation", f"{YESTERDAY} 20:00:00", update_modified=False
 		)
@@ -320,9 +316,7 @@ class TestEachTabIsBoundedByItsOwnEvent(ReturnTestBase):
 	def test_a_refund_row_is_dated_by_the_refund(self):
 		"""Not by the sale, which may be any age (`D-143`)."""
 		order = self._paid()
-		refund = returns.create_return(
-			order, items=[{"row": self._row(order), "qty": 1}], reason_code=REASON
-		)
+		refund = returns.create_return(order, items=[{"row": self._row(order), "qty": 1}], reason_code=REASON)
 		_stamp(order.name, "opened_at", f"{YESTERDAY} 20:00:00")
 		_stamp(order.name, "closed_at", f"{YESTERDAY} 20:30:00")
 

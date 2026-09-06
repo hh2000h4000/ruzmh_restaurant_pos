@@ -33,12 +33,27 @@ class TestTheA4Invoice(ReturnTestBase):
 	def setUp(self):
 		super().setUp()
 		self.company = frappe.db.get_value("POS Profile", self.profile, "company")
-		frappe.db.set_value("Company", self.company, "tax_id", TEST_VAT)
-		frappe.clear_cache(doctype="Company")
+		self._set_vat(TEST_VAT)
 
 	def tearDown(self):
-		frappe.clear_cache(doctype="Company")
+		frappe.clear_document_cache("Company", self.company)
 		super().tearDown()
+
+	def _set_vat(self, number: str | None) -> None:
+		"""Write it **and** drop the cached copy of the document.
+
+		`invoice_qr` reads the company through `get_cached_doc`, and
+		`db.set_value` writes past that cache — so a company whose VAT number
+		was set this way still looks like one without. Alone, this module passed
+		on a cold cache and hid it; in the full suite an earlier module had
+		already cached the company, and the QR silently stopped appearing.
+
+		`clear_cache(doctype=...)` is the wrong tool: it drops the **meta**, not
+		the document. Nothing about production changes — a desk save clears the
+		document cache itself — but a test that writes underneath it must say so.
+		"""
+		frappe.db.set_value("Company", self.company, "tax_id", number)
+		frappe.clear_document_cache("Company", self.company)
 
 	def _printed(self, invoice: str) -> str:
 		return frappe.get_print("Sales Invoice", invoice, print_format=FORMAT)
@@ -70,9 +85,7 @@ class TestTheA4Invoice(ReturnTestBase):
 	def test_a_credit_note_is_headed_as_one_and_names_the_bill_it_reverses(self):
 		"""ZATCA treats it as its own document type, not an invoice."""
 		order = self._paid()
-		refund = service.create_return(
-			order, items=[{"row": self._row(order), "qty": 1}], reason_code=REASON
-		)
+		refund = service.create_return(order, items=[{"row": self._row(order), "qty": 1}], reason_code=REASON)
 
 		html = self._printed(refund["credit_note"])
 		self.assertIn("إشعار دائن", html)
@@ -87,8 +100,7 @@ class TestTheA4Invoice(ReturnTestBase):
 		that out loud; a blank corner reads as a print that worked.
 		"""
 		order = self._paid()
-		frappe.db.set_value("Company", self.company, "tax_id", None)
-		frappe.clear_cache(doctype="Company")
+		self._set_vat(None)
 
 		html = self._printed(order.sales_invoice)
 		self.assertNotIn("data:image/png;base64", html)

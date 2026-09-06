@@ -345,3 +345,66 @@ class TestEachTabIsBoundedByItsOwnEvent(ReturnTestBase):
 		)
 		self.assertEqual(str(row["opened_at"])[:10], nowdate())
 		self.assertEqual(str(row["closed_at"])[:10], nowdate())
+
+
+class TestFindingAnOlderBill(ReturnTestBase):
+	"""`D-152` — the question the tabs cannot answer.
+
+	The user's own case: *a company pays by invoice, and a week later asks for
+	it to be reversed.* They have the invoice number, or the company name, or —
+	having lost the paper — only the amount. The bill is outside today, so no
+	tab holds it, and the refund has to start from the bill.
+
+	What the search must never become is a longer list: a shop open two years
+	has hundreds of thousands of bills. So a window and a ceiling, always.
+	"""
+
+	def _found(self, query: str) -> set[str]:
+		return {row["name"] for row in api.search_orders(self.profile, query)}
+
+	def test_a_bill_from_last_week_is_found_by_its_number(self):
+		order = self._paid()
+		_stamp(order.name, "opened_at", f"{add_days(nowdate(), -7)} 20:00:00")
+		_stamp(order.name, "closed_at", f"{add_days(nowdate(), -7)} 20:30:00")
+
+		self.assertNotIn(order.name, {row["name"] for row in api.list_orders(self.profile, view="closed")})
+		self.assertIn(order.name, self._found(order.name))
+
+	def test_it_is_found_by_the_short_number_on_the_receipt(self):
+		"""What the customer is actually holding."""
+		order = self._paid()
+
+		self.assertIn(order.name, self._found(str(order.daily_number)))
+
+	def test_it_is_found_by_the_invoice_number(self):
+		"""What a company's copy carries."""
+		order = self._paid()
+
+		self.assertIn(order.name, self._found(order.sales_invoice))
+
+	def test_it_is_found_by_the_amount_when_that_is_all_they_have(self):
+		order = self._paid()
+
+		self.assertIn(order.name, self._found(str(order.total_amount)))
+
+	def test_a_bill_older_than_the_window_is_not_returned(self):
+		"""The window is what keeps this answerable on a busy site."""
+		order = self._paid()
+		_stamp(order.name, "closed_at", f"{add_days(nowdate(), -200)} 20:30:00")
+
+		self.assertNotIn(order.name, self._found(order.name))
+
+	def test_the_result_is_capped(self):
+		self.assertLessEqual(len(api.search_orders(self.profile, "RO-")), api.SEARCH_LIMIT)
+
+	def test_an_empty_search_is_refused(self):
+		"""Rather than answering it with the whole window."""
+		with self.assertRaises(frappe.ValidationError):
+			api.search_orders(self.profile, "   ")
+
+	def test_an_open_bill_is_not_in_here(self):
+		"""The floor is a tab, and it is never bounded by a date (`D-146`)."""
+		open_bill = self._order()
+		service.add_item(open_bill, item=ITEM, qty=1)
+
+		self.assertNotIn(open_bill.name, self._found(open_bill.name))

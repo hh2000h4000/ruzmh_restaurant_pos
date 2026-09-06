@@ -12,7 +12,7 @@ Refs: 07_API_Design.md §3, FR-2.1..FR-2.8
 
 import frappe
 from frappe import _
-from frappe.utils import flt, get_datetime, now_datetime, nowdate, time_diff_in_seconds
+from frappe.utils import add_days, cint, flt, get_datetime, now_datetime, nowdate, time_diff_in_seconds
 
 from restaurant_pos.utils import customer as customer_service
 from restaurant_pos.utils import idempotency
@@ -565,6 +565,100 @@ def list_orders(pos_profile: str, view: str = "open") -> list[dict]:
 	return orders
 
 
+#: How far back a search reaches, and how much it may bring home.
+#:
+#: **Both are the point.** A restaurant that has been open two years holds
+#: hundreds of thousands of bills, and the only safe list is one nobody can ask
+#: to be long: a window and a limit, always, whatever is typed.
+SEARCH_DAYS = 90
+SEARCH_LIMIT = 50
+
+
+@frappe.whitelist()
+def search_orders(pos_profile: str, query: str, days: int | str = SEARCH_DAYS) -> list[dict]:
+	"""Find a bill the till is no longer showing (`FR-2.14`, `D-152`).
+
+	**Asked for, never automatic.** The tabs are today's work and stay bounded by
+	the day; this is the other question — *a company rang about an invoice from
+	last week* — and it is answered by a search with a window and a ceiling, not
+	by a longer list. That is what every till of this kind does, because the
+	alternative is a query that grows with the age of the shop.
+
+	It matches what somebody standing at the counter would actually have: **the
+	short number on their receipt**, the invoice number on a company's copy, the
+	name it was billed to, the name that was called out — or, when they have
+	nothing else, **the amount**.
+	"""
+	if not (query or "").strip():
+		frappe.throw(_("Type something to search for."))
+
+	branch = service.branch_of_profile(pos_profile)
+	filters: dict = {
+		"status": ("in", HISTORY_STATUSES),
+		"closed_at": (">=", add_days(_since_midnight(), -abs(cint(days)))),
+	}
+
+	if branch:
+		validate_branch_access(branch)
+		filters["branch"] = branch
+	else:
+		filters["pos_profile"] = pos_profile
+
+	# The same rule the closed tab follows (`D-121`): the day's history is the
+	# permission's business, and so is anybody else's older history.
+	if not get_pos_permission_set().get("can_view_all_orders"):
+		filters["cashier"] = frappe.session.user
+
+	orders = frappe.get_all(
+		"Restaurant Order",
+		filters=filters,
+		or_filters=_matching(query.strip()),
+		fields=list(LIST_FIELDS),
+		order_by="closed_at desc",
+		limit=SEARCH_LIMIT,
+	)
+	if not orders:
+		return []
+
+	_annotate_refunds(orders)
+	_annotate_open_orders(orders)
+	return orders
+
+
+def _matching(query: str) -> dict:
+	"""Every field the person at the counter might be holding.
+
+	`or_filters` rather than one `like` over a concatenation: each of these is
+	an indexed column, and a search that scans is a search that stops working
+	the year the shop gets busy.
+	"""
+	terms: dict = {
+		"name": ("like", f"%{query}%"),
+		"sales_invoice": ("like", f"%{query}%"),
+		"call_name": ("like", f"%{query}%"),
+	}
+
+	# `121` is the number on the receipt; `48.00` is what they remember when
+	# they have lost the receipt entirely.
+	number = _as_number(query)
+	if number is not None:
+		terms["daily_number"] = cint(number)
+		terms["total_amount"] = flt(number)
+
+	billed_to = frappe.get_all("Customer", filters={"customer_name": ("like", f"%{query}%")}, pluck="name")
+	if billed_to:
+		terms["customer"] = ("in", billed_to)
+
+	return terms
+
+
+def _as_number(query: str) -> float | None:
+	try:
+		return float(query)
+	except ValueError:
+		return None
+
+
 def _since_midnight():
 	"""Where a till's day starts, for every tab that says "today"."""
 	return get_datetime(f"{nowdate()} 00:00:00")
@@ -794,6 +888,17 @@ def _annotate_open_orders(orders: list) -> None:
 		)
 	}
 
+	# **Who the bill was billed to** — a company asking for a refund a week later
+	# knows its own name long before it knows `RO-2026-09-00342` (`D-152`).
+	customers = {
+		row.name: row.customer_name
+		for row in frappe.get_all(
+			"Customer",
+			filters={"name": ("in", list({row.customer for row in orders if row.customer}))},
+			fields=["name", "customer_name"],
+		)
+	}
+
 	for order in orders:
 		order_type = types.get(order.order_type)
 		order.order_type_title = order_type.title if order_type else order.order_type
@@ -802,6 +907,7 @@ def _annotate_open_orders(orders: list) -> None:
 		order.color = order_type.color if order_type else None
 		order.table_number = table_numbers.get(order.table)
 		order.cashier_name = cashiers.get(order.cashier) or order.cashier
+		order.customer_name = customers.get(order.customer)
 		order.item_count = counts.get(order.name, 0)
 
 

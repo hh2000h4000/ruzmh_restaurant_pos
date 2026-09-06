@@ -316,9 +316,7 @@ class TestEachTabIsBoundedByItsOwnEvent(ReturnTestBase):
 	def test_the_all_tab_holds_the_refunds_too(self):
 		"""`D-151` — the tab named for everything held everything but them."""
 		order = self._paid()
-		refund = returns.create_return(
-			order, items=[{"row": self._row(order), "qty": 1}], reason_code=REASON
-		)
+		refund = returns.create_return(order, items=[{"row": self._row(order), "qty": 1}], reason_code=REASON)
 
 		rows = api.list_orders(self.profile, view="all")
 		self.assertIn(refund["credit_note"], {row.get("credit_note") for row in rows})

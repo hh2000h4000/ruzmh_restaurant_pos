@@ -63,6 +63,13 @@ jinja = {
 	"filters": [
 		"restaurant_pos.utils.printing.rtl",
 	],
+	# **So a print format can draw the QR.** The till's receipt gets it from
+	# `receipt_context`; a copy printed from the desk — the one an auditor is
+	# handed — had no way to reach it at all, and came out without one
+	# (`D-153`).
+	"methods": [
+		"restaurant_pos.utils.zatca.rpos_invoice_qr",
+	],
 }
 
 # D-096 — where a POS role lands after any Frappe login.

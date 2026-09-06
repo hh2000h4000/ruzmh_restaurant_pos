@@ -165,3 +165,15 @@ def invoice_qr(invoice) -> str | None:
 	)
 
 	return qr_data_uri(payload)
+
+
+def rpos_invoice_qr(invoice) -> str | None:
+	"""What a print format calls, and the only reason it is not `invoice_qr`.
+
+	Jinja globals are **one namespace shared by every installed app**, and the
+	app most likely to register something called `invoice_qr` is a ZATCA
+	integration — which is exactly the app we plan to trial (`D-153`). A
+	collision there would be silent: one of the two wins and the other's QR
+	simply stops appearing.
+	"""
+	return invoice_qr(invoice)

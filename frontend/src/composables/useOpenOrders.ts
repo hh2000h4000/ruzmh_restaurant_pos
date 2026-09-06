@@ -81,6 +81,9 @@ export function useOpenOrders() {
         total_amount: totals.total_amount ?? 0,
         returned_amount: 0,
         opened_at: entry.created_at,
+        // A queued sale is money already taken (`D-075`), so the moment that
+        // matters is when it was rung up — which is the only moment it has.
+        closed_at: entry.created_at,
         item_count: lines.length,
       } satisfies OpenOrder;
     });

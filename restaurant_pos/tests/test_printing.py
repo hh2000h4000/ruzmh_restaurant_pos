@@ -749,6 +749,21 @@ class TestAskingForThePaperAgain(ReturnTestBase):
 	printer it belongs to.
 	"""
 
+	@classmethod
+	def setUpClass(cls):
+		super().setUpClass()
+		# A reprint now refuses a terminal with no printer (`D-148`), which is the
+		# right refusal and makes a printer part of the arrangement here — these
+		# tests are about what reaches the queue, not about a shop with no
+		# hardware. That case has a test of its own below.
+		cls.agent = _agent("RPOS Test Agent")
+		cls.printer = _printer("RPOS Test Printer", agent=cls.agent)
+		frappe.db.commit()
+
+	def setUp(self):
+		super().setUp()
+		frappe.db.set_value("POS Profile", self.profile, "default_printer", self.printer)
+
 	def _refund(self, order) -> str:
 		result = service_returns.create_return(
 			order, items=[{"row": self._row(order), "qty": 1}], reason_code=RETURN_REASON

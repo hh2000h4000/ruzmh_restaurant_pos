@@ -13,6 +13,8 @@ Refs: FR-7.5, D-092
 import base64
 import io
 
+from unittest.mock import patch
+
 import frappe
 from frappe.tests.utils import FrappeTestCase
 from frappe.utils import get_datetime
@@ -148,3 +150,51 @@ class TestAnInvoiceWithoutAVatNumber(FrappeTestCase):
 		finally:
 			frappe.db.set_value("Company", company, "tax_id", original)
 			frappe.clear_cache(doctype="Company")
+
+
+class TestTheIntegrationOwnsTheQr(FrappeTestCase):
+	"""`D-154` — whose QR goes on the paper when a ZATCA app is installed.
+
+	Phase one is a specification and both implementations satisfy it. **Phase
+	two is not**: its QR carries a cryptographic stamp issued after clearance,
+	which nothing here can produce. So the integration is the authority whenever
+	it has an answer, and this is the one place that decides — the receipt and
+	the printed copy read the same function, and cannot disagree.
+
+	These test the **decision**, not the integration: what it produces is its
+	own business, and it is not installed on the suite's site.
+	"""
+
+	def _invoice(self):
+		return frappe._dict(
+			name="ACC-SINV-TEST-0001",
+			company="RPOS Test Co",
+			posting_date="2026-09-06",
+			posting_time="13:00:00",
+			rounded_total=32.0,
+			grand_total=32.0,
+			total_taxes_and_charges=4.17,
+		)
+
+	def test_the_integration_wins_when_it_answers(self):
+		with patch.object(zatca, "integration_qr", return_value="data:image/png;base64,THEIRS"):
+			self.assertEqual(zatca.invoice_qr(self._invoice()), "data:image/png;base64,THEIRS")
+
+	def test_we_answer_when_it_does_not(self):
+		"""A site with no integration still prints a compliant phase-one code."""
+		company = frappe.db.get_value("POS Profile", {}, "company")
+		frappe.db.set_value("Company", company, "tax_id", "300000000000003")
+		frappe.clear_document_cache("Company", company)
+
+		invoice = self._invoice()
+		invoice.company = company
+
+		with patch.object(zatca, "integration_qr", return_value=None):
+			ours = zatca.invoice_qr(invoice)
+
+		self.assertTrue(ours and ours.startswith("data:image/png;base64,"))
+
+	def test_nothing_is_asked_of_an_app_that_is_not_installed(self):
+		"""And it never raises — a print must not fail over an integration."""
+		self.assertNotIn(zatca.INTEGRATION, frappe.get_installed_apps())
+		self.assertIsNone(zatca.integration_qr(self._invoice()))

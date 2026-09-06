@@ -143,13 +143,32 @@ def qr_data_uri(payload: str, **kwargs) -> str:
 	return f"data:image/png;base64,{encoded}"
 
 
+#: The ZATCA integration, when the restaurant has one installed.
+INTEGRATION = "ksa_compliance"
+
+
 def invoice_qr(invoice) -> str | None:
 	"""The QR for one Sales Invoice, ready to drop into an `<img src>`.
+
+	**One decision, in one place** (`D-154`). The till's receipt and the copy an
+	accountant prints both come through here, so they cannot show different
+	codes for the same sale — which is precisely what two generators side by
+	side would eventually do.
+
+	The integration wins whenever it has an answer, because **phase two is not a
+	specification we can satisfy**: its QR carries a cryptographic stamp issued
+	after the invoice is signed and cleared. Ours is the fallback for a site
+	that has not installed one, and for a phase-1 setting that is switched off —
+	a simplified tax invoice needs its code either way.
 
 	Returns None when the company has no VAT number: a QR missing tag 2 is not
 	a lenient QR, it is an invalid one, and printing it would look like
 	compliance while being the opposite.
 	"""
+	delegated = integration_qr(invoice)
+	if delegated:
+		return delegated
+
 	company = frappe.get_cached_doc("Company", invoice.company)
 	if not company.tax_id:
 		return None
@@ -165,6 +184,43 @@ def invoice_qr(invoice) -> str | None:
 	)
 
 	return qr_data_uri(payload)
+
+
+def integration_qr(invoice) -> str | None:
+	"""What the ZATCA app says this invoice's QR is, if it says anything.
+
+	**Phase two first.** Once an invoice has been cleared, its QR is the stamped
+	one on `Sales Invoice Additional Fields` — the phase-one code for the same
+	invoice would be a valid-looking QR that is no longer the right one.
+
+	Never raises. A print is not the place to discover that an integration is
+	misconfigured: the receipt still has to come out, and the failure belongs in
+	the error log where somebody can read it (`D-084`, the same rule the print
+	agent follows).
+	"""
+	if INTEGRATION not in frappe.get_installed_apps():
+		return None
+
+	try:
+		stamped = frappe.db.get_value(
+			"Sales Invoice Additional Fields",
+			{"sales_invoice": invoice.name},
+			"qr_image_src",
+			order_by="creation desc",
+		)
+		if stamped:
+			return stamped
+
+		from ksa_compliance.jinja import get_zatca_phase_1_qr_for_invoice
+
+		encoded = get_zatca_phase_1_qr_for_invoice(invoice.name)
+	except Exception:
+		frappe.log_error(f"ZATCA integration could not produce a QR for {invoice.name}", "RPOS zatca")
+		return None
+
+	# Their phase-one helper answers with bare base64; ours is handed straight
+	# to an `<img src>`.
+	return f"data:image/png;base64,{encoded}" if encoded else None
 
 
 def rpos_invoice_qr(invoice) -> str | None:

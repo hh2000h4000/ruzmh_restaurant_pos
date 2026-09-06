@@ -20,7 +20,26 @@ from restaurant_pos.utils import returns as service
 FORMAT = "RPOS Tax Invoice"
 
 
+#: A number shaped like a real one — 15 digits, starting and ending in 3.
+#:
+#: The suite's company ships without one, and that is not an oversight to work
+#: around here: a KSA company **has** a VAT number, and the QR is invalid
+#: without it. So the fixture states it, and the one test about its absence
+#: takes it away again.
+TEST_VAT = "300000000000003"
+
+
 class TestTheA4Invoice(ReturnTestBase):
+	def setUp(self):
+		super().setUp()
+		self.company = frappe.db.get_value("POS Profile", self.profile, "company")
+		frappe.db.set_value("Company", self.company, "tax_id", TEST_VAT)
+		frappe.clear_cache(doctype="Company")
+
+	def tearDown(self):
+		frappe.clear_cache(doctype="Company")
+		super().tearDown()
+
 	def _printed(self, invoice: str) -> str:
 		return frappe.get_print("Sales Invoice", invoice, print_format=FORMAT)
 
@@ -35,6 +54,7 @@ class TestTheA4Invoice(ReturnTestBase):
 
 		self.assertIn("فاتورة ضريبية مبسطة", html)
 		self.assertIn(order.sales_invoice, html)
+		self.assertIn(TEST_VAT, html, "the seller's VAT number belongs on the paper")
 
 	def test_it_carries_the_qr(self):
 		"""**The whole reason this exists** (`D-153`).
@@ -67,8 +87,8 @@ class TestTheA4Invoice(ReturnTestBase):
 		that out loud; a blank corner reads as a print that worked.
 		"""
 		order = self._paid()
-		company = frappe.db.get_value("Sales Invoice", order.sales_invoice, "company")
-		frappe.db.set_value("Company", company, "tax_id", None)
+		frappe.db.set_value("Company", self.company, "tax_id", None)
+		frappe.clear_cache(doctype="Company")
 
 		html = self._printed(order.sales_invoice)
 		self.assertNotIn("data:image/png;base64", html)

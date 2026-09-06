@@ -216,6 +216,7 @@ export const messages = {
   "customer.withoutAddress": "Continue without one",
   // Returns (FR-9)
   "card.options": "Options",
+  "card.creditNote": "Credit note",
   "orders.emptyClosed": "Nothing was closed today yet.",
   "orders.emptyReturned": "Nothing has been refunded today.",
   "orders.emptyAll": "Nothing on the floor, and nothing closed today.",

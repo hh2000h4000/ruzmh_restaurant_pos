@@ -209,6 +209,7 @@ const messages: Catalogue["messages"] = {
   "customer.withoutAddress": "المتابعة بدون عنوان",
   // المرتجعات (FR-9)
   "card.options": "خيارات",
+  "card.creditNote": "رقم الإشعار",
   "orders.emptyClosed": "لم تُغلق أي فاتورة اليوم بعد.",
   "orders.emptyReturned": "لا مرتجعات اليوم.",
   "orders.emptyAll": "لا طلبات مفتوحة، ولا فواتير أُغلقت اليوم.",

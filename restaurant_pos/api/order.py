@@ -551,11 +551,17 @@ def list_orders(pos_profile: str, view: str = "open") -> list[dict]:
 	if view in ("closed", "all"):
 		orders += _closed_today(scope, mine_only=mine_only)
 
-	if not orders:
-		return []
+	if orders:
+		_annotate_refunds(orders)
+		_annotate_open_orders(orders)
 
-	_annotate_refunds(orders)
-	_annotate_open_orders(orders)
+	# **"Everything" has to mean everything** (`D-151`). The tab held the floor
+	# and the day's closed bills and quietly left the refunds out, so money that
+	# went back out was in no list a cashier could reach from here — the one
+	# view named for holding all of them.
+	if view == "all":
+		orders += _refunds_today(scope, mine_only=mine_only)
+
 	return orders
 
 

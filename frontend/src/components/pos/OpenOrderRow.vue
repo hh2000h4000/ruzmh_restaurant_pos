@@ -41,6 +41,17 @@ const receipt = computed<string | null>(
 );
 
 /**
+ * The document number this row carries (`D-151`).
+ *
+ * A refund has no `Restaurant Order` of its own — it is a credit note against
+ * one — so the row was drawing the **sale's** number, and two rows on the
+ * returns tab read as the same document. Its own number is the credit note's.
+ */
+const documentNumber = computed(() =>
+  props.order.is_return ? (props.order.credit_note ?? props.order.name) : props.order.name,
+);
+
+/**
  * The moment this row is about (`D-146`).
  *
  * An open bill is dated by when it opened — that is what the cashier is
@@ -168,10 +179,10 @@ function choose(where: "order" | "floor" | "reprint"): void {
          anybody, so this column takes what it needs (D-060). -->
     <div class="hidden shrink-0 md:block">
       <p class="rpos-numeric whitespace-nowrap font-bold">
-        {{ order.name }}
+        {{ documentNumber }}
       </p>
       <p class="text-sm text-muted">
-        {{ t("card.number") }}
+        {{ t(order.is_return ? "card.creditNote" : "card.number") }}
       </p>
     </div>
 

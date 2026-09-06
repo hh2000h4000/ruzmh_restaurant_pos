@@ -313,6 +313,26 @@ class TestEachTabIsBoundedByItsOwnEvent(ReturnTestBase):
 		rows = api.list_orders(self.profile, view="returned")
 		self.assertNotIn(refund["credit_note"], {row["credit_note"] for row in rows})
 
+	def test_the_all_tab_holds_the_refunds_too(self):
+		"""`D-151` — the tab named for everything held everything but them."""
+		order = self._paid()
+		refund = returns.create_return(
+			order, items=[{"row": self._row(order), "qty": 1}], reason_code=REASON
+		)
+
+		rows = api.list_orders(self.profile, view="all")
+		self.assertIn(refund["credit_note"], {row.get("credit_note") for row in rows})
+
+	def test_the_all_tab_still_holds_the_floor_and_the_history(self):
+		"""And adding them took nothing away."""
+		open_bill = self._order()
+		service.add_item(open_bill, item=ITEM, qty=1)
+		closed = self._paid()
+
+		names = {row["name"] for row in api.list_orders(self.profile, view="all")}
+		self.assertIn(open_bill.name, names)
+		self.assertIn(closed.name, names)
+
 	def test_a_refund_row_is_dated_by_the_refund(self):
 		"""Not by the sale, which may be any age (`D-143`)."""
 		order = self._paid()

@@ -114,13 +114,13 @@
    "type": "Link"
   }
  ],
- "modified": "2026-08-31 00:00:00.000000",
+ "modified": "2026-09-06 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Restaurant POS",
  "name": "Printing",
  "number_cards": [],
  "owner": "Administrator",
- "parent_page": "",
+ "parent_page": "Restaurant POS",
  "public": 1,
  "quick_lists": [],
  "roles": [],

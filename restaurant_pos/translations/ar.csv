@@ -21,10 +21,12 @@ Day {0} is already closed.,اليوم {0} مغلق أصلاً.
 Discount of {0}% exceeds your limit of {1}%.,خصم {0}% يتجاوز حدّك {1}%.
 Enter a reason for the difference before closing.,أدخل سبب الفرق قبل الإغلاق.
 Enter the number of guests.,أدخل عدد الضيوف.
+Hardware,الأجهزة
 Invalid PIN or insufficient permissions.,الرقم السري غير صحيح أو الصلاحية غير كافية.
 Invoice {0} did not come from this till.,الفاتورة {0} ليست من هذا التِل.
 Item {0} does not exist.,الصنف {0} غير موجود.
 Item {0} is disabled.,الصنف {0} موقوف.
+Kitchen Order Ticket,تذكرة مطبخ
 Manager authorisation is invalid or has expired.,تفويض المدير غير صالح أو انتهت صلاحيته.
 Manager authorisation is required.,يلزم تفويض المدير.
 Modifier group {0} does not apply to this item.,مجموعة الإضافات {0} لا تنطبق على هذا الصنف.
@@ -33,6 +35,7 @@ No price is configured for {0} in price list {1}.,لا يوجد سعر للصن�
 "No printer is linked to this terminal, so nothing can be printed.",لا توجد طابعة مربوطة بهذه الطرفية، فلا شيء يمكن طباعته.
 Only {0} of that line is left to return.,المتبقي من هذا السطر للإرجاع: {0}.
 Open a shift before taking orders.,افتح المناوبة قبل استقبال الطلبات.
+Open the till,افتح نقطة البيع
 Order type {0} is not active.,نوع الطلب {0} غير مفعّل.
 Order type {0} is not available here.,نوع الطلب {0} غير متاح على هذا الجهاز.
 Order type {0} needs a customer.,نوع الطلب {0} يحتاج عميلاً.
@@ -41,24 +44,58 @@ Order type {0} requires a table.,نوع الطلب {0} يتطلب طاولة.
 "Order {0} has not been paid, so there is nothing to return.",الطلب {0} غير مدفوع، فلا شيء لإرجاعه.
 Order {0} is already cancelled.,الطلب {0} ملغى أصلاً.
 Order {0} is {1} and can no longer be modified.,الطلب {0} حالته {1} ولا يمكن تعديله.
+POS Audit Log,سجل التدقيق
+POS Modifier Group,مجموعة إضافات
+POS Order Activity,نشاط الطلب
+POS Order Counter,عدّاد الأرقام
+POS Permission Set,مجموعة صلاحيات
+POS Permissions,الصلاحيات
+POS Print Agent,وكيل الطباعة
+POS Print Job,مهمة طباعة
+POS Print Template,قالب طباعة
+POS Printer,طابعة
+POS Printer Routing Rule,قاعدة توجيه الطباعة
+POS Quick Note,ملاحظة سريعة
+POS Screen Layout,تخطيط الشاشة
+POS Sync Entry,مُدخل مزامنة
+Paper and problems,الورق والأعطال
 Payment method {0} does not exist.,طريقة الدفع {0} غير موجودة.
 Payment of {0} does not cover the total of {1}.,المبلغ {0} لا يغطي الإجمالي {1}.
+People and the trail,الأشخاص والأثر
+Printing,الطباعة
+Production Center,مركز إنتاج
 Quantity must be greater than zero.,الكمية يجب أن تكون أكبر من صفر.
+Restaurant Floor Plan,مخطط الصالة
+Restaurant Order,طلب
+Restaurant Order Type,نوع الطلب
+Restaurant Orders,الطلبات
+Restaurant POS,نقاط البيع
+Restaurant Promotion,عرض ترويجي
+Restaurant Reservation,حجز
+Restaurant Section,قسم
+Restaurant Shift,مناوبة
+Restaurant Shifts,المناوبات
+Restaurant Table,طاولة
 Row #{0} has already gone to the kitchen. Void it instead.,السطر رقم {0} أُرسل للمطبخ. ألغِه بدل حذفه.
 Row #{0} is already voided.,السطر رقم {0} ملغى أصلاً.
 Row #{0} is not on this order.,السطر رقم {0} ليس في هذا الطلب.
 Row #{0} is voided.,السطر رقم {0} ملغى.
 Select at least one payment method.,اختر طريقة دفع واحدة على الأقل.
+Service,الخدمة
 Set a default customer on POS Profile {0} before taking payment.,عيّن عميلاً افتراضياً على الطرفية {0} قبل استلام الدفع.
 Sign in first.,سجّل الدخول أولاً.
 Table {0} does not exist.,الطاولة {0} غير موجودة.
 Table {0} is not in this branch.,الطاولة {0} ليست في هذا الفرع.
 Table {0} is out of service.,الطاولة {0} خارج الخدمة.
 Table {0} still has an open order.,الطاولة {0} عليها طلب مفتوح.
+Terminals,الطرفيات
 That PIN is already in use. Choose a different one.,هذا الرقم مستخدم. اختر رقماً آخر.
 That PIN was not recognised.,الرقم السري غير صحيح.
 The PIN must be exactly {0} digits.,الرقم السري يجب أن يكون {0} أرقام بالضبط.
 The amount received is less than the amount being paid.,المبلغ المستلم أقل من المبلغ المدفوع.
+The day and the drawer,اليوم والدرج
+The floor,الصالة
+The menu,القائمة
 There is nothing new to send to the kitchen.,لا يوجد جديد لإرساله للمطبخ.
 "This bill is from a day that has been closed, so nothing can be added to it. ",هذه الفاتورة من يوم مُغلق، فلا يمكن إضافة شيء إليها. ما زال بالإمكان دفعها أو إلغاؤها.
 This bill prices differently on the screen ({0}) and on the invoice ({1}). ,هذه الفاتورة تُحسب على الشاشة ({0}) وعلى الفاتورة ({1}) بشكل مختلف. لم يُخصم شيء. راجع قالب الضريبة على الجهاز.
@@ -66,6 +103,7 @@ This bill was sold offline at {0} but comes to {1} here ,هذه الفاتورة
 This login is not linked to an employee record.,هذا الحساب غير مرتبط بسجل موظف.
 This order type must be paid by {0}.,هذا النوع من الطلبات يُدفع بـ{0}.
 This till session is already closed.,هذه المناوبة مغلقة أصلاً.
+What prints where,ما يُطبع وأين
 You are already clocked in.,أنت مسجَّل حضورك بالفعل.
 You are not clocked in.,لم تسجّل حضورك.
 You cannot set {0} above your own limit of {1}%.,لا يمكنك رفع {0} فوق حدّك {1}%.

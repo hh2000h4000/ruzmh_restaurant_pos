@@ -361,6 +361,62 @@ class TestTheReturnsTabListsTheReturns(ReturnTestBase):
 		self.assertNotIn(order.name, [entry["name"] for entry in self._returns()])
 
 
+class TestTheScreenIsToldBeforeTheButton(ReturnTestBase):
+	"""`BR-055` and `D-147` — the rule the till could not answer.
+
+	A refund out of a shift that has already been counted takes a manager's PIN
+	even from someone holding `can_create_return`. That rule is right; what was
+	wrong is that it was **only** reachable by pressing the button: the server
+	said "manager authorisation is required" and the return screen had no PIN
+	box, so the cashier was at a dead end with a customer waiting.
+
+	`returnable()` now answers it up front, from the same helper that enforces
+	it — one function, two callers (`CLAUDE.md` §5.5), so the screen cannot come
+	to a different conclusion from the endpoint.
+	"""
+
+	def test_a_bill_from_this_shift_needs_nobody(self):
+		order = self._paid()
+
+		self.assertFalse(service.returnable(order)["needs_manager"])
+
+	def test_a_bill_from_a_counted_shift_says_so(self):
+		order = self._paid()
+		frappe.db.set_value("Restaurant Order", order.name, "restaurant_shift", "SHF-SOMEBODY-ELSES")
+		order.reload()
+
+		self.assertTrue(service.returnable(order)["needs_manager"])
+
+	def test_and_the_refusal_agrees_with_it(self):
+		"""The screen's warning and the server's refusal are the same fact."""
+		order = self._paid()
+		frappe.db.set_value("Restaurant Order", order.name, "restaurant_shift", "SHF-SOMEBODY-ELSES")
+		order.reload()
+
+		with self.assertRaises(frappe.PermissionError):
+			service.create_return(
+				order, items=[{"row": self._row(order), "qty": 1}], reason_code=REASON
+			)
+
+	def test_a_manager_token_opens_it(self):
+		"""And the door the screen now offers actually leads somewhere."""
+		from restaurant_pos.utils import permissions as perms
+
+		order = self._paid()
+		frappe.db.set_value("Restaurant Order", order.name, "restaurant_shift", "SHF-SOMEBODY-ELSES")
+		order.reload()
+
+		token = perms.issue_override_token("can_create_return", frappe.session.user)
+		result = service.create_return(
+			order,
+			items=[{"row": self._row(order), "qty": 1}],
+			reason_code=REASON,
+			override_token=token,
+		)
+
+		self.assertTrue(result["credit_note"])
+
+
 class TestARealCashierCanRefund(ReturnTestBase):
 	"""The test that was missing, and the defect it was hiding (`D-144`).
 

@@ -1,6 +1,6 @@
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 
-import { listOrders, type OpenOrder, type OrderView } from "@/api/order";
+import { listOrders, searchOrders, type OpenOrder, type OrderView } from "@/api/order";
 import { t } from "@/i18n";
 import { recall, remember, warm } from "@/offline/orderMirror";
 import { queuedSales } from "@/offline/queue";
@@ -89,7 +89,43 @@ export function useOpenOrders() {
     });
   }
 
+  /**
+   * A search that reached past today, and what it found (`D-152`).
+   *
+   * `null` means nobody has asked. It is deliberately **not** part of the poll:
+   * the tabs keep refreshing underneath, and these rows stay exactly as the
+   * server answered until the cashier clears them — a result list that changed
+   * on a timer would move under the hand reaching for it.
+   */
+  const older = ref<OpenOrder[] | null>(null);
+  const searchingOlder = ref(false);
+
+  async function searchOlder(): Promise<void> {
+    const profile = session.profile?.name;
+    const text = search.value.trim();
+    if (!profile || !text) return;
+
+    searchingOlder.value = true;
+    error.value = null;
+    try {
+      older.value = await searchOrders(profile, text);
+    } catch (cause) {
+      error.value = cause instanceof Error ? cause.message : String(cause);
+    } finally {
+      searchingOlder.value = false;
+    }
+  }
+
+  /** Any new question drops the last answer, so the two are never mixed. */
+  watch([search, view, scope], () => {
+    older.value = null;
+  });
+
   const visible = computed(() => {
+    // What the server found, when it was asked. Nothing is merged into it: a
+    // list that is half today and half March is a list nobody can read.
+    if (older.value) return older.value;
+
     // Only where a paid bill belongs. They are sales, so they sit with the
     // day's history, not on the open floor.
     let list =
@@ -103,8 +139,21 @@ export function useOpenOrders() {
 
     const needle = search.value.trim().toLowerCase();
     if (needle) {
+      // Everything somebody at the counter might quote (`D-152`). The short
+      // number and the invoice number were both missing, so a customer reading
+      // their own receipt out loud could not be found on the day they were served.
       list = list.filter((order) =>
-        [order.name, order.table_number, order.cashier_name, order.order_type_title_ar]
+        [
+          order.daily_number,
+          order.name,
+          order.sales_invoice,
+          order.credit_note,
+          order.customer_name,
+          order.call_name,
+          order.table_number,
+          order.cashier_name,
+          order.order_type_title_ar,
+        ]
           .filter(Boolean)
           .some((field) => String(field).toLowerCase().includes(needle)),
       );
@@ -158,6 +207,7 @@ export function useOpenOrders() {
 
   /** Cheap enough to poll, and a stale row sends a cashier to the wrong table. */
   const REFRESH_MS = 15_000;
+
   let timer: number | undefined;
 
   function onVisibilityChange(): void {
@@ -211,6 +261,9 @@ export function useOpenOrders() {
     error,
     loading,
     maySeeEveryone,
+    older,
+    searchOlder,
+    searchingOlder,
     refresh,
     scope,
     search,

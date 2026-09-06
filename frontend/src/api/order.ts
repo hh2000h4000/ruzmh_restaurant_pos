@@ -125,6 +125,8 @@ export interface OpenOrder {
   sales_invoice?: string | null;
   /** The bill this refund reverses, so the card can name it. */
   returns_daily_number?: number;
+  /** Who it was billed to — a company knows its own name (`D-152`). */
+  customer_name?: string | null;
 }
 
 export interface ModifierChoice {
@@ -145,6 +147,17 @@ export type OrderView = "open" | "closed" | "returned" | "all";
 /** Branch-wide, not terminal-wide — see the docstring on the endpoint. */
 export function listOrders(posProfile: string, view: OrderView = "open"): Promise<OpenOrder[]> {
   return query<OpenOrder[]>("order.list_orders", { pos_profile: posProfile, view });
+}
+
+/**
+ * Find a bill the tabs no longer hold (`D-152`).
+ *
+ * Asked for by hand, never on a keystroke: the tabs are today, and this reaches
+ * back over months. The server bounds both the window and the number of rows,
+ * so what comes back is always small enough to draw.
+ */
+export function searchOrders(posProfile: string, text: string): Promise<OpenOrder[]> {
+  return query<OpenOrder[]>("order.search_orders", { pos_profile: posProfile, query: text });
 }
 
 /**

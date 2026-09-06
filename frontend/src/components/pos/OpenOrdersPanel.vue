@@ -35,9 +35,13 @@ defineProps<{
    * list, the screen owns who the cashier is. The server checks it again.
    */
   mayReprint?: boolean;
+  /** `null` until somebody searched past today; then, what came back (`D-152`). */
+  older?: OpenOrder[] | null;
+  searchingOlder?: boolean;
 }>();
 
 const emit = defineEmits<{
+  searchOlder: [];
   open: [order: OpenOrder];
   reprint: [order: OpenOrder];
   floorPlan: [];
@@ -238,6 +242,35 @@ const VIEWS: { key: OrderView; label: MessageKey }[] = [
       >
         {{ error }}
       </p>
+
+      <!--
+        `D-152` — the door out of today, and only when somebody is at it.
+
+        The tabs are the day; a bill from last week is a different question and
+        a different query, with a window and a ceiling on it. Offering it before
+        anybody has typed would be a button that reaches over months on a
+        screen whose whole job is the next customer.
+      -->
+      <p
+        v-if="older"
+        role="status"
+        class="mb-3 flex items-center justify-between gap-2 rounded-rpos bg-background p-3 text-sm"
+      >
+        <span class="flex items-center gap-2 text-muted">
+          <AppIcon
+            name="search"
+            :size="18"
+          />
+          {{ t("orders.olderFound", { count: formatNumber(older.length) }) }}
+        </span>
+        <button
+          type="button"
+          class="shrink-0 font-semibold text-primary underline"
+          @click="search = ''"
+        >
+          {{ t("action.back") }}
+        </button>
+      </p>
     </div>
 
     <div class="min-h-0 overflow-y-auto">
@@ -285,6 +318,18 @@ const VIEWS: { key: OrderView; label: MessageKey }[] = [
         <p class="text-muted">
           {{ searching ? t("home.searchEmpty") : t(EMPTY[view ?? "open"]) }}
         </p>
+
+        <!-- Nothing today under that name — so offer the only place left to
+             look, rather than leaving the cashier at a dead end (`D-074`). -->
+        <button
+          v-if="searching && !older"
+          type="button"
+          class="min-h-tap mt-4 rounded-rpos bg-primary px-6 font-bold text-primary-contrast disabled:opacity-50"
+          :disabled="searchingOlder"
+          @click="emit('searchOlder')"
+        >
+          {{ searchingOlder ? t("common.loading") : t("orders.searchOlder") }}
+        </button>
       </div>
     </div>
   </section>

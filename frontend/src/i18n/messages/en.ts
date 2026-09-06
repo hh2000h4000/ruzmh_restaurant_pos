@@ -220,6 +220,8 @@ export const messages = {
   "orders.emptyClosed": "Nothing was closed today yet.",
   "orders.emptyReturned": "Nothing has been refunded today.",
   "orders.emptyAll": "Nothing on the floor, and nothing closed today.",
+  "orders.searchOlder": "Search older bills",
+  "orders.olderFound": "{count} found in the last 90 days",
   "ret.rowLabel": "Refund",
   // BR-055 — said before the button, never only after it (`D-147`).
   "ret.needsManager": "This bill is from a shift that has been counted, so a manager's PIN is needed.",

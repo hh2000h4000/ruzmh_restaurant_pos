@@ -167,6 +167,9 @@ const {
   error: floorError,
   loading: floorLoading,
   maySeeEveryone: floorMaySeeEveryone,
+  older: floorOlder,
+  searchOlder: floorSearchOlder,
+  searchingOlder: floorSearchingOlder,
   scope: floorScope,
   search: floorSearch,
   searching: floorSearching,
@@ -1207,6 +1210,9 @@ async function send(): Promise<void> {
             :view="floorView"
             :stale-at="floorStaleAt"
             :may-reprint="session.can('can_reprint_receipt')"
+            :older="floorOlder"
+            :searching-older="floorSearchingOlder"
+            @search-older="floorSearchOlder"
             @open="switchTo"
             @reprint="reprint"
             @floor-plan="pane = 'tables'"

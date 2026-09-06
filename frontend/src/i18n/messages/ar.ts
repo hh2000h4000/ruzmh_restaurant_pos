@@ -213,6 +213,8 @@ const messages: Catalogue["messages"] = {
   "orders.emptyClosed": "لم تُغلق أي فاتورة اليوم بعد.",
   "orders.emptyReturned": "لا مرتجعات اليوم.",
   "orders.emptyAll": "لا طلبات مفتوحة، ولا فواتير أُغلقت اليوم.",
+  "orders.searchOlder": "ابحث في الفواتير القديمة",
+  "orders.olderFound": "{count} فاتورة في آخر ٩٠ يوم",
   "ret.rowLabel": "مرتجع",
   "ret.needsManager": "هذه الفاتورة من مناوبة أُغلقت وعُدَّت، فيلزم رمز المدير.",
   "print.receiptAgain": "طباعة الإيصال مرة أخرى",

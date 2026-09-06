@@ -60,6 +60,32 @@ async function menu(wrapper: ReturnType<typeof row>) {
   return wrapper.findAll("button").filter((button) => button.text() === t("print.receiptAgain"));
 }
 
+describe("which document a row says it is", () => {
+  it("a sale shows its order number", () => {
+    const wrapper = row({ sales_invoice: "ACC-SINV-2026-00199" });
+
+    expect(wrapper.text()).toContain("RO-2026-09-00001");
+  });
+
+  /**
+   * `D-151` — the user spotted this on the returns tab: two refunds of one bill
+   * both read as the bill. A refund has no `Restaurant Order` of its own, so
+   * the row was drawing the sale's number for want of one.
+   */
+  it("a refund shows the credit note, not the bill it reverses", () => {
+    const wrapper = row({
+      is_return: 1,
+      credit_note: "ACC-SINV-2026-00200",
+      returns_daily_number: 20,
+      daily_number: 21,
+      total_amount: -32,
+    });
+
+    expect(wrapper.text()).toContain("ACC-SINV-2026-00200");
+    expect(wrapper.text()).not.toContain("RO-2026-09-00001");
+  });
+});
+
 describe("reprinting from a bill row", () => {
   it("offers a paid bill its receipt", async () => {
     const wrapper = row({ sales_invoice: "ACC-SINV-2026-00199" });

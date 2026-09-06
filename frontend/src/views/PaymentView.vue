@@ -9,7 +9,6 @@ import type {
   PaymentSummary,
   TotalsPreview,
 } from "@/api/payment";
-import BaseDialog from "@/components/BaseDialog.vue";
 import ManagerPinDialog from "@/components/ManagerPinDialog.vue";
 import TenderSheet from "@/components/order/TenderSheet.vue";
 import { formatNumber, t } from "@/i18n";

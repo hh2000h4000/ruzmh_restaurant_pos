@@ -228,6 +228,16 @@ def reprint_receipt(invoice_name: str, queue_id: str | None = None) -> dict:
 	validate_branch_access(order.branch)
 	assert_permission("can_reprint_receipt")
 
+	# **Refuse before promising** (`D-148`). The render happens off the request,
+	# so nothing downstream can tell the cashier that this terminal has no
+	# printer: `print_receipt` gives up quietly by design — the money has already
+	# moved and a printer must never undo that — and the screen would have said
+	# "sent to the printer" over a queue that produced nothing. Found by pressing
+	# the button on a live till and watching no job appear.
+	profile = frappe.db.get_value("Sales Invoice", invoice.name, "pos_profile")
+	if not service.receipt_printer(profile, order.name):
+		frappe.throw(_("No printer is linked to this terminal, so nothing can be printed."))
+
 	service.enqueue_print("print_receipt", invoice_name=invoice.name, order_name=order.name)
 
 	log_audit(

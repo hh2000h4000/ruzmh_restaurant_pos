@@ -71,6 +71,21 @@ const SORTS: { key: "oldest" | "newest" | "amount"; label: MessageKey }[] = [
  * never fetched, so switching is a new request. Ordered from the one a cashier
  * lives in to the one they visit.
  */
+/**
+ * What an empty list means, in the words of the tab that is empty.
+ *
+ * One message served all four, so a till with nothing refunded today read
+ * "no open orders — choose an order type to start": advice for a different
+ * screen, under a heading it does not belong to. A wrong sentence is not much
+ * better than the blank one `D-074` is about.
+ */
+const EMPTY: Record<OrderView, MessageKey> = {
+  open: "home.openOrdersEmpty",
+  closed: "orders.emptyClosed",
+  returned: "orders.emptyReturned",
+  all: "orders.emptyAll",
+};
+
 const VIEWS: { key: OrderView; label: MessageKey }[] = [
   { key: "open", label: "orders.viewOpen" },
   { key: "closed", label: "orders.viewClosed" },
@@ -268,7 +283,7 @@ const VIEWS: { key: OrderView; label: MessageKey }[] = [
           />
         </span>
         <p class="text-muted">
-          {{ searching ? t("home.searchEmpty") : t("home.openOrdersEmpty") }}
+          {{ searching ? t("home.searchEmpty") : t(EMPTY[view ?? "open"]) }}
         </p>
       </div>
     </div>

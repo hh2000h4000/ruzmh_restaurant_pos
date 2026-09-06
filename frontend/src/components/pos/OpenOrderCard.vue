@@ -118,7 +118,7 @@ function choose(where: "order" | "floor" | "reprint"): void {
         <button
           type="button"
           class="relative z-10 grid h-11 w-11 shrink-0 place-items-center rounded-full text-muted transition duration-200 ease-rpos hover:bg-background"
-          :aria-label="t('card.openOrder')"
+          :aria-label="t('card.options')"
           :aria-expanded="menuOpen"
           @click.stop="menuOpen = !menuOpen"
         >

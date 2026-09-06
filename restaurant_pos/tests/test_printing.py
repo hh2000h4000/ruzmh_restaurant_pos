@@ -817,6 +817,25 @@ class TestAskingForThePaperAgain(ReturnTestBase):
 
 		self.assertIn("ACC-SINV-NOT-A-THING", str(caught.exception))
 
+	def test_a_terminal_with_no_printer_says_so_instead_of_promising(self):
+		"""`D-148` — found by pressing the button on a live till.
+
+		The render happens off the request, and `print_receipt` gives up quietly
+		when there is no printer — deliberately, because it is also called from
+		taking money and a printer must never undo a payment. So the reprint
+		endpoint queued a job that produced nothing and the screen said "sent to
+		the printer": a confirmation for an event that did not happen, which is
+		the one report this product refuses to give (`D-074`).
+		"""
+		order = self._paid()
+		frappe.db.set_value("POS Profile", self.profile, "default_printer", None)
+
+		with patch("restaurant_pos.api.printing.service.enqueue_print") as queued:
+			with self.assertRaises(frappe.ValidationError):
+				api.reprint_receipt(order.sales_invoice)
+
+		queued.assert_not_called()
+
 	def test_a_cashier_without_the_right_gets_nothing(self):
 		order = self._paid()
 		frappe.db.set_value("POS Permission Set", "POS Cashier", "can_reprint_receipt", 0)

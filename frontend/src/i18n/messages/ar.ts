@@ -208,6 +208,10 @@ const messages: Catalogue["messages"] = {
   "customer.noAddresses": "لا يوجد عنوان محفوظ لهذا العميل.",
   "customer.withoutAddress": "المتابعة بدون عنوان",
   // المرتجعات (FR-9)
+  "card.options": "خيارات",
+  "orders.emptyClosed": "لم تُغلق أي فاتورة اليوم بعد.",
+  "orders.emptyReturned": "لا مرتجعات اليوم.",
+  "orders.emptyAll": "لا طلبات مفتوحة، ولا فواتير أُغلقت اليوم.",
   "ret.rowLabel": "مرتجع",
   "ret.needsManager": "هذه الفاتورة من مناوبة أُغلقت وعُدَّت، فيلزم رمز المدير.",
   "print.receiptAgain": "طباعة الإيصال مرة أخرى",

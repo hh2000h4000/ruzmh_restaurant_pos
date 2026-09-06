@@ -530,9 +530,7 @@ def print_receipt(invoice_name: str, *, order_name: str | None = None) -> str | 
 		invoice = frappe.get_doc("Sales Invoice", invoice_name)
 		order = _receipt_order(order_name)
 
-		printer = (order.default_printer if order else None) or frappe.db.get_value(
-			"POS Profile", invoice.pos_profile, "default_printer"
-		)
+		printer = receipt_printer(invoice.pos_profile, order_name)
 		if not printer:
 			return None
 
@@ -546,6 +544,24 @@ def print_receipt(invoice_name: str, *, order_name: str | None = None) -> str | 
 	except Exception:
 		frappe.log_error(f"Receipt for {invoice_name} could not be queued", "RPOS printing")
 		return None
+
+
+def receipt_printer(pos_profile: str | None, order_name: str | None = None) -> str | None:
+	"""Which printer a receipt for this bill would come out of, if any.
+
+	Named and shared because **two callers need the same answer for opposite
+	reasons** (`CLAUDE.md` §5.5): `print_receipt` asks so it can give up quietly
+	— the money has moved and a printer must not undo that — and the reprint
+	endpoint asks so it can refuse *loudly*, before telling a cashier their
+	paper is on its way to a terminal that has no printer at all (`D-148`).
+
+	The order's own printer wins: a bill rung up on the terrace prints where the
+	terrace prints, whatever the profile's default says.
+	"""
+	order = _receipt_order(order_name)
+	return (order.default_printer if order else None) or frappe.db.get_value(
+		"POS Profile", pos_profile, "default_printer"
+	)
 
 
 def receipt_context(invoice, order=None) -> dict:

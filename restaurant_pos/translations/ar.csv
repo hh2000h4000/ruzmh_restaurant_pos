@@ -1,6 +1,3 @@
-"An order is either settled at the till or billed to an account, not both.",الطلب إما يُسدَّد في التِل أو يُقيَّد على حساب، لا الاثنين معاً.
-"Order {0} has not been paid, so there is nothing to return.",الطلب {0} غير مدفوع، فلا شيء لإرجاعه.
-"This bill is from a day that has been closed, so nothing can be added to it. ",هذه الفاتورة من يوم مُغلق، فلا يمكن إضافة شيء إليها. ما زال بالإمكان دفعها أو إلغاؤها.
 A mobile number is required.,رقم الجوال مطلوب.
 A name is required.,الاسم مطلوب.
 A paid order cannot be cancelled. Create a return instead.,الطلب المدفوع لا يُلغى. أنشئ مرتجعاً بدلاً من ذلك.
@@ -14,6 +11,7 @@ A return quantity must be greater than zero.,كمية الإرجاع يجب أن
 An address line is required.,العنوان مطلوب.
 An empty order cannot be paid.,لا يمكن دفع طلب فارغ.
 An offline order must carry the totals it was sold at.,الطلب المرسل من وضع عدم الاتصال يجب أن يحمل إجمالياته.
+"An order is either settled at the till or billed to an account, not both.",الطلب إما يُسدَّد في التِل أو يُقيَّد على حساب، لا الاثنين معاً.
 Attendance needs the HR app. Ask an administrator to install it.,الحضور يحتاج تطبيق الموارد البشرية. اطلب من المسؤول تثبيته.
 Choose at least one item to return.,اختر صنفاً واحداً على الأقل للإرجاع.
 Choose how to refund this.,اختر طريقة الإرجاع.
@@ -24,6 +22,7 @@ Discount of {0}% exceeds your limit of {1}%.,خصم {0}% يتجاوز حدّك {
 Enter a reason for the difference before closing.,أدخل سبب الفرق قبل الإغلاق.
 Enter the number of guests.,أدخل عدد الضيوف.
 Invalid PIN or insufficient permissions.,الرقم السري غير صحيح أو الصلاحية غير كافية.
+Invoice {0} did not come from this till.,الفاتورة {0} ليست من هذا التِل.
 Item {0} does not exist.,الصنف {0} غير موجود.
 Item {0} is disabled.,الصنف {0} موقوف.
 Manager authorisation is invalid or has expired.,تفويض المدير غير صالح أو انتهت صلاحيته.
@@ -31,6 +30,7 @@ Manager authorisation is required.,يلزم تفويض المدير.
 Modifier group {0} does not apply to this item.,مجموعة الإضافات {0} لا تنطبق على هذا الصنف.
 Modifier option {0} is not available.,خيار الإضافة {0} غير متاح.
 No price is configured for {0} in price list {1}.,لا يوجد سعر للصنف {0} في قائمة الأسعار {1}.
+"No printer is linked to this terminal, so nothing can be printed.",لا توجد طابعة مربوطة بهذه الطرفية، فلا شيء يمكن طباعته.
 Only {0} of that line is left to return.,المتبقي من هذا السطر للإرجاع: {0}.
 Open a shift before taking orders.,افتح المناوبة قبل استقبال الطلبات.
 Order type {0} is not active.,نوع الطلب {0} غير مفعّل.
@@ -38,6 +38,7 @@ Order type {0} is not available here.,نوع الطلب {0} غير متاح عل
 Order type {0} needs a customer.,نوع الطلب {0} يحتاج عميلاً.
 Order type {0} requires a customer.,نوع الطلب {0} يتطلب عميلاً.
 Order type {0} requires a table.,نوع الطلب {0} يتطلب طاولة.
+"Order {0} has not been paid, so there is nothing to return.",الطلب {0} غير مدفوع، فلا شيء لإرجاعه.
 Order {0} is already cancelled.,الطلب {0} ملغى أصلاً.
 Order {0} is {1} and can no longer be modified.,الطلب {0} حالته {1} ولا يمكن تعديله.
 Payment method {0} does not exist.,طريقة الدفع {0} غير موجودة.
@@ -59,6 +60,7 @@ That PIN was not recognised.,الرقم السري غير صحيح.
 The PIN must be exactly {0} digits.,الرقم السري يجب أن يكون {0} أرقام بالضبط.
 The amount received is less than the amount being paid.,المبلغ المستلم أقل من المبلغ المدفوع.
 There is nothing new to send to the kitchen.,لا يوجد جديد لإرساله للمطبخ.
+"This bill is from a day that has been closed, so nothing can be added to it. ",هذه الفاتورة من يوم مُغلق، فلا يمكن إضافة شيء إليها. ما زال بالإمكان دفعها أو إلغاؤها.
 This bill prices differently on the screen ({0}) and on the invoice ({1}). ,هذه الفاتورة تُحسب على الشاشة ({0}) وعلى الفاتورة ({1}) بشكل مختلف. لم يُخصم شيء. راجع قالب الضريبة على الجهاز.
 This bill was sold offline at {0} but comes to {1} here ,هذه الفاتورة بيعت بلا اتصال بمبلغ {0} وتُحسب هنا {1}
 This login is not linked to an employee record.,هذا الحساب غير مرتبط بسجل موظف.

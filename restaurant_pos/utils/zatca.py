@@ -201,26 +201,46 @@ def integration_qr(invoice) -> str | None:
 	if INTEGRATION not in frappe.get_installed_apps():
 		return None
 
-	try:
-		stamped = frappe.db.get_value(
-			"Sales Invoice Additional Fields",
-			{"sales_invoice": invoice.name},
-			"qr_image_src",
-			order_by="creation desc",
-		)
-		if stamped:
-			return stamped
+	stamped = _tried("phase two", lambda: _stamped_qr(invoice))
+	if stamped:
+		return stamped
 
-		from ksa_compliance.jinja import get_zatca_phase_1_qr_for_invoice
-
-		encoded = get_zatca_phase_1_qr_for_invoice(invoice.name)
-	except Exception:
-		frappe.log_error(f"ZATCA integration could not produce a QR for {invoice.name}", "RPOS zatca")
-		return None
-
+	encoded = _tried("phase one", lambda: _phase_one_qr(invoice))
 	# Their phase-one helper answers with bare base64; ours is handed straight
 	# to an `<img src>`.
 	return f"data:image/png;base64,{encoded}" if encoded else None
+
+
+def _tried(what: str, work):
+	"""Run one attempt, and let a broken one not take the others with it.
+
+	**Each link is tried on its own.** The first version wrapped both in one
+	`try`, and the phase-two lookup raising on a column the app had not migrated
+	yet swallowed the phase-one answer that was sitting right there — the paper
+	came out with our own code while an integration was installed and working.
+	Measured on the demo site the day the app went in.
+	"""
+	try:
+		return work()
+	except Exception:
+		frappe.log_error(f"ZATCA integration failed at {what}", "RPOS zatca")
+		return None
+
+
+def _stamped_qr(invoice) -> str | None:
+	"""The cleared invoice's own QR, stamped by ZATCA (phase two)."""
+	return frappe.db.get_value(
+		"Sales Invoice Additional Fields",
+		{"sales_invoice": invoice.name},
+		"qr_image_src",
+		order_by="creation desc",
+	)
+
+
+def _phase_one_qr(invoice) -> str | None:
+	from ksa_compliance.jinja import get_zatca_phase_1_qr_for_invoice
+
+	return get_zatca_phase_1_qr_for_invoice(invoice.name)
 
 
 def rpos_invoice_qr(invoice) -> str | None:

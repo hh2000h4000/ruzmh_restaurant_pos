@@ -116,3 +116,23 @@ export function validateDiscountOverride(payload: {
   // POST, never GET: the PIN must not reach a URL (04 §7, CLAUDE.md §5.4).
   return command("permissions.validate_discount_override", payload);
 }
+
+/**
+ * Exchange a manager's PIN for a single-use token (07 §7).
+ *
+ * The general form: any `can_*` the cashier does not hold, or a rule that asks
+ * for a second person regardless — `BR-055` refunds out of a counted shift
+ * among them. `validateDiscountOverride` stays separate because a discount is
+ * not a yes/no right: the approver's own ceiling has to cover the figure.
+ */
+export function validateManagerOverride(payload: {
+  action_type: string;
+  pin: string;
+  reason: string;
+  branch: string;
+  pos_profile: string;
+  order_name?: string | null;
+}): Promise<{ success: boolean; approved_by: string; override_token: string }> {
+  // POST, never GET: the PIN must not reach a URL (04 §7, CLAUDE.md §5.4).
+  return command("permissions.validate_manager_override", payload);
+}

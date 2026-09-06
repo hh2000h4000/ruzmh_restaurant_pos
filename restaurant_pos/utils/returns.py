@@ -27,7 +27,7 @@ from frappe.utils import flt, now_datetime
 from restaurant_pos.utils import numbering, payment, printing
 from restaurant_pos.utils.audit import log_audit
 from restaurant_pos.utils.payment import is_credit_method
-from restaurant_pos.utils.permissions import consume_override_token
+from restaurant_pos.utils.permissions import consume_override_token, get_pos_permission_set
 from restaurant_pos.utils.shift import assert_may_sell, selling_till
 
 #: Why a bill is being reversed, and what ZATCA calls that (D-065).
@@ -108,6 +108,9 @@ def returnable(order) -> dict:
 		"paid_with": _paid_with(invoice),
 		"returns": _existing_returns(invoice),
 		"fully_returned": all(row["returnable"] <= 0 for row in items),
+		# BR-055, D-147 — said **before** the cashier commits, by the same
+		# function that enforces it at Confirm.
+		"needs_manager": needs_manager(order),
 	}
 
 
@@ -260,13 +263,35 @@ def _authorise_return(order, override_token: str | None) -> str | None:
 
 	approved_by = authorise("can_create_return", override_token)
 
-	till = selling_till(order.pos_profile)
-	current = frappe.db.get_value("POS Opening Entry", till.name, "rpos_restaurant_shift") if till else None
-
-	if order.restaurant_shift and order.restaurant_shift != current and not approved_by:
+	if is_older_shift(order) and not approved_by:
 		approved_by = consume_override_token(override_token, "can_create_return")
 
 	return approved_by
+
+
+def is_older_shift(order) -> bool:
+	"""Is this bill from a drawer that has already been counted? (`BR-055`)"""
+	till = selling_till(order.pos_profile)
+	current = frappe.db.get_value("POS Opening Entry", till.name, "rpos_restaurant_shift") if till else None
+
+	return bool(order.restaurant_shift and order.restaurant_shift != current)
+
+
+def needs_manager(order) -> bool:
+	"""Will this refund be refused without a manager's PIN? (`D-147`)
+
+	**Asked before the cashier commits, by the code that enforces it.** The rule
+	was reachable only by pressing the button and being refused — and the return
+	screen had nowhere to type a PIN, so the refusal was a wall: the till said
+	"manager authorisation is required" and offered no way to give it.
+
+	`D-125` is the standing rule this belongs to: every condition the server
+	refuses at Confirm has to be visible on the screen before it.
+	"""
+	if not get_pos_permission_set().get("can_create_return"):
+		return True
+
+	return is_older_shift(order)
 
 
 def _validate_quantities(order, items: list) -> dict[str, float]:

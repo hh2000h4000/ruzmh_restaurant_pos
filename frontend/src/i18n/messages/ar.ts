@@ -209,6 +209,7 @@ const messages: Catalogue["messages"] = {
   "customer.withoutAddress": "المتابعة بدون عنوان",
   // المرتجعات (FR-9)
   "ret.rowLabel": "مرتجع",
+  "ret.needsManager": "هذه الفاتورة من مناوبة أُغلقت وعُدَّت، فيلزم رمز المدير.",
   "print.receiptAgain": "طباعة الإيصال مرة أخرى",
   "print.receiptSent": "أُرسل إيصال {number} إلى الطابعة",
   "ret.against": "مرتجع للفاتورة {number}",

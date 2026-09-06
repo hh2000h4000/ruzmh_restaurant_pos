@@ -53,6 +53,8 @@ const PATHS = {
   note: "M4 20h4L20 8a2 2 0 00-2.8-2.8L5 17v3z",
   hourglass: "M7 3h10M7 21h10M8 3v3a4 4 0 004 4 4 4 0 004-4V3M8 21v-3a4 4 0 014-4 4 4 0 014 4v3",
   bag: "M6 7h12l1 13H5zM9 7V5a3 3 0 016 0v2",
+  // Something a second person has to unlock — a manager's PIN (`BR-055`).
+  lock: "M6 11h12v9H6zM9 11V8a3 3 0 016 0v3",
 } as const;
 
 export type IconName = keyof typeof PATHS;

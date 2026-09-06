@@ -47,6 +47,15 @@ export interface Returnable {
   paid_with: { method: string; amount: number }[];
   returns: { name: string; posting_date: string; grand_total: number }[];
   fully_returned: boolean;
+  /**
+   * `BR-055` — this refund will be refused without a manager's PIN.
+   *
+   * Either the cashier does not hold `can_create_return`, or the bill belongs
+   * to a shift that has already been counted and handed over. Said here so the
+   * screen can ask before the cashier commits (`D-125`, `D-147`) rather than
+   * refusing them afterwards with nowhere to type it.
+   */
+  needs_manager: boolean;
 }
 
 export interface ReturnLine {

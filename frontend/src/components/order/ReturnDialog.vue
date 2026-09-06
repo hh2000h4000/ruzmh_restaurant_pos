@@ -9,9 +9,12 @@ import {
   type ReturnLine,
   type ReturnReason,
 } from "@/api/returns";
+import { validateManagerOverride } from "@/api/payment";
 import AppIcon from "@/components/AppIcon.vue";
 import BaseDialog from "@/components/BaseDialog.vue";
+import ManagerPinDialog from "@/components/ManagerPinDialog.vue";
 import { formatNumber, t, type MessageKey } from "@/i18n";
+import { useSessionStore } from "@/stores/session";
 
 /**
  * Sending part of a paid bill back (FR-9.2, D-064).
@@ -31,6 +34,36 @@ import { formatNumber, t, type MessageKey } from "@/i18n";
  */
 const props = defineProps<{ open: boolean; orderName: string | null }>();
 const emit = defineEmits<{ close: []; done: [creditNote: string] }>();
+
+const session = useSessionStore();
+
+/**
+ * `BR-055` — a refund out of a drawer somebody has already counted.
+ *
+ * The server refuses it without a manager's PIN, and this screen had nowhere
+ * to type one: the cashier pressed the button, read "manager authorisation is
+ * required", and that was the end of the road (`D-147`). Now the sheet says so
+ * up front and asks for the PIN as part of confirming (`D-125`).
+ */
+const askingManager = ref(false);
+const overrideToken = ref<string | null>(null);
+
+function approveWith(pin: string, reason: string): Promise<string> {
+  return validateManagerOverride({
+    action_type: "can_create_return",
+    pin,
+    reason,
+    branch: session.branch ?? "",
+    pos_profile: session.profile?.name ?? "",
+    order_name: props.orderName,
+  }).then((approval) => approval.override_token);
+}
+
+function onApproved(token: string): void {
+  overrideToken.value = token;
+  askingManager.value = false;
+  void confirm();
+}
 
 const bill = ref<Returnable | null>(null);
 /** Row name → how much of it is going back. */
@@ -70,6 +103,8 @@ watch(
     refund.value = 0;
     error.value = null;
     receipt.value = null;
+    askingManager.value = false;
+    overrideToken.value = null;
     if (!isOpen || !props.orderName) return;
 
     busy.value = true;
@@ -132,6 +167,13 @@ const canConfirm = computed(
 async function confirm(): Promise<void> {
   if (!canConfirm.value || !props.orderName || !reason.value) return;
 
+  // Ask the manager first, and only once: the token is single-use and the
+  // server consumes it (`08` §4).
+  if (bill.value?.needs_manager && !overrideToken.value) {
+    askingManager.value = true;
+    return;
+  }
+
   busy.value = true;
   error.value = null;
   try {
@@ -141,6 +183,7 @@ async function confirm(): Promise<void> {
       reason_code: reason.value,
       note: note.value.trim() || null,
       refund_method: method.value,
+      manager_override_token: overrideToken.value,
     });
 
     receipt.value = { note: done.credit_note, amount: done.refund_amount };
@@ -173,6 +216,19 @@ function money(value: number): string {
       class="mb-3 rounded-rpos bg-danger/10 p-3 text-sm text-danger"
     >
       {{ error }}
+    </p>
+
+    <!-- BR-055, D-147 — before the button, not after it. -->
+    <p
+      v-if="bill && !bill.fully_returned && bill.needs_manager && !overrideToken"
+      role="status"
+      class="mb-3 flex items-center gap-2 rounded-rpos bg-status-reserved/10 p-3 text-sm text-status-reserved"
+    >
+      <AppIcon
+        name="lock"
+        :size="18"
+      />
+      {{ t("ret.needsManager") }}
     </p>
 
     <!-- Done. The amount to hand back is the whole message. -->
@@ -386,5 +442,12 @@ function money(value: number): string {
     >
       {{ t("common.loading") }}
     </p>
+    <ManagerPinDialog
+      :open="askingManager"
+      :explain="t('ret.needsManager')"
+      :verify="approveWith"
+      @approved="onApproved"
+      @close="askingManager = false"
+    />
   </BaseDialog>
 </template>

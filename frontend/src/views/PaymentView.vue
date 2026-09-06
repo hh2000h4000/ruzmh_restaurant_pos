@@ -10,6 +10,7 @@ import type {
   TotalsPreview,
 } from "@/api/payment";
 import BaseDialog from "@/components/BaseDialog.vue";
+import ManagerPinDialog from "@/components/ManagerPinDialog.vue";
 import TenderSheet from "@/components/order/TenderSheet.vue";
 import { formatNumber, t } from "@/i18n";
 import { useOrderStore } from "@/stores/order";
@@ -74,9 +75,6 @@ const done = ref<paymentApi.PaymentResult | null>(null);
 
 // Manager approval (FR-10.4, Screen 9)
 const askingPin = ref(false);
-const pin = ref("");
-const pinReason = ref("");
-const pinError = ref<string | null>(null);
 
 const due = computed(() => preview.value?.total_amount ?? summary.value?.total_amount ?? 0);
 const paid = computed(() => lines.value.reduce((total, line) => total + (line.amount || 0), 0));
@@ -352,27 +350,31 @@ function clearSplit(): void {
   settled.value = 0;
 }
 
-async function approveDiscount(): Promise<void> {
-  if (!summary.value || !preview.value) return;
+/**
+ * Exchange the manager's PIN for a token (FR-10.4, BR-031).
+ *
+ * The sheet that collects it is `ManagerPinDialog`, shared with the return
+ * screen (`D-147`); what is particular to a discount is this call — the
+ * approver's own ceiling has to cover the figure, which a plain yes/no
+ * override does not ask.
+ */
+async function approveDiscount(pin: string, reason: string): Promise<string> {
+  const approval = await paymentApi.validateDiscountOverride({
+    pin,
+    percentage: preview.value?.discount_percentage ?? 0,
+    reason,
+    branch: session.branch ?? "",
+    pos_profile: session.profile?.name ?? "",
+    order_name: orderName,
+  });
 
-  pinError.value = null;
-  try {
-    const approval = await paymentApi.validateDiscountOverride({
-      pin: pin.value,
-      percentage: preview.value.discount_percentage,
-      reason: pinReason.value.trim(),
-      branch: session.branch ?? "",
-      pos_profile: session.profile?.name ?? "",
-      order_name: orderName,
-    });
+  return approval.override_token;
+}
 
-    overrideToken.value = approval.override_token;
-    askingPin.value = false;
-  } catch (cause) {
-    pinError.value = cause instanceof Error ? cause.message : String(cause);
-  } finally {
-    pin.value = "";
-  }
+function onApproved(token: string): void {
+  overrideToken.value = token;
+  askingPin.value = false;
+  void confirm();
 }
 
 async function confirm(): Promise<void> {
@@ -903,61 +905,12 @@ async function confirm(): Promise<void> {
       @close="tendering = null"
     />
 
-    <BaseDialog
+    <ManagerPinDialog
       :open="askingPin"
-      :title="`🔐 ${t('pay.needsManager')}`"
+      :explain="t('pay.discountExceeds', { value: `${preview?.discount_percentage ?? 0}%` })"
+      :verify="approveDiscount"
+      @approved="onApproved"
       @close="askingPin = false"
-    >
-      <p class="mb-3 text-sm text-muted">
-        {{ t("pay.discountExceeds", { value: `${preview?.discount_percentage ?? 0}%` }) }}
-      </p>
-      <label
-        for="pin"
-        class="mb-1 block text-sm font-medium"
-      >{{ t("pay.managerPin") }}</label>
-      <input
-        id="pin"
-        v-model="pin"
-        type="password"
-        inputmode="numeric"
-        maxlength="4"
-        autocomplete="off"
-        class="rpos-numeric mb-3 min-h-tap w-full rounded-rpos border border-line bg-background px-3 text-center text-2xl tracking-widest"
-      >
-      <label
-        for="pin-reason"
-        class="mb-1 block text-sm font-medium"
-      >{{ t("pay.reasonRequired") }}</label>
-      <input
-        id="pin-reason"
-        v-model="pinReason"
-        type="text"
-        class="mb-4 min-h-tap w-full rounded-rpos border border-line bg-background px-3"
-      >
-      <p
-        v-if="pinError"
-        role="alert"
-        class="mb-3 text-sm text-danger"
-      >
-        {{ pinError }}
-      </p>
-      <div class="flex gap-2">
-        <button
-          type="button"
-          class="min-h-tap flex-1 rounded-rpos border border-line"
-          @click="askingPin = false"
-        >
-          {{ t("action.cancel") }}
-        </button>
-        <button
-          type="button"
-          class="min-h-tap flex-1 rounded-rpos bg-primary font-medium text-primary-contrast disabled:opacity-50"
-          :disabled="pin.length !== 4 || !pinReason.trim()"
-          @click="approveDiscount"
-        >
-          {{ t("action.authorize") }}
-        </button>
-      </div>
-    </BaseDialog>
+    />
   </main>
 </template>

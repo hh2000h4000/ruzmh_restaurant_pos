@@ -269,7 +269,8 @@ const messages: Catalogue["messages"] = {
   "shift.stillOpen": "{count} فواتير ما زالت مفتوحة. أقفل اليوم رغم ذلك.",
   "shift.stillOpenBlocked": "{count} فواتير ما زالت مفتوحة. أقفلها أو ألغِها قبل إغلاق اليوم.",
   "shift.stillOpenCarries": "{count} فواتير ما زالت مفتوحة. تنتقل إلى اليوم التالي.",
-  "shift.carryOverFull": "{count} فاتورة مفتوحة، وهذا الفرع ينقل {limit}. أقفل أو ألغِ {excess} منها.",
+  "shift.carryingTooMany":
+    "{count} فاتورة متروكة مفتوحة. اليوم يُقفل عادي، بس التِل يقرأها كلها مع كل تحديث — يستاهل تنظيفها.",
   "shift.heldBy": "المناوبة مفتوحة باسم {name}",
   "keypad.decimal": "فاصلة عشرية",
   "shift.expected": "المتوقَّع",

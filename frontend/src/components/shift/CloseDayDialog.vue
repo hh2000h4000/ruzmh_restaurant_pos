@@ -50,17 +50,22 @@ const mustFinish = computed(() => report.value?.must_finish_orders !== false);
 /**
  * Whether these open bills stand between the cashier and the end of the day.
  *
- * **Asked, not worked out.** Two branch settings decide it (`D-105`, `D-158`)
- * and the endpoint enforces it; a screen that derived it again would be the
- * second copy of the rule that disagrees with the refusal. Absent — an older
- * server — means any open bill blocks, which is the stricter reading.
+ * **Asked, not worked out.** The branch decides it (`D-105`) and the endpoint
+ * enforces it; a screen that derived it again would be the second copy of the
+ * rule that disagrees with the refusal. Absent — an older server — means any
+ * open bill blocks, which is the stricter reading.
  */
 const blocked = computed(() =>
   report.value ? (report.value.blocked_by_open_orders ?? Boolean(stillOpen.value)) : false,
 );
 
-/** What the branch will carry, for the sentence that asks the cashier to get under it. */
-const carryOverLimit = computed(() => report.value?.carry_over_limit ?? 0);
+/**
+ * The branch is carrying more than it asked to be told about (`D-158`).
+ *
+ * Said, not enforced. The day closes on it — this is the pile getting noticed
+ * while it is still small enough to clear.
+ */
+const carryingTooMany = computed(() => Boolean(report.value?.carrying_too_many));
 
 /**
  * The override, and it is drawn only for someone who holds it.
@@ -181,20 +186,18 @@ function money(value: number): string {
         role="status"
         class="mb-4 rounded-rpos bg-status-reserved/10 p-3 text-sm text-status-reserved"
       >
-        <template v-if="mustFinish">
-          {{ t("shift.stillOpenBlocked", { count: formatNumber(stillOpen) }) }}
-        </template>
-        <!-- The branch carries bills over, but not without end (`D-158`) — so
-             the sentence names the number they have to get under. -->
-        <template v-else>
-          {{
-            t("shift.carryOverFull", {
-              count: formatNumber(stillOpen),
-              limit: formatNumber(carryOverLimit),
-              excess: formatNumber(stillOpen - carryOverLimit),
-            })
-          }}
-        </template>
+        {{ t("shift.stillOpenBlocked", { count: formatNumber(stillOpen) }) }}
+      </p>
+
+      <!-- The pile is growing, and the day closes anyway (`D-158`). Said to the
+           person ending the day, because they are the one who can act on it —
+           the cashier who feels the slow list is not. -->
+      <p
+        v-else-if="carryingTooMany"
+        role="status"
+        class="mb-4 rounded-rpos bg-status-reserved/10 p-3 text-sm text-status-reserved"
+      >
+        {{ t("shift.carryingTooMany", { count: formatNumber(stillOpen) }) }}
       </p>
 
       <!-- The branch lets them run past midnight (`D-105`) — said out loud, so

@@ -142,17 +142,18 @@ CUSTOM_FIELDS = {
 			"insert_after": "settlement_required",
 		},
 		{
-			# D-158 — "carry over" must not come to mean "for ever".
-			"fieldname": "max_carried_open_orders",
+			# D-158 — a number to watch, not a door to lock.
+			"fieldname": "carried_orders_warning_at",
 			"fieldtype": "Int",
 			"default": "100",
-			"label": "Most open orders that may carry over",
+			"label": "Warn when this many orders are carried over",
 			"description": (
-				"Only applies where the setting above is off. The day will not close while "
-				"more than this many bills are still open, so a branch that lets tabs run "
-				"past midnight does not quietly accumulate them for ever — measured, a till "
-				"reading three thousand open bills takes four seconds to draw its own list, "
-				"and it redraws on every order in the branch. 0 means no limit."
+				"Only applies where the setting above is off. Closing the day says so when "
+				"more than this many bills are still open — it never refuses: ending the "
+				"business day is an accounting act, and stopping one because a list has grown "
+				"is the wrong kind of answer. Measured, a till reading three thousand open "
+				"bills takes four seconds to draw its own list, and it redraws on every order "
+				"in the branch. 0 means never warn."
 			),
 			"insert_after": "close_open_orders_with_day",
 		},
@@ -169,7 +170,7 @@ CUSTOM_FIELDS = {
 				"a till that quietly opens a second bill on table four turns one party into "
 				"two, and the mistake surfaces when somebody pays half of it."
 			),
-			"insert_after": "max_carried_open_orders",
+			"insert_after": "carried_orders_warning_at",
 		},
 		{
 			"fieldname": "is_active",

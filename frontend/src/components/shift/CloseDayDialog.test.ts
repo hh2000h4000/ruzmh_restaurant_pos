@@ -123,27 +123,26 @@ describe("closing the day over bills still open", () => {
   });
 
   /**
-   * `D-158` — a branch that carries bills over has a ceiling on how many, so
-   * "3 orders are still open" is true and useless: the cashier has to know how
-   * many of them stand between this day and its end.
+   * `D-158` — the pile is mentioned to the person ending the day, and the day
+   * still closes. A ceiling stood here for an hour: refusing an accounting act
+   * because a list has grown strands a manager at two in the morning over
+   * something recoverable at any time.
    */
-  it("names how many have to go when the ceiling is what refuses", async () => {
+  it("says the pile is growing without standing in the way", async () => {
     const { wrapper } = await open({
       may: false,
       summary: report({
-        orders: { total: 9, closed: 6, cancelled: 0, still_open: 12 },
+        orders: { total: 9, closed: 6, cancelled: 0, still_open: 312 },
         must_finish_orders: false,
-        carry_over_limit: 5,
-        blocked_by_open_orders: true,
+        blocked_by_open_orders: false,
+        carrying_too_many: true,
+        carry_over_warning_at: 100,
       }),
     });
 
-    const said = wrapper.find('[role="status"]').text();
-    expect(said).toContain("12");
-    expect(said).toContain("5");
-    // Twelve open, five carried — seven have to be settled or cancelled.
-    expect(said).toContain("7");
-    expect(closeButton(wrapper).attributes("disabled")).toBeDefined();
+    expect(wrapper.find('[role="status"]').text()).toContain("312");
+    expect(closeButton(wrapper).attributes("disabled")).toBeUndefined();
+    expect(wrapper.find('input[type="checkbox"]').exists()).toBe(false);
   });
 
   it("treats a report that could not say as the stricter answer", async () => {

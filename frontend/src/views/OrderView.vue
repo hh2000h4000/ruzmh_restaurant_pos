@@ -15,6 +15,7 @@ import OrderActionBar, { type OrderAction } from "@/components/order/OrderAction
 import NoteEditor from "@/components/order/NoteEditor.vue";
 import OrderPanel from "@/components/order/OrderPanel.vue";
 import OrderTypeChangeDialog from "@/components/order/OrderTypeChangeDialog.vue";
+import ReasonDialog from "@/components/order/ReasonDialog.vue";
 import ActivityDialog from "@/components/order/ActivityDialog.vue";
 import JoinBillDialog from "@/components/order/JoinBillDialog.vue";
 import SplitBillDialog from "@/components/order/SplitBillDialog.vue";
@@ -65,9 +66,7 @@ const startupError = ref<string | null>(null);
 const pendingItem = ref<CatalogItem | null>(null);
 const pendingQty = ref(1);
 const voidTarget = ref<OrderLine | null>(null);
-const voidReason = ref("");
 const cancelling = ref(false);
-const cancelReason = ref("");
 
 const orderType = computed(
   () => session.orderTypes.find((type) => type.name === orders.order?.order_type) ?? null,
@@ -324,15 +323,29 @@ async function startAnother(orderType: OrderType): Promise<void> {
     return;
   }
 
-  const created = await orders.create({
-    order_type: orderType.name,
-    pos_profile: session.profile!.name,
-  });
+  await openBill({ order_type: orderType.name, pos_profile: session.profile!.name });
+}
 
-  if (created) {
-    pane.value = "items";
-    await router.replace({ name: "order", params: { orderName: created } });
-  }
+/**
+ * Open a bill, and land the cashier on it.
+ *
+ * The tail of **every** way a bill can start — from *New*, from a table, from
+ * the customer box, from the guest count — and it was written out four times.
+ * Whatever the question was, the answer ends the same way: the bill exists, the
+ * menu is in front of the cashier, and the address names it so a reload comes
+ * back to the bill rather than to an empty till.
+ *
+ * Clearing `startupError` is part of that ending and was in only one of the
+ * four: a type that could not be opened left its message on screen under the
+ * bill that opened a moment later.
+ */
+async function openBill(payload: Parameters<typeof orders.create>[0]): Promise<void> {
+  const created = await orders.create(payload);
+  if (!created) return;
+
+  startupError.value = null;
+  pane.value = "items";
+  await router.replace({ name: "order", params: { orderName: created } });
 }
 
 // --------------------------------------------------------------------------
@@ -376,18 +389,12 @@ async function onCustomerPicked(payload: {
   }
 
   customerFor.value = null;
-  const created = await orders.create({
+  await openBill({
     order_type: waiting.name,
     pos_profile: session.profile!.name,
     customer: payload.customer,
     delivery_address: payload.deliveryAddress,
   });
-
-  if (!created) return;
-
-  startupError.value = null;
-  pane.value = "items";
-  await router.replace({ name: "order", params: { orderName: created } });
 }
 
 async function onCustomerCleared(): Promise<void> {
@@ -409,16 +416,11 @@ async function confirmCovers(): Promise<void> {
   if (!orderType || covers.value < 1) return;
 
   countingType.value = null;
-  const created = await orders.create({
+  await openBill({
     order_type: orderType.name,
     pos_profile: session.profile!.name,
     cover_count: covers.value,
   });
-
-  if (created) {
-    pane.value = "items";
-    await router.replace({ name: "order", params: { orderName: created } });
-  }
 }
 
 /**
@@ -502,19 +504,17 @@ async function openAnotherHere(): Promise<void> {
 
 /** Open an order of this type, seated at this table. */
 async function openAt(table: FloorTable, type: OrderType): Promise<void> {
-  const created = await orders.create({
+  await openBill({
     order_type: type.name,
     pos_profile: session.profile!.name,
     table: table.name,
     cover_count: type.requires_cover_count ? table.capacity || 2 : null,
   });
 
+  // Cleared whether the bill opened or not: the question has been answered
+  // either way, and a table left "waiting" would seat the next type tapped.
   seatingType.value = null;
   pendingTable.value = null;
-  if (created) {
-    pane.value = "items";
-    await router.replace({ name: "order", params: { orderName: created } });
-  }
 }
 
 /**
@@ -761,21 +761,18 @@ function askVoid(line: OrderLine): void {
   }
 
   voidTarget.value = line;
-  voidReason.value = "";
 }
 
-async function confirmVoid(): Promise<void> {
+async function confirmVoid(reason: string): Promise<void> {
   const line = voidTarget.value;
-  if (!line || !voidReason.value.trim()) return;
+  if (!line) return;
 
   voidTarget.value = null;
-  await orders.voidLine(line.idx, voidReason.value.trim());
+  await orders.voidLine(line.idx, reason);
 }
 
-async function confirmCancel(): Promise<void> {
-  if (!cancelReason.value.trim()) return;
-
-  const done = await orders.cancel(cancelReason.value.trim());
+async function confirmCancel(reason: string): Promise<void> {
+  const done = await orders.cancel(reason);
   cancelling.value = false;
   if (done) await router.push({ name: "home" });
 }
@@ -1590,70 +1587,26 @@ async function send(): Promise<void> {
     />
 
     <!-- BR-013: a reason is mandatory, so this cannot be dismissed away. -->
-    <BaseDialog
+    <ReasonDialog
       :open="Boolean(voidTarget)"
       :title="t('order.voidReason')"
+      :explain="voidTarget?.item_name ?? ''"
+      :placeholder="t('order.voidPlaceholder')"
+      :confirm="t('order.voidItem')"
+      :busy="orders.busy"
+      @confirm="confirmVoid"
       @close="voidTarget = null"
-    >
-      <p class="mb-3 text-sm text-muted">
-        {{ voidTarget?.item_name }}
-      </p>
-      <input
-        v-model="voidReason"
-        type="text"
-        class="mb-4 min-h-tap w-full rounded-rpos border border-line bg-background px-3"
-        :placeholder="t('order.voidPlaceholder')"
-      >
-      <div class="flex gap-2">
-        <button
-          type="button"
-          class="min-h-tap flex-1 rounded-rpos border border-line"
-          @click="voidTarget = null"
-        >
-          {{ t("action.undo") }}
-        </button>
-        <button
-          type="button"
-          class="min-h-tap flex-1 rounded-rpos bg-danger font-medium text-white disabled:opacity-50"
-          :disabled="!voidReason.trim()"
-          @click="confirmVoid"
-        >
-          {{ t("order.voidItem") }}
-        </button>
-      </div>
-    </BaseDialog>
+    />
 
-    <BaseDialog
+    <ReasonDialog
       :open="cancelling"
       :title="t('order.cancelOrder')"
+      :explain="t('order.cancelBody')"
+      :placeholder="t('order.voidPlaceholder')"
+      :confirm="t('order.confirmCancel')"
+      :busy="orders.busy"
+      @confirm="confirmCancel"
       @close="cancelling = false"
-    >
-      <p class="mb-3 text-sm text-muted">
-        {{ t("order.cancelBody") }}
-      </p>
-      <input
-        v-model="cancelReason"
-        type="text"
-        class="mb-4 min-h-tap w-full rounded-rpos border border-line bg-background px-3"
-        :placeholder="t('order.voidReason')"
-      >
-      <div class="flex gap-2">
-        <button
-          type="button"
-          class="min-h-tap flex-1 rounded-rpos border border-line"
-          @click="cancelling = false"
-        >
-          {{ t("action.undo") }}
-        </button>
-        <button
-          type="button"
-          class="min-h-tap flex-1 rounded-rpos bg-danger font-medium text-white disabled:opacity-50"
-          :disabled="!cancelReason.trim()"
-          @click="confirmCancel"
-        >
-          {{ t("order.confirmCancel") }}
-        </button>
-      </div>
-    </BaseDialog>
+    />
   </main>
 </template>

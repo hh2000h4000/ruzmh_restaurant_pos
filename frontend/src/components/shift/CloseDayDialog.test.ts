@@ -114,7 +114,7 @@ describe("closing the day over bills still open", () => {
   it("lets a cashier close where the branch carries bills over", async () => {
     const { wrapper } = await open({
       may: false,
-      summary: report({ must_finish_orders: false, blocked_by_open_orders: false }),
+      summary: report({ blocked_by_open_orders: false }),
     });
 
     expect(closeButton(wrapper).attributes("disabled")).toBeUndefined();
@@ -133,10 +133,8 @@ describe("closing the day over bills still open", () => {
       may: false,
       summary: report({
         orders: { total: 9, closed: 6, cancelled: 0, still_open: 312 },
-        must_finish_orders: false,
         blocked_by_open_orders: false,
         carrying_too_many: true,
-        carry_over_warning_at: 100,
       }),
     });
 
@@ -157,18 +155,5 @@ describe("closing the day over bills still open", () => {
     const { wrapper } = await open({ may: false, summary: report() });
 
     expect(closeButton(wrapper).attributes("disabled")).toBeDefined();
-  });
-
-  it("takes the server's answer rather than working it out again", async () => {
-    // The two branch settings live on the server and the endpoint enforces
-    // them; a screen that re-derived the rule would be the copy that disagrees
-    // with the refusal. Here the bills are open and the server says they are
-    // not in the way — the screen believes it.
-    const { wrapper } = await open({
-      may: false,
-      summary: report({ must_finish_orders: true, blocked_by_open_orders: false }),
-    });
-
-    expect(closeButton(wrapper).attributes("disabled")).toBeUndefined();
   });
 });

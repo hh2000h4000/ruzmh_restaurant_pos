@@ -44,9 +44,6 @@ watch(
 
 const stillOpen = computed(() => report.value?.orders.still_open ?? 0);
 
-/** Absent means on: never offer a way past a rule the screen could not read. */
-const mustFinish = computed(() => report.value?.must_finish_orders !== false);
-
 /**
  * Whether these open bills stand between the cashier and the end of the day.
  *

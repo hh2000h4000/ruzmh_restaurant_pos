@@ -32,19 +32,16 @@ export interface ShiftReport {
   opened_at?: string;
   orders: { total: number; closed: number; cancelled: number; still_open: number };
   /**
-   * Whether this branch ends its day with nothing left open (`D-105`).
-   *
-   * Only the day's report carries it — a till's count is not where this is
-   * decided. Absent means the same as on: the screen must not offer a way past
-   * a rule it could not read (`D-156`).
-   */
-  must_finish_orders?: boolean;
-  /**
    * Whether these open bills actually stand between the day and its close.
    *
-   * **The server's answer, not the screen's.** A screen that worked the rule
-   * out again would be the second copy — the one that disagrees with the
-   * endpoint that refuses.
+   * **The server's answer, not the screen's.** The branch decides it (`D-105`,
+   * `D-156`) and the endpoint enforces it; a screen that worked the rule out
+   * again would be the second copy — the one that disagrees with the refusal.
+   * Absent means any open bill blocks, which is the stricter reading.
+   *
+   * The report carries the two settings behind it as well, and this type does
+   * not: nothing on screen reads them, and a field nobody reads is one that
+   * goes quietly wrong.
    */
   blocked_by_open_orders?: boolean;
   /**
@@ -55,8 +52,6 @@ export interface ShiftReport {
    * does not stop the other.
    */
   carrying_too_many?: boolean;
-  /** The number the branch asked to be told about; `0` is never. */
-  carry_over_warning_at?: number;
   by_order_type: { order_type: string; title_ar: string; count: number; sales: number }[];
   by_method: MethodLine[];
   voids: number;

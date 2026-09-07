@@ -52,10 +52,14 @@ async function open(options: { may: boolean; summary: ShiftReport }) {
   const shift = useShiftStore();
   shift.daySummary = vi.fn().mockResolvedValue(options.summary);
 
+  // Mounted closed and then opened, the way the till holds it: the report is
+  // fetched when `open` *changes*, so a dialog mounted already open would sit
+  // on its loading line for ever and every assertion below would find nothing.
   const wrapper = mount(CloseDayDialog, {
-    props: { open: true },
+    props: { open: false },
     global: { stubs: { teleport: true } },
   });
+  await wrapper.setProps({ open: true });
   await flushPromises();
 
   return { wrapper, shift };

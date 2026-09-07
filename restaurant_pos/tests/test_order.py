@@ -172,6 +172,24 @@ class OrderTestBase(FrappeTestCase):
 
 	@classmethod
 	def tearDownClass(cls):
+		# **Throw the class's own work away before saving anything of ours.**
+		#
+		# `FrappeTestCase` rolls back once per class — and its rollback is a
+		# class *cleanup*, which runs after this method, not before it. So the
+		# commit below was never saving one field: it was saving every order,
+		# every invoice and every payment the class had just made, and the
+		# rollback that followed found nothing left to undo.
+		#
+		# Measured before this line existed: 28,879 orders on the test site, of
+		# which **14,919 still open**. `list_orders` does not bound the floor by
+		# date on purpose (`D-146`), so every listing test read all of them —
+		# sixty seconds each, and this one module was five sixths of the whole
+		# gate's twenty minutes.
+		#
+		# A suite that leaves its data behind gets slower every time it runs,
+		# and a check that costs twenty minutes is a check that gets skipped.
+		frappe.db.rollback()
+
 		if getattr(cls, "original_price_list", None):
 			frappe.db.set_value("POS Profile", cls.profile, "selling_price_list", cls.original_price_list)
 			frappe.db.commit()

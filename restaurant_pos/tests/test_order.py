@@ -24,10 +24,20 @@ CASHIER = "rpos_order_cashier@example.com"
 
 
 def _make_cashier() -> str:
-	"""A user with the shipped POS Cashier defaults — no price-change right."""
-	from restaurant_pos.setup.defaults import create_default_data
+	"""A user with the shipped POS Cashier defaults — no price-change right.
 
-	create_default_data()
+	**Only builds the defaults when they are missing.** `create_default_data`
+	commits, and a commit in the middle of a test makes everything the class has
+	built so far permanent — orders, invoices, payments — because the rollback
+	that would have undone them runs once, at the end of the class. Three tests
+	called this after opening a bill, and each of them left that bill behind.
+	The defaults do not change between tests, so asking for them again bought
+	nothing and cost a commit.
+	"""
+	if not frappe.db.exists("POS Permission Set", "POS Cashier"):
+		from restaurant_pos.setup.defaults import create_default_data
+
+		create_default_data()
 
 	if not frappe.db.exists("User", CASHIER):
 		frappe.get_doc(

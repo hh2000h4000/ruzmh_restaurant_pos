@@ -48,6 +48,17 @@ STANDALONE = (
 	# first bill of a fresh restaurant is #175 — which is the one number on the
 	# receipt anybody would notice.
 	"POS Order Counter",
+	# Emptied rather than followed from the orders, because **rows outlive the
+	# bill they were about**: 332 activity rows and 27 audit rows survived a run
+	# that deleted every order, all of them pointing at bills deleted by
+	# something earlier. With no orders left every row here is an orphan by
+	# definition, so the honest sweep is the whole table.
+	#
+	# Yes, that includes the compliance log (`08_Security.md` §5) — a reset to
+	# day one is exactly the case where its contents belong to a restaurant that
+	# no longer exists. It is why this asks for the site by name.
+	"POS Order Activity",
+	"POS Audit Log",
 )
 
 #: How many ids go into one `IN (…)`. A list of fifteen thousand is one query the

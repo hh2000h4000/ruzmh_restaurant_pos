@@ -34,6 +34,7 @@
   "can_close_shift",
   "shift_cb",
   "can_close_others_shift",
+  "can_close_day_with_open_orders",
   "can_view_all_orders",
   "can_access_reports"
  ],
@@ -180,6 +181,12 @@
    "label": "Can Close Other Cashiers' Shift"
   },
   {
+   "fieldname": "can_close_day_with_open_orders",
+   "fieldtype": "Check",
+   "label": "Can Close The Day Over Open Orders",
+   "description": "The branch setting `Finish open orders before closing the day` is the rule; this is the only way past it. Off for a cashier: a day closed over bills nobody meant to carry cannot be undone, and the till already offers the two honest answers — settle them or cancel them."
+  },
+  {
    "fieldname": "can_view_all_orders",
    "fieldtype": "Check",
    "label": "Can View All Orders"
@@ -193,7 +200,7 @@
  "index_web_pages_for_search": 1,
  "istable": 0,
  "links": [],
- "modified": "2026-08-09 00:00:00.000000",
+ "modified": "2026-09-07 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Restaurant POS",
  "name": "POS Permission Set",

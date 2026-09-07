@@ -45,6 +45,11 @@ _CASHIER = {
 	"can_open_shift": 1,
 	"can_close_shift": 1,
 	"can_close_others_shift": 0,
+	# `D-156` — closing the day is a cashier's job; closing it **over open
+	# bills** is not. The branch setting is the rule (`D-105`) and this is the
+	# only way past it, so the till's two honest answers stay the ordinary ones:
+	# settle the bills, or cancel them.
+	"can_close_day_with_open_orders": 0,
 	"can_view_all_orders": 0,
 	"can_access_reports": 0,
 }
@@ -70,6 +75,7 @@ _POS_MANAGER = _SENIOR_CASHIER | {
 	"can_change_item_price": 1,
 	"can_override_payment_method": 1,
 	"can_close_others_shift": 1,
+	"can_close_day_with_open_orders": 1,
 	"can_view_all_orders": 1,
 	"can_access_reports": 1,
 }

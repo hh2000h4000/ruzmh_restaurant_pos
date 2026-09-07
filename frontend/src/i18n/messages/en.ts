@@ -277,6 +277,11 @@ export const messages = {
   "shift.variance": "Difference",
   "shift.varianceReason": "Why is there a difference?",
   "shift.stillOpen": "{count} orders are still open. Close the day anyway.",
+  /** For a cashier, who cannot override it — so it says what to do instead. */
+  "shift.stillOpenBlocked":
+    "{count} orders are still open. Settle or cancel them before the day can close.",
+  /** Where the branch lets a bill run past midnight (D-105). */
+  "shift.stillOpenCarries": "{count} orders are still open. They carry over to the next day.",
   "shift.heldBy": "{name} has the shift open",
   "keypad.decimal": "Decimal point",
   /** The compact row label; `shift.tillExpected` is the summary line's. */

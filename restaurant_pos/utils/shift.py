@@ -161,11 +161,19 @@ def close_day(*, shift_name: str, force: bool = False) -> dict:
 	# the day waits for them; with it off they carry over and stay fully
 	# editable tomorrow.
 	report = summarise(shift_name)
-	if report["orders"]["still_open"] and not force and _must_finish_orders(day.branch):
-		frappe.throw(
-			_("{0} orders are still open on this day.").format(report["orders"]["still_open"]),
-			frappe.ValidationError,
-		)
+	if report["orders"]["still_open"] and _must_finish_orders(day.branch):
+		# **And the way past it is a right, not a tick box** (`D-156`). It was a
+		# tick box: the screen drew "close the day anyway" beside the count for
+		# whoever was standing there, and `can_close_shift` ships **on** for a
+		# plain cashier — so the branch setting was a suggestion. A day closed
+		# over bills nobody meant to carry cannot be undone.
+		if not force:
+			frappe.throw(
+				_("{0} orders are still open on this day.").format(report["orders"]["still_open"]),
+				frappe.ValidationError,
+			)
+
+		assert_permission("can_close_day_with_open_orders")
 
 	closed_tills = []
 	for entry in _tills_of(shift_name, status="Open"):
@@ -363,7 +371,14 @@ def summarise(shift_name: str) -> dict:
 		filters={"restaurant_shift": shift_name},
 		fields=["name", "order_type", "status", "total_amount", "discount_amount", "sales_invoice"],
 	)
-	return _report(day, orders, opening={})
+	report = _report(day, orders, opening={})
+
+	# What an open bill means here, so the screen can say the right thing about
+	# it (`D-156`). A till that offers a way past a rule this branch does not
+	# have — or hides the reason for one it does — is guessing on the cashier's
+	# behalf. The screen only draws it; this decides it.
+	report["must_finish_orders"] = _must_finish_orders(day.branch)
+	return report
 
 
 def summarise_till(opening_entry: str) -> dict:

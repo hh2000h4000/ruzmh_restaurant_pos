@@ -262,6 +262,20 @@ class TestEndOfDay(ShiftTestBase):
 
 		self.assertEqual(frappe.db.get_value("Restaurant Shift", outcome["shift"], "status"), "closed")
 
+	def test_the_report_says_which_rule_this_branch_keeps(self):
+		"""So the screen can name the reason instead of drawing a dead button.
+
+		`D-074` — a control that refuses and explains nothing is the report a
+		cashier cannot act on, and the till has three different things to say
+		about an open bill here depending on the branch and the reader.
+		"""
+		outcome = service.open_till(pos_profile=self.profile)
+
+		self.assertTrue(service.summarise(outcome["shift"])["must_finish_orders"])
+
+		frappe.db.set_value("Branch", BRANCH, "close_open_orders_with_day", 0)
+		self.assertFalse(service.summarise(outcome["shift"])["must_finish_orders"])
+
 	def test_it_sweeps_up_a_drawer_left_open(self):
 		"""The cashier who went home is not coming back to count it."""
 		outcome = service.open_till(pos_profile=self.profile, opening_floats={"Cash": 200})
@@ -349,3 +363,118 @@ class TestOneBranchCannotReadAnother(ShiftTestBase):
 		frappe.set_user(self.CASHIER)
 		with self.assertRaises(frappe.PermissionError):
 			service.summarise_till(entry)
+
+
+class TheDayDoesNotCloseOverBillsOnATickBox(ShiftTestBase):
+	"""`D-156` — the branch setting was a suggestion, and this is why.
+
+	`D-105` gave the restaurant the rule: with `close_open_orders_with_day` on,
+	**the day does not end while a bill is open**. The rule was enforced — and
+	then handed away. `close_day` took a `force` flag that nothing guarded, the
+	close-day screen drew *"close the day anyway"* beside the count whenever a
+	bill was open, and `can_close_shift` ships **on** for a plain cashier. So
+	the branch could set the rule and any cashier could tick past it.
+
+	A day closed over bills nobody meant to carry cannot be undone. The way past
+	is a right now, and these run **as the users who do or do not hold it** —
+	Administrator passes every permission check on the first line
+	(`06_git_testing_rules.md`), so asserting as Administrator would prove that
+	the flag still exists and nothing more.
+	"""
+
+	CASHIER = "rpos_day_cashier@example.com"
+	MANAGER = "rpos_day_manager@example.com"
+
+	def setUp(self):
+		super().setUp()
+		from restaurant_pos.setup.defaults import PERMISSION_SETS, create_default_data
+
+		if not frappe.db.exists("POS Permission Set", "POS Manager"):
+			create_default_data()
+
+		# The shipped answer is what is under test, not whatever an earlier test
+		# left on the row (`D-013` — defaults are never re-applied after install).
+		for role in ("POS Cashier", "POS Manager"):
+			frappe.db.set_value(
+				"POS Permission Set",
+				role,
+				"can_close_day_with_open_orders",
+				PERMISSION_SETS[role]["can_close_day_with_open_orders"],
+			)
+
+		self._user(self.CASHIER, "POS Cashier", "RPOS Day Cashier")
+		self._user(self.MANAGER, "POS Manager", "RPOS Day Manager")
+		frappe.local.rpos_permission_cache = {}
+
+	def tearDown(self):
+		frappe.set_user("Administrator")
+		frappe.local.rpos_permission_cache = {}
+		super().tearDown()
+
+	def _user(self, email: str, role: str, name: str) -> None:
+		if not frappe.db.exists("User", email):
+			frappe.get_doc(
+				{
+					"doctype": "User",
+					"email": email,
+					"first_name": name,
+					"send_welcome_email": 0,
+					"roles": [{"role": role}],
+				}
+			).insert(ignore_permissions=True)
+
+	def _as(self, user: str) -> None:
+		frappe.set_user(user)
+		frappe.local.rpos_permission_cache = {}
+
+	def _a_day_with_a_bill_left_open(self, user: str) -> str:
+		"""Opened by this user, so `can_close_others_shift` never enters into it.
+
+		Closing somebody else's day is a different right (`BR-045`), and a test
+		that tripped over it would be reporting the wrong refusal.
+		"""
+		self._as(user)
+		outcome = service.open_till(pos_profile=self.profile)
+		self._order()
+		return outcome["shift"]
+
+	def test_a_cashier_cannot_tick_past_it(self):
+		"""The defect, exactly: `can_close_shift` is on for every cashier."""
+		day = self._a_day_with_a_bill_left_open(self.CASHIER)
+
+		with self.assertRaises(frappe.PermissionError):
+			service.close_day(shift_name=day, force=True)
+
+		self.assertEqual(frappe.db.get_value("Restaurant Shift", day, "status"), "open")
+
+	def test_and_is_still_refused_plainly_without_the_flag(self):
+		"""The ordinary answer stays a validation error, not a permission one.
+
+		The cashier has not done anything they may not do — there are bills to
+		settle, and the message has to be about the bills.
+		"""
+		day = self._a_day_with_a_bill_left_open(self.CASHIER)
+
+		with self.assertRaises(frappe.ValidationError):
+			service.close_day(shift_name=day)
+
+	def test_a_manager_may(self):
+		day = self._a_day_with_a_bill_left_open(self.MANAGER)
+
+		service.close_day(shift_name=day, force=True)
+
+		self.assertEqual(frappe.db.get_value("Restaurant Shift", day, "status"), "closed")
+
+	def test_where_the_branch_allows_it_nobody_needs_the_right(self):
+		"""`D-105` — with the setting off there is nothing to be let past.
+
+		The cashier closes the day and the bills carry over, which is the whole
+		point of the setting. Asking for a manager here would make the setting
+		mean the opposite of what it says.
+		"""
+		frappe.db.set_value("Branch", BRANCH, "close_open_orders_with_day", 0)
+		day = self._a_day_with_a_bill_left_open(self.CASHIER)
+
+		service.close_day(shift_name=day)
+
+		self.assertEqual(frappe.db.get_value("Restaurant Shift", day, "status"), "closed")

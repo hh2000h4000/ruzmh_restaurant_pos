@@ -31,6 +31,14 @@ export interface ShiftReport {
   user?: string;
   opened_at?: string;
   orders: { total: number; closed: number; cancelled: number; still_open: number };
+  /**
+   * Whether this branch ends its day with nothing left open (`D-105`).
+   *
+   * Only the day's report carries it — a till's count is not where this is
+   * decided. Absent means the same as on: the screen must not offer a way past
+   * a rule it could not read (`D-156`).
+   */
+  must_finish_orders?: boolean;
   by_order_type: { order_type: string; title_ar: string; count: number; sales: number }[];
   by_method: MethodLine[];
   voids: number;

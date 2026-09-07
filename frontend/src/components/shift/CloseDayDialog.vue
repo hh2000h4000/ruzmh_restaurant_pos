@@ -5,6 +5,7 @@ import type { ShiftReport } from "@/api/shift";
 import AppIcon from "@/components/AppIcon.vue";
 import BaseDialog from "@/components/BaseDialog.vue";
 import { formatNumber, pick, t } from "@/i18n";
+import { useSessionStore } from "@/stores/session";
 import { useShiftStore } from "@/stores/shift";
 
 /**
@@ -13,14 +14,20 @@ import { useShiftStore } from "@/stores/shift";
  * Shown before anything is committed, because closing the day is what the books
  * are written from and a cashier should see the figure they are signing off.
  *
- * **An order still open blocks it**, unless a manager says otherwise: closing
- * across one strands a bill in a report that says the day is finished. And any
- * drawer left open is swept up at its expected figures — the cashier who went
- * home is not coming back to count it.
+ * **An order still open blocks it** where the branch says so (`D-105`), and the
+ * way past that is a manager's right, not a tick box (`D-156`): closing across
+ * an open bill strands it in a report that says the day is finished, and it
+ * cannot be undone. And any drawer left open is swept up at its expected
+ * figures — the cashier who went home is not coming back to count it.
+ *
+ * So an open bill reads three ways here, and each of them says something:
+ * *settle them first* to a cashier, *carry over* where the branch allows it,
+ * and the override to whoever may actually use it.
  */
 const props = defineProps<{ open: boolean }>();
 const emit = defineEmits<{ close: [] }>();
 
+const session = useSessionStore();
 const shift = useShiftStore();
 
 const report = ref<ShiftReport | null>(null);
@@ -36,6 +43,20 @@ watch(
 );
 
 const stillOpen = computed(() => report.value?.orders.still_open ?? 0);
+
+/** Absent means on: never offer a way past a rule the screen could not read. */
+const mustFinish = computed(() => report.value?.must_finish_orders !== false);
+
+/** Whether these open bills stand between the cashier and the end of the day. */
+const blocked = computed(() => Boolean(stillOpen.value) && mustFinish.value);
+
+/**
+ * The override, and it is drawn only for someone who holds it.
+ *
+ * The server checks it again and is the authority — this decides whether to
+ * draw a control, not whether the day may close (`04_performance_security.md`).
+ */
+const mayOverride = computed(() => session.can("can_close_day_with_open_orders"));
 
 async function confirm(): Promise<void> {
   const done = await shift.closeDay(force.value);
@@ -128,8 +149,9 @@ function money(value: number): string {
         </div>
       </div>
 
+      <!-- The override, for whoever may actually use it. -->
       <label
-        v-if="stillOpen"
+        v-if="blocked && mayOverride"
         class="mb-4 flex items-start gap-3 rounded-rpos bg-status-reserved/10 p-3 text-sm text-status-reserved"
       >
         <input
@@ -139,6 +161,26 @@ function money(value: number): string {
         >
         <span>{{ t("shift.stillOpen", { count: formatNumber(stillOpen) }) }}</span>
       </label>
+
+      <!-- And the reason, for whoever may not. A disabled button with nothing
+           beside it is the report a cashier cannot act on (`D-074`). -->
+      <p
+        v-else-if="blocked"
+        role="status"
+        class="mb-4 rounded-rpos bg-status-reserved/10 p-3 text-sm text-status-reserved"
+      >
+        {{ t("shift.stillOpenBlocked", { count: formatNumber(stillOpen) }) }}
+      </p>
+
+      <!-- The branch lets them run past midnight (`D-105`) — said out loud, so
+           nobody thinks the till lost them. -->
+      <p
+        v-else-if="stillOpen"
+        role="status"
+        class="mb-4 rounded-rpos bg-status-cleaning/10 p-3 text-sm text-status-cleaning"
+      >
+        {{ t("shift.stillOpenCarries", { count: formatNumber(stillOpen) }) }}
+      </p>
 
       <p
         v-if="shift.error"
@@ -159,7 +201,7 @@ function money(value: number): string {
         <button
           type="button"
           class="min-h-tap flex-1 rounded-rpos bg-danger font-medium text-white disabled:cursor-not-allowed disabled:opacity-40"
-          :disabled="shift.busy || (Boolean(stillOpen) && !force)"
+          :disabled="shift.busy || (blocked && !force)"
           @click="confirm"
         >
           {{ t("shift.closeDay") }}

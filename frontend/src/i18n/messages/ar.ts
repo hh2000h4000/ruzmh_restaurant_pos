@@ -267,6 +267,8 @@ const messages: Catalogue["messages"] = {
   "shift.variance": "الفرق",
   "shift.varianceReason": "ما سبب الفرق؟",
   "shift.stillOpen": "{count} فواتير ما زالت مفتوحة. أقفل اليوم رغم ذلك.",
+  "shift.stillOpenBlocked": "{count} فواتير ما زالت مفتوحة. أقفلها أو ألغِها قبل إغلاق اليوم.",
+  "shift.stillOpenCarries": "{count} فواتير ما زالت مفتوحة. تنتقل إلى اليوم التالي.",
   "shift.heldBy": "المناوبة مفتوحة باسم {name}",
   "keypad.decimal": "فاصلة عشرية",
   "shift.expected": "المتوقَّع",

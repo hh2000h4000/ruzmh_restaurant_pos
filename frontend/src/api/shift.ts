@@ -39,6 +39,16 @@ export interface ShiftReport {
    * a rule it could not read (`D-156`).
    */
   must_finish_orders?: boolean;
+  /** How many open bills this branch may carry into tomorrow; `0` is no limit. */
+  carry_over_limit?: number;
+  /**
+   * Whether these open bills actually stand between the day and its close.
+   *
+   * **The server's answer, not the screen's** (`D-158`). Two branch settings
+   * decide it now, and a screen that worked it out again would be a second
+   * copy of the rule — the one that disagrees with the endpoint that refuses.
+   */
+  blocked_by_open_orders?: boolean;
   by_order_type: { order_type: string; title_ar: string; count: number; sales: number }[];
   by_method: MethodLine[];
   voids: number;

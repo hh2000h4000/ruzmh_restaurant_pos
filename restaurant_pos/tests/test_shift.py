@@ -27,6 +27,7 @@ class ShiftTestBase(OrderTestBase):
 		self.settlement = frappe.db.get_value("Branch", BRANCH, "settlement_required")
 		self.shift_type = frappe.db.get_value("Branch", BRANCH, "shift_type")
 		self.finish_orders = frappe.db.get_value("Branch", BRANCH, "close_open_orders_with_day")
+		self.carry_limit = frappe.db.get_value("Branch", BRANCH, "max_carried_open_orders")
 
 		# **Set, not merely remembered.** These tests assert what a branch does at
 		# closing time, and reading the answer off the site made the assertion
@@ -35,7 +36,9 @@ class ShiftTestBase(OrderTestBase):
 		# to close ran against a branch that allows it, and the whole suite went
 		# red while the module alone passed. A test that owns its rule sets it
 		# (`D-155` — the same lesson, one field over).
-		frappe.db.set_value("Branch", BRANCH, "close_open_orders_with_day", 1)
+		frappe.db.set_value(
+			"Branch", BRANCH, {"close_open_orders_with_day": 1, "max_carried_open_orders": 100}
+		)
 		self._clear()
 
 	def tearDown(self):
@@ -48,6 +51,7 @@ class ShiftTestBase(OrderTestBase):
 				# Restored, or a test that turned it off leaves every later one
 				# closing days over open bills without meaning to.
 				"close_open_orders_with_day": self.finish_orders,
+				"max_carried_open_orders": self.carry_limit,
 			},
 		)
 		self._clear()
@@ -563,3 +567,111 @@ class TheCashierHoldingTheDrawerCanHandItBack(ShiftTestBase):
 
 		self.assertEqual(frappe.db.get_value("Restaurant Shift", outcome["shift"], "status"), "closed")
 		self.assertEqual(frappe.db.get_value("POS Opening Entry", outcome["entry"], "status"), "Closed")
+
+
+class CarryingOverIsNotForEver(ShiftTestBase):
+	"""`D-158` — the ceiling on a branch that lets bills run past midnight.
+
+	`D-105` gave that branch its answer, and the answer had no end in it: with
+	`close_open_orders_with_day` off, **nothing ever forces a bill closed**, so
+	*"carries over to the next day"* quietly became *"lives for ever"*. Three
+	bills abandoned a night is a thousand in a year.
+
+	And the floor is unbounded by date on purpose (`D-146`), so the till reads
+	every one of them on every refresh. Measured on the test site:
+
+	| open bills | `list_orders` |
+	|-----------:|--------------:|
+	|      1,155 |         0.62s |
+	|      3,155 |         4.31s |
+	|      5,155 |         8.35s |
+
+	So the ceiling is a number the branch sets, and it bites **at the close** —
+	where the accumulation happens — rather than at the counter. Refusing to
+	*open* a bill would stop a sale with a customer standing there, which is a
+	worse fault than a slow list.
+	"""
+
+	def _carrying(self, limit: int, bills: int) -> str:
+		"""A day this branch is willing to carry over, holding `bills` open ones."""
+		frappe.db.set_value(
+			"Branch", BRANCH, {"close_open_orders_with_day": 0, "max_carried_open_orders": limit}
+		)
+		outcome = service.open_till(pos_profile=self.profile)
+		for _ in range(bills):
+			self._order()
+		return outcome["shift"]
+
+	def test_under_the_ceiling_the_day_closes(self):
+		day = self._carrying(limit=3, bills=2)
+
+		service.close_day(shift_name=day)
+
+		self.assertEqual(frappe.db.get_value("Restaurant Shift", day, "status"), "closed")
+
+	def test_over_it_the_day_does_not(self):
+		day = self._carrying(limit=2, bills=3)
+
+		with self.assertRaises(frappe.ValidationError):
+			service.close_day(shift_name=day)
+
+		self.assertEqual(frappe.db.get_value("Restaurant Shift", day, "status"), "open")
+
+	def test_the_ceiling_itself_is_not_over_it(self):
+		"""Exactly the number the branch allowed is allowed."""
+		day = self._carrying(limit=3, bills=3)
+
+		service.close_day(shift_name=day)
+
+		self.assertEqual(frappe.db.get_value("Restaurant Shift", day, "status"), "closed")
+
+	def test_zero_means_no_ceiling(self):
+		"""The branch that really does want them to run without end keeps that."""
+		day = self._carrying(limit=0, bills=3)
+
+		service.close_day(shift_name=day)
+
+		self.assertEqual(frappe.db.get_value("Restaurant Shift", day, "status"), "closed")
+
+	def test_the_refusal_says_how_many_have_to_go(self):
+		"""`D-074` — a number the cashier cannot act on is not a report.
+
+		"3 orders are still open" is true and useless here: the branch carries
+		bills over, so the cashier has to know **how many of them** stand between
+		this day and its end.
+		"""
+		day = self._carrying(limit=2, bills=5)
+
+		with self.assertRaises(frappe.ValidationError) as refusal:
+			service.close_day(shift_name=day)
+
+		message = str(refusal.exception)
+		self.assertIn("5", message)
+		self.assertIn("2", message)
+		# Five open, two allowed — three of them have to be settled or cancelled.
+		self.assertIn("3", message)
+
+	def test_a_manager_may_still_close_over_it(self):
+		"""One door, not two (`D-156`). The right that passes the branch's rule
+		passes this one, because this **is** the branch's rule with a number on
+		it — and a manager overriding it every night is a person ignoring a
+		warning, which the audit log holds."""
+		day = self._carrying(limit=2, bills=3)
+
+		service.close_day(shift_name=day, force=True)
+
+		self.assertEqual(frappe.db.get_value("Restaurant Shift", day, "status"), "closed")
+
+	def test_the_report_carries_the_number_for_the_screen(self):
+		day = self._carrying(limit=2, bills=3)
+
+		report = service.summarise(day)
+
+		self.assertFalse(report["must_finish_orders"])
+		self.assertEqual(report["carry_over_limit"], 2)
+		self.assertTrue(report["blocked_by_open_orders"])
+
+	def test_and_says_when_nothing_is_in_the_way(self):
+		day = self._carrying(limit=5, bills=2)
+
+		self.assertFalse(service.summarise(day)["blocked_by_open_orders"])

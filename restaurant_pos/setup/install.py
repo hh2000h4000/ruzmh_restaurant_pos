@@ -142,6 +142,21 @@ CUSTOM_FIELDS = {
 			"insert_after": "settlement_required",
 		},
 		{
+			# D-158 — "carry over" must not come to mean "for ever".
+			"fieldname": "max_carried_open_orders",
+			"fieldtype": "Int",
+			"default": "100",
+			"label": "Most open orders that may carry over",
+			"description": (
+				"Only applies where the setting above is off. The day will not close while "
+				"more than this many bills are still open, so a branch that lets tabs run "
+				"past midnight does not quietly accumulate them for ever — measured, a till "
+				"reading three thousand open bills takes four seconds to draw its own list, "
+				"and it redraws on every order in the branch. 0 means no limit."
+			),
+			"insert_after": "close_open_orders_with_day",
+		},
+		{
 			# BR-066 — whether a table may carry more than one bill at a time.
 			"fieldname": "allow_multiple_orders_per_table",
 			"fieldtype": "Check",
@@ -154,7 +169,7 @@ CUSTOM_FIELDS = {
 				"a till that quietly opens a second bill on table four turns one party into "
 				"two, and the mistake surfaces when somebody pays half of it."
 			),
-			"insert_after": "close_open_orders_with_day",
+			"insert_after": "max_carried_open_orders",
 		},
 		{
 			"fieldname": "is_active",

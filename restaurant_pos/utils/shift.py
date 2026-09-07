@@ -165,17 +165,16 @@ def close_day(*, shift_name: str, force: bool = False) -> dict:
 	# the day waits for them; with it off they carry over and stay fully
 	# editable tomorrow.
 	report = summarise(shift_name)
-	if report["orders"]["still_open"] and _must_finish_orders(day.branch):
+	still_open = report["orders"]["still_open"]
+
+	if still_open and _blocks_closing(day.branch, still_open):
 		# **And the way past it is a right, not a tick box** (`D-156`). It was a
 		# tick box: the screen drew "close the day anyway" beside the count for
 		# whoever was standing there, and `can_close_shift` ships **on** for a
 		# plain cashier — so the branch setting was a suggestion. A day closed
 		# over bills nobody meant to carry cannot be undone.
 		if not force:
-			frappe.throw(
-				_("{0} orders are still open on this day.").format(report["orders"]["still_open"]),
-				frappe.ValidationError,
-			)
+			frappe.throw(_carry_over_refusal(day.branch, still_open), frappe.ValidationError)
 
 		assert_permission("can_close_day_with_open_orders")
 
@@ -395,6 +394,12 @@ def summarise(shift_name: str) -> dict:
 	# have — or hides the reason for one it does — is guessing on the cashier's
 	# behalf. The screen only draws it; this decides it.
 	report["must_finish_orders"] = _must_finish_orders(day.branch)
+	# And how many it may carry when it does not have to finish them (`D-158`),
+	# so the screen can name the number the cashier has to get under.
+	report["carry_over_limit"] = _carry_over_limit(day.branch)
+	report["blocked_by_open_orders"] = bool(
+		report["orders"]["still_open"] and _blocks_closing(day.branch, report["orders"]["still_open"])
+	)
 	return report
 
 
@@ -801,6 +806,55 @@ def _must_finish_orders(branch: str) -> bool:
 	"""
 	setting = frappe.db.get_value("Branch", branch, "close_open_orders_with_day")
 	return True if setting is None else bool(setting)
+
+
+#: How many bills a branch that carries them over may carry, when it has not
+#: said (`D-158`). Chosen from the measurement, not from taste: a till reading
+#: 1,155 open bills draws its list in 0.6s and one reading 3,155 takes 4.3s —
+#: and it redraws on every order in the branch. A hundred is comfortably inside
+#: the flat part of that curve.
+DEFAULT_CARRY_OVER_LIMIT = 100
+
+
+def _carry_over_limit(branch: str) -> int:
+	"""How many open bills this branch may carry into tomorrow. ``0`` is no limit."""
+	setting = frappe.db.get_value("Branch", branch, "max_carried_open_orders")
+	return DEFAULT_CARRY_OVER_LIMIT if setting is None else cint(setting)
+
+
+def _blocks_closing(branch: str, still_open: int) -> bool:
+	"""Whether these open bills stand between this branch and the end of its day.
+
+	Two rules, and the branch picks one of them (`D-105`, `D-158`):
+
+	* **Finish them** — the default. Any open bill stops the day.
+	* **Carry them over** — but not without end. *"Carry over"* was written to
+	  mean *"a tab may run past midnight"*, and with nothing else forcing a bill
+	  closed it came to mean *"for ever"*: three bills abandoned a night is a
+	  thousand in a year, and the floor is deliberately unbounded by date
+	  (`D-146`) so the till reads every one of them on every refresh.
+
+	The ceiling is the second rule's honest end, and it bites where the
+	accumulation happens rather than at the counter — refusing to **open** a bill
+	would stop a sale with a customer standing there, which is worse than a slow
+	list.
+	"""
+	if _must_finish_orders(branch):
+		return True
+
+	limit = _carry_over_limit(branch)
+	return bool(limit) and still_open > limit
+
+
+def _carry_over_refusal(branch: str, still_open: int) -> str:
+	"""Say which of the two rules refused, and what it would take to satisfy it."""
+	if _must_finish_orders(branch):
+		return _("{0} orders are still open on this day.").format(still_open)
+
+	return _(
+		"{0} orders are still open, and this branch may carry over {1}. "
+		"Settle or cancel {2} of them before closing the day."
+	).format(still_open, _carry_over_limit(branch), still_open - _carry_over_limit(branch))
 
 
 def _tills_of(shift_name: str, *, status: str) -> list[str]:

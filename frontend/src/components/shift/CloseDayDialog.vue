@@ -47,8 +47,20 @@ const stillOpen = computed(() => report.value?.orders.still_open ?? 0);
 /** Absent means on: never offer a way past a rule the screen could not read. */
 const mustFinish = computed(() => report.value?.must_finish_orders !== false);
 
-/** Whether these open bills stand between the cashier and the end of the day. */
-const blocked = computed(() => Boolean(stillOpen.value) && mustFinish.value);
+/**
+ * Whether these open bills stand between the cashier and the end of the day.
+ *
+ * **Asked, not worked out.** Two branch settings decide it (`D-105`, `D-158`)
+ * and the endpoint enforces it; a screen that derived it again would be the
+ * second copy of the rule that disagrees with the refusal. Absent — an older
+ * server — means any open bill blocks, which is the stricter reading.
+ */
+const blocked = computed(() =>
+  report.value ? (report.value.blocked_by_open_orders ?? Boolean(stillOpen.value)) : false,
+);
+
+/** What the branch will carry, for the sentence that asks the cashier to get under it. */
+const carryOverLimit = computed(() => report.value?.carry_over_limit ?? 0);
 
 /**
  * The override, and it is drawn only for someone who holds it.
@@ -169,7 +181,20 @@ function money(value: number): string {
         role="status"
         class="mb-4 rounded-rpos bg-status-reserved/10 p-3 text-sm text-status-reserved"
       >
-        {{ t("shift.stillOpenBlocked", { count: formatNumber(stillOpen) }) }}
+        <template v-if="mustFinish">
+          {{ t("shift.stillOpenBlocked", { count: formatNumber(stillOpen) }) }}
+        </template>
+        <!-- The branch carries bills over, but not without end (`D-158`) — so
+             the sentence names the number they have to get under. -->
+        <template v-else>
+          {{
+            t("shift.carryOverFull", {
+              count: formatNumber(stillOpen),
+              limit: formatNumber(carryOverLimit),
+              excess: formatNumber(stillOpen - carryOverLimit),
+            })
+          }}
+        </template>
       </p>
 
       <!-- The branch lets them run past midnight (`D-105`) — said out loud, so

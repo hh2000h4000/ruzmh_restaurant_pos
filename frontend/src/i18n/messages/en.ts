@@ -282,6 +282,9 @@ export const messages = {
     "{count} orders are still open. Settle or cancel them before the day can close.",
   /** Where the branch lets a bill run past midnight (D-105). */
   "shift.stillOpenCarries": "{count} orders are still open. They carry over to the next day.",
+  /** And where it lets them, but not without end (D-158). */
+  "shift.carryOverFull":
+    "{count} orders are still open, and this branch carries over {limit}. Settle or cancel {excess} of them.",
   "shift.heldBy": "{name} has the shift open",
   "keypad.decimal": "Decimal point",
   /** The compact row label; `shift.tillExpected` is the summary line's. */

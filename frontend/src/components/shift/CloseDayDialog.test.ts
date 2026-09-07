@@ -140,7 +140,13 @@ describe("closing the day over bills still open", () => {
       }),
     });
 
-    expect(wrapper.find('[role="status"]').text()).toContain("312");
+    // The *warning's* words, not merely the count — the "they carry over"
+    // line beside it also names the number, so asserting on 312 alone passed
+    // with the warning switched off entirely. A mutation caught that.
+    const said = wrapper.find('[role="status"]').text();
+    expect(said).toContain("312");
+    expect(said).toContain("يستاهل تنظيفها");
+
     expect(closeButton(wrapper).attributes("disabled")).toBeUndefined();
     expect(wrapper.find('input[type="checkbox"]').exists()).toBe(false);
   });

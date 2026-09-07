@@ -14,6 +14,8 @@ when they add a second role to a user.
 Refs: 08_Security.md §§3-4, FR-12.1, FR-12.3, FR-12.6, BR-031
 """
 
+from contextlib import contextmanager
+
 import frappe
 from frappe import _
 from frappe.utils import flt
@@ -342,3 +344,54 @@ def consume_override_token(token: str, action: str) -> str:
 		frappe.throw(_("Manager authorisation is invalid or has expired."), frappe.PermissionError)
 
 	return payload["approved_by"]
+
+
+# --------------------------------------------------------------------------- #
+# Borrowed rights, for ERPNext's own documents
+# --------------------------------------------------------------------------- #
+
+
+@contextmanager
+def server_rights():
+	"""Borrow the framework's own rights for the length of one ERPNext call.
+
+	**No POS role may read or write an accounting document** — deliberately.
+	RPOS authorises through `POS Permission Set` and writes the sale itself with
+	`ignore_permissions` (`08_Security.md` §1), so a cashier never needs desk
+	rights on a `Sales Invoice`, and cannot list one either.
+
+	Some of ERPNext's own code asks the **session** anyway, and takes no flag to
+	say otherwise. Twice now that has meant a whole feature working perfectly for
+	Administrator and dying on a bare `PermissionError` for every real user:
+
+	* `make_return_doc` checks before it maps, so **no cashier could refund**
+	  anything (`D-144`);
+	* submitting a `POS Closing Entry` reaches `update_opening_entry`, which
+	  saves the `POS Opening Entry` as whoever is standing there — so **no
+	  cashier could hand their drawer back**, and no manager could end the day
+	  (`D-157`).
+
+	The alternative is to grant POS roles desk permissions on those doctypes,
+	which hands every cashier every invoice the company has ever issued to
+	satisfy one framework check. This is the smaller door: `frappe.session.user`
+	and the two caches keyed on it, restored in `finally`, around a call whose
+	authorisation **we have already done ourselves**. Documents inserted before
+	the borrowing still carry the cashier's name, not this one.
+
+	Wrap the narrowest call that needs it, never a whole endpoint.
+	"""
+	session = frappe.local.session
+	caller = session.user
+
+	def _reset(user: str) -> None:
+		session.user = user
+		# Both are keyed on the session user and would otherwise answer for the
+		# wrong one on the way in *and* on the way out.
+		frappe.local.role_permissions = {}
+		frappe.local.user_perms = None
+
+	_reset("Administrator")
+	try:
+		yield
+	finally:
+		_reset(caller)

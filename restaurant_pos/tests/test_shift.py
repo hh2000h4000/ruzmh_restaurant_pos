@@ -478,3 +478,79 @@ class TheDayDoesNotCloseOverBillsOnATickBox(ShiftTestBase):
 		service.close_day(shift_name=day)
 
 		self.assertEqual(frappe.db.get_value("Restaurant Shift", day, "status"), "closed")
+
+
+class TheCashierHoldingTheDrawerCanHandItBack(ShiftTestBase):
+	"""`D-157` — and none of them could.
+
+	`close_till` submits a `POS Closing Entry`, and ERPNext's `on_submit` reaches
+	`update_opening_entry`, which loads the `POS Opening Entry` fresh and **saves
+	it as whoever is standing there**. No POS role has desk rights on an
+	accounting document — that is deliberate (`08_Security.md` §1) — so every
+	real cashier died there on a bare `PermissionError`: no message, no number,
+	and the drawer still open. And with it every end of day, because closing the
+	day sweeps the drawers up first.
+
+	It went unseen for the same reason `D-144` did: **every test in this module
+	ran as Administrator**, who passes every permission check on the first line.
+	So these run as a cashier, and they are the only ones here that do.
+	"""
+
+	CASHIER = "rpos_drawer_cashier@example.com"
+
+	def setUp(self):
+		super().setUp()
+		from restaurant_pos.tests.test_order import _make_cashier
+
+		_make_cashier()
+		if not frappe.db.exists("User", self.CASHIER):
+			frappe.get_doc(
+				{
+					"doctype": "User",
+					"email": self.CASHIER,
+					"first_name": "RPOS Drawer Cashier",
+					"send_welcome_email": 0,
+					"roles": [{"role": "POS Cashier"}],
+				}
+			).insert(ignore_permissions=True)
+
+		frappe.set_user(self.CASHIER)
+		frappe.local.rpos_permission_cache = {}
+
+	def tearDown(self):
+		frappe.set_user("Administrator")
+		frappe.local.rpos_permission_cache = {}
+		super().tearDown()
+
+	def test_a_cashier_can_close_their_own_drawer(self):
+		outcome = service.open_till(pos_profile=self.profile, opening_floats={"Cash": 200})
+
+		closed = service.close_till(opening_entry=outcome["entry"])
+
+		self.assertEqual(frappe.db.get_value("POS Opening Entry", outcome["entry"], "status"), "Closed")
+		self.assertEqual(frappe.db.get_value("POS Closing Entry", closed["closing_entry"], "docstatus"), 1)
+
+	def test_the_count_is_filed_under_the_cashier_who_made_it(self):
+		"""The rights are borrowed for the submit alone (`D-144`, `D-157`).
+
+		If the whole call ran as Administrator the books would say Administrator
+		counted the drawer, which is the one thing a reconciliation must not say.
+		"""
+		outcome = service.open_till(pos_profile=self.profile, opening_floats={"Cash": 200})
+
+		closed = service.close_till(opening_entry=outcome["entry"])
+
+		self.assertEqual(
+			frappe.db.get_value("POS Closing Entry", closed["closing_entry"], "owner"), self.CASHIER
+		)
+		# And the session is given straight back.
+		self.assertEqual(frappe.session.user, self.CASHIER)
+
+	def test_a_cashier_can_end_the_day(self):
+		"""The sweep is the part that reaches ERPNext, so it is the part that broke."""
+		outcome = service.open_till(pos_profile=self.profile, opening_floats={"Cash": 200})
+
+		service.close_day(shift_name=outcome["shift"])
+
+		self.assertEqual(frappe.db.get_value("Restaurant Shift", outcome["shift"], "status"), "closed")
+		self.assertEqual(frappe.db.get_value("POS Opening Entry", outcome["entry"], "status"), "Closed")

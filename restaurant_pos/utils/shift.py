@@ -40,7 +40,11 @@ from frappe.utils import cint, flt, now_datetime, nowdate, nowtime
 from restaurant_pos.utils import printing
 from restaurant_pos.utils.order import table_section_branch
 from restaurant_pos.utils.payment import is_credit_method
-from restaurant_pos.utils.permissions import assert_permission, validate_branch_access
+from restaurant_pos.utils.permissions import (
+	assert_permission,
+	server_rights,
+	validate_branch_access,
+)
 from restaurant_pos.utils.totals import money
 
 #: An order still on the floor. Closing over one strands a bill nobody can pay.
@@ -331,7 +335,20 @@ def close_till(
 		}
 	)
 	closing.insert(ignore_permissions=True)
-	closing.submit()
+
+	# **The drawer could not be handed back by the person holding it** (`D-157`).
+	# Submitting reaches ERPNext's `update_opening_entry`, which loads the
+	# `POS Opening Entry` fresh and **saves it as whoever is standing there** —
+	# and no POS role has desk rights on an accounting document, by design
+	# (`08_Security.md` §1). So every real cashier died here on a bare
+	# `PermissionError`, and with them every end of day, because closing the day
+	# sweeps up the drawers first. Invisible to the suite: every test here ran as
+	# Administrator, who passes every check on the first line.
+	#
+	# The entry above is inserted **before** the borrowing, so it still carries
+	# the cashier's name. Same door as `D-144`, and the narrowest one that opens.
+	with server_rights():
+		closing.submit()
 
 	if (variance_reason or "").strip():
 		# Written after submit rather than before: ERPNext's closing entry has no

@@ -114,7 +114,6 @@ const messages: Catalogue["messages"] = {
   "card.amount": "المبلغ",
   "card.number": "رقم الطلب",
   "card.itemCount": "الأصناف",
-  "card.dailyNumber": "رقم اليوم",
   "card.cashier": "الكاشير",
   "card.type": "النوع",
   "card.status": "الحالة",

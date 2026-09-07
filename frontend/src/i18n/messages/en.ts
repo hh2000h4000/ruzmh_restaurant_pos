@@ -120,8 +120,6 @@ export const messages = {
   "card.amount": "Amount",
   "card.number": "Order no.",
   "card.itemCount": "Items",
-  /** The short number a customer is told and a cashier calls out (FR-2.10). */
-  "card.dailyNumber": "Today's no.",
   "card.cashier": "Cashier",
   "card.type": "Type",
   "card.status": "Status",

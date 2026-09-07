@@ -46,9 +46,6 @@ const documentNumber = computed(() =>
  */
 const happenedAt = computed(() => props.order.closed_at ?? props.order.opened_at);
 
-/** The short number the customer is told (`FR-2.10`) — see `OpenOrderRow`. */
-const dailyNumber = computed(() => props.order.daily_number ?? null);
-
 const menuOpen = ref(false);
 
 /** Colour follows the lifecycle, and the status is always written out. */
@@ -98,24 +95,13 @@ function choose(where: "order" | "floor" | "reprint"): void {
     />
 
     <div class="flex items-start justify-between gap-2">
-      <div class="flex min-w-0 items-center gap-3">
-        <!-- FR-2.10 — the number a cashier calls out, in the card's identity
-             line for the same reason it leads the row: it is the one figure
-             here that gets spoken across a counter. -->
-        <span
-          v-if="dailyNumber"
-          class="rpos-numeric grid h-11 w-11 shrink-0 place-items-center rounded-[13px] bg-primary/10 text-[19px] font-medium text-primary"
-          :aria-label="t('card.dailyNumber')"
-        >{{ formatNumber(dailyNumber) }}</span>
-
-        <div class="min-w-0">
-          <p class="truncate text-[17px] font-medium text-content">
-            {{ whereLabel(order) }}
-          </p>
-          <p class="mt-0.5 truncate text-label text-muted">
-            {{ t("card.type") }}
-          </p>
-        </div>
+      <div class="min-w-0">
+        <p class="truncate text-[17px] font-medium text-content">
+          {{ whereLabel(order) }}
+        </p>
+        <p class="mt-0.5 truncate text-label text-muted">
+          {{ t("card.type") }}
+        </p>
       </div>
 
       <div class="flex shrink-0 items-start gap-1">

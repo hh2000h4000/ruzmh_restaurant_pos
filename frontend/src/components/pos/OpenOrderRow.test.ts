@@ -87,40 +87,6 @@ describe("which document a row says it is", () => {
 });
 
 /**
- * `D-159` — the number the user asked for, and the reason it is the one that
- * gets the badge.
- *
- * A cashier calls it out and a customer reads it back off their slip.
- * `RO-2026-09-00001` is a record id: right for tracing a refund, useless across
- * a counter. It was on no row at all.
- */
-describe("the number a cashier calls out", () => {
-  it("is on the row, beside its own caption", () => {
-    const wrapper = row({ daily_number: 7, sales_invoice: "ACC-SINV-2026-00199" });
-
-    const badge = wrapper.get('[aria-label], .rpos-numeric');
-    expect(badge).toBeTruthy();
-    expect(wrapper.text()).toContain(t("card.dailyNumber"));
-    expect(wrapper.text()).toContain("7");
-  });
-
-  it("is the refund's own, not the sale's", () => {
-    const wrapper = row({
-      is_return: 1,
-      credit_note: "ACC-SINV-2026-00200",
-      returns_daily_number: 20,
-      daily_number: 21,
-      total_amount: -32,
-    });
-
-    // Its own number leads the row; the bill it reverses is named beside it.
-    expect(wrapper.text()).toContain("21");
-    expect(wrapper.text()).toContain(t("ret.against", { number: "20" }));
-  });
-
-});
-
-/**
  * `D-159` — the caption size is for captions.
  *
  * 11.5px is the one exception to the till's 14px floor, and it is allowed for

@@ -57,19 +57,6 @@ const documentNumber = computed(() =>
 );
 
 /**
- * The short number the customer is told (`FR-2.10`), asked for by the user.
- *
- * **It was on no row at all**, and it is the only number here that gets spoken:
- * a cashier calls it out, a customer reads it off their slip and says it back.
- * `RO-2026-09-00342` is a record id — right for tracing, useless at arm's
- * length — so this gets the tinted badge and that gets the reference line.
- *
- * A refund's own short number is the credit note's; the sale it reverses is
- * already named beside it (`D-143`).
- */
-const dailyNumber = computed(() => props.order.daily_number ?? null);
-
-/**
  * The moment this row is about (`D-146`).
  *
  * An open bill is dated by when it opened — that is what the cashier is waiting
@@ -185,20 +172,6 @@ function choose(where: "order" | "floor" | "reprint"): void {
         class="mt-1 text-label text-muted"
       >
         {{ t("card.amount") }}
-      </p>
-    </div>
-
-    <!-- FR-2.10 — the number a cashier calls out. Tinted rather than merely
-         bigger: it is the one figure on the row read from across a counter. -->
-    <div
-      v-if="dailyNumber"
-      class="shrink-0 text-center"
-    >
-      <span
-        class="rpos-numeric mx-auto grid h-11 w-11 place-items-center rounded-[13px] bg-primary/10 text-[19px] font-medium text-primary"
-      >{{ formatNumber(dailyNumber) }}</span>
-      <p class="mt-1 text-label text-muted">
-        {{ t("card.dailyNumber") }}
       </p>
     </div>
 

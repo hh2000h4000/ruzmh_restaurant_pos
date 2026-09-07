@@ -51,6 +51,15 @@ export interface OrderDetail extends OrderSummary {
   table: string | null;
   /** What the table is called on the floor, not its record id. */
   table_number: string | null;
+  /**
+   * Every seat this bill holds, its own first (`BR-063`).
+   *
+   * One party can be spread across two tables, and the bill is what remembers
+   * — occupancy is read from the bills and nothing else tracks it.
+   */
+  tables: string[];
+  /** The hall it is seated in; a party is not spread across two of them. */
+  section: string | null;
   customer: string | null;
   /** The bill names the customer, and a Customer's id is not their name. */
   customer_name: string | null;
@@ -378,6 +387,23 @@ export function splitBill(payload: {
   queue_id?: string;
 }): Promise<OrderSummary & { target: string }> {
   return mutate("order.split_bill", payload);
+}
+
+/**
+ * Join free tables to this bill for one party across several (`BR-063`).
+ *
+ * **Not the same act as `mergeBills`**, though a restaurant calls both
+ * "merging": this leaves every bill alone and gives one bill a second seat;
+ * that empties one bill into another. A table that already carries a bill is
+ * refused here, and the refusal says to merge the bills instead.
+ */
+export function mergeTables(payload: {
+  order_name: string;
+  tables: string[];
+  manager_override_token?: string | null;
+  queue_id?: string;
+}): Promise<OrderSummary & { table: string; tables: string[]; joined: string[] }> {
+  return mutate("order.merge_tables", payload);
 }
 
 /** Empty one bill into another and close it (`FR-2.12`). */

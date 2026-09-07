@@ -27,7 +27,7 @@ from restaurant_pos.utils.audit import log_audit
 from restaurant_pos.utils.order import (
 	assert_mutable,
 	assert_transition,
-	release_table,
+	release_tables_of,
 )
 from restaurant_pos.utils.permissions import (
 	assert_within_discount_limit,
@@ -85,10 +85,11 @@ def process_payment(
 	order.closed_at = now_datetime()
 	order.save(ignore_permissions=True)
 
-	if order.table:
-		# BR-061 / FR-2.7g — the table is not free until it has been cleaned,
-		# and not even then while another bill is still open on it (BR-066).
-		release_table(order.table, to="cleaning")
+	# BR-061 / FR-2.7g — the table is not free until it has been cleaned, and not
+	# even then while another bill is still open on it (`BR-066`). **Every** table
+	# the bill was holding, because a party across two of them is one bill
+	# (`BR-063`) and paying it is what reverses the join.
+	release_tables_of(order, to="cleaning")
 
 	kots = _send_kitchen_if_due(order)
 

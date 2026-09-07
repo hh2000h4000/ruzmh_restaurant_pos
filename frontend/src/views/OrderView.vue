@@ -18,6 +18,7 @@ import OrderTypeChangeDialog from "@/components/order/OrderTypeChangeDialog.vue"
 import ReasonDialog from "@/components/order/ReasonDialog.vue";
 import ActivityDialog from "@/components/order/ActivityDialog.vue";
 import JoinBillDialog from "@/components/order/JoinBillDialog.vue";
+import JoinTablesDialog from "@/components/order/JoinTablesDialog.vue";
 import SplitBillDialog from "@/components/order/SplitBillDialog.vue";
 import ReturnDialog from "@/components/order/ReturnDialog.vue";
 import CloseDayDialog from "@/components/shift/CloseDayDialog.vue";
@@ -844,6 +845,18 @@ const moreActions = computed<OrderAction[]>(() => {
     });
   }
 
+  // BR-063 — one party across more than one table. Offered only on a bill that
+  // is already seated: a takeaway has nothing to join tables to, and the server
+  // says so rather than the screen guessing.
+  if (session.can("can_merge_tables") && orders.order?.table) {
+    entries.push({
+      key: "joinTables",
+      label: "tables.join",
+      icon: "floorPlan",
+      disabled: locked.value,
+    });
+  }
+
   // FR-2.11 — a name to shout, not a Customer. In the menu rather than the
   // row: most orders never need one.
   entries.push({
@@ -915,6 +928,9 @@ function onAction(action: OrderAction): void {
   else if (action.key === "log") showingLog.value = true;
   else if (action.key === "split") splitting.value = maySell();
   else if (action.key === "join") joining.value = maySell();
+  // BR-063 — one party across more than one table. `maySell` because it changes
+  // the bill, and a counted drawer takes nothing more (`BR-044`).
+  else if (action.key === "joinTables") joiningTables.value = maySell();
 }
 
 // --------------------------------------------------------------------------
@@ -937,6 +953,26 @@ async function onSplit(): Promise<void> {
 async function onJoined(): Promise<void> {
   joining.value = false;
   await reload();
+}
+
+// --------------------------------------------------------------------------
+// One party across more than one table (BR-063)
+// --------------------------------------------------------------------------
+
+const joiningTables = ref(false);
+
+/**
+ * Say how many seats the party took, and go back to the floor.
+ *
+ * The floor is where the cashier can see what they just did — both tables drawn
+ * taken — and seeing it is the only confirmation this action can give: nothing
+ * on the bill itself changes.
+ */
+async function onTablesJoined(joined: string[]): Promise<void> {
+  joiningTables.value = false;
+  printNotice.value = t("tables.joined", { count: formatNumber(joined.length) });
+  await reload();
+  pane.value = "tables";
 }
 
 // --------------------------------------------------------------------------
@@ -1523,6 +1559,15 @@ async function send(): Promise<void> {
       :order="orders.order"
       @close="joining = false"
       @done="onJoined"
+    />
+
+    <!-- BR-063 — the other thing a restaurant calls merging: tables, not
+         bills. Kept a separate dialog for that reason. -->
+    <JoinTablesDialog
+      :open="joiningTables"
+      :order="orders.order"
+      @close="joiningTables = false"
+      @joined="onTablesJoined"
     />
 
     <ReturnDialog

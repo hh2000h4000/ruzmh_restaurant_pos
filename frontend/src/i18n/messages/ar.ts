@@ -70,6 +70,7 @@ const messages: Catalogue["messages"] = {
   "log.cancelled": "ألغى الطلب",
   "log.returned": "أرجع — {subject}",
   "log.reprinted": "أعاد الطباعة",
+  "log.tables_merged": "ضمّ الطاولات — {subject}",
 
   // Errors raised by the API client
   "err.noCsrf": "الصفحة حُمّلت بدون رمز الحماية — سجّل الخروج وأعد تحميل الصفحة.",
@@ -138,6 +139,13 @@ const messages: Catalogue["messages"] = {
   "tables.noSection": "هذا الجهاز غير مرتبط بقسم.",
   "tables.empty": "لا توجد طاولات في هذا القسم.",
   "tables.covers": "عدد الضيوف",
+  "tables.join": "ضمّ طاولة",
+  "tables.joinTitle": "ضمّ طاولات لهذه الفاتورة",
+  "tables.joinBody": "لمجموعة واحدة جالسة على أكثر من طاولة. كل طاولة تبقى مشغولة حتى تُدفع هذه الفاتورة.",
+  "tables.joinEmpty": "لا توجد طاولة فاضية في هذه الصالة للضمّ.",
+  "tables.joinHasBill": "عليها فاتورة",
+  "tables.joinConfirm": "ضمّ {count}",
+  "tables.joined": "ضُمّت {count} طاولات لهذه الفاتورة.",
   "tables.start": "فتح الطلب",
   "table.available": "فارغة",
   "table.occupied": "مشغولة",

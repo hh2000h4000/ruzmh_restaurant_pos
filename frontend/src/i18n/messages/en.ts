@@ -77,6 +77,8 @@ export const messages = {
   "log.cancelled": "Order cancelled",
   "log.returned": "Returned — {subject}",
   "log.reprinted": "Reprinted",
+  /** BR-063 — one party seated across more than one table. */
+  "log.tables_merged": "Tables joined — {subject}",
 
   // Errors raised by the API client
   "err.noCsrf": "The page loaded without a security token — sign out and reload.",
@@ -145,6 +147,16 @@ export const messages = {
   "tables.noSection": "This device is not linked to a section.",
   "tables.empty": "No tables in this section.",
   "tables.covers": "Number of guests",
+  // BR-063 — one party across more than one table. Not the same act as
+  // merging two bills, and the wording keeps them apart.
+  "tables.join": "Join a table",
+  "tables.joinTitle": "Join tables to this bill",
+  "tables.joinBody":
+    "For one party seated across more than one table. Every table stays taken until this bill is paid.",
+  "tables.joinEmpty": "No free table in this hall to join.",
+  "tables.joinHasBill": "Has a bill",
+  "tables.joinConfirm": "Join {count}",
+  "tables.joined": "{count} tables joined to this bill.",
   "tables.start": "Open the order",
   "table.available": "Free",
   "table.occupied": "Occupied",

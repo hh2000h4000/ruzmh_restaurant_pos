@@ -18,6 +18,7 @@
   "pos_profile",
   "restaurant_shift",
   "table",
+  "extra_tables",
   "cover_count",
   "people_section",
   "customer",
@@ -140,6 +141,13 @@
    "in_list_view": 1,
    "label": "Table",
    "options": "Restaurant Table"
+  },
+  {
+   "fieldname": "extra_tables",
+   "fieldtype": "Table",
+   "options": "Restaurant Order Table",
+   "label": "Joined Tables",
+   "description": "Tables joined to this one for a party spread across several (BR-063). The `table` above is the first and is not repeated here; the join is reversed when the bill closes, because occupancy is read from the bills."
   },
   {
    "fieldname": "cover_count",
@@ -368,7 +376,7 @@
  "index_web_pages_for_search": 1,
  "istable": 0,
  "links": [],
- "modified": "2026-08-09 00:00:00.000000",
+ "modified": "2026-09-07 15:00:00.000000",
  "modified_by": "Administrator",
  "module": "Restaurant POS",
  "name": "Restaurant Order",

@@ -1091,7 +1091,12 @@ def merge_orders(source, target, **kwargs) -> dict:
 	source.closed_at = now_datetime()
 	source.save(ignore_permissions=True)
 
+	# **The table goes with the bill** (`D-160`). It used to be released here,
+	# which is right when both bills were on one table and wrong the moment they
+	# were not: the guests whose bill moved are still sitting where they were,
+	# and the floor plan drew their table free while they ate at it.
 	if source.table:
+		join_table(target, source.table)
 		release_table(source.table)
 
 	activity.log(source, "merged", subject=target.name, details={"into": target.name})
@@ -1123,8 +1128,7 @@ def cancel_order(order, *, reason: str, override_token: str | None = None) -> di
 	order.closed_at = now_datetime()
 	order.save(ignore_permissions=True)
 
-	if order.table:
-		release_table(order.table)
+	release_tables_of(order)
 
 	void_kots = kitchen.create_void_kot(order, sent_rows)
 
@@ -1151,19 +1155,79 @@ def allows_second_bill(branch: str | None) -> bool:
 	return bool(branch) and bool(frappe.get_cached_value("Branch", branch, "allow_multiple_orders_per_table"))
 
 
+def tables_of(order) -> list[str]:
+	"""Every table this bill occupies — its own first, then the joined ones.
+
+	One party can be spread across two tables (`BR-063`), and a bill knows which
+	because **occupancy is read from the bills** and nothing else tracks it. The
+	first stays in ``order.table`` so every path that already reads it keeps
+	working; the rest ride in ``extra_tables``.
+	"""
+	joined = [row.table for row in (order.get("extra_tables") or []) if row.table]
+	return ([order.table] if order.table else []) + [table for table in joined if table != order.table]
+
+
 def open_orders_on(table: str) -> list[str]:
 	"""The bills still live on a table, oldest first.
 
 	Oldest first so the one a tap opens is the party that sat down first, and so
 	releasing the table falls back to a bill that has been waiting rather than
 	to whichever was created last.
+
+	**Asked of both places a bill can hold a table** (`D-160`). A bill joined to
+	this table from another one is as live on it as a bill opened here, and it
+	is this answer that keeps the table drawn occupied: `release_table` reads it,
+	and so does everything that reaches a table through `release_table`.
 	"""
+	# Gathered, then ordered in one query: two sorted lists stitched together are
+	# not one sorted list, and `release_table` hands `remaining[0]` to the floor
+	# plan as "whoever is still sitting here".
 	return frappe.get_all(
 		"Restaurant Order",
-		filters={"table": table, "status": ("not in", FINAL_STATES)},
+		filters={"status": ("not in", FINAL_STATES)},
+		or_filters={"table": table, "name": ("in", _bills_joined_to(table) or [""])},
 		order_by="creation asc",
 		pluck="name",
 	)
+
+
+def join_table(order, table: str) -> bool:
+	"""Add a table to this bill, if it is not already on it (`BR-063`).
+
+	Saved here rather than left to the caller: the row is what keeps the table
+	drawn occupied, and a caller that forgot to save would free a table with
+	people at it — the defect this whole seam exists to close.
+	"""
+	if not table or table in tables_of(order):
+		return False
+
+	order.append("extra_tables", {"table": table})
+	order.save(ignore_permissions=True)
+	return True
+
+
+def _bills_joined_to(table: str) -> list[str]:
+	"""Bills carrying this table in `extra_tables`, whatever their state."""
+	return frappe.get_all(
+		"Restaurant Order Table",
+		filters={"table": table, "parenttype": "Restaurant Order"},
+		pluck="parent",
+	)
+
+
+def release_tables_of(order, *, to: str = "available") -> None:
+	"""Let go of **every** table this bill was holding (`BR-063`).
+
+	The one place a closing bill hands its seats back. A party across two tables
+	is one bill, so paying it or cancelling it frees both — *"the merge is
+	reversed when the order closes"*, and this is the reversing.
+
+	Written once and called from the two paths that end a bill, for the reason
+	`release_table` itself exists: a condition remembered in two places is a
+	condition one of them gets wrong (`D-058`).
+	"""
+	for table in tables_of(order):
+		release_table(table, to=to)
 
 
 def release_table(table: str, *, to: str = "available") -> None:
@@ -1524,6 +1588,72 @@ def seat_order(
 		)
 
 	return {"table": table, "changed": True, "moved_from": leaving}
+
+
+def merge_tables(order, *, tables: list[str], override_token: str | None = None) -> dict:
+	"""Seat one party across more tables than the bill started on (`BR-063`).
+
+	A group of ten takes tables 5 and 6, and the till has to say so: not two
+	bills to reconcile at the end, and not one table drawn free while half of
+	them eat at it. So the bill grows a second seat, and a third, and lets go of
+	all of them together when it is paid (`FR-5.4`).
+
+	**Square merges tables and leaves the bills alone; Toast merges the checks.**
+	They are two operations, and the app has both: this one, and `merge_orders`
+	(`BR-067`) which the join screen already offers. What they share is the seam
+	underneath — a bill that can hold more than one table — and merging the
+	*bills* now carries the table across rather than releasing it, which is what
+	stopped the floor plan lying (`D-160`).
+
+	**A table with a bill on it is refused here**, and the refusal says what to
+	do instead: joining it would silently strand that bill on a table nobody is
+	drawing any more, and the honest answer — put the two bills together — is a
+	different act with a different permission and its own audit line.
+	"""
+	assert_mutable(order)
+	validate_branch_access(order.branch)
+
+	if not order.table:
+		frappe.throw(_("Seat this order at a table before joining others to it."))
+
+	approved_by = authorise("can_merge_tables", override_token)
+
+	joined = []
+	for table in dict.fromkeys(tables or []):
+		if table in tables_of(order):
+			continue
+
+		# **Asked before `assert_table_free`, and of the bills rather than the
+		# status.** That guard lets a second bill onto an occupied table where
+		# the branch allows one (`BR-066`), which is right for seating and wrong
+		# here — and where the branch does not, it refuses with "table 6 is
+		# occupied", which is true and tells the cashier nothing about the thing
+		# they can actually do.
+		if open_orders_on(table):
+			frappe.throw(
+				_("Table {0} already has a bill on it. Merge the bills instead.").format(table),
+				frappe.ValidationError,
+			)
+
+		assert_table_free(table, order.branch)
+		join_table(order, table)
+		set_table_status(table, "occupied", order.name)
+		joined.append(table)
+
+	if not joined:
+		frappe.throw(_("Choose at least one free table to join."))
+
+	log_audit(
+		"tables_merged",
+		branch=order.branch,
+		pos_profile=order.pos_profile,
+		restaurant_order=order.name,
+		approved_by=approved_by,
+		details={"onto": order.table, "joined": joined},
+	)
+	activity.log(order, "tables_merged", subject=", ".join(joined), details={"joined": joined})
+
+	return {"table": order.table, "tables": tables_of(order), "joined": joined}
 
 
 def set_call_name(order, *, call_name: str | None) -> dict:

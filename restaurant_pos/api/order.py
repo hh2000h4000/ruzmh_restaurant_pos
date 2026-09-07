@@ -305,6 +305,37 @@ def set_order_table(
 
 
 @frappe.whitelist()
+def merge_tables(
+	order_name: str,
+	tables: list | str,
+	manager_override_token: str | None = None,
+	queue_id: str | None = None,
+) -> dict:
+	"""Join free tables to this bill for one party across several (BR-063, FR-5.4).
+
+	Needs ``can_merge_tables`` and is audited. A table that already carries a
+	bill is refused: putting the two bills together is a different act
+	(``merge_bills``, BR-067) with its own permission.
+	"""
+	replay = idempotency.previous_result(queue_id)
+	if replay is not None:
+		return replay
+
+	order = _load(order_name)
+	outcome = service.merge_tables(
+		order,
+		tables=frappe.parse_json(tables) if isinstance(tables, str) else tables,
+		override_token=manager_override_token,
+	)
+
+	result = dict(_summary(order), **outcome)
+	idempotency.remember(
+		queue_id, "merge_tables", result, reference_doctype="Restaurant Order", reference_name=order.name
+	)
+	return result
+
+
+@frappe.whitelist()
 def set_order_customer(
 	order_name: str,
 	customer: str | None = None,
@@ -922,6 +953,10 @@ def get_order(order_name: str) -> dict:
 		"table_number": frappe.db.get_value("Restaurant Table", order.table, "table_number")
 		if order.table
 		else None,
+		# Every seat this bill holds, its own first (`BR-063`). The screen needs
+		# it to know which tables are already on the party before offering more.
+		"tables": service.tables_of(order),
+		"section": order.section,
 		"customer": order.customer,
 		"call_name": order.call_name,
 		"daily_number": order.daily_number,

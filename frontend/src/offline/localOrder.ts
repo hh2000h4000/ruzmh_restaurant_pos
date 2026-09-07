@@ -114,6 +114,15 @@ export function toOrderDetail(state: LocalOrderState, pricing: Pricing): OrderDe
     order_type: state.order_type,
     table: state.table,
     table_number: null,
+    // **A bill on this device holds the one seat it was opened at.** Joining
+    // tables is a server call (`BR-063`) — it takes a permission and writes an
+    // audit line — so it is not offered offline, and reporting a seat this bill
+    // does not hold would draw a table taken that nothing is holding.
+    tables: state.table ? [state.table] : [],
+    // Not known here: the hall comes from the table, and this device has the
+    // table's id and not its section. The screen falls back to the terminal's
+    // own hall, which is where an offline bill was rung up.
+    section: null,
     customer: state.customer,
     customer_name: null,
     customer_mobile: null,

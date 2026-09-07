@@ -33,6 +33,15 @@
 
   /* Derived, not themed directly: kept in step with the brand by the store. */
   --rpos-muted: 139 143 146; /* #8B8F92 */
+  /*
+   * The voice between the ink and the grey (`D-159`).
+   *
+   * A row has three levels, not two: the value, the content beside it — a
+   * status, an order type — and the caption naming them. Drawn with only
+   * `muted` under `text`, the middle level took the caption's colour and the
+   * whole row read flat.
+   */
+  --rpos-subtle: 95 100 104; /* #5F6468 */
   /* #14171A at 8% over white — a hairline, not a drawn box. */
   --rpos-border: 231 232 232;
   /*

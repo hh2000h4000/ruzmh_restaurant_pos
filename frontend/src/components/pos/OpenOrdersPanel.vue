@@ -111,15 +111,11 @@ const VIEWS: { key: OrderView; label: MessageKey }[] = [
     <div>
       <div class="mb-5 flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h2 class="flex items-center gap-2 text-2xl font-bold">
-            <AppIcon
-              name="document"
-              :size="26"
-            />
+          <h2 class="text-[25px] font-medium leading-tight text-content">
             {{ t("home.openOrders") }}
           </h2>
-          <p class="mt-1 text-base text-muted">
-            <span class="rpos-numeric font-bold text-primary">{{ formatNumber(orders.length) }}</span>
+          <p class="mt-1.5 text-[13.5px] text-subtle">
+            <span class="rpos-numeric">{{ formatNumber(orders.length) }}</span>
             {{ t("home.openOrdersUnit") }}
           </p>
         </div>
@@ -136,7 +132,7 @@ const VIEWS: { key: OrderView; label: MessageKey }[] = [
               v-for="option in (['mine', 'all'] as const)"
               :key="option"
               type="button"
-              class="min-h-tap rounded-full px-6 text-sm font-semibold transition duration-200 ease-rpos"
+              class="min-h-tap rounded-full px-6 text-xs font-medium transition-colors duration-100 ease-rpos"
               :class="scope === option ? 'bg-primary text-primary-contrast' : 'text-muted'"
               :aria-pressed="scope === option"
               @click="emit('update:scope', option)"
@@ -145,12 +141,12 @@ const VIEWS: { key: OrderView; label: MessageKey }[] = [
             </button>
           </div>
 
-          <div class="flex h-[50px] w-[120px] rounded-rpos bg-background p-1">
+          <div class="flex h-[58px] w-[124px] rounded-[15px] bg-background p-[5px]">
             <button
               v-for="option in (['grid', 'list'] as const)"
               :key="option"
               type="button"
-              class="grid flex-1 place-items-center rounded-[0.75rem] transition duration-200 ease-rpos"
+              class="grid h-12 flex-1 place-items-center rounded-xl transition-colors duration-100 ease-rpos"
               :class="layout === option ? 'bg-primary text-primary-contrast shadow-card' : 'text-muted'"
               :aria-pressed="layout === option"
               :aria-label="option === 'grid' ? t('home.viewGrid') : t('home.viewList')"
@@ -159,7 +155,7 @@ const VIEWS: { key: OrderView; label: MessageKey }[] = [
             >
               <AppIcon
                 :name="option"
-                :size="22"
+                :size="20"
               />
             </button>
           </div>
@@ -167,7 +163,7 @@ const VIEWS: { key: OrderView; label: MessageKey }[] = [
       </div>
 
       <div class="mb-4 flex flex-wrap items-center gap-2.5">
-        <label class="flex min-w-[220px] flex-1 items-center gap-2 rounded-rpos bg-background px-3">
+        <label class="flex h-14 min-w-[220px] flex-1 items-center gap-2.5 rounded-[15px] border border-line bg-background px-[18px]">
           <AppIcon
             name="search"
             :size="20"
@@ -176,7 +172,7 @@ const VIEWS: { key: OrderView; label: MessageKey }[] = [
           <input
             v-model="search"
             type="search"
-            class="min-h-tap w-full bg-transparent"
+            class="h-full w-full bg-transparent text-[15px] placeholder:text-muted"
             :placeholder="t('home.search')"
             :aria-label="t('home.search')"
           >
@@ -184,7 +180,7 @@ const VIEWS: { key: OrderView; label: MessageKey }[] = [
 
         <select
           v-model="sort"
-          class="min-h-tap shrink-0 rounded-rpos bg-background px-3 text-sm font-semibold text-muted"
+          class="h-14 w-[168px] shrink-0 rounded-[15px] border border-line bg-background px-[18px] text-xs text-content"
           :aria-label="t('home.sort')"
         >
           <option
@@ -209,11 +205,11 @@ const VIEWS: { key: OrderView; label: MessageKey }[] = [
           :key="option.key"
           type="button"
           role="tab"
-          class="min-h-tap rounded-rpos px-5 text-sm font-semibold transition duration-200 ease-rpos"
+          class="h-[50px] rounded-[14px] border px-6 text-xs font-medium transition-colors duration-100 ease-rpos"
           :class="
             view === option.key
-              ? 'bg-primary text-primary-contrast shadow-card'
-              : 'bg-background text-muted hover:text-content'
+              ? 'border-primary bg-primary text-primary-contrast'
+              : 'border-line bg-background text-subtle hover:text-content'
           "
           :aria-selected="view === option.key"
           @click="emit('update:view', option.key)"

@@ -46,6 +46,9 @@ const documentNumber = computed(() =>
  */
 const happenedAt = computed(() => props.order.closed_at ?? props.order.opened_at);
 
+/** The short number the customer is told (`FR-2.10`) — see `OpenOrderRow`. */
+const dailyNumber = computed(() => props.order.daily_number ?? null);
+
 const menuOpen = ref(false);
 
 /** Colour follows the lifecycle, and the status is always written out. */
@@ -95,13 +98,24 @@ function choose(where: "order" | "floor" | "reprint"): void {
     />
 
     <div class="flex items-start justify-between gap-2">
-      <div class="min-w-0">
-        <p class="truncate text-lg font-bold">
-          {{ whereLabel(order) }}
-        </p>
-        <p class="truncate text-sm text-muted">
-          {{ t("card.type") }}
-        </p>
+      <div class="flex min-w-0 items-center gap-3">
+        <!-- FR-2.10 — the number a cashier calls out, in the card's identity
+             line for the same reason it leads the row: it is the one figure
+             here that gets spoken across a counter. -->
+        <span
+          v-if="dailyNumber"
+          class="rpos-numeric grid h-11 w-11 shrink-0 place-items-center rounded-[13px] bg-primary/10 text-[19px] font-medium text-primary"
+          :aria-label="t('card.dailyNumber')"
+        >{{ formatNumber(dailyNumber) }}</span>
+
+        <div class="min-w-0">
+          <p class="truncate text-[17px] font-medium text-content">
+            {{ whereLabel(order) }}
+          </p>
+          <p class="mt-0.5 truncate text-label text-muted">
+            {{ t("card.type") }}
+          </p>
+        </div>
       </div>
 
       <div class="flex shrink-0 items-start gap-1">
@@ -116,12 +130,12 @@ function choose(where: "order" | "floor" | "reprint"): void {
          screen the whole time — invisible. -->
         <div class="text-end">
           <p
-            class="font-bold"
+            class="text-xs"
             :class="STATUS_TEXT[order.status]"
           >
             {{ t(`status.${order.status}`) }}
           </p>
-          <p class="text-sm text-muted">
+          <p class="mt-0.5 text-label text-muted">
             {{ t("card.status") }}
           </p>
         </div>
@@ -144,28 +158,29 @@ function choose(where: "order" | "floor" | "reprint"): void {
     <div class="grid grid-cols-2 gap-4">
       <div>
         <p
-          class="rpos-numeric text-[22px] font-bold leading-tight"
+          class="rpos-numeric text-[25px] font-medium leading-none tracking-[-0.8px]"
           :class="order.is_return ? 'text-danger' : 'text-primary'"
         >
           {{ formatNumber(order.total_amount, 2) }}
         </p>
         <!-- FR-9, D-070 — the same signal as the row: a refunded bill reads
              differently from a kept one, where the money is read. -->
+        <!-- Values, not captions — the same rule as the row (`D-159`). -->
         <p
           v-if="order.is_return"
-          class="text-sm text-danger"
+          class="mt-1 text-xs text-danger"
         >
           {{ t("ret.rowLabel") }}
         </p>
         <p
           v-else-if="order.returned_amount"
-          class="rpos-numeric text-sm font-semibold text-danger"
+          class="rpos-numeric mt-1 text-meta text-danger"
         >
           −{{ formatNumber(order.returned_amount, 2) }}
         </p>
         <p
           v-else
-          class="text-sm text-muted"
+          class="mt-1 text-label text-muted"
         >
           {{ t("card.amount") }}
         </p>
@@ -173,27 +188,27 @@ function choose(where: "order" | "floor" | "reprint"): void {
 
       <div>
         <span
-          class="rpos-numeric grid h-9 w-9 place-items-center rounded-full bg-primary/10 font-bold text-primary"
+          class="rpos-numeric grid h-[38px] w-[38px] place-items-center rounded-xl bg-background text-[15px] text-content"
         >{{ formatNumber(order.item_count) }}</span>
-        <p class="mt-1 text-sm text-muted">
+        <p class="mt-1 text-label text-muted">
           {{ t("card.itemCount") }}
         </p>
       </div>
 
       <div>
-        <p class="rpos-numeric font-bold">
+        <p class="rpos-numeric text-[15px] text-content">
           {{ dateOnly(happenedAt) }}
         </p>
-        <p class="rpos-numeric text-sm text-muted">
+        <p class="rpos-numeric mt-0.5 text-meta text-muted">
           {{ timeOnly(happenedAt) }}
         </p>
       </div>
 
       <div class="min-w-0">
-        <p class="rpos-numeric truncate font-bold">
+        <p class="rpos-numeric truncate text-[15px] tracking-[0.2px] text-content">
           {{ documentNumber }}
         </p>
-        <p class="truncate text-sm text-muted">
+        <p class="mt-0.5 truncate text-label text-muted">
           {{ t(order.is_return ? "card.creditNote" : "card.number") }}
         </p>
       </div>
@@ -207,10 +222,10 @@ function choose(where: "order" | "floor" | "reprint"): void {
         <AppIcon name="user" />
       </span>
       <div class="min-w-0">
-        <p class="truncate font-bold">
+        <p class="truncate text-xs font-medium text-content">
           {{ order.cashier_name }}
         </p>
-        <p class="truncate text-sm text-muted">
+        <p class="mt-0.5 truncate text-label text-muted">
           {{ t("card.cashier") }}
         </p>
       </div>
@@ -222,7 +237,7 @@ function choose(where: "order" | "floor" | "reprint"): void {
     >
       <button
         type="button"
-        class="block w-full px-4 text-start text-sm transition duration-200 ease-rpos hover:bg-background"
+        class="block min-h-tap w-full px-4 py-3 text-start text-xs transition-colors duration-100 ease-rpos hover:bg-background"
         @click.stop="choose('order')"
       >
         {{ t("card.openOrder") }}
@@ -230,7 +245,7 @@ function choose(where: "order" | "floor" | "reprint"): void {
       <button
         v-if="props.order.table_number"
         type="button"
-        class="block w-full px-4 text-start text-sm transition duration-200 ease-rpos hover:bg-background"
+        class="block min-h-tap w-full px-4 py-3 text-start text-xs transition-colors duration-100 ease-rpos hover:bg-background"
         @click.stop="choose('floor')"
       >
         {{ t("card.goToTable") }}
@@ -239,7 +254,7 @@ function choose(where: "order" | "floor" | "reprint"): void {
       <button
         v-if="receipt && mayReprint"
         type="button"
-        class="block w-full px-4 text-start text-sm transition duration-200 ease-rpos hover:bg-background"
+        class="block min-h-tap w-full px-4 py-3 text-start text-xs transition-colors duration-100 ease-rpos hover:bg-background"
         @click.stop="choose('reprint')"
       >
         {{ t("print.receiptAgain") }}

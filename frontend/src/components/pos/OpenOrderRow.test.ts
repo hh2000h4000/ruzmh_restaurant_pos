@@ -86,6 +86,76 @@ describe("which document a row says it is", () => {
   });
 });
 
+/**
+ * `D-159` — the number the user asked for, and the reason it is the one that
+ * gets the badge.
+ *
+ * A cashier calls it out and a customer reads it back off their slip.
+ * `RO-2026-09-00001` is a record id: right for tracing a refund, useless across
+ * a counter. It was on no row at all.
+ */
+describe("the number a cashier calls out", () => {
+  it("is on the row, beside its own caption", () => {
+    const wrapper = row({ daily_number: 7, sales_invoice: "ACC-SINV-2026-00199" });
+
+    const badge = wrapper.get('[aria-label], .rpos-numeric');
+    expect(badge).toBeTruthy();
+    expect(wrapper.text()).toContain(t("card.dailyNumber"));
+    expect(wrapper.text()).toContain("7");
+  });
+
+  it("is the refund's own, not the sale's", () => {
+    const wrapper = row({
+      is_return: 1,
+      credit_note: "ACC-SINV-2026-00200",
+      returns_daily_number: 20,
+      daily_number: 21,
+      total_amount: -32,
+    });
+
+    // Its own number leads the row; the bill it reverses is named beside it.
+    expect(wrapper.text()).toContain("21");
+    expect(wrapper.text()).toContain(t("ret.against", { number: "20" }));
+  });
+
+});
+
+/**
+ * `D-159` — the caption size is for captions.
+ *
+ * 11.5px is the one exception to the till's 14px floor, and it is allowed for
+ * exactly one thing: the small grey word **under** a value, read once while
+ * learning the screen. A figure or a status drawn at it is the crowding this
+ * redesign was asked to fix.
+ *
+ * Written as a sweep over the states a row can be in rather than an eye over
+ * the template: two of them were wrong when this was first written — "مرتجع"
+ * and the refunded figure both took the caption size — and both are branches
+ * that only render on a refund, so no screenshot of an ordinary row would have
+ * shown it.
+ */
+describe("what may be drawn at a caption's size", () => {
+  const STATES: [string, Partial<OpenOrder>][] = [
+    ["a plain sale", { sales_invoice: "ACC-SINV-2026-00199" }],
+    ["a bill still open", { status: "active", sales_invoice: null }],
+    ["a bill money went back out of", { returned_amount: 12.5 }],
+    ["a refund", { is_return: 1, credit_note: "ACC-SINV-2026-00200", total_amount: -32 }],
+  ];
+
+  it.each(STATES)("%s puts no value at 11.5px", (_name, order) => {
+    const wrapper = row(order);
+
+    for (const element of wrapper.findAll("[class*='text-label']")) {
+      const classes = element.classes();
+      // A caption is Arabic words in `muted`. A figure (`rpos-numeric`), a
+      // status colour or a name is a value, whatever else is true of it.
+      expect(classes).not.toContain("rpos-numeric");
+      expect(classes.some((name) => name.startsWith("text-order-"))).toBe(false);
+      expect(classes).not.toContain("text-danger");
+    }
+  });
+});
+
 describe("reprinting from a bill row", () => {
   it("offers a paid bill its receipt", async () => {
     const wrapper = row({ sales_invoice: "ACC-SINV-2026-00199" });

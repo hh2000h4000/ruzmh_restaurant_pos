@@ -67,6 +67,15 @@ export default {
         background: themed("background"),
         content: themed("text"),
         muted: themed("muted"),
+        /*
+         * The step between the ink and the grey (`D-159`).
+         *
+         * A row has three levels of voice, not two: the value, the thing beside
+         * it that is still content — a status, an order type — and the caption
+         * that names them. With only `muted` under `content`, the second and
+         * third were drawn the same and the row read as one flat block.
+         */
+        subtle: themed("subtle"),
         // `line` edges a card; `line-strong` edges a control you press.
         line: {
           DEFAULT: themed("border"),
@@ -136,8 +145,26 @@ export default {
         ],
       },
       fontSize: {
-        // 06 §Accessibility: nothing below 14px anywhere.
+        /*
+         * **14px is the floor for anything a cashier *reads*** (06
+         * §Accessibility). The two sizes under it are named rather than written
+         * as arbitrary values so the exception cannot spread by accident: a
+         * component asking for `text-label` is saying "this is a caption", and
+         * a reviewer can grep for every place that claim was made (`D-159`).
+         */
         xs: ["0.875rem", { lineHeight: "1.25rem" }],
+        /**
+         * 11.5px — the small grey word **under** a value: "المبلغ", "صنف",
+         * "الكاشير". Read once while learning the screen and never again, which
+         * is why it may be quiet. Never for a value, a status or a name.
+         */
+        label: ["0.719rem", { lineHeight: "1rem" }],
+        /**
+         * 12px — a date, a time, a reference. **Mono digits only.** Arabic
+         * script carries more fine detail than Latin and needs the extra size
+         * for the same legibility, so a word never uses this.
+         */
+        meta: ["0.75rem", { lineHeight: "1.05rem" }],
       },
     },
   },

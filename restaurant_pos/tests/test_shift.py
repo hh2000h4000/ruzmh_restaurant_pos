@@ -27,6 +27,15 @@ class ShiftTestBase(OrderTestBase):
 		self.settlement = frappe.db.get_value("Branch", BRANCH, "settlement_required")
 		self.shift_type = frappe.db.get_value("Branch", BRANCH, "shift_type")
 		self.finish_orders = frappe.db.get_value("Branch", BRANCH, "close_open_orders_with_day")
+
+		# **Set, not merely remembered.** These tests assert what a branch does at
+		# closing time, and reading the answer off the site made the assertion
+		# depend on what an earlier run happened to leave committed there — which
+		# it did: the test site held `0`, so four tests about a day that *refuses*
+		# to close ran against a branch that allows it, and the whole suite went
+		# red while the module alone passed. A test that owns its rule sets it
+		# (`D-155` — the same lesson, one field over).
+		frappe.db.set_value("Branch", BRANCH, "close_open_orders_with_day", 1)
 		self._clear()
 
 	def tearDown(self):

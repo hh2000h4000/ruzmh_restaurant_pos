@@ -114,7 +114,7 @@ describe("closing the day over bills still open", () => {
   it("lets a cashier close where the branch carries bills over", async () => {
     const { wrapper } = await open({
       may: false,
-      summary: report({ must_finish_orders: false }),
+      summary: report({ must_finish_orders: false, blocked_by_open_orders: false }),
     });
 
     expect(closeButton(wrapper).attributes("disabled")).toBeUndefined();
@@ -122,11 +122,48 @@ describe("closing the day over bills still open", () => {
     expect(wrapper.find('[role="status"]').text()).toContain("تنتقل إلى اليوم التالي");
   });
 
+  /**
+   * `D-158` — a branch that carries bills over has a ceiling on how many, so
+   * "3 orders are still open" is true and useless: the cashier has to know how
+   * many of them stand between this day and its end.
+   */
+  it("names how many have to go when the ceiling is what refuses", async () => {
+    const { wrapper } = await open({
+      may: false,
+      summary: report({
+        orders: { total: 9, closed: 6, cancelled: 0, still_open: 12 },
+        must_finish_orders: false,
+        carry_over_limit: 5,
+        blocked_by_open_orders: true,
+      }),
+    });
+
+    const said = wrapper.find('[role="status"]').text();
+    expect(said).toContain("12");
+    expect(said).toContain("5");
+    // Twelve open, five carried — seven have to be settled or cancelled.
+    expect(said).toContain("7");
+    expect(closeButton(wrapper).attributes("disabled")).toBeDefined();
+  });
+
   it("treats a report that could not say as the stricter answer", async () => {
-    // An older server, or a summary that never carried the flag: the screen
+    // An older server, or a summary that never carried the flags: the screen
     // must not invent permission it was not given.
     const { wrapper } = await open({ may: false, summary: report() });
 
     expect(closeButton(wrapper).attributes("disabled")).toBeDefined();
+  });
+
+  it("takes the server's answer rather than working it out again", async () => {
+    // The two branch settings live on the server and the endpoint enforces
+    // them; a screen that re-derived the rule would be the copy that disagrees
+    // with the refusal. Here the bills are open and the server says they are
+    // not in the way — the screen believes it.
+    const { wrapper } = await open({
+      may: false,
+      summary: report({ must_finish_orders: true, blocked_by_open_orders: false }),
+    });
+
+    expect(closeButton(wrapper).attributes("disabled")).toBeUndefined();
   });
 });

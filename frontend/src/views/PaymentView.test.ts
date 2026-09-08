@@ -29,6 +29,7 @@ vi.mock("@/api/payment", () => ({
   getPaymentSummary: vi.fn(),
   previewTotals: vi.fn(),
   processPayment: vi.fn(),
+  promotionOffers: vi.fn(),
   splitEvenly: vi.fn(),
   validateDiscountOverride: vi.fn(),
 }));
@@ -68,8 +69,15 @@ function summary(extra: Partial<PaymentSummary> = {}): PaymentSummary {
 }
 
 /** Mount the screen with this summary and wait for it to settle. */
-async function open(payload: PaymentSummary) {
+async function open(
+  payload: PaymentSummary,
+  promotions: { offers: paymentApi.PromotionOffer[]; may_choose: boolean } = {
+    offers: [],
+    may_choose: true,
+  },
+) {
   vi.mocked(paymentApi.getPaymentSummary).mockResolvedValue(payload);
+  vi.mocked(paymentApi.promotionOffers).mockResolvedValue(promotions);
 
   const wrapper = mount(PaymentView, {
     // `BaseDialog` teleports to `<body>`, which is right in the app and puts
@@ -304,5 +312,112 @@ describe("what the payment screen lets a cashier reach", () => {
     expect(wrapper.text()).toContain("رُفض الدفع");
     // Still a payment screen, with the tender the cashier took still on it.
     expect(wrapper.findAll("button").some((b) => b.text().trim() === "mada")).toBe(true);
+  });
+});
+
+/**
+ * The offers list (`D-165`).
+ *
+ * **The hole this closes was invisible from the server.** `is_auto_apply = 0`
+ * means the promotion is offered rather than taken, the engine returned such
+ * promotions correctly, and no screen ever drew them — so a manager could
+ * configure one, save it, watch it listed as active, and it did nothing. Every
+ * backend test passed throughout.
+ */
+function offer(extra: Partial<paymentApi.PromotionOffer> = {}): paymentApi.PromotionOffer {
+  return {
+    name: "PROMO-001",
+    title: "Breakfast offer",
+    title_ar: "عرض الإفطار",
+    benefit: 10,
+    is_auto_apply: 0,
+    is_chosen: 0,
+    ...extra,
+  };
+}
+
+/** The offer button by the title a cashier reads. */
+function offerButton(wrapper: Wrapper, title: string) {
+  const found = wrapper.findAll("button").find((button) => button.text().includes(title));
+  if (!found) throw new Error(`no offer button for ${title}`);
+  return found;
+}
+
+describe("choosing an offer the shop configured", () => {
+  it("shows what is on offer, with what it takes off", async () => {
+    const wrapper = await open(summary(), { offers: [offer()], may_choose: true });
+
+    expect(offerButton(wrapper, "عرض الإفطار").text()).toContain("10");
+  });
+
+  it("re-prices on the server rather than working the figure out here", async () => {
+    vi.mocked(paymentApi.previewTotals).mockResolvedValue({
+      subtotal: 100,
+      discount_amount: 10,
+      promotion_amount: 10,
+      promotion_title: "Breakfast offer",
+      promotion_title_ar: "عرض الإفطار",
+      tax_amount: 13.5,
+      total_amount: 90,
+      discount_percentage: 0,
+      max_discount_percentage: 20,
+      requires_override: false,
+    });
+    const wrapper = await open(summary(), { offers: [offer()], may_choose: true });
+
+    await offerButton(wrapper, "عرض الإفطار").trigger("click");
+    await flushPromises();
+
+    expect(paymentApi.previewTotals).toHaveBeenCalledWith(ORDER, null, 0, "PROMO-001");
+  });
+
+  /**
+   * The permission is reported with the list so the screen says so **before**
+   * a choice is made, rather than letting a cashier tell the customer a price
+   * the server then refuses (`D-125`).
+   */
+  it("is not tappable by a cashier without the right", async () => {
+    const wrapper = await open(summary(), { offers: [offer()], may_choose: false });
+
+    const button = offerButton(wrapper, "عرض الإفطار").element as HTMLButtonElement;
+
+    expect(button.disabled).toBe(true);
+  });
+
+  it("carries the choice into the payment", async () => {
+    vi.mocked(paymentApi.previewTotals).mockResolvedValue({
+      subtotal: 100,
+      discount_amount: 10,
+      promotion_amount: 10,
+      promotion_title: "Breakfast offer",
+      promotion_title_ar: "عرض الإفطار",
+      tax_amount: 13.5,
+      total_amount: 90,
+      discount_percentage: 0,
+      max_discount_percentage: 20,
+      requires_override: false,
+    });
+    vi.mocked(paymentApi.processPayment).mockResolvedValue({
+      order_name: ORDER,
+      sales_invoice: "ACC-SINV-2026-00001",
+      change: 0,
+    } as never);
+    const wrapper = await open(summary(), { offers: [offer()], may_choose: true });
+
+    await offerButton(wrapper, "عرض الإفطار").trigger("click");
+    await flushPromises();
+    await tender(wrapper, "Cash");
+    await confirmButton(wrapper).click();
+    await flushPromises();
+
+    expect(vi.mocked(paymentApi.processPayment).mock.calls[0][0]).toMatchObject({
+      promotion: "PROMO-001",
+    });
+  });
+
+  it("draws nothing at all when this bill qualifies for none", async () => {
+    const wrapper = await open(summary(), { offers: [], may_choose: true });
+
+    expect(wrapper.text()).not.toContain("عروض على هذي الفاتورة");
   });
 });

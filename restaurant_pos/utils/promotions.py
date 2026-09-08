@@ -116,8 +116,26 @@ def best_for(order, total: float | None = None) -> frappe._dict | None:
 	and that is the rule this module exists to hold (rule 1 above). Splitting a
 	bill's items between two promotions is a real thing to want and is not this;
 	it needs per-line application, and is not built.
+
+	**A cashier's own choice outranks the ranking** (`D-165`). Priority and the
+	better-deal tiebreak decide between promotions when *nobody* has decided —
+	that is what makes an unset priority safe rather than arbitrary. Here
+	somebody has, and an automatic pick that overrode them would make
+	`is_auto_apply = 0` mean nothing at all: the offer would be listed, chosen,
+	and then quietly replaced.
+
+	The choice is still held to the same conditions as any other. A promotion
+	whose hours have passed, or that covers nothing on this bill, does not apply
+	because it was picked — it just stops being on offer.
 	"""
-	auto = [row for row in active_for(order, total) if row.is_auto_apply]
+	on_offer = active_for(order, total)
+
+	if order.get("chosen_promotion"):
+		picked = [row for row in on_offer if row.name == order.chosen_promotion]
+		if picked:
+			return picked[0]
+
+	auto = [row for row in on_offer if row.is_auto_apply]
 	return auto[0] if auto else None
 
 
@@ -142,6 +160,34 @@ def benefit_of(promotion, order) -> float:
 		return flt(_free_item_value(promotion) * max(1, int(promotion.free_qty or 1)), 2)
 
 	return 0.0
+
+
+def offers_for(order) -> list[dict]:
+	"""What this bill qualifies for, for a cashier to choose from (`D-165`).
+
+	**A promotion with `is_auto_apply` off is offered rather than taken** — and
+	until now there was nothing to offer it *on*. It could be configured, saved
+	and listed as active, and no screen showed it and no endpoint applied it:
+	configuration that looks complete and does nothing, which is the defect this
+	module refuses `buy_x_get_y` at the door for (`D-074`). It shipped with the
+	same hole one field over.
+
+	The automatic ones are here too, and deliberately: where two of them apply,
+	the engine picks by priority and the cashier may still have a reason to want
+	the other. What is *not* here is anything the bill does not qualify for —
+	choosing does not exempt a promotion from its own conditions.
+	"""
+	return [
+		{
+			"name": row.name,
+			"title": row.title,
+			"title_ar": row.title_ar,
+			"benefit": flt(row.benefit),
+			"is_auto_apply": 1 if row.is_auto_apply else 0,
+			"is_chosen": 1 if row.name == order.get("chosen_promotion") else 0,
+		}
+		for row in active_for(order)
+	]
 
 
 def on_the_bill(order) -> dict:

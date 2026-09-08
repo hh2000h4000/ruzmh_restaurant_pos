@@ -49,7 +49,7 @@ def process_payment(
 	payments: list,
 	discount_type: str | None = None,
 	discount_value: float = 0,
-	promotion_applied: str | None = None,
+	promotion: str | None = None,
 	override_token: str | None = None,
 ) -> dict:
 	"""Settle an order and submit its Sales Invoice (FR-2.7)."""
@@ -67,6 +67,7 @@ def process_payment(
 
 	payments = _normalise(payments)
 	_apply_discount(order, discount_type, discount_value, override_token)
+	_apply_promotion(order, promotion)
 
 	totals.calculate(order)
 	order.save(ignore_permissions=True)
@@ -75,7 +76,7 @@ def process_payment(
 	settlement = _settlement_of(payments)
 	change = _validate_amounts(order, payments) if settlement == "till" else 0.0
 
-	invoice = _create_sales_invoice(order, payments, promotion_applied, settlement)
+	invoice = _create_sales_invoice(order, payments, settlement)
 	_assert_invoice_matches_order(order, invoice)
 
 	# BR-016 — closed only once the invoice is submitted.
@@ -383,7 +384,38 @@ def discount_percentage(order, discount_type: str | None, discount_value: float)
 # --------------------------------------------------------------------------- #
 
 
-def _create_sales_invoice(order, payments, promotion_applied, settlement: str = "till"):
+def _apply_promotion(order, promotion: str | None) -> None:
+	"""Record the promotion a cashier picked by hand (`FR-11.2`, `D-165`).
+
+	Two checks, and the screen is neither of them (`CLAUDE.md` §5.4):
+
+	1. **The right to choose.** A promotion is the shop's money, and picking one
+	   by hand is deciding to spend it — the same class of act as a discount
+	   beyond a ceiling, and guarded by the same right a discount approver must
+	   hold, `can_manual_promotion`.
+	2. **That it is actually on offer for this bill.** Without it a cashier could
+	   name any promotion in the system — an expired one, or one scoped to
+	   another branch — and the engine would honour it, which turns every
+	   condition on the record into a suggestion.
+
+	Refused rather than ignored. A promotion the customer was told about and
+	that then silently did not apply is the report nobody can act on (`D-074`).
+	"""
+	if not promotion:
+		return
+
+	if not get_pos_permission_set().get("can_manual_promotion"):
+		frappe.throw(_("You are not allowed to choose a promotion by hand."))
+
+	from restaurant_pos.utils import promotions
+
+	if promotion not in {offer["name"] for offer in promotions.offers_for(order)}:
+		frappe.throw(_("That promotion does not apply to this bill."))
+
+	order.chosen_promotion = promotion
+
+
+def _create_sales_invoice(order, payments, settlement: str = "till"):
 	"""Build and submit the invoice through ERPNext's own controller.
 
 	Never bypassed (`10` critical note 9): the controller is what computes tax,
@@ -478,8 +510,15 @@ def _create_sales_invoice(order, payments, promotion_applied, settlement: str = 
 	for row in payments:
 		invoice.append("payments", {"mode_of_payment": row["method"], "amount": row["amount"]})
 
-	if promotion_applied:
-		invoice.remarks = f"{invoice.remarks} | {_('Promotion')}: {promotion_applied}"
+	# **The promotion that applied, read off the order** (`D-165`). This used to
+	# be a string the client sent, written onto a submitted financial document
+	# with nothing checking it — it named a promotion that need not exist, while
+	# the total it claimed to explain was worked out from something else
+	# entirely. What goes on the invoice now is the promotion the engine
+	# actually used, or nothing.
+	if order.promotion:
+		title = frappe.db.get_value("Restaurant Promotion", order.promotion, "title")
+		invoice.remarks = f"{invoice.remarks} | {_('Promotion')}: {title or order.promotion}"
 
 	invoice.flags.ignore_permissions = True
 	invoice.insert()

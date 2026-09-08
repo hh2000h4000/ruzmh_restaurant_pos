@@ -88,12 +88,44 @@ export function previewTotals(
   orderName: string,
   discountType: "percentage" | "amount" | null,
   discountValue: number,
+  promotion: string | null = null,
 ): Promise<TotalsPreview> {
   return query<TotalsPreview>("payment.preview_totals", {
     order_name: orderName,
     discount_type: discountType,
     discount_value: discountValue,
+    promotion,
   });
+}
+
+/**
+ * A promotion this bill qualifies for (`D-165`).
+ *
+ * `is_auto_apply` off means the shop configured it to be **offered** rather
+ * than taken — and until this list existed there was nowhere to offer it, so
+ * such a promotion could be saved, listed as active, and do nothing.
+ */
+export interface PromotionOffer {
+  name: string;
+  title: string;
+  title_ar: string;
+  /** What it would take off this bill, so the cashier compares like with like. */
+  benefit: number;
+  is_auto_apply: 0 | 1;
+  is_chosen: 0 | 1;
+}
+
+/**
+ * What is on offer, and whether this cashier may pick one.
+ *
+ * The right travels with the list so the screen can say so **before** a choice
+ * is made, rather than letting a cashier tell the customer a price the server
+ * then refuses (`D-125`).
+ */
+export function promotionOffers(
+  orderName: string,
+): Promise<{ offers: PromotionOffer[]; may_choose: boolean }> {
+  return query("payment.promotion_offers", { order_name: orderName });
 }
 
 export function processPayment(payload: {
@@ -101,6 +133,8 @@ export function processPayment(payload: {
   payments: PaymentLine[];
   discount_type?: string | null;
   discount_value?: number;
+  /** The promotion the cashier picked, if any (`D-165`). */
+  promotion?: string | null;
   manager_override_token?: string | null;
 }): Promise<PaymentResult> {
   return mutate<PaymentResult>("payment.process_payment", payload);

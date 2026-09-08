@@ -24,7 +24,7 @@ def process_payment(
 	payments: list | str,
 	discount_type: str | None = None,
 	discount_value: float = 0,
-	promotion_applied: str | None = None,
+	promotion: str | None = None,
 	loyalty_points_redeemed: float = 0,
 	manager_override_token: str | None = None,
 	queue_id: str | None = None,
@@ -53,7 +53,7 @@ def process_payment(
 		payments=payments,
 		discount_type=discount_type,
 		discount_value=discount_value,
-		promotion_applied=promotion_applied,
+		promotion=promotion,
 		override_token=manager_override_token,
 	)
 
@@ -68,8 +68,31 @@ def process_payment(
 
 
 @frappe.whitelist()
-def preview_totals(order_name: str, discount_type: str | None = None, discount_value: float = 0) -> dict:
-	"""What the order would come to with this discount, without applying it.
+def promotion_offers(order_name: str) -> dict:
+	"""What this bill qualifies for, and whether this cashier may choose (`D-165`).
+
+	Read-only: being shown what is on offer is not applying it, so it takes no
+	``queue_id`` and asks for no permission. The **right to choose** is reported
+	beside the list, so the screen can grey the choice rather than let a cashier
+	pick one and be refused after telling the customer a price (`D-125`).
+	"""
+	order = frappe.get_doc("Restaurant Order", order_name)
+	validate_branch_access(order.branch)
+
+	return {
+		"offers": promotions.offers_for(order),
+		"may_choose": bool(get_pos_permission_set().get("can_manual_promotion")),
+	}
+
+
+@frappe.whitelist()
+def preview_totals(
+	order_name: str,
+	discount_type: str | None = None,
+	discount_value: float = 0,
+	promotion: str | None = None,
+) -> dict:
+	"""What the order would come to with this discount and promotion, unapplied.
 
 	The payment screen has to show the customer a figure before charging, and
 	the frontend never computes money (`CLAUDE.md` §5.1). Nothing is saved: the
@@ -83,6 +106,11 @@ def preview_totals(order_name: str, discount_type: str | None = None, discount_v
 
 	order.discount_type = discount_type
 	order.discount_value = flt(discount_value)
+	# The promotion travels the same road as the discount, because it is the same
+	# question — *reduce this bill* — and a second mechanism for it is how the
+	# two come to disagree (`D-165`, §5.5). Set in memory and discarded, like the
+	# discount beside it: nothing here is saved.
+	order.chosen_promotion = promotion or None
 	totals.calculate(order)
 
 	percentage = service.discount_percentage(order, discount_type, discount_value)

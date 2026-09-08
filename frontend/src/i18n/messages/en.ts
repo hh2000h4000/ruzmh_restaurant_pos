@@ -400,6 +400,8 @@ export const messages = {
   "pay.customAmount": "Another amount",
   "action.done": "Done",
   "pay.discounts": "Discounts",
+  "pay.promotions": "Offers on this bill",
+  "pay.promotionNeedsRight": "Choosing an offer needs a manager.",
   "pay.manualDiscount": "Manual discount",
   "pay.discountType": "Discount type",
   "pay.exceedsLimit": "Above your limit ({limit}) — a manager must authorize it.",

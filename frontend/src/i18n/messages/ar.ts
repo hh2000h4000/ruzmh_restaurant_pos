@@ -378,6 +378,8 @@ const messages: Catalogue["messages"] = {
   "pay.customAmount": "مبلغ آخر",
   "action.done": "تم",
   "pay.discounts": "الخصومات",
+  "pay.promotions": "عروض على هذي الفاتورة",
+  "pay.promotionNeedsRight": "اختيار العرض يحتاج مدير.",
   "pay.manualDiscount": "خصم يدوي",
   "pay.discountType": "نوع الخصم",
   "pay.exceedsLimit": "يتجاوز حدّك ({limit}) — يحتاج تفويض مدير.",

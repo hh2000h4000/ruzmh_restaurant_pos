@@ -12,7 +12,7 @@ import type {
 } from "@/api/payment";
 import ManagerPinDialog from "@/components/ManagerPinDialog.vue";
 import TenderSheet from "@/components/order/TenderSheet.vue";
-import { formatNumber, t } from "@/i18n";
+import { formatNumber, pick, t } from "@/i18n";
 import { useOrderStore } from "@/stores/order";
 import { useSessionStore } from "@/stores/session";
 
@@ -48,6 +48,21 @@ const shares = ref<number[]>([]);
 const settled = ref(0);
 const discountType = ref<"percentage" | "amount" | null>(null);
 const discountValue = ref(0);
+
+/**
+ * The promotion the cashier picked, and what there is to pick from (`D-165`).
+ *
+ * A promotion with `is_auto_apply` off is **offered**, not taken — and the
+ * engine shipped with nothing to offer it on: it could be configured, saved and
+ * listed as active while no screen showed it and nothing applied it.
+ *
+ * `mayChoosePromotion` comes from the server with the list, so the choice can be
+ * greyed rather than refused after the customer has been told a price (`D-125`).
+ * The server checks it again regardless (§5.4).
+ */
+const chosenPromotion = ref<string | null>(null);
+const offers = ref<paymentApi.PromotionOffer[]>([]);
+const mayChoosePromotion = ref(false);
 const overrideToken = ref<string | null>(null);
 const busy = ref(false);
 const failure = ref<string | null>(null);
@@ -276,13 +291,31 @@ onMounted(async () => {
   } catch (cause) {
     loadFailure.value = cause instanceof Error ? cause.message : String(cause);
   }
+
+  // **Asked separately, and it must not be able to stop a payment.** What is on
+  // offer is worth showing and taking the money is worth more: an offers call
+  // that failed inside the block above would leave the screen with no bill at
+  // all over a list nobody has to use (`D-165`).
+  try {
+    const available = await paymentApi.promotionOffers(orderName);
+    offers.value = available.offers;
+    mayChoosePromotion.value = available.may_choose;
+    chosenPromotion.value = available.offers.find((offer) => offer.is_chosen)?.name ?? null;
+  } catch {
+    // No list, and the automatic promotions still apply themselves.
+    offers.value = [];
+  }
 });
 
-/** Re-price on the server whenever the discount changes (FR-10.4). */
-watch([discountType, discountValue], async () => {
-  overrideToken.value = null;
-
-  if (!discountType.value || !discountValue.value) {
+/**
+ * What the bill comes to with whatever has been chosen (FR-10.4, `D-165`).
+ *
+ * One call for both, because they are one question — *reduce this bill* — and
+ * the server folds them into one figure anyway. Two calls would let the screen
+ * show a total neither of them produced.
+ */
+async function reprice(): Promise<void> {
+  if (!discountType.value && !discountValue.value && !chosenPromotion.value) {
     preview.value = null;
     return;
   }
@@ -292,11 +325,34 @@ watch([discountType, discountValue], async () => {
       orderName,
       discountType.value,
       discountValue.value,
+      chosenPromotion.value,
     );
   } catch (cause) {
     failure.value = cause instanceof Error ? cause.message : String(cause);
   }
+}
+
+// **The approval belongs to the discount, so only the discount drops it.** A
+// token is bound to a percentage a manager approved; picking a promotion does
+// not change that percentage, and dropping it there would send the cashier back
+// to the manager for a figure already approved.
+watch([discountType, discountValue], () => {
+  overrideToken.value = null;
+  void reprice();
 });
+
+watch(chosenPromotion, () => void reprice());
+
+/**
+ * Pick an offer, or tap the chosen one again to drop it.
+ *
+ * Dropping hands the bill back to the automatic pick rather than to nothing:
+ * a promotion the shop advertised and applies by itself is not something a
+ * cashier removes by changing their mind about a different one.
+ */
+function choosePromotion(name: string): void {
+  chosenPromotion.value = chosenPromotion.value === name ? null : name;
+}
 
 function setQuickDiscount(percentage: number): void {
   if (discountType.value === "percentage" && discountValue.value === percentage) {
@@ -445,6 +501,7 @@ async function confirm(): Promise<void> {
       payments: payable.value,
       discount_type: discountType.value,
       discount_value: discountValue.value,
+      promotion: chosenPromotion.value,
       manager_override_token: overrideToken.value,
     });
   } catch (cause) {
@@ -775,6 +832,52 @@ async function confirm(): Promise<void> {
         <h2 class="text-xs text-muted">
           {{ t("pay.discounts") }}
         </h2>
+
+        <!-- **What this bill qualifies for** (`D-165`).
+
+             A promotion with `is_auto_apply` off is offered rather than taken,
+             and this is where it is offered. Above the discount deliberately:
+             an offer the shop already advertised is the cheaper answer, and a
+             cashier who reaches for a manual discount first gives away money
+             the shop had already decided how to give away.
+
+             Each row carries **what it would take off**, so two offers are
+             compared as amounts rather than as names. Tapping the chosen one
+             again clears it and hands the bill back to the automatic pick. -->
+        <div
+          v-if="offers.length"
+          class="flex flex-col gap-2.5"
+        >
+          <p class="text-sm font-medium">
+            {{ t("pay.promotions") }}
+          </p>
+          <button
+            v-for="offer in offers"
+            :key="offer.name"
+            type="button"
+            :disabled="!mayChoosePromotion"
+            class="flex min-h-[3.375rem] items-center justify-between gap-3 rounded-rpos border px-[18px] text-start transition duration-200 ease-rpos disabled:cursor-not-allowed disabled:opacity-50"
+            :class="
+              chosenPromotion === offer.name
+                ? 'border-primary bg-primary text-primary-contrast'
+                : 'border-line bg-background hover:border-primary'
+            "
+            :aria-pressed="chosenPromotion === offer.name"
+            @click="choosePromotion(offer.name)"
+          >
+            <span class="min-w-0 truncate text-sm">
+              {{ pick(offer.title_ar, offer.title) }}
+            </span>
+            <span class="rpos-numeric shrink-0 text-sm">−{{ money(offer.benefit) }}</span>
+          </button>
+          <!-- Said before the choice, not after the refusal (`D-125`). -->
+          <p
+            v-if="!mayChoosePromotion"
+            class="text-xs text-muted"
+          >
+            {{ t("pay.promotionNeedsRight") }}
+          </p>
+        </div>
 
         <!-- Three of equal width, because they are three answers to one
              question and a row of different sizes reads as a hierarchy that

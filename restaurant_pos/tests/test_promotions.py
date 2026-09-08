@@ -25,8 +25,10 @@ from datetime import timedelta
 import frappe
 
 from restaurant_pos.api import order as api_order
-from restaurant_pos.tests.test_order import ITEM, OrderTestBase
+from restaurant_pos.tests.test_order import ITEM, OrderTestBase, _make_cashier
+from restaurant_pos.tests.test_payment import CASH
 from restaurant_pos.utils import order as orders
+from restaurant_pos.utils import payment as payment_service
 from restaurant_pos.utils import promotions, totals
 
 
@@ -340,6 +342,140 @@ class TheBillSaysWhichPromotion(PromotionTestBase):
 
 		self.assertEqual(payload["promotion_amount"], 2.5)
 		self.assertEqual(payload["discount_amount"] - payload["promotion_amount"], 5.0)
+
+
+class TheCashierCanChooseOne(PromotionTestBase):
+	"""`is_auto_apply = 0` means *offered*, and there was nothing to offer it on.
+
+	The engine shipped returning these promotions from `active_for` and no
+	endpoint called it, no screen drew it, and nothing applied it — a manager
+	could configure a manual promotion, save it, see it listed as active, and it
+	did nothing at all. **The same defect this module refuses `buy_x_get_y` at
+	the door for** (`D-074`), one field over (`D-165`).
+	"""
+
+	def test_a_manual_promotion_is_on_offer(self):
+		self._promotion(title="RPOS test manual", is_auto_apply=0, discount_value=20)
+
+		offers = promotions.offers_for(self._bill())
+
+		self.assertEqual([offer["title"] for offer in offers], ["RPOS test manual"])
+		self.assertEqual(offers[0]["benefit"], 5.0)
+		self.assertEqual(offers[0]["is_auto_apply"], 0)
+
+	def test_choosing_it_applies_it(self):
+		promo = self._promotion(title="RPOS test manual", is_auto_apply=0, discount_value=20)
+
+		order = self._bill()
+		order.chosen_promotion = promo.name
+		totals.calculate(order)
+
+		self.assertEqual(order.promotion, promo.name)
+		self.assertEqual(order.promotion_amount, 5.0)
+
+	def test_a_choice_outranks_the_engines_own_pick(self):
+		"""Priority and the better-deal tiebreak decide when *nobody* decided.
+
+		Here somebody has — and an automatic pick that overrode them would make
+		`is_auto_apply = 0` mean nothing: listed, chosen, quietly replaced.
+		"""
+		self._promotion(title="RPOS test auto", discount_value=40, priority=100)
+		picked = self._promotion(title="RPOS test manual", is_auto_apply=0, discount_value=20)
+
+		order = self._bill()
+		order.chosen_promotion = picked.name
+		totals.calculate(order)
+
+		self.assertEqual(order.promotion, picked.name)
+		self.assertEqual(order.promotion_amount, 5.0, "20% of 25, not the automatic 40%")
+
+	def test_a_choice_is_still_held_to_the_conditions(self):
+		"""Choosing does not exempt a promotion from its own record: one whose
+		dates have passed is simply not on offer, and picking it changes nothing.
+		"""
+		expired = self._promotion(
+			title="RPOS test expired",
+			is_auto_apply=0,
+			valid_from="2026-01-01",
+			valid_to="2026-01-31",
+			discount_value=50,
+		)
+
+		order = self._bill()
+		order.chosen_promotion = expired.name
+		totals.calculate(order)
+
+		self.assertIsNone(order.promotion)
+		self.assertEqual(order.promotion_amount, 0.0)
+
+	def test_the_offer_says_which_one_is_chosen(self):
+		promo = self._promotion(title="RPOS test manual", is_auto_apply=0, discount_value=20)
+
+		order = self._bill()
+		order.chosen_promotion = promo.name
+
+		self.assertEqual(promotions.offers_for(order)[0]["is_chosen"], 1)
+
+
+class ChoosingOneIsSpendingTheShopsMoney(PromotionTestBase):
+	"""The two checks on the server, because the screen is not a check (§5.4)."""
+
+	def _pay(self, order, promotion):
+		return payment_service.process_payment(
+			order,
+			payments=[{"method": CASH, "amount": order.total_amount}],
+			promotion=promotion,
+		)
+
+	def test_a_promotion_not_on_offer_is_refused(self):
+		"""Without this a cashier could name any promotion in the system — an
+		expired one, or one scoped to another branch — and the engine would
+		honour it, which turns every condition on the record into a suggestion.
+		"""
+		elsewhere = self._promotion(
+			title="RPOS test elsewhere",
+			is_auto_apply=0,
+			apply_to="by_order_type",
+			discount_value=50,
+			applicable_order_types=[{"order_type": self.dine_in}],
+		)
+
+		order = self._bill()
+
+		with self.assertRaises(frappe.ValidationError):
+			self._pay(order, elsewhere.name)
+
+	def test_a_cashier_without_the_right_is_refused(self):
+		"""Runs as a real cashier on purpose: as Administrator every right is
+		held, so asserting against the default test user would prove nothing
+		(`D-144`, `D-157`).
+		"""
+		promo = self._promotion(title="RPOS test manual", is_auto_apply=0, discount_value=20)
+		order = self._bill()
+		cashier = _make_cashier()
+
+		frappe.set_user(cashier)
+		frappe.local.rpos_permission_cache = {}
+		try:
+			with self.assertRaises(frappe.ValidationError):
+				self._pay(order, promo.name)
+		finally:
+			frappe.set_user("Administrator")
+			frappe.local.rpos_permission_cache = {}
+
+	def test_the_invoice_names_the_promotion_that_actually_applied(self):
+		"""It used to name whatever string the client sent — written onto a
+		submitted financial document with nothing checking it, explaining a total
+		that had been worked out from something else entirely.
+		"""
+		promo = self._promotion(title="RPOS test manual", is_auto_apply=0, discount_value=20)
+		order = self._bill()
+
+		self._pay(order, promo.name)
+		order.reload()
+
+		remarks = frappe.db.get_value("Sales Invoice", order.sales_invoice, "remarks") or ""
+		self.assertIn("RPOS test manual", remarks)
 
 
 class ASilentPromotionIsRefused(PromotionTestBase):

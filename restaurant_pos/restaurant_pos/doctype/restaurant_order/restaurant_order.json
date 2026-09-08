@@ -34,6 +34,7 @@
   "subtotal",
   "discount_type",
   "discount_value",
+  "chosen_promotion",
   "discount_amount",
   "promotion",
   "promotion_amount",
@@ -240,6 +241,13 @@
    "fieldtype": "Float",
    "label": "Discount Value",
    "precision": "2"
+  },
+  {
+   "fieldname": "chosen_promotion",
+   "fieldtype": "Link",
+   "options": "Restaurant Promotion",
+   "label": "Chosen Promotion",
+   "description": "The promotion a cashier picked by hand (D-165). Input, where `promotion` is output: a promotion with `is_auto_apply` off is offered rather than taken, and without somewhere to record the choice there was no way to take it. A choice here outranks the engine's own pick — somebody decided."
   },
   {
    "default": "0",

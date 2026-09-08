@@ -18,6 +18,16 @@ export type OrderScope = "mine" | "all";
  * (D-039). Each caller gets its own state — two screens are never mounted at
  * once, and a shared store would have to be invalidated by hand.
  */
+/**
+ * When a row happened — closed if it has, opened if it has not (`D-146`).
+ *
+ * The same choice `OpenOrderRow` makes for the date it prints, so the list is
+ * ordered by the moment it shows rather than by a different one.
+ */
+function happenedAt(order: OpenOrder): string {
+  return order.closed_at ?? order.opened_at;
+}
+
 export function useOpenOrders() {
   const session = useSessionStore();
   const connection = useConnectionStore();
@@ -29,7 +39,20 @@ export function useOpenOrders() {
   const staleAt = ref<string | null>(null);
 
   const search = ref("");
-  const sort = ref<OrderSort>("oldest");
+  /**
+   * **Newest first, on every tab** — the user's instruction, and the reading
+   * that matches what the tabs are for.
+   *
+   * "Oldest first" was written for the floor alone, where the bill that has
+   * waited longest is the one needing attention (`06` Screen 1). It stopped
+   * being right the moment the same list grew three history tabs: what a
+   * cashier wants from *closed today* is the bill they just closed, and from
+   * *refunds* the one just taken. The server already returns both of those
+   * newest first — and this then sorted them back the other way.
+   *
+   * The floor keeps the old reading one tap away, in the sort itself.
+   */
+  const sort = ref<OrderSort>("newest");
 
   /** Which orders to ask for: open, drafts, today's history, or everything. */
   const view = ref<OrderView>("open");
@@ -163,8 +186,12 @@ export function useOpenOrders() {
     // next comparison depend on the last render.
     return [...list].sort((a, b) => {
       if (sort.value === "amount") return b.total_amount - a.total_amount;
+      // **By the event the row is about** (`D-146`) — the same moment the row
+      // prints under its number. Sorting closed bills by when they *opened* put
+      // one opened at eleven and paid at one at the wrong end of "today", and
+      // undid the order the server had already put them in.
       const direction = sort.value === "newest" ? -1 : 1;
-      return direction * a.opened_at.localeCompare(b.opened_at);
+      return direction * happenedAt(a).localeCompare(happenedAt(b));
     });
   });
 

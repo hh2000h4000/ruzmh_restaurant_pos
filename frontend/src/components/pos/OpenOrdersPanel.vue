@@ -60,11 +60,13 @@ const layout = defineModel<"list" | "grid">("layout", { default: "list" });
  * already do.
  */
 const search = defineModel<string>("search", { default: "" });
-const sort = defineModel<"oldest" | "newest" | "amount">("sort", { default: "oldest" });
+// Newest first, the same as the composable that usually supplies it: a default
+// written twice is a default the two copies disagree about.
+const sort = defineModel<"oldest" | "newest" | "amount">("sort", { default: "newest" });
 
 const SORTS: { key: "oldest" | "newest" | "amount"; label: MessageKey }[] = [
-  { key: "oldest", label: "home.sortOldest" },
   { key: "newest", label: "home.sortNewest" },
+  { key: "oldest", label: "home.sortOldest" },
   { key: "amount", label: "home.sortAmount" },
 ];
 

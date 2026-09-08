@@ -224,6 +224,7 @@ const {
   searching: floorSearching,
   sort: floorSort,
   staleAt: floorStaleAt,
+  carriedCount: floorCarriedCount,
   view: floorView,
   visible: floorOrders,
 } = useOpenOrders();
@@ -1307,6 +1308,7 @@ async function send(): Promise<void> {
             :scope="floorMaySeeEveryone ? floorScope : null"
             :view="floorView"
             :stale-at="floorStaleAt"
+            :carried-count="floorCarriedCount"
             :may-reprint="session.can('can_reprint_receipt')"
             :older="floorOlder"
             :searching-older="floorSearchingOlder"

@@ -175,6 +175,24 @@ function choose(where: "order" | "floor" | "reprint"): void {
       </p>
     </div>
 
+    <!-- **The daily number is back, where it identifies** (`D-164`).
+         It came off this list because the tabs mixed days and it restarts at
+         one each morning, so two rows could read the same (`D-159`). The floor
+         now holds a single business day, so on these rows it names the bill —
+         and it is withheld on a carried one, where it would still lie.
+         The column keeps its width either way: a row that loses a column reads
+         as a different kind of row, and in the mixed tab they sit together. -->
+    <div class="min-w-[46px] shrink-0 text-center">
+      <template v-if="!order.is_carried && order.daily_number">
+        <span
+          class="rpos-numeric mx-auto grid h-[38px] w-[38px] place-items-center rounded-xl bg-primary/10 text-[15px] font-medium text-primary"
+        >{{ formatNumber(order.daily_number) }}</span>
+        <p class="mt-1 text-label text-muted">
+          {{ t("card.dailyNumber") }}
+        </p>
+      </template>
+    </div>
+
     <div class="shrink-0 text-center">
       <span
         class="rpos-numeric mx-auto grid h-[38px] w-[38px] place-items-center rounded-xl bg-background text-[15px] text-content"

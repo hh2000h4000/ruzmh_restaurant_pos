@@ -172,6 +172,18 @@ function choose(where: "order" | "floor" | "reprint"): void {
         </p>
       </div>
 
+      <!-- **The daily number is back, where it identifies** (`D-164`, `D-159`).
+           Withheld on a carried row, where a number that restarts each morning
+           would name two different bills. -->
+      <div v-if="!order.is_carried && order.daily_number">
+        <span
+          class="rpos-numeric grid h-[38px] w-[38px] place-items-center rounded-xl bg-primary/10 text-[15px] font-medium text-primary"
+        >{{ formatNumber(order.daily_number) }}</span>
+        <p class="mt-1 text-label text-muted">
+          {{ t("card.dailyNumber") }}
+        </p>
+      </div>
+
       <div>
         <span
           class="rpos-numeric grid h-[38px] w-[38px] place-items-center rounded-xl bg-background text-[15px] text-content"

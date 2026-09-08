@@ -1,6 +1,12 @@
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 
-import { listOrders, searchOrders, type OpenOrder, type OrderView } from "@/api/order";
+import {
+  countCarriedOrders,
+  listOrders,
+  searchOrders,
+  type OpenOrder,
+  type OrderView,
+} from "@/api/order";
 import { t } from "@/i18n";
 import { recall, remember, warm } from "@/offline/orderMirror";
 import { queuedSales } from "@/offline/queue";
@@ -108,6 +114,9 @@ export function useOpenOrders() {
         // matters is when it was rung up — which is the only moment it has.
         closed_at: entry.created_at,
         item_count: lines.length,
+        // A sale queued on this device was rung up today, on the day this till
+        // is working. Nothing about it is carried (`D-164`).
+        is_carried: 0,
       } satisfies OpenOrder;
     });
   }
@@ -211,6 +220,11 @@ export function useOpenOrders() {
       staleAt.value = null;
       // D-080 — so the next outage still has a day's history to show.
       await remember(view.value, rows.value);
+      // **Asked separately, and it must not be able to break the list.** The
+      // number on the carried tab is worth having and the floor is worth more:
+      // a count that failed inside the same `try` would send a working list to
+      // the outage branch (`D-164`).
+      void refreshCarriedCount(profile);
     } catch (cause) {
       const mirrored = await recall(view.value);
 
@@ -229,6 +243,23 @@ export function useOpenOrders() {
       }
     } finally {
       loading.value = false;
+    }
+  }
+
+  /**
+   * How many bills are carried, for the tab's own label (`D-164`).
+   *
+   * **The last known number is kept when the call fails**, rather than dropped
+   * to zero. Offline, "carried (0)" is a claim the device cannot make and the
+   * one reading a cashier would act on — it says the backlog is cleared.
+   */
+  const carriedCount = ref(0);
+
+  async function refreshCarriedCount(profile: string): Promise<void> {
+    try {
+      carriedCount.value = (await countCarriedOrders(profile)).carried;
+    } catch {
+      // Kept as it was. The list beside it already says the screen is stale.
     }
   }
 
@@ -267,7 +298,7 @@ export function useOpenOrders() {
 
     await warm(
       profile,
-      (["open", "closed", "returned", "all"] as OrderView[]).filter(
+      (["open", "carried", "closed", "returned", "all"] as OrderView[]).filter(
         (candidate) => candidate !== view.value,
       ),
     );
@@ -298,6 +329,7 @@ export function useOpenOrders() {
     sort,
     staleAt,
     view,
+    carriedCount,
     visible,
   };
 }

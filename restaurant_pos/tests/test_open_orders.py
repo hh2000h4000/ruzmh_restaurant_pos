@@ -408,3 +408,132 @@ class TestFindingAnOlderBill(ReturnTestBase):
 		service.add_item(open_bill, item=ITEM, qty=1)
 
 		self.assertNotIn(open_bill.name, self._found(open_bill.name))
+
+
+class TheFloorHoldsOneDay(OrderTestBase):
+	"""`D-164` — the floor and the carried bills are two questions.
+
+	The list used to hold every open bill at any age, and the two jobs sat in one
+	place: *which table do I serve now*, and *what was left from days gone by*.
+	The forgotten ones sorted to the top of the cashier's work, and the list got
+	slower every month somebody left a bill behind (`D-158`).
+
+	A bill is **carried** when the business day it was opened under has ended —
+	not when the shift changed. Working a bill from lunch into the evening is an
+	ordinary day and the user said so; surviving a day-close is the thing that
+	makes it somebody's to finish.
+	"""
+
+	def _shift(self):
+		return frappe.db.get_value("POS Profile", self.profile, "restaurant_shift")
+
+	def _carry(self, order):
+		"""Put this bill on a day that has ended, leaving today's day open.
+
+		A second `Restaurant Shift` rather than closing the current one, because
+		closing it would carry **every** open bill and prove nothing about which
+		side of the line each one falls on.
+		"""
+		yesterday = frappe.get_doc(
+			{
+				"doctype": "Restaurant Shift",
+				"title": "RPOS test yesterday",
+				"branch": service.branch_of_profile(self.profile),
+				"shift_date": YESTERDAY,
+				"shift_type": "full_day",
+				"status": "closed",
+				"opened_by": frappe.session.user,
+				"opened_at": f"{YESTERDAY} 09:00:00",
+			}
+		).insert(ignore_permissions=True)
+		frappe.db.set_value("Restaurant Order", order.name, "restaurant_shift", yesterday.name)
+		return yesterday
+
+	def _names(self, view):
+		return {row["name"] for row in api.list_orders(self.profile, view)}
+
+	def test_a_bill_from_a_closed_day_leaves_the_floor(self):
+		order = self._order()
+		self._carry(order)
+
+		self.assertNotIn(order.name, self._names("open"))
+
+	def test_and_is_not_lost_but_carried(self):
+		"""**Moved, not hidden.** It is money to collect or a bill to cancel."""
+		order = self._order()
+		self._carry(order)
+
+		self.assertIn(order.name, self._names("carried"))
+
+	def test_todays_bill_stays_on_the_floor(self):
+		order = self._order()
+
+		self.assertIn(order.name, self._names("open"))
+		self.assertNotIn(order.name, self._names("carried"))
+
+	def test_everything_still_means_everything(self):
+		"""`D-151` — a tab named for holding all of them has to hold all of them."""
+		today = self._order()
+		carried = self._order()
+		self._carry(carried)
+
+		names = self._names("all")
+
+		self.assertIn(today.name, names)
+		self.assertIn(carried.name, names)
+
+	def test_each_row_says_which_side_it_is_on(self):
+		"""The mixed tab draws them together, so the row has to carry the answer."""
+		today = self._order()
+		carried = self._order()
+		self._carry(carried)
+
+		sides = {row["name"]: row["is_carried"] for row in api.list_orders(self.profile, "all")}
+
+		self.assertEqual(sides[today.name], 0)
+		self.assertEqual(sides[carried.name], 1)
+
+	def test_the_count_is_reported_without_fetching_the_list(self):
+		"""The number goes on the tab, and that is the point of moving them."""
+		before = api.count_carried_orders(self.profile)["carried"]
+
+		self._carry(self._order())
+
+		# A delta, not an absolute: the test site has been carrying bills from
+		# every run before this one, which is itself the thing this tab exists
+		# to make visible.
+		self.assertEqual(api.count_carried_orders(self.profile)["carried"], before + 1)
+
+	def test_the_carried_list_is_capped_and_the_count_is_not(self):
+		"""A capped list that reported its own length would say "100" where there
+		are three hundred — the lie this split exists to remove."""
+		self.assertLessEqual(len(api.list_orders(self.profile, "carried")), api.CARRIED_LIMIT)
+
+	def test_the_newest_carried_bill_is_reachable_even_behind_a_backlog(self):
+		"""**Newest first, and the floor's rule reversed on purpose.**
+
+		The floor is oldest-first because the table waiting longest needs serving.
+		Carried bills invert that: the one from last night is the one somebody may
+		still walk in and pay, and a bill abandoned a year ago is not going to be
+		settled by being at the top of the list. Sorted the other way, and capped,
+		last night's bill sits behind three hundred dead ones and the tab is
+		useless for the only case it is used in.
+		"""
+		order = self._order()
+		self._carry(order)
+
+		self.assertIn(order.name, self._names("carried"))
+
+	def test_with_no_day_open_the_floor_is_empty_and_nothing_vanishes(self):
+		"""Between one day and the next, every open bill is carried — which is
+		what it is. The screen shows none of them as today's work and all of them
+		as work.
+		"""
+		order = self._order()
+		shift = self._shift()
+		frappe.db.set_value("Restaurant Shift", shift, "status", "closed")
+		try:
+			self.assertEqual(self._names("open"), set())
+			self.assertIn(order.name, self._names("carried"))
+		finally:
+			frappe.db.set_value("Restaurant Shift", shift, "status", "open")

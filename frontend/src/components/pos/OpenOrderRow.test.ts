@@ -45,6 +45,7 @@ function row(order: Partial<OpenOrder>, mayReprint = true) {
         returned_amount: 0,
         opened_at: "2026-09-06 12:00:00",
         item_count: 2,
+        is_carried: 0,
         ...order,
       } as OpenOrder,
     },
@@ -157,5 +158,40 @@ describe("reprinting from a bill row", () => {
     const wrapper = row({ sales_invoice: "ACC-SINV-2026-00199" }, false);
 
     expect(await menu(wrapper)).toHaveLength(0);
+  });
+});
+
+/**
+ * `D-164`, and the promise `D-159` left open.
+ *
+ * The number came off this list because the tabs mixed days and it restarts at
+ * one every morning, so two rows could read the same. The floor now holds one
+ * business day, so it identifies again — and on a carried bill it still would
+ * not, which is why it is withheld there rather than shown everywhere.
+ */
+describe("the number the cashier calls out", () => {
+  it("is shown on a bill from today's floor", () => {
+    expect(row({ daily_number: 42, is_carried: 0 }).text()).toContain("42");
+  });
+
+  it("is withheld on a carried bill, where it would name two of them", () => {
+    const wrapper = row({ daily_number: 42, is_carried: 1, total_amount: 88 });
+
+    expect(wrapper.text()).not.toContain(t("card.dailyNumber"));
+  });
+
+  /**
+   * A carried row must not become a **narrower** row: in the mixed tab the two
+   * kinds sit together, and a row missing a column reads as a different sort of
+   * thing rather than as one with nothing to say there.
+   */
+  it("keeps the column's width when it has no number to show", () => {
+    const wrapper = row({ daily_number: 42, is_carried: 1 });
+
+    const reserved = wrapper
+      .findAll("div")
+      .some((element) => element.classes().includes("min-w-[46px]"));
+
+    expect(reserved).toBe(true);
   });
 });

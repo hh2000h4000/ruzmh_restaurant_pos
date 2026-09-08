@@ -500,7 +500,17 @@ HISTORY_STATUSES = ("closed", "cancelled")
 #:
 #: A "draft" view was here and is gone on purpose (`D-122`): a draft is an empty
 #: bill, so the tab filtered to bills with nothing on them.
-VIEWS = ("open", "closed", "returned", "all")
+VIEWS = ("open", "carried", "closed", "returned", "all")
+
+#: How many carried bills one tab will fetch at once.
+#:
+#: The floor is bounded by the day and cannot grow; this list is bounded by
+#: nothing but how long a shop has been leaving bills open, and the measurement
+#: in `D-158` puts three thousand of them at four seconds. So it is capped, the
+#: oldest first — the ones that have waited longest are the ones to clear — and
+#: **the tab reports the true count beside the cap**, because a list that says
+#: "100" when there are 312 is the lie this whole split exists to remove.
+CARRIED_LIMIT = 100
 
 #: A day's history is what a till needs — a reprint, a return, "what did table
 #: four have". Anything older is a report, and a report is not this list.
@@ -523,6 +533,37 @@ LIST_FIELDS = (
 	"opened_at",
 	"closed_at",
 )
+
+
+@frappe.whitelist()
+def count_carried_orders(pos_profile: str) -> dict:
+	"""How many bills are still open from days that have ended (`D-164`).
+
+	**The count is the whole point of moving them.** A tab named "carried" that
+	a cashier has to open to find out whether it holds three bills or three
+	hundred hides the number as surely as the old mixed list did — the shop
+	learns it is carrying a year's worth of bills by feeling the screen go slow,
+	which is exactly what `D-158` refused to accept as a warning.
+
+	So the number is on the tab, always, and this is what puts it there. A count
+	rather than a list: it is asked on every refresh, and it must stay cheap
+	however many there are.
+	"""
+	branch = service.branch_of_profile(pos_profile)
+	scope: dict = {}
+
+	if branch:
+		validate_branch_access(branch)
+		scope["branch"] = branch
+	else:
+		scope["pos_profile"] = pos_profile
+
+	days = _open_days(scope)
+	filters = {**scope, "status": ("in", OPEN_STATUSES)}
+	if days:
+		filters["restaurant_shift"] = ("not in", days)
+
+	return {"carried": frappe.db.count("Restaurant Order", filters)}
 
 
 @frappe.whitelist()
@@ -580,6 +621,8 @@ def list_orders(pos_profile: str, view: str = "open") -> list[dict]:
 	orders = []
 	if view in ("open", "all"):
 		orders += _floor(scope)
+	if view in ("carried", "all"):
+		orders += _mark_carried(_carried(scope))
 	if view in ("closed", "all"):
 		orders += _closed_today(scope, mine_only=mine_only)
 
@@ -593,6 +636,13 @@ def list_orders(pos_profile: str, view: str = "open") -> list[dict]:
 	# view named for holding all of them.
 	if view == "all":
 		orders += _refunds_today(scope, mine_only=mine_only)
+
+	# **Every row carries the field, not only the carried ones.** A key that is
+	# present on some rows and absent on others makes every reader guess, and the
+	# guess is made in three screens. Today's floor, today's closed bills and
+	# today's refunds are all *not* carried, and now say so.
+	for row in orders:
+		row.setdefault("is_carried", 0)
 
 	return orders
 
@@ -697,19 +747,94 @@ def _since_midnight():
 
 
 def _floor(scope: dict) -> list:
-	"""Every bill still open, oldest first — and **at any age**.
+	"""The bills open on **today's** floor, oldest first (`D-164`).
 
-	Deliberately unbounded by date: a tab that runs past midnight, or a bill
-	carried over because the branch lets the day end without it (`D-105`), is
-	still open and still the cashier's to finish. Bounding the floor by today
-	would strand exactly those.
+	The one that has been waiting longest needs attention first — and the list
+	holds one business day, so it cannot grow with the age of the shop.
+
+	It used to hold every open bill at any age, which stranded two questions in
+	one list: *which table do I serve now* and *what was left from days gone by*.
+	The forgotten ones sorted to the top of the cashier's work, and the list got
+	slower every month a bill was left behind (`D-158`).
 	"""
+	days = _open_days(scope)
+	if not days:
+		# No day is open, so nothing is on today's floor. Every open bill belongs
+		# to a day that has ended, and is carried.
+		return []
+
 	return frappe.get_all(
 		"Restaurant Order",
-		filters={**scope, "status": ("in", OPEN_STATUSES)},
+		filters={**scope, "status": ("in", OPEN_STATUSES), "restaurant_shift": ("in", days)},
 		fields=list(LIST_FIELDS),
 		order_by="opened_at asc",
 	)
+
+
+def _carried(scope: dict) -> list:
+	"""Bills still open whose business day has ended (`D-164`, `BR-045`).
+
+	**Not hidden — moved.** They are a different job from serving a table: the
+	day they belong to has been counted and reported, so each one is now either
+	money to collect or a bill to cancel, and it is somebody's to finish rather
+	than nobody's to notice.
+
+	They stay fully payable and editable (`D-105`): carrying a bill is a thing a
+	branch may allow, not a thing that freezes it.
+
+	**Newest first — the floor's rule reversed on purpose.** The floor is oldest
+	first because the table waiting longest needs serving. Here the newest is the
+	one somebody may still walk in and settle, and a bill abandoned a year ago is
+	not going to be paid because it sits at the top of a list. Sorted the other
+	way against the cap, last night's bill hides behind three hundred dead ones
+	and the tab is useless for the only case it gets opened for.
+	"""
+	days = _open_days(scope)
+	filters = {**scope, "status": ("in", OPEN_STATUSES)}
+	if days:
+		filters["restaurant_shift"] = ("not in", days)
+
+	return frappe.get_all(
+		"Restaurant Order",
+		filters=filters,
+		fields=list(LIST_FIELDS),
+		order_by="opened_at desc",
+		limit=CARRIED_LIMIT,
+	)
+
+
+def _mark_carried(orders: list) -> list:
+	"""Say which side of the business day these bills are on (`D-164`).
+
+	One field, two jobs on the screen. It marks the row in the "everything" tab,
+	where both kinds sit together — and it decides whether the **daily number**
+	is shown, because that number restarts at one every day: on today's floor it
+	names the bill, and on a bill from three days ago two rows can read the same
+	(`D-159`). So it is shown where it identifies and withheld where it misleads,
+	rather than removed from the screen altogether.
+	"""
+	for order in orders:
+		order["is_carried"] = 1
+	return orders
+
+
+def _open_days(scope: dict) -> list[str]:
+	"""The business days still open for whatever this list is scoped to.
+
+	Normally exactly one — `open_day` allows a single day per branch — but read
+	as a list rather than assumed, because a second one would otherwise silently
+	empty the floor rather than show both.
+
+	A terminal with no branch is scoped by `pos_profile`, which is not a column
+	on `Restaurant Shift`; that list falls back to every open day, which is the
+	honest answer for a till nobody has placed in a branch.
+	"""
+	branch = scope.get("branch")
+	filters = {"status": "open"}
+	if branch:
+		filters["branch"] = branch
+
+	return frappe.get_all("Restaurant Shift", filters=filters, pluck="name")
 
 
 def _closed_today(scope: dict, *, mine_only: bool) -> list:

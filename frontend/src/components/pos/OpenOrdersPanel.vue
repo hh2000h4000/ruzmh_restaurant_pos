@@ -11,7 +11,7 @@ import { dateOnly, formatNumber, t, timeOnly, type MessageKey } from "@/i18n";
  * The panel owns how the list is *shown* — rows or cards — and nothing about
  * how it is fetched or filtered. That belongs to the screen above it.
  */
-defineProps<{
+const props = defineProps<{
   orders: OpenOrder[];
   loading: boolean;
   error: string | null;
@@ -38,6 +38,8 @@ defineProps<{
   /** `null` until somebody searched past today; then, what came back (`D-152`). */
   older?: OpenOrder[] | null;
   searchingOlder?: boolean;
+  /** How many bills are carried, for the tab to say so (`D-164`). */
+  carriedCount?: number;
 }>();
 
 const emit = defineEmits<{
@@ -87,6 +89,7 @@ const SORTS: { key: "oldest" | "newest" | "amount"; label: MessageKey }[] = [
  */
 const EMPTY: Record<OrderView, MessageKey> = {
   open: "home.openOrdersEmpty",
+  carried: "orders.emptyCarried",
   closed: "orders.emptyClosed",
   returned: "orders.emptyReturned",
   all: "orders.emptyAll",
@@ -94,11 +97,30 @@ const EMPTY: Record<OrderView, MessageKey> = {
 
 const VIEWS: { key: OrderView; label: MessageKey }[] = [
   { key: "open", label: "orders.viewOpen" },
+  // D-164 — bills still open from a day that has ended. A different job from
+  // serving a table, so a tab of its own rather than the top of this one.
+  { key: "carried", label: "orders.viewCarried" },
   { key: "closed", label: "orders.viewClosed" },
   // FR-9, D-070 — the refunds were only visible inside the bill they came from.
   { key: "returned", label: "orders.viewReturned" },
   { key: "all", label: "orders.viewAll" },
 ];
+
+/**
+ * The carried tab wears its count (`D-164`).
+ *
+ * **Without it the tab hides the number as well as the old list did.** A shop
+ * carrying three hundred bills would learn it by opening a tab nobody has a
+ * reason to open, which is how the backlog grew unseen in the first place.
+ *
+ * Zero is drawn as a plain label rather than "(0)": nothing to clear is not a
+ * figure worth reading, and a badge that is always there stops being noticed.
+ */
+function tabLabel(option: { key: OrderView; label: MessageKey }): string {
+  if (option.key !== "carried" || !props.carriedCount) return t(option.label);
+
+  return `${t(option.label)} (${formatNumber(props.carriedCount)})`;
+}
 </script>
 
 <template>
@@ -216,7 +238,7 @@ const VIEWS: { key: OrderView; label: MessageKey }[] = [
           :aria-selected="view === option.key"
           @click="emit('update:view', option.key)"
         >
-          {{ t(option.label) }}
+          {{ tabLabel(option) }}
         </button>
       </div>
 

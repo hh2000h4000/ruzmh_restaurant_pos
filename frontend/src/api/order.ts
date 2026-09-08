@@ -190,6 +190,15 @@ export interface OpenOrder {
   returns_daily_number?: number;
   /** Who it was billed to — a company knows its own name (`D-152`). */
   customer_name?: string | null;
+  /**
+   * Open, but from a business day that has already ended (`D-164`).
+   *
+   * It decides two things on the screen: whether the row is drawn as carried in
+   * the mixed tab, and whether its **daily number** is shown at all — that
+   * number restarts at one every day, so on today's floor it names the bill and
+   * on a three-day-old one two rows can read the same (`D-159`).
+   */
+  is_carried: 0 | 1;
 }
 
 export interface ModifierChoice {
@@ -204,12 +213,27 @@ export interface ModifierChoice {
  * list the *bills* money had gone back out of, on the reasoning that a credit
  * note is not an order — sound, and answering the wrong question: these history
  * tabs are the day's transactions, and a refund is one of them.
+ *
+ * `carried` is bills still open from a day that has closed (`D-164`) — a
+ * different job from serving a table, so a different tab. `open` holds today's
+ * floor and nothing older.
  */
-export type OrderView = "open" | "closed" | "returned" | "all";
+export type OrderView = "open" | "carried" | "closed" | "returned" | "all";
 
 /** Branch-wide, not terminal-wide — see the docstring on the endpoint. */
 export function listOrders(posProfile: string, view: OrderView = "open"): Promise<OpenOrder[]> {
   return query<OpenOrder[]>("order.list_orders", { pos_profile: posProfile, view });
+}
+
+/**
+ * How many bills are carried, for the tab to say so without being opened.
+ *
+ * A count rather than a list: a tab labelled "carried" that has to be opened to
+ * learn whether it holds three bills or three hundred hides the number as surely
+ * as the old mixed list did (`D-164`).
+ */
+export function countCarriedOrders(posProfile: string): Promise<{ carried: number }> {
+  return query<{ carried: number }>("order.count_carried_orders", { pos_profile: posProfile });
 }
 
 /**

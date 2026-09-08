@@ -66,6 +66,21 @@ const router = createRouter({
       name: "payment",
       component: () => import("@/views/PaymentView.vue"),
     },
+    /**
+     * The screen turned around to face the guest (`FR-13`, `D-162`).
+     *
+     * **Neither a session nor a sign-in.** It is opened in a second window on
+     * the second monitor and left there all day; if the cashier signs out, the
+     * room must see the restaurant's name and not a password box. It asks the
+     * server for nothing — the till beside it hands over what to show — so
+     * there is nothing here for a session to authorise.
+     */
+    {
+      path: "/customer-display",
+      name: "customer-display",
+      component: () => import("@/views/CustomerDisplayView.vue"),
+      meta: { requiresSession: false, requiresSignIn: false },
+    },
     {
       path: "/:pathMatch(.*)*",
       redirect: { name: "home" },

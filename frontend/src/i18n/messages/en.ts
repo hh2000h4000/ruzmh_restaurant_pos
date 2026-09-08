@@ -21,6 +21,15 @@ export const messages = {
   "common.loading": "Loading…",
   "common.listSeparator": ", ",
   "currency.sar": "SAR",
+  // FR-13 — the screen turned around to face the guest. Read standing, at arm's
+  // length, by somebody who was not looking for it.
+  "display.welcome": "Welcome",
+  "display.empty": "Your order will appear here",
+  "display.thanks": "Thank you",
+  "display.yourNumber": "Your number",
+  /** Derived so the guest's column adds up under inclusive VAT (D-091). */
+  "display.beforeTax": "Before VAT",
+  "display.open": "Customer display",
   /** The language this button switches **to**, written in that language. */
   "lang.other": "العربية",
 

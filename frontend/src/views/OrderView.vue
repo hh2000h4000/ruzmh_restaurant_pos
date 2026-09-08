@@ -30,6 +30,11 @@ import FloorPane from "@/components/order/FloorPane.vue";
 import NewOrderPane from "@/components/order/NewOrderPane.vue";
 import OrderBottomNav, { type NavEntry } from "@/components/order/OrderBottomNav.vue";
 import OpenOrdersPanel from "@/components/pos/OpenOrdersPanel.vue";
+import {
+  IDLE,
+  toDisplayState,
+  useCustomerDisplayPublisher,
+} from "@/composables/useCustomerDisplay";
 import { useOpenOrders } from "@/composables/useOpenOrders";
 import { formatNumber, t } from "@/i18n";
 import { useAuthStore } from "@/stores/auth";
@@ -83,6 +88,50 @@ const orderType = computed(
  * screen never needs to say so standing still.
  */
 const locked = computed(() => orders.busy || orders.isClosed);
+
+// --------------------------------------------------------------------------
+// The screen facing the guest (FR-13, D-162)
+// --------------------------------------------------------------------------
+
+const customerDisplay = useCustomerDisplayPublisher();
+
+/**
+ * The restaurant's name, for the screen that has no session to read it from.
+ *
+ * The display window asks the server for nothing, so its stores are empty — the
+ * till is the only one of the two that knows what the place is called.
+ */
+function house(): string {
+  return session.data?.branch?.branch ?? session.profile?.name ?? "";
+}
+
+/**
+ * Push the bill to the second screen on every change to it.
+ *
+ * A watcher rather than a call beside each action: there are a dozen ways a
+ * line reaches the bill — tapped, repeated, split, joined, voided, re-priced by
+ * an order-type change — and a condition remembered in a dozen places is one
+ * eleven of them get right (`CLAUDE.md` §5.5). The store is what they all end
+ * at, so it is what is watched.
+ *
+ * A paid bill turns the screen into the guest's number rather than blanking it:
+ * that is the moment they are waiting to be told something (`FR-2.10`).
+ */
+watch(
+  [() => orders.order, () => orders.lines],
+  () => {
+    if (!orders.order) {
+      customerDisplay.publish({ ...IDLE, house: house() });
+      return;
+    }
+
+    const state = toDisplayState(orders.order, orders.lines, house());
+    customerDisplay.publish(
+      orders.isClosed ? { ...state, mode: "thanks" as const, lines: [] } : state,
+    );
+  },
+  { deep: true, immediate: true },
+);
 
 onMounted(() => {
   // The menu offers what the shift allows, so it has to know the shift.
@@ -241,6 +290,22 @@ function onMenu(key: string): void {
   else if (key === "logout") signingOut.value = true;
   else if (key === "clock") void punchClock();
   else if (key === "roster") showingRoster.value = true;
+  else if (key === "customerDisplay") openCustomerDisplay();
+}
+
+/**
+ * Open the guest's screen in a window of its own (`FR-13.3`, `D-162`).
+ *
+ * A window rather than a tab, so it can be dragged to the second monitor and
+ * left there — which is the whole arrangement. Named, so pressing the entry
+ * again focuses the one already open instead of stacking a second.
+ *
+ * No error path: a blocked pop-up is the browser telling the person at the
+ * keyboard something, and there is nothing the till can do about it that the
+ * browser has not already said.
+ */
+function openCustomerDisplay(): void {
+  window.open("/restaurant-pos/customer-display", "rpos-customer-display");
 }
 
 /**

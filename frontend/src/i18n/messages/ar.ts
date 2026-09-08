@@ -19,6 +19,12 @@ const messages: Catalogue["messages"] = {
   "common.loading": "جارٍ التحميل…",
   "common.listSeparator": "، ",
   "currency.sar": "ريال",
+  "display.welcome": "أهلاً وسهلاً",
+  "display.empty": "طلبك سيظهر هنا",
+  "display.thanks": "شكراً لك",
+  "display.yourNumber": "رقمك",
+  "display.beforeTax": "قبل الضريبة",
+  "display.open": "شاشة العميل",
   "lang.other": "English",
 
   // Connection banner

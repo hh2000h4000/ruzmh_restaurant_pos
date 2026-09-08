@@ -95,6 +95,12 @@ const entries = computed<MenuEntry[]>(() => {
     rows.push({ key: "roster", label: "roster.title", icon: "hourglass" });
   }
 
+  // FR-13 — the screen facing the guest, opened in a window of its own and
+  // dragged to the second monitor. Here rather than on the bill: it is set up
+  // once when the counter is opened, like the drawer, and no permission guards
+  // it because it shows only what the guest is already being told (`D-162`).
+  rows.push({ key: "customerDisplay", label: "display.open", icon: "grid" });
+
   rows.push({
     key: "closeDay",
     label: "shift.closeDay",

@@ -1,6 +1,6 @@
 import { onUnmounted, ref } from "vue";
 
-import type { OrderDetail, OrderLine } from "@/api/order";
+import { reductionsOn, type OrderDetail, type OrderLine } from "@/api/order";
 
 /**
  * The screen the customer reads, and the channel that feeds it (`FR-13`).
@@ -67,6 +67,15 @@ export interface DisplayState {
   lines: DisplayLine[];
   /** What the goods come to once the tax is taken out of them. */
   beforeTax: number;
+  /**
+   * The offer that was applied and what it took off — `null` when none was.
+   *
+   * Named to the guest rather than folded into the discount (`D-163`): an offer
+   * they came in for is the thing they are looking for on this screen, and a
+   * bare "discount" line does not tell them it was honoured.
+   */
+  promotion: { title: string; amount: number } | null;
+  /** What a person decided to take off, which is not the same thing. */
   discount: number;
   tax: number;
   total: number;
@@ -87,6 +96,7 @@ export const IDLE: DisplayState = {
   house: "",
   lines: [],
   beforeTax: 0,
+  promotion: null,
   discount: 0,
   tax: 0,
   total: 0,
@@ -137,7 +147,15 @@ export function toDisplayState(
     // add up. Derived from the total instead, the three figures add up on the
     // screen whichever way the branch charges tax.
     beforeTax: order.total_amount - order.tax_amount,
-    discount: order.discount_amount,
+    // **The offer is named to the guest** (`D-163`). This is the one screen the
+    // guest reads, and an offer they came in for is the thing they are checking
+    // for — an unnamed "discount" line does not tell them it was applied. The
+    // title is shop-facing text a manager wrote, and carries no cashier, no
+    // document number and no terminal, so it does not widen what crosses the
+    // channel (`D-162`).
+    // The same subtraction the till and the payment screen make, made in the
+    // same place so the three cannot disagree (§5.5).
+    ...reductionsOn(order),
     tax: order.tax_amount,
     total: order.total_amount,
     number: order.daily_number || null,

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 
-import type { OrderDetail, OrderLine } from "@/api/order";
+import { reductionsOn, type OrderDetail, type OrderLine } from "@/api/order";
 import AppIcon from "@/components/AppIcon.vue";
 import OrderLineRow from "@/components/order/OrderLineRow.vue";
 import { formatNumber, pick, t } from "@/i18n";
@@ -65,6 +65,17 @@ const orderType = computed(
 );
 
 const typeLabel = computed(() => pick(orderType.value?.title_ar, orderType.value?.title));
+
+/**
+ * The two reductions, told apart (`BR-032`, `D-163`).
+ *
+ * **A promotion spends the shop's money without anybody at the till agreeing to
+ * it**, so it is named: a cashier who can only see that the total dropped cannot
+ * answer the guest who asks why, and a manager reading the shift cannot tell an
+ * offer from someone's decision. The subtraction itself lives in `api/order`,
+ * because this screen, the payment screen and the guest's screen all do it.
+ */
+const reductions = computed(() => reductionsOn(props.order ?? null));
 
 /** Where this order is: the table if it sits at one, else nothing to say. */
 const seat = computed(() =>
@@ -231,12 +242,23 @@ function money(value: number | undefined): string {
         </dd>
       </div>
       <div
-        v-if="order?.discount_amount"
+        v-if="reductions.promotion"
+        class="flex justify-between gap-3 text-status-available"
+      >
+        <dt class="truncate">
+          {{ reductions.promotion.title }}
+        </dt>
+        <dd class="rpos-numeric shrink-0">
+          −{{ money(reductions.promotion.amount) }}
+        </dd>
+      </div>
+      <div
+        v-if="reductions.discount"
         class="flex justify-between text-status-available"
       >
         <dt>{{ t("totals.discount") }}</dt>
         <dd class="rpos-numeric">
-          −{{ money(order.discount_amount) }}
+          −{{ money(reductions.discount) }}
         </dd>
       </div>
       <div class="flex justify-between text-muted">

@@ -37,6 +37,9 @@ function bill(extra: Partial<OrderDetail> = {}): OrderDetail {
     daily_number: 7,
     subtotal: 50,
     discount_amount: 0,
+    promotion_amount: 0,
+    promotion_title: "",
+    promotion_title_ar: "",
     tax_amount: 6.52,
     total_amount: 50,
     cashier: "cashier@example.com",
@@ -47,6 +50,24 @@ function bill(extra: Partial<OrderDetail> = {}): OrderDetail {
 }
 
 describe("what the guest's screen is given", () => {
+  /**
+   * `D-163`. An offer the guest came in for is the thing they are checking this
+   * screen for, and a bare "discount" line does not tell them it was honoured.
+   */
+  it("names the offer that was applied", () => {
+    const state = toDisplayState(
+      bill({
+        discount_amount: 10,
+        promotion_amount: 10,
+        promotion_title: "Breakfast offer",
+        promotion_title_ar: "عرض الإفطار",
+      }),
+      [line()],
+    );
+
+    expect(state.promotion).toEqual({ title: "عرض الإفطار", amount: 10 });
+  });
+
   it("shows nothing but the house name when there is no bill", () => {
     expect(toDisplayState(null, [], "فرع الرياض")).toEqual({ ...IDLE, house: "فرع الرياض" });
   });

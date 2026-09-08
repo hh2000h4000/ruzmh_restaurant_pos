@@ -7,9 +7,63 @@
  */
 import { mutate, query } from "./client";
 
+import { pick } from "@/i18n";
 import { mutateOrQueue, type Queued } from "@/offline/queue";
 
-export interface OrderSummary {
+/**
+ * What a promotion took off this bill, and which one (`D-163`).
+ *
+ * Part of `discount_amount` rather than a second reduction — the server folds
+ * both into one figure so the tax is worked out once — and named separately
+ * because a promotion is not a discount (`BR-032`): one is a rule the shop
+ * configured, the other is a person deciding. A cashier who cannot tell the two
+ * apart cannot answer the guest who asks why the total moved, and a manager
+ * being asked to approve a discount must be shown the discount alone.
+ *
+ * One shape carried by every payload that reports a total, because the till, the
+ * payment screen and the guest's screen ask the same question (§5.5).
+ *
+ * The titles are empty when no promotion applied, and on a bill built offline —
+ * where none is.
+ */
+export interface PromotionOnBill {
+  promotion_amount: number;
+  promotion_title: string;
+  promotion_title_ar: string;
+}
+
+/**
+ * The two reductions, told apart — for every screen that shows a total.
+ *
+ * The server folds both into `discount_amount` so the tax is worked out once,
+ * which is right, and leaves one figure standing for two different things. Every
+ * screen that draws them has to undo that fold the same way, so it is undone
+ * here once: the till, the payment screen and the guest's screen were three
+ * copies of one subtraction, which is how two of them end up disagreeing (§5.5).
+ *
+ * An amount with no name draws no offer line. That is a bill built offline,
+ * where the engine did not run (`D-163`), and a nameless line the guest cannot
+ * read is worse than none.
+ */
+export function reductionsOn(bill: (PromotionOnBill & { discount_amount: number }) | null): {
+  promotion: { title: string; amount: number } | null;
+  discount: number;
+} {
+  if (!bill) return { promotion: null, discount: 0 };
+
+  const title = pick(bill.promotion_title_ar, bill.promotion_title);
+  const amount = bill.promotion_amount ?? 0;
+  const named = amount > 0 && Boolean(title);
+
+  return {
+    promotion: named ? { title, amount } : null,
+    // Only what was actually shown as an offer is taken out of the discount, or
+    // an unnamed promotion would vanish from the bill altogether.
+    discount: bill.discount_amount - (named ? amount : 0),
+  };
+}
+
+export interface OrderSummary extends PromotionOnBill {
   order_name: string;
   status: string;
   subtotal: number;

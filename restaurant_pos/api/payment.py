@@ -13,7 +13,7 @@ import frappe
 from frappe import _
 from frappe.utils import flt
 
-from restaurant_pos.utils import idempotency, totals
+from restaurant_pos.utils import idempotency, promotions, totals
 from restaurant_pos.utils import payment as service
 from restaurant_pos.utils.permissions import get_pos_permission_set, validate_branch_access
 
@@ -91,6 +91,7 @@ def preview_totals(order_name: str, discount_type: str | None = None, discount_v
 	return {
 		"subtotal": order.subtotal,
 		"discount_amount": order.discount_amount,
+		**promotions.on_the_bill(order),
 		"tax_amount": order.tax_amount,
 		"total_amount": order.total_amount,
 		"discount_percentage": flt(percentage, 2),
@@ -165,6 +166,7 @@ def get_payment_summary(order_name: str) -> dict:
 		"order_name": order.name,
 		"subtotal": order.subtotal,
 		"discount_amount": order.discount_amount,
+		**promotions.on_the_bill(order),
 		"tax_amount": order.tax_amount,
 		"total_amount": order.total_amount,
 		"payment_methods": allowed,

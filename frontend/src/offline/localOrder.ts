@@ -106,6 +106,14 @@ export function toOrderDetail(state: LocalOrderState, pricing: Pricing): OrderDe
     status: "draft",
     subtotal: totals.subtotal,
     discount_amount: totals.discount_amount,
+    // **No promotion is applied offline, and the bill says so by showing none.**
+    // The engine reads the promotion table, the item groups and the clock on the
+    // server (`D-163`); the offline mirror carries the arithmetic only, and a
+    // device that guessed at a promotion would put a figure in front of the
+    // guest that the server then disagrees with at sync (`D-072`).
+    promotion_amount: 0,
+    promotion_title: "",
+    promotion_title_ar: "",
     tax_amount: totals.tax_amount,
     total_amount: totals.total_amount,
     item_count: items.length,

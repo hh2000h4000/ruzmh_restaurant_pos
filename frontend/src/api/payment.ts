@@ -5,6 +5,7 @@
  * (`CLAUDE.md` §5.1): the discount is applied on the server and the resulting
  * figures come back before anyone is charged.
  */
+import type { PromotionOnBill } from "./order";
 import { command, mutate, query } from "./client";
 
 export interface PaymentMethodOption {
@@ -17,7 +18,7 @@ export interface PaymentMethodOption {
   is_credit: 0 | 1;
 }
 
-export interface PaymentSummary {
+export interface PaymentSummary extends PromotionOnBill {
   order_name: string;
   subtotal: number;
   discount_amount: number;
@@ -34,7 +35,7 @@ export interface PaymentSummary {
   blocker: string | null;
 }
 
-export interface TotalsPreview {
+export interface TotalsPreview extends PromotionOnBill {
   subtotal: number;
   discount_amount: number;
   tax_amount: number;

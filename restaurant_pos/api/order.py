@@ -15,7 +15,7 @@ from frappe import _
 from frappe.utils import add_days, cint, flt, get_datetime, now_datetime, nowdate, time_diff_in_seconds
 
 from restaurant_pos.utils import customer as customer_service
-from restaurant_pos.utils import idempotency
+from restaurant_pos.utils import idempotency, promotions
 from restaurant_pos.utils import order as service
 from restaurant_pos.utils.permissions import get_pos_permission_set, validate_branch_access
 
@@ -32,6 +32,7 @@ def _summary(order) -> dict:
 		"status": order.status,
 		"subtotal": order.subtotal,
 		"discount_amount": order.discount_amount,
+		**promotions.on_the_bill(order),
 		"tax_amount": order.tax_amount,
 		"total_amount": order.total_amount,
 		"item_count": len([row for row in order.items if row.status != "void"]),

@@ -335,6 +335,7 @@ export const messages = {
   "line.sentLocked": "The kitchen already has this line. Void it to take it off the bill.",
   "totals.subtotal": "Subtotal",
   "totals.discount": "Discount",
+  "totals.promotion": "Promotion",
   "totals.tax": "VAT",
   "totals.total": "Total",
 

@@ -4,7 +4,7 @@
 import frappe
 from frappe import _
 from frappe.model.document import Document
-from frappe.utils import flt, getdate
+from frappe.utils import flt, get_timedelta, getdate
 
 
 class RestaurantPromotion(Document):
@@ -18,8 +18,36 @@ class RestaurantPromotion(Document):
 		if self.valid_from and self.valid_to and getdate(self.valid_to) < getdate(self.valid_from):
 			frappe.throw(_("Valid To cannot be earlier than Valid From."))
 
+		self.drop_the_framework_stamp()
+
 		if bool(self.time_from) != bool(self.time_to):
 			frappe.throw(_("Set both Time From and Time To, or neither."))
+
+	def drop_the_framework_stamp(self):
+		"""An empty happy hour is empty, whatever the framework wrote in it (`D-163`).
+
+		**Frappe fills every `Time` field with the current clock on insert** —
+		`create_new.py:149`, unconditional, no `default` needed and no way to opt
+		out short of editing core. So a promotion saved without a time window
+		arrives holding `19:37:26` in *both* fields: a window one moment wide,
+		which the engine then reads as "outside the hours" a second later. Every
+		promotion a manager creates without touching those fields would be dead
+		on arrival — configured, saved, listed as active, and never applying,
+		with nothing anywhere to say why (`D-074`). It reached us as a test that
+		failed one run in three.
+
+		A window shorter than a minute is not a happy hour. It is that stamp, or
+		a manager who typed the same time twice — and both mean the same thing:
+		no window. Cleared here so the record itself says so, rather than showing
+		a time nobody set. `_within_hours` holds the same line for rows already
+		saved.
+		"""
+		if not (self.time_from and self.time_to):
+			return
+
+		start, end = get_timedelta(self.time_from), get_timedelta(self.time_to)
+		if abs((end - start).total_seconds()) < 60:
+			self.time_from = self.time_to = None
 
 	def validate_benefit(self):
 		if self.promotion_type == "percentage":
@@ -29,8 +57,33 @@ class RestaurantPromotion(Document):
 			if flt(self.discount_value) <= 0:
 				frappe.throw(_("A fixed amount discount must be greater than zero."))
 		elif self.promotion_type == "free_item":
-			if not self.free_item:
-				frappe.throw(_("Free Item is required for a 'free_item' promotion."))
+			# **Either a named item or a group to choose from** (`D-163`). The
+			# group is the flexible half — *any drink with a kabsa* — and the
+			# guest picks; naming both would be two answers to one question.
+			if not (self.free_item or self.free_item_group):
+				frappe.throw(_("Choose a free item, or a group for the guest to choose from."))
+
+			if self.free_item and self.free_item_group:
+				frappe.throw(_("Choose either a free item or a group, not both."))
+
+			if int(self.free_qty or 1) < 1:
+				frappe.throw(_("Free Quantity must be at least one."))
+
+		elif self.promotion_type == "buy_x_get_y":
+			# **Refused rather than accepted and ignored** (`D-074`, `D-163`).
+			# The DocType offers this type and carries nowhere to say how many to
+			# buy or how many to get, so saving it would produce a promotion that
+			# looks configured and does nothing — which is the report nobody can
+			# act on. The fields arrive with the reward that needs them.
+			frappe.throw(
+				_(
+					"Buy X get Y is not available yet. Use a free item, or a percentage "
+					"on the items it applies to."
+				)
+			)
+
+		if flt(self.min_order_amount) < 0:
+			frappe.throw(_("A minimum order amount cannot be negative."))
 
 	def validate_apply_to(self):
 		scoped_tables = {

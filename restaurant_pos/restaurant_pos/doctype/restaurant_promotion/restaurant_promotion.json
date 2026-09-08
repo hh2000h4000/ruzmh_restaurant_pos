@@ -15,6 +15,7 @@
   "is_active",
   "is_auto_apply",
   "is_exclusive",
+  "priority",
   "validity_section",
   "valid_from",
   "valid_to",
@@ -36,6 +37,8 @@
   "discount_value",
   "benefit_cb",
   "free_item",
+  "free_item_group",
+  "free_qty",
   "apply_to_section",
   "apply_to",
   "applicable_order_types",
@@ -43,6 +46,7 @@
   "applicable_sections",
   "item_scope_section",
   "item_scope",
+  "min_order_amount",
   "applicable_item_groups",
   "applicable_items"
  ],
@@ -99,6 +103,13 @@
    "fieldname": "is_exclusive",
    "fieldtype": "Check",
    "label": "Exclusive"
+  },
+  {
+   "fieldname": "priority",
+   "fieldtype": "Int",
+   "label": "Priority",
+   "default": "0",
+   "description": "Which promotion wins when two could touch the same item. Higher goes first (100 before 10). On a tie the one giving the customer the greater discount wins, so an unset priority is safe rather than arbitrary. A single item is never discounted by two promotions."
   },
   {
    "fieldname": "validity_section",
@@ -214,6 +225,21 @@
    "options": "Item"
   },
   {
+   "fieldname": "free_item_group",
+   "fieldtype": "Link",
+   "options": "Item Group",
+   "label": "Free Item Group",
+   "depends_on": "eval:doc.promotion_type=='free_item'",
+   "description": "Any item from this group, chosen by the guest. Leave the item above empty to use this."
+  },
+  {
+   "fieldname": "free_qty",
+   "fieldtype": "Int",
+   "label": "Free Quantity",
+   "default": "1",
+   "depends_on": "eval:doc.promotion_type=='free_item'"
+  },
+  {
    "fieldname": "apply_to_section",
    "fieldtype": "Section Break",
    "label": "Applies To"
@@ -261,6 +287,12 @@
    "reqd": 1
   },
   {
+   "fieldname": "min_order_amount",
+   "fieldtype": "Currency",
+   "label": "Minimum Order Amount",
+   "description": "The bill has to reach this before the promotion applies. 0 means no minimum. Measured on the total before this promotion, so two promotions cannot argue about which was counted first."
+  },
+  {
    "depends_on": "eval:doc.item_scope=='specific_groups'",
    "fieldname": "applicable_item_groups",
    "fieldtype": "Table",
@@ -278,7 +310,7 @@
  "index_web_pages_for_search": 1,
  "istable": 0,
  "links": [],
- "modified": "2026-08-09 00:00:00.000000",
+ "modified": "2026-09-08 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Restaurant POS",
  "name": "Restaurant Promotion",

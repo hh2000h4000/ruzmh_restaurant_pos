@@ -76,6 +76,9 @@ export const useOrderStore = defineStore("order", () => {
     order.value.status = summary.status;
     order.value.subtotal = summary.subtotal;
     order.value.discount_amount = summary.discount_amount;
+    order.value.promotion_amount = summary.promotion_amount;
+    order.value.promotion_title = summary.promotion_title;
+    order.value.promotion_title_ar = summary.promotion_title_ar;
     order.value.tax_amount = summary.tax_amount;
     order.value.total_amount = summary.total_amount;
   }

@@ -313,6 +313,7 @@ const messages: Catalogue["messages"] = {
   "line.sentLocked": "المطبخ استلم هذا السطر. لإزالته من الفاتورة استخدم الإلغاء.",
   "totals.subtotal": "المجموع",
   "totals.discount": "الخصم",
+  "totals.promotion": "عرض",
   "totals.tax": "الضريبة",
   "totals.total": "الإجمالي",
 

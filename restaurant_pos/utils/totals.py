@@ -217,12 +217,61 @@ def calculate(order) -> None:
 
 	Voided lines are excluded: BR-013 removes a voided item from the order
 	total while keeping the row for the audit trail.
+
+	**The promotion is folded in here, not inside `compute`** (`D-163`). That
+	function is the one description of how a bill adds up and the device mirrors
+	it line for line while the connection is down (`D-071`), under a contract in
+	`shared/totals_contract.json`. Adding a term to it would mean the offline
+	port had to evaluate promotions too — which it cannot: the rules live in the
+	database. So the promotion is resolved to **an amount off** first, and the
+	arithmetic below is the same arithmetic it always was.
+
+	An offline bill therefore carries no promotion, and the server recomputes on
+	sync and reports the difference rather than swallowing it (`09` §5).
 	"""
 	amounts = [flt(row.amount) for row in (order.items or []) if row.status != "void"]
+	pricing = pricing_inputs(order.pos_profile)
 
-	totals = compute(amounts, order.discount_type, order.discount_value, pricing_inputs(order.pos_profile))
+	subtotal = money(sum(flt(amount) for amount in amounts))
+	manual = discount_amount(subtotal, order.discount_type, order.discount_value)
+	promotion, promoted = _promotion_for(order, subtotal - manual)
+
+	order.promotion = promotion
+	order.promotion_amount = promoted
+
+	# One reduction from here down, so `compute` keeps the single shape the
+	# offline port mirrors. What each half of it was is on the order above.
+	totals = compute(amounts, "amount", manual + promoted, pricing)
 
 	order.subtotal = totals["subtotal"]
 	order.discount_amount = totals["discount_amount"]
 	order.tax_amount = totals["tax_amount"]
 	order.total_amount = totals["total_amount"]
+
+
+def _promotion_for(order, after_manual: float) -> tuple[str | None, float]:
+	"""The promotion this bill qualifies for, and what it takes off (`FR-11.2`).
+
+	Never more than what is left after a person's own discount: two reductions
+	that together exceed the bill would hand money back, and the cashier would
+	find out at the payment screen.
+
+	A promotion is **never** allowed to fail a sale. The rules are configuration,
+	and configuration that is half-written is somebody's Tuesday afternoon — not
+	a reason a customer cannot pay. So a broken rule is logged and the bill is
+	rung up without it.
+	"""
+	# Lazy: `promotions` reads the order's items, and this module is imported by
+	# nearly everything that touches one.
+	from restaurant_pos.utils import promotions
+
+	try:
+		chosen = promotions.best_for(order, total=after_manual)
+	except Exception:
+		frappe.log_error("Promotion evaluation failed", "RPOS promotions")
+		return None, 0.0
+
+	if not chosen:
+		return None, 0.0
+
+	return chosen.name, flt(min(flt(chosen.benefit), max(0.0, after_manual)), 2)

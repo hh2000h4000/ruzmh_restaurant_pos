@@ -160,6 +160,15 @@ const money = (value: number) => formatNumber(value, 2);
            before tax is derived instead, so the column sums on the screen
            whichever way the branch charges tax (`D-091`, `D-162`). -->
       <footer class="space-y-2 border-t-2 border-primary/30 pt-4 text-[22px]">
+        <!-- The offer is named. A guest who came in for it is looking for it
+             here, and "discount" does not tell them it was honoured (`D-163`). -->
+        <div
+          v-if="state.promotion"
+          class="flex justify-between gap-4 text-status-available"
+        >
+          <span class="truncate">{{ state.promotion.title }}</span>
+          <span class="rpos-numeric shrink-0">−{{ money(state.promotion.amount) }}</span>
+        </div>
         <div
           v-if="state.discount"
           class="flex justify-between text-subtle"

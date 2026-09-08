@@ -33,7 +33,11 @@ vi.mock("vue-router", () => ({
 
 vi.mock("@/api/activity", () => ({ recordView: vi.fn(), listActivity: vi.fn() }));
 
-vi.mock("@/api/order", () => ({
+// The calls that reach the server are stubbed; everything else in the module
+// stays real. `reductionsOn` is pure arithmetic on a payload (`D-163`) and a
+// stub of it would be this file asserting against its own copy of the rule.
+vi.mock("@/api/order", async (importActual) => ({
+  ...(await importActual<typeof import("@/api/order")>()),
   listOrders: vi.fn(),
   createOrder: vi.fn(),
   getOrder: vi.fn(),
@@ -44,6 +48,9 @@ const totals = {
   status: "active",
   subtotal: 0,
   discount_amount: 0,
+  promotion_amount: 0,
+  promotion_title: "",
+  promotion_title_ar: "",
   tax_amount: 0,
   total_amount: 0,
 };

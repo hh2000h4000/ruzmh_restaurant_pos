@@ -2,6 +2,7 @@
 import { computed, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 
+import { reductionsOn } from "@/api/order";
 import * as paymentApi from "@/api/payment";
 import type {
   PaymentLine,
@@ -190,6 +191,24 @@ const canConfirm = computed(
 );
 const needsApproval = computed(() => Boolean(preview.value?.requires_override));
 
+/**
+ * The two reductions, told apart (`D-163`) — one subtraction, in `api/order`.
+ *
+ * The preview is the live figure while a discount is being typed and the stored
+ * summary is what the bill already holds, so both sources are read the same way
+ * here as everywhere else on this screen.
+ *
+ * **The manager approving a discount must be shown the discount**, not the
+ * discount plus an offer that was applied before anybody asked. Reading one
+ * folded figure is how an approval that was never needed gets requested, and how
+ * one that was needed does not.
+ */
+const reductions = computed(() =>
+  reductionsOn(
+    preview.value ?? (summary.value ? { ...summary.value } : null),
+  ),
+);
+
 function round(value: number): number {
   return Math.round(value * 100) / 100;
 }
@@ -222,6 +241,12 @@ onMounted(async () => {
       order_name: bill.order_name,
       subtotal: bill.subtotal,
       discount_amount: bill.discount_amount,
+      // **No promotion offline** — the engine reads the promotion table and the
+      // clock on the server (`D-163`). Carried through as none rather than left
+      // out, so this screen shows the same bill the till showed.
+      promotion_amount: bill.promotion_amount,
+      promotion_title: bill.promotion_title,
+      promotion_title_ar: bill.promotion_title_ar,
       tax_amount: bill.tax_amount,
       total_amount: bill.total_amount,
       already_paid: false,
@@ -836,17 +861,35 @@ async function confirm(): Promise<void> {
               {{ money(preview?.subtotal ?? summary.subtotal) }}
             </dd>
           </div>
-          <!-- The discount is the one line that moves the total *down*, so it
-               is the one line that carries a colour. `rpos-numeric` isolates
-               it, which is what keeps the minus sign on the left of the figure
-               instead of drifting to the Arabic end of the row. -->
+          <!-- The two lines that move the total *down*, so the two that carry a
+               colour. `rpos-numeric` isolates them, which is what keeps the
+               minus sign on the left of the figure instead of drifting to the
+               Arabic end of the row.
+
+               They are two lines rather than one because they are two different
+               things (`BR-032`, `D-163`): the promotion is a rule the shop
+               configured and nobody here chose, the discount is somebody's
+               decision inside their ceiling. This is the screen where a manager
+               is asked to approve the second, so it must not be reading the
+               first. -->
           <div
-            v-if="(preview?.discount_amount ?? summary.discount_amount) > 0"
+            v-if="reductions.promotion"
+            class="flex items-baseline justify-between gap-3 text-secondary"
+          >
+            <dt class="truncate">
+              {{ reductions.promotion.title }}
+            </dt>
+            <dd class="rpos-numeric shrink-0">
+              −{{ money(reductions.promotion.amount) }}
+            </dd>
+          </div>
+          <div
+            v-if="reductions.discount > 0"
             class="flex items-baseline justify-between gap-3 text-secondary"
           >
             <dt>{{ t("totals.discount") }}</dt>
             <dd class="rpos-numeric">
-              −{{ money(preview?.discount_amount ?? summary.discount_amount) }}
+              −{{ money(reductions.discount) }}
             </dd>
           </div>
           <div class="flex items-baseline justify-between gap-3">

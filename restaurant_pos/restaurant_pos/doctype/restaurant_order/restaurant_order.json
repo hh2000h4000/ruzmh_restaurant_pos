@@ -35,6 +35,8 @@
   "discount_type",
   "discount_value",
   "discount_amount",
+  "promotion",
+  "promotion_amount",
   "totals_cb",
   "discount_approved_by",
   "tax_amount",
@@ -248,6 +250,22 @@
    "read_only": 1
   },
   {
+   "fieldname": "promotion",
+   "fieldtype": "Link",
+   "options": "Restaurant Promotion",
+   "label": "Promotion",
+   "read_only": 1,
+   "description": "The promotion this bill qualified for, chosen by the engine (D-163)."
+  },
+  {
+   "fieldname": "promotion_amount",
+   "fieldtype": "Currency",
+   "label": "Promotion Amount",
+   "read_only": 1,
+   "default": "0",
+   "description": "How much of `discount_amount` came from the promotion rather than from a person."
+  },
+  {
    "fieldname": "totals_cb",
    "fieldtype": "Column Break"
   },
@@ -376,7 +394,7 @@
  "index_web_pages_for_search": 1,
  "istable": 0,
  "links": [],
- "modified": "2026-09-07 15:00:00.000000",
+ "modified": "2026-09-08 13:00:00.000000",
  "modified_by": "Administrator",
  "module": "Restaurant POS",
  "name": "Restaurant Order",

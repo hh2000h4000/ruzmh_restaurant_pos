@@ -207,6 +207,7 @@ function money(value: number | undefined): string {
         :key="line.idx"
         :line="line"
         :busy="busy"
+        :promotion-label="reductions.promotion?.title"
         @void="emit('void', line)"
         @repeat="emit('repeat', line)"
         @inspect="emit('inspect', line)"

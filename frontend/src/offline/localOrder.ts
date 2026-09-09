@@ -99,6 +99,10 @@ export function toOrderDetail(state: LocalOrderState, pricing: Pricing): OrderDe
     notes: line.notes,
     modifiers: line.modifiers,
     production_center: null,
+    // The engine runs on the server, so nothing offline carries an offer
+    // (`D-163`) — and a line that claimed one would be marked for a discount
+    // the total does not contain.
+    promotion_amount: 0,
   }));
 
   return {

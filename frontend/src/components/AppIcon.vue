@@ -55,6 +55,10 @@ const PATHS = {
   bag: "M6 7h12l1 13H5zM9 7V5a3 3 0 016 0v2",
   // Something a second person has to unlock — a manager's PIN (`BR-055`).
   lock: "M6 11h12v9H6zM9 11V8a3 3 0 016 0v3",
+  // A price tag: the offer that reached this line (`D-166`). Drawn rather than
+  // a percent sign because a fixed-amount voucher is an offer too, and a "%"
+  // beside "−50.00" says the wrong thing.
+  tag: "M3 12V4a1 1 0 011-1h8l9 9-9 9zM7.5 7.5h.01",
 } as const;
 
 export type IconName = keyof typeof PATHS;

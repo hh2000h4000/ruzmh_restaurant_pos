@@ -23,6 +23,7 @@ from contextlib import contextmanager
 from datetime import timedelta
 
 import frappe
+from frappe.utils import flt
 
 from restaurant_pos.api import order as api_order
 from restaurant_pos.tests.test_order import ITEM, OrderTestBase, _make_cashier
@@ -476,6 +477,158 @@ class ChoosingOneIsSpendingTheShopsMoney(PromotionTestBase):
 
 		remarks = frappe.db.get_value("Sales Invoice", order.sales_invoice, "remarks") or ""
 		self.assertIn("RPOS test manual", remarks)
+
+
+class WhichLineTheOfferCameOff(PromotionTestBase):
+	"""`D-166` — the bill's total cannot answer it.
+
+	A bill that says "-13.00" at the bottom does not say which dish it came off,
+	and that is the question the guest asks while pointing at one. It matters
+	most on the bill this engine was built for: an offer scoped to some items,
+	sitting on a bill that also holds items it never touched.
+	"""
+
+	@classmethod
+	def setUpClass(cls):
+		"""A second sellable item, which the shared base does not have.
+
+		`OrderTestBase` sells exactly one, and the case this class exists for
+		needs a bill holding something the offer reaches **and** something it
+		does not. Created here rather than in the shared fixture: one class needs
+		it, and a second item in everyone's price list would quietly change what
+		every other money assertion is measuring (`D-155`).
+		"""
+		super().setUpClass()
+		cls.other_item = "RPOS-TEST-JUICE"
+
+		if not frappe.db.exists("Item", cls.other_item):
+			frappe.get_doc(
+				{
+					"doctype": "Item",
+					"item_code": cls.other_item,
+					"item_name": "RPOS Test Juice",
+					"pos_display_name_ar": "عصير الاختبار",
+					"item_group": frappe.db.get_value("Item", ITEM, "item_group"),
+					"stock_uom": "Nos",
+					"is_stock_item": 0,
+					"is_sales_item": 1,
+					"include_item_in_manufacturing": 0,
+				}
+			).insert(ignore_permissions=True)
+
+		existing = frappe.db.get_value(
+			"Item Price", {"item_code": cls.other_item, "price_list": cls.price_list}, "name"
+		)
+		if existing:
+			frappe.db.set_value("Item Price", existing, "price_list_rate", 25)
+		else:
+			frappe.get_doc(
+				{
+					"doctype": "Item Price",
+					"item_code": cls.other_item,
+					"price_list": cls.price_list,
+					"selling": 1,
+					"price_list_rate": 25,
+				}
+			).insert(ignore_permissions=True)
+
+		frappe.db.commit()
+
+	def _mixed_bill(self):
+		"""One line the offer can reach and one it cannot."""
+		order = self._order()
+		orders.add_item(order, item=ITEM, qty=1)
+		orders.add_item(order, item=self.other_item, qty=1)
+		order.reload()
+		return order
+
+	def test_a_whole_bill_offer_marks_every_line(self):
+		self._promotion(title="RPOS test ten", discount_value=10)
+
+		order = self._bill(qty=2)  # 50.00
+
+		self.assertEqual(promotions.per_line(order), {1: 5.0})
+
+	def test_a_scoped_offer_marks_only_the_lines_it_reached(self):
+		"""The case the totals row cannot answer."""
+		self._promotion(
+			title="RPOS test drinks",
+			discount_value=50,
+			item_scope="specific_items",
+			applicable_items=[{"item": ITEM}],
+		)
+
+		order = self._mixed_bill()
+		marks = promotions.per_line(order)
+
+		self.assertEqual(set(marks), {1}, "only the line the offer reached")
+		self.assertEqual(marks[1], 12.5, "half of the 25 riyal line, not of the bill")
+
+	def test_each_line_takes_its_own_share_and_not_its_own_price(self):
+		"""**Two covered lines of different sizes, which is where a split can go
+		wrong without the sum noticing.**
+
+		Every other test here has one covered line, so the last-line remainder
+		answers them all and the proportional step is never exercised: a line
+		could claim its whole price came off and the total would still balance,
+		because the remainder absorbs it. A cashier would read "-75.00" against a
+		75 riyal dish on a bill that lost ten.
+		"""
+		self._promotion(title="RPOS test ten", discount_value=10)
+
+		order = self._order()
+		orders.add_item(order, item=ITEM, qty=1)  # 25.00
+		orders.add_item(order, item=ITEM, qty=3)  # 75.00
+		order.reload()
+
+		self.assertEqual(promotions.per_line(order), {1: 2.5, 2: 7.5})
+
+	def test_the_shares_add_up_to_the_figure_on_the_bill(self):
+		"""**Exactly**, not to a cent beside it.
+
+		A receipt whose lines do not sum to its total is read as a mistake by the
+		one person who cannot check it — the same defect class as the guest
+		screen's `60.00 + 7.83 = 60.00` (`D-162`). A third of a third is where
+		proportional shares drift, so the last line takes the remainder.
+		"""
+		self._promotion(title="RPOS test third", discount_value=33.33)
+
+		order = self._order()
+		for qty in (1, 1, 1):
+			orders.add_item(order, item=ITEM, qty=qty)
+		order.reload()
+
+		marks = promotions.per_line(order)
+
+		self.assertEqual(flt(sum(marks.values()), 2), order.promotion_amount)
+
+	def test_a_bill_with_no_offer_marks_nothing(self):
+		self.assertEqual(promotions.per_line(self._bill()), {})
+
+	def test_a_voided_line_is_never_marked(self):
+		"""It is not part of what is owed, so it is not part of what was taken off."""
+		self._promotion(title="RPOS test ten", discount_value=10)
+
+		order = self._mixed_bill()
+		orders.void_item(order, item_idx=2, reason="RPOS test")
+		order.reload()
+
+		self.assertNotIn(2, promotions.per_line(order))
+
+	def test_the_payload_carries_the_mark_to_the_screen(self):
+		"""A share the screen never receives is a share nobody can see."""
+		self._promotion(
+			title="RPOS test drinks",
+			discount_value=50,
+			item_scope="specific_items",
+			applicable_items=[{"item": ITEM}],
+		)
+
+		order = self._mixed_bill()
+		lines = api_order.get_order(order.name)["items"]
+
+		self.assertEqual(lines[0]["promotion_amount"], 12.5)
+		self.assertEqual(lines[1]["promotion_amount"], 0.0)
 
 
 class ASilentPromotionIsRefused(PromotionTestBase):

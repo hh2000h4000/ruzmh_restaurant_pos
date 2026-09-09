@@ -1072,6 +1072,7 @@ def _annotate_open_orders(orders: list) -> None:
 def get_order(order_name: str) -> dict:
 	"""Full order state for the order screen."""
 	order = _load(order_name)
+	promoted = promotions.per_line(order)
 	return {
 		**_summary(order),
 		"order_type": order.order_type,
@@ -1112,6 +1113,10 @@ def get_order(order_name: str) -> dict:
 				"notes": row.notes,
 				"modifiers": frappe.parse_json(row.modifiers) if row.modifiers else [],
 				"production_center": row.production_center,
+				# **Which lines the offer reached** (`D-166`). A bill that says
+				# "-13.00" at the bottom does not say which dish it came off, and
+				# that is the question the guest asks while pointing at one.
+				"promotion_amount": promoted.get(row.idx, 0.0),
 			}
 			for row in order.items
 		],

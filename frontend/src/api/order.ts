@@ -80,6 +80,14 @@ export interface OrderLine {
   qty: number;
   rate: number;
   amount: number;
+  /**
+   * This line's share of the promotion, `0` when the offer did not reach it.
+   *
+   * **The bill's total cannot say which dish an offer came off** (`D-166`), and
+   * that is the question the guest asks while pointing at one. The shares add up
+   * to the figure in the totals block exactly — the server allocates them.
+   */
+  promotion_amount: number;
   status: "pending" | "sent" | "void" | "served";
   notes: string | null;
   /**

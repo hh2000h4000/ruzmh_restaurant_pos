@@ -25,6 +25,14 @@ import { formatNumber, pick, t } from "@/i18n";
 const props = defineProps<{
   line: OrderLine;
   busy?: boolean;
+  /**
+   * What to call the offer that reached this line (`D-166`).
+   *
+   * Passed in rather than read here: the promotion belongs to the **bill**, and
+   * a row that fetched the bill's name for itself would be every row asking the
+   * same question separately.
+   */
+  promotionLabel?: string;
 }>();
 
 const emit = defineEmits<{
@@ -204,6 +212,34 @@ function money(value: number): string {
                 :size="14"
               />
               {{ line.notes }}
+            </p>
+
+            <!-- **The offer, on the dish it came off** (`D-166`).
+
+                 The totals block names the promotion and gives its figure, and
+                 on a bill where the offer covers three items out of seven that
+                 still does not say *which* — which is the question the guest
+                 asks while pointing at one of them. Toast puts the discount as a
+                 line beneath the item it discounted and Foodics writes the
+                 offer's name under the dish; this is that line.
+
+                 It rides with the modifiers and the note rather than beside the
+                 price: those are the three things that qualify what this line
+                 *is*, and the price column answers what it costs.
+
+                 **An amount with no name draws nothing** — the same rule the
+                 totals row holds. A green figure the cashier cannot explain is
+                 worse than no mark at all. -->
+            <p
+              v-if="line.promotion_amount && promotionLabel"
+              class="flex items-center gap-1.5 truncate text-sm text-status-available"
+            >
+              <AppIcon
+                name="tag"
+                :size="14"
+              />
+              <span class="truncate">{{ promotionLabel }}</span>
+              <span class="rpos-numeric shrink-0">−{{ money(line.promotion_amount) }}</span>
             </p>
 
             <!-- Status is never colour alone (06 §Accessibility). -->

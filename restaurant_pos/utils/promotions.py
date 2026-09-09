@@ -162,6 +162,54 @@ def benefit_of(promotion, order) -> float:
 	return 0.0
 
 
+def per_line(order) -> dict[int, float]:
+	"""Which lines the promotion touched, and what came off each (`D-166`).
+
+	**A total that says "-13.00" does not say which dish it came off.** On a bill
+	where the offer covers three items out of seven, the cashier cannot answer
+	the guest pointing at the fourth — and that is the question the guest asks.
+	Toast puts the discount as a line beneath the item it discounted; Foodics
+	writes the offer's name under the dish; the till the user works on marks the
+	covered lines and leaves the rest bare. All three answer *which*, which the
+	bill's own total never can.
+
+	**The parts add up to the whole, exactly.** Each line takes its share of the
+	promotion in proportion to what it contributed, and the last covered line
+	absorbs whatever rounding left over — because a receipt whose lines do not
+	sum to its total is read as a mistake by the one person who cannot check it
+	(`D-162`).
+
+	Keyed by ``idx``, and empty when no promotion applied.
+	"""
+	if not order.get("promotion") or not flt(order.get("promotion_amount")):
+		return {}
+
+	promotion = frappe.db.get_value(
+		"Restaurant Promotion", order.promotion, ["name", "item_scope"], as_dict=True
+	)
+	if not promotion:
+		return {}
+
+	covered = _covered_lines(promotion, order)
+	base = flt(sum(flt(row.amount) for row in covered), 2)
+	if not covered or base <= 0:
+		return {}
+
+	total = flt(order.promotion_amount)
+	shares: dict[int, float] = {}
+	running = 0.0
+
+	for row in covered[:-1]:
+		share = flt(total * flt(row.amount) / base, 2)
+		shares[row.idx] = share
+		running = flt(running + share, 2)
+
+	# The last one takes the remainder rather than its own rounded share, so the
+	# lines sum to the figure on the bill and not to a cent beside it.
+	shares[covered[-1].idx] = flt(total - running, 2)
+	return shares
+
+
 def offers_for(order) -> list[dict]:
 	"""What this bill qualifies for, for a cashier to choose from (`D-165`).
 
@@ -333,7 +381,16 @@ def _in_scope(promotion, order) -> bool:
 
 
 def _eligible_amount(promotion, order) -> float:
-	"""What of this bill the promotion is allowed to discount (`FR-11.1`).
+	"""What of this bill the promotion is allowed to discount (`FR-11.1`)."""
+	return flt(sum(flt(row.amount) for row in _covered_lines(promotion, order)), 2)
+
+
+def _covered_lines(promotion, order) -> list:
+	"""The lines a promotion reaches — the one place that decides (§5.5).
+
+	Both the amount it takes off and the marks the screen draws are answers to
+	this same question, and asking it twice is how a bill comes to be discounted
+	on one set of lines and to say so on another.
 
 	Voided lines are not part of it — they are not part of what is owed either.
 	"""
@@ -341,15 +398,15 @@ def _eligible_amount(promotion, order) -> float:
 
 	if promotion.item_scope == "specific_items":
 		wanted = set(frappe.get_all("Promotion Item", filters={"parent": promotion.name}, pluck="item"))
-		lines = [row for row in lines if row.item in wanted]
+		return [row for row in lines if row.item in wanted]
 
-	elif promotion.item_scope == "specific_groups":
+	if promotion.item_scope == "specific_groups":
 		groups = set(
 			frappe.get_all("Promotion Item Group", filters={"parent": promotion.name}, pluck="item_group")
 		)
-		lines = [row for row in lines if _group_of(row.item) in groups]
+		return [row for row in lines if _group_of(row.item) in groups]
 
-	return flt(sum(flt(row.amount) for row in lines), 2)
+	return lines
 
 
 def _group_of(item: str) -> str | None:

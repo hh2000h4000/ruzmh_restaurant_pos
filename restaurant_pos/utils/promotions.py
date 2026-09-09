@@ -162,6 +162,32 @@ def benefit_of(promotion, order) -> float:
 	return 0.0
 
 
+def blocks_a_discount(order) -> str:
+	"""The title of an exclusive offer standing on this bill, or "" (`D-169`).
+
+	**`is_exclusive` was a checkbox nobody read.** It sat on the record, went out
+	to the client, and no line of code anywhere acted on it: a manager could tick
+	*does not combine with a manual discount*, and the till would take the offer
+	and the discount together — the shop giving away twice what it agreed to,
+	with the record insisting otherwise. The same silence as a promotion that
+	saves and does nothing (`D-074`), pointed the other way.
+
+	It refuses the **discount**, not the promotion. The offer is a rule the shop
+	published and a guest may have come in for; the discount is being typed now
+	by somebody who can be told why. A shop that wants the discount anyway turns
+	the flag off on the promotion, which is a manager's decision in the desk —
+	where the rule was made.
+
+	Returns the title so the caller can name it. A refusal that will not say
+	*which* offer is the report nobody can act on.
+	"""
+	chosen = best_for(order)
+	if not chosen or not chosen.is_exclusive:
+		return ""
+
+	return chosen.title_ar or chosen.title or chosen.name
+
+
 def per_line(order) -> dict[int, float]:
 	"""Which lines the promotion touched, and what came off each (`D-166`).
 
@@ -401,12 +427,37 @@ def _covered_lines(promotion, order) -> list:
 		return [row for row in lines if row.item in wanted]
 
 	if promotion.item_scope == "specific_groups":
-		groups = set(
+		groups = _groups_under(
 			frappe.get_all("Promotion Item Group", filters={"parent": promotion.name}, pluck="item_group")
 		)
 		return [row for row in lines if _group_of(row.item) in groups]
 
 	return lines
+
+
+def _groups_under(chosen: list[str]) -> set[str]:
+	"""The chosen item groups **and everything beneath them** (`D-169`).
+
+	`Item Group` is a tree, and an item hangs off a leaf of it. A manager who
+	picks *Drinks* means every drink — the hot ones and the cold ones — and a
+	comparison against the item's own group alone would match none of them,
+	because no item is ever *in* `Drinks`; they are in its children.
+
+	**And it fails in the direction that costs money quietly.** The promotion
+	saves, reads as active, covers nothing, and the shop finds out when a guest
+	who was promised an offer does not get it. Nothing about the record says why
+	(`D-074`).
+
+	Frappe keeps the tree as a nested set, so each group's descendants are one
+	range query rather than a walk.
+	"""
+	from frappe.utils.nestedset import get_descendants_of
+
+	under = set(chosen)
+	for group in chosen:
+		under.update(get_descendants_of("Item Group", group, ignore_permissions=True))
+
+	return under
 
 
 def _group_of(item: str) -> str | None:

@@ -26,6 +26,7 @@ import frappe
 from frappe.utils import flt
 
 from restaurant_pos.api import order as api_order
+from restaurant_pos.api import payment as api_payment
 from restaurant_pos.tests.test_order import ITEM, OrderTestBase, _make_cashier
 from restaurant_pos.tests.test_payment import CASH
 from restaurant_pos.utils import order as orders
@@ -631,29 +632,189 @@ class WhichLineTheOfferCameOff(PromotionTestBase):
 		self.assertEqual(lines[1]["promotion_amount"], 0.0)
 
 
-class ASilentPromotionIsRefused(PromotionTestBase):
-	"""`D-074` — the DocType offers a type it carries no data for.
+class AGroupMeansEverythingUnderIt(PromotionTestBase):
+	"""`D-169` — `Item Group` is a tree, and no item lives in a parent.
 
-	A manager could choose *buy X get Y*, save, and get a promotion that looks
-	configured and does nothing. There is nowhere on the record to say how many
-	to buy or how many to get, so it is refused at the door and the fields will
-	arrive with the reward that needs them.
+	A manager who scopes an offer to *Drinks* means every drink. Matching the
+	item's own group alone would cover none of them, because the items hang off
+	*Hot drinks* and *Cold drinks* beneath it. And it fails in the direction that
+	costs quietly: the promotion saves, reads as active, covers nothing, and the
+	shop learns of it from a guest who was promised an offer.
+	"""
+
+	@classmethod
+	def setUpClass(cls):
+		"""A two-level menu: a parent group with the sellable item under a child."""
+		super().setUpClass()
+		cls.parent_group = "RPOS Test Drinks"
+		cls.child_group = "RPOS Test Cold Drinks"
+		root = frappe.db.get_value(
+			"Item Group", {"is_group": 1, "parent_item_group": ("is", "not set")}, "name"
+		)
+
+		for name, parent, is_group in (
+			(cls.parent_group, root, 1),
+			(cls.child_group, cls.parent_group, 0),
+		):
+			if not frappe.db.exists("Item Group", name):
+				frappe.get_doc(
+					{
+						"doctype": "Item Group",
+						"item_group_name": name,
+						"parent_item_group": parent,
+						"is_group": is_group,
+					}
+				).insert(ignore_permissions=True)
+
+		cls.original_group = frappe.db.get_value("Item", ITEM, "item_group")
+		frappe.db.set_value("Item", ITEM, "item_group", cls.child_group)
+		frappe.clear_cache(doctype="Item")
+		frappe.db.commit()
+
+	@classmethod
+	def tearDownClass(cls):
+		frappe.db.rollback()
+		frappe.db.set_value("Item", ITEM, "item_group", cls.original_group)
+		frappe.clear_cache(doctype="Item")
+		frappe.db.commit()
+		super().tearDownClass()
+
+	def test_choosing_the_parent_covers_the_item_beneath_it(self):
+		"""The case the user described: pick *Drinks*, get every drink."""
+		self._promotion(
+			title="RPOS test drinks",
+			discount_value=10,
+			item_scope="specific_groups",
+			applicable_item_groups=[{"item_group": self.parent_group}],
+		)
+
+		self.assertEqual(self._bill().promotion_amount, 2.5)
+
+	def test_choosing_the_child_still_works(self):
+		self._promotion(
+			title="RPOS test cold",
+			discount_value=10,
+			item_scope="specific_groups",
+			applicable_item_groups=[{"item_group": self.child_group}],
+		)
+
+		self.assertEqual(self._bill().promotion_amount, 2.5)
+
+	def test_a_group_the_item_is_not_under_covers_nothing(self):
+		"""Descending the tree must not turn every group into every item."""
+		elsewhere = frappe.db.get_value(
+			"Item Group", {"is_group": 0, "name": ("not in", [self.child_group])}, "name"
+		)
+		self._promotion(
+			title="RPOS test elsewhere",
+			discount_value=50,
+			item_scope="specific_groups",
+			applicable_item_groups=[{"item_group": elsewhere}],
+		)
+
+		self.assertEqual(self._bill().promotion_amount, 0.0)
+
+
+class AnExclusiveOfferRefusesADiscount(PromotionTestBase):
+	"""`is_exclusive` was a checkbox nobody read (`D-169`).
+
+	It sat on the record, went out to the client, and no line of code acted on
+	it: a manager could tick *does not combine with a manual discount* and the
+	till would take both — the shop giving away twice what it agreed to, while
+	the record insisted otherwise.
+	"""
+
+	def _pay_with_discount(self, order, percentage=10):
+		return payment_service.process_payment(
+			order,
+			payments=[{"method": CASH, "amount": order.total_amount}],
+			discount_type="percentage",
+			discount_value=percentage,
+		)
+
+	def test_the_discount_is_refused_and_the_offer_is_named(self):
+		"""A refusal that will not say *which* offer is unactionable."""
+		self._promotion(title="RPOS test national day", title_ar="عرض اليوم الوطني", is_exclusive=1)
+
+		order = self._bill()
+
+		with self.assertRaises(frappe.ValidationError) as refusal:
+			self._pay_with_discount(order)
+
+		self.assertIn("عرض اليوم الوطني", str(refusal.exception))
+
+	def test_an_ordinary_offer_still_combines(self):
+		"""The flag is the rule; without it nothing changes."""
+		self._promotion(title="RPOS test ordinary", is_exclusive=0)
+
+		order = self._bill()
+		self._pay_with_discount(order)
+		order.reload()
+
+		self.assertEqual(order.status, "closed")
+
+	def test_the_screen_is_told_before_the_cashier_types(self):
+		"""`D-125` — every condition the server refuses at Confirm is on the
+		screen before it. A wall with no sign on it is the defect."""
+		self._promotion(title="RPOS test national day", title_ar="عرض اليوم الوطني", is_exclusive=1)
+
+		order = self._bill()
+
+		self.assertEqual(api_payment.preview_totals(order.name)["discount_blocked_by"], "عرض اليوم الوطني")
+
+	def test_and_nothing_is_blocked_when_no_offer_says_so(self):
+		self.assertEqual(api_payment.preview_totals(self._bill().name)["discount_blocked_by"], "")
+
+
+class ASilentPromotionIsRefused(PromotionTestBase):
+	"""`D-074` — the DocType offers two types the engine cannot apply.
+
+	Both are refused at the door rather than saved and ignored. A promotion that
+	looks configured and does nothing is the report nobody can act on: it reads
+	as active in the list, and the shop finds out when a guest who was promised
+	an offer does not get it.
+
+	**`free_item` was not refused, and that was the whole defect** (`D-169`). It
+	validated, saved, and sat among the live offers while `promotions.SUPPORTED`
+	quietly excluded it — one branch above the neighbour that refuses correctly.
+	Refusing one and not the other is worse than refusing neither, because the
+	record then looks like the feature exists.
 	"""
 
 	def test_buy_x_get_y_says_it_is_not_available(self):
 		with self.assertRaises(frappe.ValidationError):
 			self._promotion(title="RPOS test bogo", promotion_type="buy_x_get_y", discount_value=1)
 
-	def test_a_free_item_needs_an_item_or_a_group(self):
+	def test_a_free_item_says_it_is_not_available(self):
+		"""Named item and all: there is no shape of this the engine can honour."""
 		with self.assertRaises(frappe.ValidationError):
-			self._promotion(title="RPOS test free", promotion_type="free_item")
+			self._promotion(title="RPOS test free", promotion_type="free_item", free_item=ITEM)
 
-	def test_and_not_both(self):
-		"""Two answers to one question: which item is the guest being given?"""
+	def test_not_even_when_a_group_is_named(self):
 		with self.assertRaises(frappe.ValidationError):
 			self._promotion(
 				title="RPOS test free",
 				promotion_type="free_item",
-				free_item=ITEM,
 				free_item_group=frappe.db.get_value("Item", ITEM, "item_group"),
 			)
+
+	def test_and_nothing_the_engine_cannot_apply_is_ever_on_offer(self):
+		"""The rule behind both refusals, stated once.
+
+		If a type is not in `SUPPORTED` it must not be savable, or it becomes a
+		live-looking offer the engine skips. This fails the day somebody adds a
+		type to the DocType and to neither list.
+		"""
+		options = frappe.get_meta("Restaurant Promotion").get_field("promotion_type").options
+		offered = [line for line in (options or "").splitlines() if line.strip()]
+
+		for promotion_type in offered:
+			if promotion_type in promotions.SUPPORTED:
+				continue
+			with self.subTest(promotion_type=promotion_type), self.assertRaises(frappe.ValidationError):
+				self._promotion(
+					title=f"RPOS test {promotion_type}",
+					promotion_type=promotion_type,
+					discount_value=1,
+					free_item=ITEM,
+				)

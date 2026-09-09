@@ -117,6 +117,11 @@ def preview_totals(
 	ceiling = flt(get_pos_permission_set().get(service.CEILING))
 
 	return {
+		# **Said before the cashier types, not after they are refused** (`D-125`,
+		# `D-169`). An offer marked "does not combine with a manual discount"
+		# refuses the discount at Confirm; the screen has to be able to grey the
+		# controls and name the offer, or the rule is a wall with no sign on it.
+		"discount_blocked_by": promotions.blocks_a_discount(order),
 		"subtotal": order.subtotal,
 		"discount_amount": order.discount_amount,
 		**promotions.on_the_bill(order),

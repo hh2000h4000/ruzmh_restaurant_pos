@@ -22,7 +22,7 @@ import frappe
 from frappe import _
 from frappe.utils import flt, now_datetime
 
-from restaurant_pos.utils import activity, kitchen, printing, totals
+from restaurant_pos.utils import activity, kitchen, printing, promotions, totals
 from restaurant_pos.utils.audit import log_audit
 from restaurant_pos.utils.order import (
 	assert_mutable,
@@ -345,6 +345,14 @@ def _apply_discount(order, discount_type, discount_value, override_token) -> Non
 	"""FR-10.4 / BR-031 — a discount beyond the cashier's ceiling needs a manager."""
 	if not discount_type or not flt(discount_value):
 		return
+
+	# **The offer said it does not combine, and now something enforces it**
+	# (`D-169`). Checked before the ceiling, because "you may not discount this
+	# bill at all" is a different answer from "not that much", and a cashier told
+	# the second one goes looking for a manager who cannot help.
+	exclusive = promotions.blocks_a_discount(order)
+	if exclusive:
+		frappe.throw(_("{0} does not combine with a manual discount.").format(exclusive))
 
 	percentage = discount_percentage(order, discount_type, discount_value)
 

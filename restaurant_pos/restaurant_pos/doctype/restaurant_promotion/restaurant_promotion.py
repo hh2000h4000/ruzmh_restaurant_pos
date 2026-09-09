@@ -57,17 +57,28 @@ class RestaurantPromotion(Document):
 			if flt(self.discount_value) <= 0:
 				frappe.throw(_("A fixed amount discount must be greater than zero."))
 		elif self.promotion_type == "free_item":
-			# **Either a named item or a group to choose from** (`D-163`). The
-			# group is the flexible half — *any drink with a kabsa* — and the
-			# guest picks; naming both would be two answers to one question.
-			if not (self.free_item or self.free_item_group):
-				frappe.throw(_("Choose a free item, or a group for the guest to choose from."))
-
-			if self.free_item and self.free_item_group:
-				frappe.throw(_("Choose either a free item or a group, not both."))
-
-			if int(self.free_qty or 1) < 1:
-				frappe.throw(_("Free Quantity must be at least one."))
+			# **Refused for the same reason as its neighbour below** (`D-169`).
+			#
+			# This validated, saved, and read as active — and the engine never
+			# applied it, because `promotions.SUPPORTED` does not carry it. So a
+			# manager could configure *any drink free with a kabsa*, watch it
+			# listed among the live offers, and no guest ever got a drink.
+			#
+			# That is exactly the defect the `buy_x_get_y` branch below refuses
+			# at the door (`D-074`), and it shipped one branch above it. One was
+			# refused and the other was not, which is worse than refusing
+			# neither: the record looked like the feature existed.
+			#
+			# A free item is not a discount but a **line**, and where the reward
+			# names a group somebody has to choose which drink — a question for
+			# the cashier and the guest, so it needs a screen. Until that screen
+			# exists this stays shut.
+			frappe.throw(
+				_(
+					"A free item promotion is not available yet. Use a percentage on the "
+					"items it applies to, or a fixed amount off the bill."
+				)
+			)
 
 		elif self.promotion_type == "buy_x_get_y":
 			# **Refused rather than accepted and ignored** (`D-074`, `D-163`).

@@ -223,6 +223,30 @@ class TheHappyHour(PromotionTestBase):
 		self.assertIsNone(row.time_from)
 		self.assertIsNone(row.time_to)
 
+	def test_half_a_window_is_refused(self):
+		"""`D-170` — and until the form stopped stamping, this could never fire.
+
+		`bool(time_from) != bool(time_to)` has been on the record all along and
+		was unreachable: the framework filled *both* fields the moment the form
+		opened, so there was no such thing as half a window to refuse. A manager
+		who set only the end time kept a start of whenever they opened the form.
+
+		With the stamp cleared at the source, half a window is a real state, and
+		this is what happens to it.
+		"""
+		promo = self._promotion(title="RPOS test half")
+		promo.time_to = "17:00:00"
+
+		with self.assertRaises(frappe.ValidationError):
+			promo.save(ignore_permissions=True)
+
+	def test_a_window_a_manager_actually_set_is_kept(self):
+		"""The other half of it: clearing the stamp must not clear a real window."""
+		promo = self._promotion(title="RPOS test evening", time_from="15:00:00", time_to="17:00:00")
+
+		self.assertIsNotNone(promo.time_from)
+		self.assertIsNotNone(promo.time_to)
+
 	def test_a_row_saved_before_the_fix_still_runs_all_day(self):
 		"""The rows already in the database still carry the stamp.
 

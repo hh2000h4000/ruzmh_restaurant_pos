@@ -29,6 +29,7 @@ from restaurant_pos.utils.permissions import (
 	consume_override_token,
 	get_pos_permission_set,
 	server_rights,
+	validate_branch_access,
 )
 from restaurant_pos.utils.shift import assert_may_sell, selling_till
 
@@ -441,3 +442,54 @@ def _apply_refund(credit, refund_method: str | None) -> None:
 	# the decision about which method it is.
 	if credit.is_pos and payment.is_cash(method):
 		printing.open_drawer(credit.pos_profile, reason=f"cash refund on {credit.return_against}")
+
+
+def refund_detail(credit_note: str) -> dict:
+	"""What one credit note actually took back (`D-171`).
+
+	**The refund row on the orders list carried the sale's name**, so tapping it
+	opened the sale: four items and positive money, on a row that said "refund"
+	and showed a negative figure. The screen answered a question nobody asked,
+	and the two items that came back were nowhere on it.
+
+	The document was never wrong — the credit note holds exactly the returned
+	rows at negative quantities, and printing it prints those. Only the screen
+	was reading the wrong document.
+
+	Read-only, and it stays that way: a credit note is submitted accounting. The
+	one thing a cashier does with it here is look at it, and reprint it.
+	"""
+	credit = frappe.get_doc("Sales Invoice", credit_note)
+
+	if not credit.is_return or credit.docstatus != 1:
+		frappe.throw(_("{0} is not a refund.").format(credit_note))
+
+	# **Authorised through the sale, exactly as the list is.** The credit note
+	# has no branch of its own; the bill it reverses does, and that is what
+	# decides who may read either of them.
+	order = frappe.get_doc("Restaurant Order", {"sales_invoice": credit.return_against})
+	validate_branch_access(order.branch)
+
+	return {
+		"credit_note": credit.name,
+		"daily_number": credit.get("rpos_daily_number") or 0,
+		# The bill it reverses, by the number a cashier reads it as.
+		"returns_daily_number": order.daily_number,
+		"order_name": order.name,
+		"reason": credit.remarks or "",
+		"refunded_at": credit.creation,
+		# Negative, all of it, because that is the direction the money went —
+		# and it is the document's own figure, not one worked out here.
+		"total_amount": -abs(flt(credit.rounded_total or credit.grand_total)),
+		"tax_amount": -abs(flt(credit.total_taxes_and_charges)),
+		"items": [
+			{
+				"item": row.item_code,
+				"item_name": row.item_name,
+				"qty": flt(row.qty),
+				"rate": flt(row.rate),
+				"amount": flt(row.amount),
+			}
+			for row in credit.items
+		],
+	}

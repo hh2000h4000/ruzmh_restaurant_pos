@@ -75,3 +75,13 @@ def create_return(
 		reference_name=result["credit_note"],
 	)
 	return result
+
+
+@frappe.whitelist()
+def get_refund(credit_note: str) -> dict:
+	"""One credit note, as the cashier should see it (`FR-9.4`, `D-171`).
+
+	Read-only. The refund row used to open the **sale** it reverses, so a bill of
+	four items appeared where two had come back.
+	"""
+	return service.refund_detail(credit_note)

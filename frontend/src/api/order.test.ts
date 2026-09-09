@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { reductionsOn } from "./order";
+import { reductionsOn, whatOpens, type OpenOrder } from "./order";
 
 /**
  * `D-163`. The server folds the promotion and the manual discount into one
@@ -78,5 +78,57 @@ describe("telling a promotion from a discount", () => {
 
   it("has nothing to report with no bill at all", () => {
     expect(reductionsOn(null)).toEqual({ promotion: null, discount: 0 });
+  });
+});
+
+/**
+ * `D-171`. A refund row carries the **sale's** name so its card can wear the
+ * sale's table and customer — and the obvious reading of a tap therefore opened
+ * the sale. A cashier who returned two dishes off a bill of four got all four,
+ * at positive prices, from a row labelled *refund*.
+ *
+ * This lives here rather than inline in the screen because that is the only way
+ * to hold it. Breaking the routing left all 167 tests green until this existed,
+ * which is exactly how the defect shipped.
+ */
+function row(extra: Partial<OpenOrder> = {}): OpenOrder {
+  return {
+    name: "RO-2026-09-00017",
+    status: "closed",
+    is_return: 0,
+    credit_note: undefined,
+    ...extra,
+  } as OpenOrder;
+}
+
+describe("which document a row on the list opens", () => {
+  it("opens the credit note for a refund, not the bill it reverses", () => {
+    const target = whatOpens(row({ is_return: 1, credit_note: "ACC-SINV-2026-00011" }));
+
+    expect(target).toEqual({ kind: "refund", creditNote: "ACC-SINV-2026-00011" });
+  });
+
+  it("opens the order for an ordinary row", () => {
+    expect(whatOpens(row())).toEqual({ kind: "order", orderName: "RO-2026-09-00017" });
+  });
+
+  /**
+   * `D-075` — a queued sale is one entry in a queue until the server has it.
+   * Opening it would promise what nothing can keep.
+   */
+  it("opens nothing for a sale still waiting in the queue", () => {
+    expect(whatOpens(row({ status: "queued" }))).toEqual({ kind: "queued" });
+  });
+
+  /**
+   * A refund row whose credit note never arrived has nothing of its own to
+   * show. The bill it reverses is the honest fallback — and it is the sale,
+   * which is what the row's other fields already describe.
+   */
+  it("falls back to the bill when a refund row carries no credit note", () => {
+    expect(whatOpens(row({ is_return: 1 }))).toEqual({
+      kind: "order",
+      orderName: "RO-2026-09-00017",
+    });
   });
 });

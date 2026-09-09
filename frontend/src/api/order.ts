@@ -63,6 +63,37 @@ export function reductionsOn(bill: (PromotionOnBill & { discount_amount: number 
   };
 }
 
+/**
+ * Which document a row on the orders list actually opens (`D-171`).
+ *
+ * **A refund row carries the sale's `name`**, so its card can wear the sale's
+ * table, type and customer — the refund reverses that bill and belongs beside
+ * it. The cost is that the obvious reading of a tap opens the sale: a cashier
+ * who returned two dishes off a bill of four got all four, at positive prices,
+ * from a row labelled *refund* showing a negative figure.
+ *
+ * Decided here rather than inline in the screen because that is the only way to
+ * hold it: the defect was invisible to every backend test, and breaking the
+ * routing left the whole suite green until this existed.
+ */
+export type OpenTarget =
+  | { kind: "refund"; creditNote: string }
+  | { kind: "order"; orderName: string }
+  | { kind: "queued" };
+
+export function whatOpens(order: OpenOrder): OpenTarget {
+  // D-075 — a queued sale is one entry in a queue until the server has it.
+  // Listing it answers "where did my bill go"; opening it promises what nothing
+  // can keep.
+  if (order.status === "queued") return { kind: "queued" };
+
+  if (order.is_return && order.credit_note) {
+    return { kind: "refund", creditNote: order.credit_note };
+  }
+
+  return { kind: "order", orderName: order.name };
+}
+
 export interface OrderSummary extends PromotionOnBill {
   order_name: string;
   status: string;

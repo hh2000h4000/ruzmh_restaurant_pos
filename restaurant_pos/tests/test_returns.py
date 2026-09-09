@@ -14,6 +14,7 @@ from unittest.mock import patch
 
 import frappe
 
+from restaurant_pos.api import returns as api_returns
 from restaurant_pos.tests.test_order import ITEM, OrderTestBase
 from restaurant_pos.tests.test_payment import CASH, _ensure_fiscal_year
 from restaurant_pos.utils import order as orders
@@ -487,3 +488,75 @@ class TestARealCashierCanRefund(ReturnTestBase):
 				service.create_return(self.order, items=[{"row": self.row, "qty": 1}], reason_code=REASON)
 
 		self.assertEqual(frappe.session.user, self.senior)
+
+
+class TheRefundRowOpensTheRefund(ReturnTestBase):
+	"""`D-171` — the row carried the sale's name, so it opened the sale.
+
+	A cashier who returned two dishes off a bill of four tapped the refund row
+	and got all four, at positive prices, on a row labelled *refund* showing a
+	negative figure. The two that came back were nowhere on the screen.
+
+	**The credit note was never wrong.** It holds exactly the returned rows at
+	negative quantities, and printing it prints those. Only the screen was
+	reading the other document — which is why this reads the credit note rather
+	than rebuilding anything.
+	"""
+
+	def _refunded(self, of: float = 1):
+		"""A paid bill of two, with `of` sent back."""
+		order = self._paid(qty=2)
+		credit = service.create_return(
+			order,
+			items=[{"row": self._row(order), "qty": of}],
+			reason_code=REASON,
+			refund_method=CASH,
+		)
+		order.reload()
+		return order, credit["credit_note"]
+
+	def test_it_holds_only_what_came_back(self):
+		_, credit = self._refunded(of=1)
+
+		detail = api_returns.get_refund(credit)
+
+		self.assertEqual(len(detail["items"]), 1, "one line back, not the whole bill")
+		self.assertEqual(detail["items"][0]["qty"], -1.0, "negative: goods went back")
+
+	def test_every_figure_on_it_is_negative(self):
+		"""So a printed refund reads as money leaving, not arriving."""
+		_, credit = self._refunded()
+
+		detail = api_returns.get_refund(credit)
+
+		self.assertLess(detail["total_amount"], 0)
+		self.assertLessEqual(detail["tax_amount"], 0)
+		self.assertTrue(all(line["amount"] < 0 for line in detail["items"]))
+
+	def test_it_names_the_bill_it_reverses(self):
+		"""Both numbers, because a refund has its own (`D-143`) and a cashier
+		holding the paper needs to find the sale it came off."""
+		order, credit = self._refunded()
+
+		detail = api_returns.get_refund(credit)
+
+		self.assertEqual(detail["returns_daily_number"], order.daily_number)
+		self.assertNotEqual(detail["daily_number"], order.daily_number)
+
+	def test_a_sale_is_not_a_refund(self):
+		"""Asked for the wrong document, it says so rather than answering."""
+		order = self._paid()
+
+		with self.assertRaises(frappe.ValidationError):
+			api_returns.get_refund(order.sales_invoice)
+
+	def test_it_names_the_bill_so_branch_access_has_something_to_check(self):
+		"""A credit note carries no branch of its own.
+
+		Its authority is the sale it reverses, so the detail has to name that
+		order — `validate_branch_access` reads the branch off it, and without the
+		link there is nothing to check against.
+		"""
+		order, credit = self._refunded()
+
+		self.assertEqual(api_returns.get_refund(credit)["order_name"], order.name)

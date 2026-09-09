@@ -246,6 +246,9 @@ export const messages = {
   "orders.searchOlder": "Search older bills",
   "orders.olderFound": "{count} found in the last 90 days",
   "ret.rowLabel": "Refund",
+  "ret.detailTitle": "What came back",
+  "ret.detailAgainst": "Refund {number} · against bill {against}",
+  "ret.detailTotal": "Refunded",
   // BR-055 — said before the button, never only after it (`D-147`).
   "ret.needsManager": "This bill is from a shift that has been counted, so a manager's PIN is needed.",
   // FR-7.5 — paper, asked for a second time. The receipt is named by the

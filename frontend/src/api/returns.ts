@@ -96,3 +96,33 @@ export function createReturn(payload: {
 }> {
   return mutate("returns.create_return", payload);
 }
+
+/**
+ * One credit note, as the cashier should see it (`D-171`).
+ *
+ * **The refund row used to open the sale it reverses.** A bill of four items
+ * appeared where two had come back, and the money read positive on a row that
+ * said "refund" and showed a negative figure. The document was never wrong —
+ * only the screen was reading the other one.
+ *
+ * Every amount here is negative, because that is the direction the money went,
+ * and they are the credit note's own figures rather than anything worked out on
+ * this side (`CLAUDE.md` §5.1).
+ */
+export interface RefundDetail {
+  credit_note: string;
+  /** The refund's own number in the day's sequence (`D-143`). */
+  daily_number: number;
+  /** The bill it reverses, by the number a cashier reads it as. */
+  returns_daily_number: number;
+  order_name: string;
+  reason: string;
+  refunded_at: string;
+  total_amount: number;
+  tax_amount: number;
+  items: { item: string; item_name: string; qty: number; rate: number; amount: number }[];
+}
+
+export function getRefund(creditNote: string): Promise<RefundDetail> {
+  return query<RefundDetail>("returns.get_refund", { credit_note: creditNote });
+}

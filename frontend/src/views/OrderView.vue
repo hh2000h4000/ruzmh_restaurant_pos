@@ -3,7 +3,7 @@ import { computed, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 
 import { recordView } from "@/api/activity";
-import type { ModifierChoice, OpenOrder, OrderLine } from "@/api/order";
+import { whatOpens, type ModifierChoice, type OpenOrder, type OrderLine } from "@/api/order";
 import { reprintReceipt } from "@/api/printing";
 import AppIcon from "@/components/AppIcon.vue";
 import BaseDialog from "@/components/BaseDialog.vue";
@@ -16,6 +16,7 @@ import NoteEditor from "@/components/order/NoteEditor.vue";
 import OrderPanel from "@/components/order/OrderPanel.vue";
 import OrderTypeChangeDialog from "@/components/order/OrderTypeChangeDialog.vue";
 import ReasonDialog from "@/components/order/ReasonDialog.vue";
+import RefundDialog from "@/components/order/RefundDialog.vue";
 import ActivityDialog from "@/components/order/ActivityDialog.vue";
 import JoinBillDialog from "@/components/order/JoinBillDialog.vue";
 import JoinTablesDialog from "@/components/order/JoinTablesDialog.vue";
@@ -592,16 +593,25 @@ async function openAt(table: FloorTable, type: OrderType): Promise<void> {
  * cashier is actually looking at — and the watch below does the reading.
  */
 function switchTo(order: OpenOrder): void {
-  // D-075 — a queued sale has no order to open: it is one entry in the queue
-  // until the server has it. Listing it answers "where did my bill go"; opening
-  // it would be a promise nothing can keep.
-  if (order.status === "queued") {
+  // Which document this row is, decided in `api/order` where it can be tested:
+  // breaking it here left every test green (`D-171`).
+  const target = whatOpens(order);
+
+  if (target.kind === "queued") {
     orders.error = t("offline.queuedSale");
     return;
   }
 
-  openOrder(order.name);
+  if (target.kind === "refund") {
+    refundOpen.value = target.creditNote;
+    return;
+  }
+
+  openOrder(target.orderName);
 }
+
+/** The credit note being looked at, or `null` (`D-171`). */
+const refundOpen = ref<string | null>(null);
 
 function openOrder(orderName: string): void {
   pane.value = "items";
@@ -628,6 +638,26 @@ async function reprint(order: OpenOrder): Promise<void> {
   try {
     await reprintReceipt(invoice);
     printNotice.value = t("print.receiptSent", { number: formatNumber(order.daily_number) });
+  } catch (cause) {
+    floorError.value = cause instanceof Error ? cause.message : String(cause);
+  }
+}
+
+/**
+ * Paper again for the refund on screen (`D-171`).
+ *
+ * The sheet knows which credit note it is showing; the printing lives here with
+ * every other reprint, so there is one path to a printer and one place that says
+ * whether the paper went (`D-074`).
+ */
+async function reprintRefund(dailyNumber: number): Promise<void> {
+  if (!refundOpen.value) return;
+
+  printNotice.value = null;
+  floorError.value = null;
+  try {
+    await reprintReceipt(refundOpen.value);
+    printNotice.value = t("print.receiptSent", { number: formatNumber(dailyNumber) });
   } catch (cause) {
     floorError.value = cause instanceof Error ? cause.message : String(cause);
   }
@@ -1722,6 +1752,14 @@ async function send(): Promise<void> {
       :busy="orders.busy"
       @confirm="confirmCancel"
       @close="cancelling = false"
+    />
+
+    <!-- What a refund actually took back — read-only (`D-171`). -->
+    <RefundDialog
+      :open="Boolean(refundOpen)"
+      :credit-note="refundOpen"
+      @reprint="reprintRefund"
+      @close="refundOpen = null"
     />
   </main>
 </template>

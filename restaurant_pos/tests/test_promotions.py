@@ -1080,8 +1080,7 @@ class AKabsaAndAnyDrinkFree(BuyTwoGetTheThirdFree):
 			item_scope="specific_items",
 			applicable_items=[{"item": ITEM}],
 			free_item=self.cheap_item,
-			free_qty=1,
-			**fields,
+			**{"free_qty": 1, **fields},
 		)
 
 	def test_the_drink_on_the_bill_comes_free(self):

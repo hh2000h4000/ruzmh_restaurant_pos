@@ -906,24 +906,179 @@ class TheBillsStorySaysTheOfferHappened(PromotionTestBase):
 		)
 
 
-class ASilentPromotionIsRefused(PromotionTestBase):
-	"""`D-074` — the DocType offers two types the engine cannot apply.
+class BuyTwoGetTheThirdFree(PromotionTestBase):
+	"""`D-173` — the offer the user named as what makes a promotions engine good.
 
-	Both are refused at the door rather than saved and ignored. A promotion that
-	looks configured and does nothing is the report nobody can act on: it reads
-	as active in the list, and the shop finds out when a guest who was promised
-	an offer does not get it.
+	*Buy 2 get the 3rd free.* It needs no screen: the guest already ordered the
+	dishes, so the offer takes the price of the free ones off lines that are on
+	the bill. Three rules, all of them researched rather than invented —
 
-	**`free_item` was not refused, and that was the whole defect** (`D-169`). It
-	validated, saved, and sat among the live offers while `promotions.SUPPORTED`
-	quietly excluded it — one branch above the neighbour that refuses correctly.
-	Refusing one and not the other is worse than refusing neither, because the
-	record then looks like the feature exists.
+	1. **the cheapest units are the free ones**, which is the only reading a
+	   guest accepts: buy two get one on a kebab and a soup hands back the soup;
+	2. **the offer repeats** — six units on *buy 2 get 1* give two free, not one;
+	3. **units are counted across every line the offer covers**, not per dish, so
+	   the same basket qualifies however the cashier keyed it.
 	"""
 
-	def test_buy_x_get_y_says_it_is_not_available(self):
-		with self.assertRaises(frappe.ValidationError):
-			self._promotion(title="RPOS test bogo", promotion_type="buy_x_get_y", discount_value=1)
+	@classmethod
+	def setUpClass(cls):
+		"""A second item at a different price, so "cheapest" means something."""
+		super().setUpClass()
+		cls.cheap_item = "RPOS-TEST-WATER"
+
+		if not frappe.db.exists("Item", cls.cheap_item):
+			frappe.get_doc(
+				{
+					"doctype": "Item",
+					"item_code": cls.cheap_item,
+					"item_name": "RPOS Test Water",
+					"pos_display_name_ar": "ماء الاختبار",
+					"item_group": frappe.db.get_value("Item", ITEM, "item_group"),
+					"stock_uom": "Nos",
+					"is_stock_item": 0,
+					"is_sales_item": 1,
+					"include_item_in_manufacturing": 0,
+				}
+			).insert(ignore_permissions=True)
+
+		existing = frappe.db.get_value(
+			"Item Price", {"item_code": cls.cheap_item, "price_list": cls.price_list}, "name"
+		)
+		if existing:
+			frappe.db.set_value("Item Price", existing, "price_list_rate", 5)
+		else:
+			frappe.get_doc(
+				{
+					"doctype": "Item Price",
+					"item_code": cls.cheap_item,
+					"price_list": cls.price_list,
+					"selling": 1,
+					"price_list_rate": 5,
+				}
+			).insert(ignore_permissions=True)
+
+		frappe.db.commit()
+
+	def _bogo(self, buy=2, get=1, **fields):
+		return self._promotion(
+			title="RPOS test bogo",
+			title_ar="اشترِ ٢ والثالث مجاناً",
+			promotion_type="buy_x_get_y",
+			buy_qty=buy,
+			get_qty=get,
+			**fields,
+		)
+
+	def test_three_units_hand_one_back(self):
+		self._bogo()
+
+		order = self._bill(qty=3)  # 75.00
+
+		self.assertEqual(order.promotion_amount, 25.0)
+		self.assertEqual(order.subtotal - order.promotion_amount, 50.0)
+
+	def test_two_units_are_not_enough(self):
+		"""Below the threshold there is no offer — and it is not on offer either,
+		because a promotion worth nothing is not something to show a cashier."""
+		self._bogo()
+
+		order = self._bill(qty=2)
+
+		self.assertEqual(order.promotion_amount, 0.0)
+		self.assertEqual([row.title for row in promotions.active_for(order)], [])
+
+	def test_it_repeats_rather_than_firing_once(self):
+		"""Six units give two free. An offer that fired once and stopped would be
+		withdrawn mid-basket with nothing saying so."""
+		self._bogo()
+
+		order = self._bill(qty=6)  # 150.00
+
+		self.assertEqual(order.promotion_amount, 50.0)
+
+	def test_the_cheapest_units_are_the_free_ones(self):
+		"""Two burgers at 25 and one water at 5: the water is what comes free."""
+		self._bogo()
+
+		order = self._order()
+		orders.add_item(order, item=ITEM, qty=2)
+		orders.add_item(order, item=self.cheap_item, qty=1)
+		order.reload()
+
+		self.assertEqual(order.promotion_amount, 5.0, "the water, not a burger")
+
+	def test_units_are_counted_across_lines_not_per_dish(self):
+		"""Two burgers and a water are three units, so the offer fires — even
+		though no single line reaches three."""
+		self._bogo()
+
+		order = self._order()
+		orders.add_item(order, item=ITEM, qty=2)
+		orders.add_item(order, item=self.cheap_item, qty=1)
+		order.reload()
+
+		self.assertGreater(order.promotion_amount, 0)
+
+	def test_the_mark_lands_on_the_line_that_lost_the_unit(self):
+		"""**Not spread across the bill.** Specific units are free, so the marks
+		are exactly those — worked out by the same function that priced them
+		(`D-166`)."""
+		self._bogo()
+
+		order = self._order()
+		orders.add_item(order, item=ITEM, qty=2)
+		orders.add_item(order, item=self.cheap_item, qty=1)
+		order.reload()
+
+		self.assertEqual(promotions.per_line(order), {2: 5.0})
+
+	def test_it_only_counts_the_items_it_covers(self):
+		"""Scoped to one item, a bill of two others does not reach the threshold."""
+		self._bogo(
+			item_scope="specific_items",
+			applicable_items=[{"item": self.cheap_item}],
+		)
+
+		order = self._order()
+		orders.add_item(order, item=ITEM, qty=3)
+		order.reload()
+
+		self.assertEqual(order.promotion_amount, 0.0)
+
+	def test_buy_one_get_one_takes_half_of_an_even_bill(self):
+		"""The user's other example, and the arithmetic that catches an
+		off-by-one: four units on *buy 1 get 1* are two free, not three."""
+		self._bogo(buy=1, get=1)
+
+		order = self._bill(qty=4)  # 100.00
+
+		self.assertEqual(order.promotion_amount, 50.0)
+
+
+class ASilentPromotionIsRefused(PromotionTestBase):
+	"""`D-074` — a promotion that looks configured and does nothing.
+
+	It reads as active in the list, and the shop finds out when a guest who was
+	promised an offer does not get it. So a reward the engine cannot honour is
+	refused at the door, and a reward it *can* honour is refused while
+	half-configured.
+
+	**`free_item` was not refused, and that was the whole defect** (`D-169`): it
+	validated, saved, and sat among the live offers while `promotions.SUPPORTED`
+	quietly excluded it. `buy_x_get_y` had the same hole and was shut for it;
+	its fields have since arrived and it is built (`D-173`), which is what the
+	comment on that branch always said would happen.
+	"""
+
+	def test_a_buy_x_get_y_with_no_quantities_is_refused(self):
+		"""Built now, and still not half-configurable.
+
+		"Buy 0" is free food and "get 0" is an offer that gives nothing. Either
+		would save, read as active, and be discovered at the till.
+		"""
+		for fields in ({"buy_qty": 0, "get_qty": 1}, {"buy_qty": 2, "get_qty": 0}, {}):
+			with self.subTest(fields=fields), self.assertRaises(frappe.ValidationError):
+				self._promotion(title="RPOS test bogo", promotion_type="buy_x_get_y", **fields)
 
 	def test_a_free_item_says_it_is_not_available(self):
 		"""Named item and all: there is no shape of this the engine can honour."""

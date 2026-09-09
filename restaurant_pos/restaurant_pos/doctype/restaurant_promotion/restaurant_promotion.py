@@ -81,17 +81,16 @@ class RestaurantPromotion(Document):
 			)
 
 		elif self.promotion_type == "buy_x_get_y":
-			# **Refused rather than accepted and ignored** (`D-074`, `D-163`).
-			# The DocType offers this type and carries nowhere to say how many to
-			# buy or how many to get, so saving it would produce a promotion that
-			# looks configured and does nothing — which is the report nobody can
-			# act on. The fields arrive with the reward that needs them.
-			frappe.throw(
-				_(
-					"Buy X get Y is not available yet. Use a free item, or a percentage "
-					"on the items it applies to."
-				)
-			)
+			# The fields arrived with the reward that needed them (`D-163`,
+			# `D-173`). Both are required, and both have to be at least one: a
+			# "buy 0" offer is free food, and a "get 0" offer is an offer that
+			# gives nothing — either would save, read as active, and be somebody
+			# discovering it at the till.
+			if int(self.buy_qty or 0) < 1:
+				frappe.throw(_("Buy Quantity must be at least one."))
+
+			if int(self.get_qty or 0) < 1:
+				frappe.throw(_("Get Free must be at least one."))
 
 		if flt(self.min_order_amount) < 0:
 			frappe.throw(_("A minimum order amount cannot be negative."))

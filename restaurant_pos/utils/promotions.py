@@ -52,6 +52,8 @@ FIELDS = (
 	"promotion_type",
 	"discount_value",
 	"min_order_amount",
+	"buy_qty",
+	"get_qty",
 	"free_item",
 	"free_item_group",
 	"free_qty",
@@ -64,17 +66,18 @@ WEEKDAYS = ("monday", "tuesday", "wednesday", "thursday", "friday", "saturday", 
 
 #: What the engine takes off a bill on its own.
 #:
-#: **`free_item` is not here yet, and that is a scope line rather than an
-#: oversight.** A free item is not a discount: it is a *line*, and where the
-#: reward names a group — *any drink with a kabsa* — somebody has to choose
-#: which drink. That is a question for the cashier and the guest, so it needs a
-#: screen, and a promotion that quietly took the price of a drink off without
-#: anybody being given one would be worse than none.
+#: **`free_item` is not here, and that is a scope line rather than an oversight.**
+#: A free item is not a discount: it is a *line*, and where the reward names a
+#: group — *any drink with a kabsa* — somebody has to choose which drink. That is
+#: a question for the cashier and the guest, so it needs a screen, and a
+#: promotion that quietly took the price of a drink off without anybody being
+#: given one would be worse than none. It is refused at validation rather than
+#: accepted and ignored (`D-074`, `D-169`).
 #:
-#: `buy_x_get_y` is not here either, for a harder reason: the DocType offers it
-#: and carries nowhere to say how many to buy or to get. It is refused at
-#: validation rather than accepted and ignored (`D-074`).
-SUPPORTED = ("percentage", "fixed_amount")
+#: `buy_x_get_y` **is** here now (`D-173`). It needs no screen: the guest already
+#: ordered the dishes, and the offer takes the price of the free ones off lines
+#: that are on the bill.
+SUPPORTED = ("percentage", "fixed_amount", "buy_x_get_y")
 
 
 def active_for(order, total: float | None = None) -> list[frappe._dict]:
@@ -156,10 +159,58 @@ def benefit_of(promotion, order) -> float:
 		# 30, not 50, and certainly does not hand money back.
 		return flt(min(flt(promotion.discount_value), base), 2)
 
+	if promotion.promotion_type == "buy_x_get_y":
+		return flt(sum(_free_units(promotion, order).values()), 2)
+
 	if promotion.promotion_type == "free_item":
 		return flt(_free_item_value(promotion) * max(1, int(promotion.free_qty or 1)), 2)
 
 	return 0.0
+
+
+def _free_units(promotion, order) -> dict[int, float]:
+	"""Which lines lose how much to a *buy X get Y* offer (`D-173`).
+
+	**The cheapest units are the free ones**, which is what every till of this
+	kind does and the only reading a guest will accept: buy two get one on a
+	kebab and a soup hands back the soup, not the kebab.
+
+	**And the offer repeats.** Buy two get one on six units gives two free, not
+	one — a rule that fired once and then stopped would have the shop advertising
+	an offer it silently withdraws mid-basket.
+
+	**Counted across every line the offer covers, not per dish.** *Buy 2 get 1 on
+	drinks* means three drinks, and a guest who took two juices and a water has
+	bought three drinks. Counting per line would make the same basket qualify or
+	not depending on how the cashier happened to key it.
+
+	Returns what comes off each line, so the figure and the marks on the screen
+	are the same arithmetic rather than two that can drift (§5.5).
+	"""
+	buy, get = max(0, int(promotion.buy_qty or 0)), max(0, int(promotion.get_qty or 0))
+	if not buy or not get:
+		return {}
+
+	# One entry per unit, because the offer counts units and not lines: a line of
+	# three burgers is three chances at the threshold.
+	units = []
+	for row in _covered_lines(promotion, order):
+		count = int(flt(row.qty))
+		if count <= 0:
+			continue
+
+		each = flt(row.amount) / flt(row.qty)
+		units.extend((each, row.idx) for _ in range(count))
+
+	free_count = (len(units) // (buy + get)) * get
+	if not free_count:
+		return {}
+
+	shares: dict[int, float] = {}
+	for each, idx in sorted(units)[:free_count]:
+		shares[idx] = flt(shares.get(idx, 0.0) + each, 2)
+
+	return shares
 
 
 def blocks_a_discount(order) -> str:
@@ -211,10 +262,19 @@ def per_line(order) -> dict[int, float]:
 		return {}
 
 	promotion = frappe.db.get_value(
-		"Restaurant Promotion", order.promotion, ["name", "item_scope"], as_dict=True
+		"Restaurant Promotion",
+		order.promotion,
+		["name", "item_scope", "promotion_type", "buy_qty", "get_qty"],
+		as_dict=True,
 	)
 	if not promotion:
 		return {}
+
+	# **A buy-X-get-Y offer does not spread across the bill.** Specific units are
+	# free — the cheapest ones — so the marks are exactly those, worked out by
+	# the same function that priced them.
+	if promotion.promotion_type == "buy_x_get_y":
+		return _free_units(promotion, order)
 
 	covered = _covered_lines(promotion, order)
 	base = flt(sum(flt(row.amount) for row in covered), 2)

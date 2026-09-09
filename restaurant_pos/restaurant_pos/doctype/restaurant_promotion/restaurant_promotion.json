@@ -36,6 +36,8 @@
   "promotion_type",
   "discount_value",
   "benefit_cb",
+  "buy_qty",
+  "get_qty",
   "free_item",
   "free_item_group",
   "free_qty",
@@ -215,6 +217,22 @@
   {
    "fieldname": "benefit_cb",
    "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "buy_qty",
+   "fieldtype": "Int",
+   "label": "Buy Quantity",
+   "depends_on": "eval:doc.promotion_type=='buy_x_get_y'",
+   "mandatory_depends_on": "eval:doc.promotion_type=='buy_x_get_y'",
+   "description": "How many have to be bought before any come free. Counted across every item the offer covers, not per dish (D-173)."
+  },
+  {
+   "fieldname": "get_qty",
+   "fieldtype": "Int",
+   "label": "Get Free",
+   "depends_on": "eval:doc.promotion_type=='buy_x_get_y'",
+   "mandatory_depends_on": "eval:doc.promotion_type=='buy_x_get_y'",
+   "description": "How many come free once the buy quantity is reached. **The cheapest ones are the free ones**, and the offer repeats: buy 2 get 1 gives two free on six (D-173)."
   },
   {
    "depends_on": "eval:doc.promotion_type=='free_item'",

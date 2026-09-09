@@ -12,7 +12,13 @@ order types. Frappe's ``fixtures`` hook re-imports its records on every
 configured. So each record here is created only when it is missing, and is
 never touched again.
 
-Refs: 10_Implementation_Plan.md Phase 1 task 3, BR-001, BR-031, 08 §3
+**Adding a right here is only half the change** (`D-167`). This module runs at
+install and never again, so a field added later reaches a site installed before
+it at `0` — the column was born empty and nothing writes the shipped value. It
+needs a patch beside `patches/v1_0/grant_missing_permission_defaults.py`, and
+`tests/test_shipped_defaults.py` turns the gate red until there is one.
+
+Refs: 10_Implementation_Plan.md Phase 1 task 3, BR-001, BR-031, 08 §3, D-167
 """
 
 import frappe

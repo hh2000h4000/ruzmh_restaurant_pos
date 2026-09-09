@@ -66,18 +66,18 @@ WEEKDAYS = ("monday", "tuesday", "wednesday", "thursday", "friday", "saturday", 
 
 #: What the engine takes off a bill on its own.
 #:
-#: **`free_item` is not here, and that is a scope line rather than an oversight.**
-#: A free item is not a discount: it is a *line*, and where the reward names a
-#: group — *any drink with a kabsa* — somebody has to choose which drink. That is
-#: a question for the cashier and the guest, so it needs a screen, and a
-#: promotion that quietly took the price of a drink off without anybody being
-#: given one would be worse than none. It is refused at validation rather than
-#: accepted and ignored (`D-074`, `D-169`).
+#: **All four, and none of them needs a screen** (`D-173`, `D-175`).
 #:
-#: `buy_x_get_y` **is** here now (`D-173`). It needs no screen: the guest already
-#: ordered the dishes, and the offer takes the price of the free ones off lines
-#: that are on the bill.
-SUPPORTED = ("percentage", "fixed_amount", "buy_x_get_y")
+#: The last two were shut for a while on the reasoning that a reward has to be
+#: *given*, and giving needs somebody to choose. That was wrong, and the way it
+#: was wrong is worth keeping: **the guest chooses by ordering.** The cashier
+#: rings the drink the guest asked for, and the offer takes its price off a line
+#: already on the ticket — which is what every till of this kind does.
+#:
+#: What none of them does is **add** a line. A promotion that put a drink on a
+#: bill nobody ordered would charge nothing for it and tell the kitchen to make
+#: it. If the reward is not on the bill, the offer is simply not on offer.
+SUPPORTED = ("percentage", "fixed_amount", "buy_x_get_y", "free_item")
 
 
 def active_for(order, total: float | None = None) -> list[frappe._dict]:
@@ -109,7 +109,12 @@ def active_for(order, total: float | None = None) -> list[frappe._dict]:
 	# Highest priority first; on a tie the customer's better deal. Both
 	# descending, so one `sort` says the whole rule.
 	eligible.sort(key=lambda row: (flt(row.priority), flt(row.benefit)), reverse=True)
-	return [row for row in eligible if flt(row.benefit) > 0 or row.promotion_type == "free_item"]
+	# **Worth nothing means not on offer.** `free_item` used to be exempt here,
+	# because its benefit was a notional list price rather than money off this
+	# bill. It is priced from the bill now (`D-175`), so the honest test covers
+	# every reward: an offer whose free drink is not on the ticket takes nothing
+	# off, and showing it to a cashier would be offering what cannot be given.
+	return [row for row in eligible if flt(row.benefit) > 0]
 
 
 def best_for(order, total: float | None = None) -> frappe._dict | None:
@@ -163,7 +168,7 @@ def benefit_of(promotion, order) -> float:
 		return flt(sum(_free_units(promotion, order).values()), 2)
 
 	if promotion.promotion_type == "free_item":
-		return flt(_free_item_value(promotion) * max(1, int(promotion.free_qty or 1)), 2)
+		return flt(sum(_free_reward_units(promotion, order).values()), 2)
 
 	return 0.0
 
@@ -191,10 +196,19 @@ def _free_units(promotion, order) -> dict[int, float]:
 	if not buy or not get:
 		return {}
 
-	# One entry per unit, because the offer counts units and not lines: a line of
-	# three burgers is three chances at the threshold.
-	units = []
-	for row in _covered_lines(promotion, order):
+	units = _units_of(_covered_lines(promotion, order))
+	return _cheapest(units, (len(units) // (buy + get)) * get)
+
+
+def _units_of(lines: list) -> list[tuple[float, int]]:
+	"""One entry per unit, priced, with the line it came from.
+
+	**Offers of this kind count units, not lines**: a line of three burgers is
+	three chances at a threshold, and a guest who took two juices and a water
+	took three drinks however the cashier keyed them.
+	"""
+	units: list[tuple[float, int]] = []
+	for row in lines:
 		count = int(flt(row.qty))
 		if count <= 0:
 			continue
@@ -202,15 +216,59 @@ def _free_units(promotion, order) -> dict[int, float]:
 		each = flt(row.amount) / flt(row.qty)
 		units.extend((each, row.idx) for _ in range(count))
 
-	free_count = (len(units) // (buy + get)) * get
-	if not free_count:
+	return units
+
+
+def _cheapest(units: list[tuple[float, int]], count: int) -> dict[int, float]:
+	"""What comes off each line when ``count`` units are given away.
+
+	**The cheapest are the free ones**, which is what every till of this kind
+	does and the only reading a guest accepts: buy two get one on a kebab and a
+	soup hands back the soup, not the kebab.
+
+	One function for both rewards, because they are one question — *which units
+	are free and what do they cost* — and two copies of it is how a bill comes to
+	be discounted on one set and to say it was discounted on another (§5.5).
+	"""
+	if count <= 0:
 		return {}
 
 	shares: dict[int, float] = {}
-	for each, idx in sorted(units)[:free_count]:
+	for each, idx in sorted(units)[:count]:
 		shares[idx] = flt(shares.get(idx, 0.0) + each, 2)
 
 	return shares
+
+
+def _free_reward_units(promotion, order) -> dict[int, float]:
+	"""Which lines a *free item* reward comes off (`D-175`).
+
+	**The guest chooses by ordering it, so no screen is needed** — and that is a
+	correction to `D-163`, which shut this reward on the reasoning that *any
+	drink with a kabsa* leaves somebody to pick the drink. Somebody does: the
+	guest, at the counter, and the cashier rings it up. The offer then takes its
+	price off, which is what the research says every till of this kind does — it
+	discounts a line on the ticket rather than inventing one.
+
+	**And it never adds a line.** A promotion that put a drink on a bill nobody
+	ordered would be worse than none: the guest is charged nothing for it and the
+	kitchen is told to make it. If the reward is not on the bill the offer simply
+	is not on offer, and `active_for` drops it for being worth nothing.
+
+	`free_qty` units come free, cheapest first — the same rule as its neighbour,
+	from the same function.
+	"""
+	lines = [row for row in (order.items or []) if row.status != "void"]
+
+	if promotion.free_item:
+		lines = [row for row in lines if row.item == promotion.free_item]
+	elif promotion.free_item_group:
+		groups = _groups_under([promotion.free_item_group])
+		lines = [row for row in lines if _group_of(row.item) in groups]
+	else:
+		return {}
+
+	return _cheapest(_units_of(lines), max(1, int(promotion.free_qty or 1)))
 
 
 def blocks_a_discount(order) -> str:
@@ -264,17 +322,29 @@ def per_line(order) -> dict[int, float]:
 	promotion = frappe.db.get_value(
 		"Restaurant Promotion",
 		order.promotion,
-		["name", "item_scope", "promotion_type", "buy_qty", "get_qty"],
+		[
+			"name",
+			"item_scope",
+			"promotion_type",
+			"buy_qty",
+			"get_qty",
+			"free_item",
+			"free_item_group",
+			"free_qty",
+		],
 		as_dict=True,
 	)
 	if not promotion:
 		return {}
 
-	# **A buy-X-get-Y offer does not spread across the bill.** Specific units are
-	# free — the cheapest ones — so the marks are exactly those, worked out by
-	# the same function that priced them.
+	# **A reward that frees whole units does not spread across the bill.**
+	# Specific units are free — the cheapest ones — so the marks are exactly
+	# those, worked out by the same function that priced them.
 	if promotion.promotion_type == "buy_x_get_y":
 		return _free_units(promotion, order)
+
+	if promotion.promotion_type == "free_item":
+		return _free_reward_units(promotion, order)
 
 	covered = _covered_lines(promotion, order)
 	base = flt(sum(flt(row.amount) for row in covered), 2)
@@ -522,25 +592,3 @@ def _groups_under(chosen: list[str]) -> set[str]:
 
 def _group_of(item: str) -> str | None:
 	return frappe.get_cached_value("Item", item, "item_group") if item else None
-
-
-def _free_item_value(promotion) -> float:
-	"""What the free item is worth, for comparing this promotion against another.
-
-	A group-scoped reward — *any drink with a kabsa* — is valued at the dearest
-	item in the group. The guest has not chosen yet, and sizing the offer at the
-	cheapest would let a smaller promotion out-rank one that is actually worth
-	more.
-	"""
-	if promotion.free_item:
-		return flt(frappe.get_cached_value("Item", promotion.free_item, "standard_rate"))
-
-	if not promotion.free_item_group:
-		return 0.0
-
-	rates = frappe.get_all(
-		"Item",
-		filters={"item_group": promotion.free_item_group, "disabled": 0},
-		pluck="standard_rate",
-	)
-	return max((flt(rate) for rate in rates), default=0.0)

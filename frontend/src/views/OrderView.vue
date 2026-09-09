@@ -225,6 +225,7 @@ const {
   sort: floorSort,
   staleAt: floorStaleAt,
   carriedCount: floorCarriedCount,
+  includeCarried: floorIncludeCarried,
   view: floorView,
   visible: floorOrders,
 } = useOpenOrders();
@@ -1309,6 +1310,7 @@ async function send(): Promise<void> {
             :view="floorView"
             :stale-at="floorStaleAt"
             :carried-count="floorCarriedCount"
+            :include-carried="floorIncludeCarried"
             :may-reprint="session.can('can_reprint_receipt')"
             :older="floorOlder"
             :searching-older="floorSearchingOlder"
@@ -1318,6 +1320,7 @@ async function send(): Promise<void> {
             @floor-plan="pane = 'tables'"
             @update:scope="floorScope = $event"
             @update:view="floorView = $event"
+            @update:include-carried="floorIncludeCarried = $event"
           />
 
           <FloorPane

@@ -60,8 +60,20 @@ export function useOpenOrders() {
    */
   const sort = ref<OrderSort>("newest");
 
-  /** Which orders to ask for: open, drafts, today's history, or everything. */
+  /** Which orders to ask for: open, today's history, refunds, or everything. */
   const view = ref<OrderView>("open");
+
+  /**
+   * Whether the open list also holds bills carried from a day that has ended.
+   *
+   * **Off by default, and a switch rather than a tab** (`D-168`). A carried bill
+   * is an open bill — the tabs are statuses, and age is not one — so it widens
+   * the list the cashier is already looking at. Off by default because the
+   * ordinary list must stay one business day wide: it is pulled on every action
+   * and on every terminal, and unbounded it grows with the age of the shop
+   * (`D-158`, measured at four seconds for three thousand bills).
+   */
+  const includeCarried = ref(false);
 
   /** "Mine" is the default even for a supervisor: the smaller list is the calmer one. */
   const scope = ref<OrderScope>("mine");
@@ -215,7 +227,7 @@ export function useOpenOrders() {
 
     loading.value = true;
     try {
-      rows.value = await listOrders(profile, view.value);
+      rows.value = await listOrders(profile, view.value, includeCarried.value);
       error.value = null;
       staleAt.value = null;
       // D-080 — so the next outage still has a day's history to show.
@@ -276,6 +288,10 @@ export function useOpenOrders() {
   // what is already here: today's closed orders were never fetched.
   watch(view, () => void refresh());
 
+  // The same question asked of the server, not a filter over rows already here:
+  // the carried ones were never fetched.
+  watch(includeCarried, () => void refresh());
+
   // D-081 — the line came back. Take a fresh copy of every tab now, while it is
   // there to take, rather than waiting for the next outage to discover that the
   // one on the device is a day old.
@@ -298,7 +314,7 @@ export function useOpenOrders() {
 
     await warm(
       profile,
-      (["open", "carried", "closed", "returned", "all"] as OrderView[]).filter(
+      (["open", "closed", "returned", "all"] as OrderView[]).filter(
         (candidate) => candidate !== view.value,
       ),
     );
@@ -329,6 +345,7 @@ export function useOpenOrders() {
     sort,
     staleAt,
     view,
+    includeCarried,
     carriedCount,
     visible,
   };

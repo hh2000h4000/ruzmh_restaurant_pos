@@ -1,16 +1,20 @@
 // @vitest-environment jsdom
 
 /**
- * The carried tab, and the number on it (`D-164`).
+ * The switch that widens the open list, and the number on it (`D-164`, `D-168`).
  *
- * **The count is not decoration.** A tab labelled "carried over" that has to be
- * opened to learn whether it holds three bills or three hundred hides the number
- * as well as the old mixed list did — and that list is how a shop came to be
- * carrying a year of bills without anyone deciding to (`D-158`).
+ * **The count is not decoration.** A switch that has to be turned on to learn
+ * whether it holds three bills or three hundred hides the number as well as the
+ * old mixed list did — and that list is how a shop came to be carrying a year of
+ * bills without anyone deciding to (`D-158`).
+ *
+ * **And it is a switch rather than a tab**, which is the correction the user
+ * asked for: a carried bill is an open bill, the tabs are statuses (`D-146`),
+ * and Toast keeps unpaid checks from the previous day in the Open tab too.
  *
  * A component test because no backend gate can see a label: the endpoint can
- * count perfectly and the tab still read "carried over" with nothing beside it,
- * and the suite would be green either way (`D-130`).
+ * count perfectly and the control still read nothing beside it, and the suite
+ * would be green either way (`D-130`).
  */
 import { mount } from "@vue/test-utils";
 import { describe, expect, it, vi } from "vitest";
@@ -43,36 +47,57 @@ function tabs(wrapper: ReturnType<typeof panel>) {
   return wrapper.findAll('[role="tab"]').map((button) => button.text());
 }
 
-describe("the tab that says how much is carried", () => {
-  it("is offered beside the floor", () => {
-    expect(tabs(panel())).toContain(t("orders.viewCarried"));
+describe("asking for the bills carried from a day that has ended", () => {
+  it("is offered inside the open list, not as a tab of its own", () => {
+    const wrapper = panel({ carriedCount: 312 });
+
+    expect(tabs(wrapper)).toEqual([
+      t("orders.viewOpen"),
+      t("orders.viewClosed"),
+      t("orders.viewReturned"),
+      t("orders.viewAll"),
+    ]);
+    expect(wrapper.find('input[type="checkbox"]').exists()).toBe(true);
   });
 
-  it("wears the count, so nobody has to open it to learn the number", () => {
-    expect(tabs(panel({ carriedCount: 312 }))).toContain(`${t("orders.viewCarried")} (312)`);
+  it("wears the count, so nobody has to turn it on to learn the number", () => {
+    expect(panel({ carriedCount: 312 }).text()).toContain(
+      t("orders.showCarried", { count: "312" }),
+    );
   });
 
   /**
-   * Nothing to clear is not a figure worth reading, and a badge that is always
-   * there stops being noticed — which is the whole value of this one.
+   * An empty floor is the whole answer, and a control that is always there with
+   * "(0)" beside it stops being read.
    */
-  it("says nothing when there is nothing carried", () => {
-    expect(tabs(panel({ carriedCount: 0 }))).toContain(t("orders.viewCarried"));
+  it("is not drawn at all when nothing is carried", () => {
+    expect(panel({ carriedCount: 0 }).find('input[type="checkbox"]').exists()).toBe(false);
+  });
+
+  it("belongs to the open list and to no other tab", () => {
+    const wrapper = panel({ carriedCount: 312, view: "closed" });
+
+    expect(wrapper.find('input[type="checkbox"]').exists()).toBe(false);
   });
 
   /**
-   * The count is fetched separately from the list so a failed count cannot
-   * empty a working floor. Offline it therefore arrives as whatever was last
-   * known — and never as a confident zero, which is the one reading a cashier
-   * would act on.
+   * The control has to say what it is doing. Unbound, the list widens and the
+   * box stays empty — so the cashier taps it again and narrows it back, and the
+   * carried bills flicker in and out with nothing explaining why.
    */
-  it("shows no number rather than a wrong one when none was fetched", () => {
-    expect(tabs(panel())).toContain(t("orders.viewCarried"));
+  it("shows whether it is on", () => {
+    const on = panel({ carriedCount: 312, includeCarried: true });
+    const off = panel({ carriedCount: 312, includeCarried: false });
+
+    expect((on.find('input[type="checkbox"]').element as HTMLInputElement).checked).toBe(true);
+    expect((off.find('input[type="checkbox"]').element as HTMLInputElement).checked).toBe(false);
   });
 
-  it("tells the cashier the backlog is clear rather than showing an empty box", () => {
-    const wrapper = panel({ view: "carried", orders: [] });
+  it("asks the screen to widen the list rather than filtering here", async () => {
+    const wrapper = panel({ carriedCount: 312 });
 
-    expect(wrapper.text()).toContain(t("orders.emptyCarried"));
+    await wrapper.find('input[type="checkbox"]').setValue(true);
+
+    expect(wrapper.emitted("update:includeCarried")).toEqual([[true]]);
   });
 });

@@ -500,16 +500,22 @@ HISTORY_STATUSES = ("closed", "cancelled")
 #:
 #: A "draft" view was here and is gone on purpose (`D-122`): a draft is an empty
 #: bill, so the tab filtered to bills with nothing on them.
-VIEWS = ("open", "carried", "closed", "returned", "all")
-
-#: How many carried bills one tab will fetch at once.
+#: The views, and **every one of them is a status** (`D-146`, `D-168`).
 #:
-#: The floor is bounded by the day and cannot grow; this list is bounded by
-#: nothing but how long a shop has been leaving bills open, and the measurement
-#: in `D-158` puts three thousand of them at four seconds. So it is capped, the
-#: oldest first — the ones that have waited longest are the ones to clear — and
-#: **the tab reports the true count beside the cap**, because a list that says
-#: "100" when there are 312 is the lie this whole split exists to remove.
+#: Open, closed today, refunded today, everything. A bill's *age* is not on this
+#: axis: a carried bill is an open bill, and it is reached by asking for it
+#: inside the open view rather than by a view of its own — which is what every
+#: till of this kind does, Toast included.
+VIEWS = ("open", "closed", "returned", "all")
+
+#: How many carried bills one request will fetch at once.
+#:
+#: The floor is bounded by the business day and cannot grow; the carried ones are
+#: bounded by nothing but how long a shop has been leaving bills open, and the
+#: measurement in `D-158` puts three thousand of them at four seconds. So they
+#: are capped, and **the count beside the switch reports the true total**: a list
+#: that says "100" where there are 312 is the lie this whole split exists to
+#: remove.
 CARRIED_LIMIT = 100
 
 #: A day's history is what a till needs — a reprint, a return, "what did table
@@ -539,14 +545,14 @@ LIST_FIELDS = (
 def count_carried_orders(pos_profile: str) -> dict:
 	"""How many bills are still open from days that have ended (`D-164`).
 
-	**The count is the whole point of moving them.** A tab named "carried" that
-	a cashier has to open to find out whether it holds three bills or three
-	hundred hides the number as surely as the old mixed list did — the shop
-	learns it is carrying a year's worth of bills by feeling the screen go slow,
-	which is exactly what `D-158` refused to accept as a warning.
+	**The count is the whole point of keeping them apart.** A switch labelled
+	"show carried" that a cashier has to turn on to find out whether it holds
+	three bills or three hundred hides the number as surely as the old mixed list
+	did — the shop learns it is carrying a year's worth of bills by feeling the
+	screen go slow, which is exactly what `D-158` refused to accept as a warning.
 
-	So the number is on the tab, always, and this is what puts it there. A count
-	rather than a list: it is asked on every refresh, and it must stay cheap
+	So the number rides on the switch, always, and this is what puts it there. A
+	count rather than a list: it is asked on every refresh, and it must stay cheap
 	however many there are.
 	"""
 	branch = service.branch_of_profile(pos_profile)
@@ -567,8 +573,14 @@ def count_carried_orders(pos_profile: str) -> dict:
 
 
 @frappe.whitelist()
-def list_orders(pos_profile: str, view: str = "open") -> list[dict]:
+def list_orders(pos_profile: str, view: str = "open", include_carried: bool | int = 0) -> list[dict]:
 	"""The orders this till may look at, in one of four views (06 Screen 3).
+
+	``include_carried`` widens the **open** view to bills whose business day has
+	ended (`D-164`). Off by default, so the ordinary list holds one day and
+	cannot grow with the age of the shop — and it is a switch rather than a view
+	of its own, because a carried bill is an open bill and these views are
+	statuses (`D-168`).
 
 	Scoped to the **branch**, not the terminal. An order opened on the waiter's
 	tablet has to be payable at the till, and a takeaway opened by the cashier
@@ -621,7 +633,7 @@ def list_orders(pos_profile: str, view: str = "open") -> list[dict]:
 	orders = []
 	if view in ("open", "all"):
 		orders += _floor(scope)
-	if view in ("carried", "all"):
+	if view == "all" or (view == "open" and cint(include_carried)):
 		orders += _mark_carried(_carried(scope))
 	if view in ("closed", "all"):
 		orders += _closed_today(scope, mine_only=mine_only)

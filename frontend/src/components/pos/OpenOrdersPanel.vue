@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { computed } from "vue";
+
 import type { OpenOrder, OrderView } from "@/api/order";
 import AppIcon from "@/components/AppIcon.vue";
 import OpenOrderCard from "@/components/pos/OpenOrderCard.vue";
@@ -38,8 +40,10 @@ const props = defineProps<{
   /** `null` until somebody searched past today; then, what came back (`D-152`). */
   older?: OpenOrder[] | null;
   searchingOlder?: boolean;
-  /** How many bills are carried, for the tab to say so (`D-164`). */
+  /** How many bills are carried, for the switch to say so (`D-164`). */
   carriedCount?: number;
+  /** Whether the open list currently also holds them (`D-168`). */
+  includeCarried?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -49,6 +53,7 @@ const emit = defineEmits<{
   floorPlan: [];
   "update:scope": [scope: "mine" | "all"];
   "update:view": [view: OrderView];
+  "update:includeCarried": [include: boolean];
 }>();
 
 const layout = defineModel<"list" | "grid">("layout", { default: "list" });
@@ -89,17 +94,24 @@ const SORTS: { key: "oldest" | "newest" | "amount"; label: MessageKey }[] = [
  */
 const EMPTY: Record<OrderView, MessageKey> = {
   open: "home.openOrdersEmpty",
-  carried: "orders.emptyCarried",
   closed: "orders.emptyClosed",
   returned: "orders.emptyReturned",
   all: "orders.emptyAll",
 };
 
+/**
+ * **Every tab is a status** (`D-146`, `D-168`): open, closed today, refunded
+ * today, everything. A bill's *age* is not on this axis — a carried bill is an
+ * open bill — so it is a switch inside the open view rather than a fifth tab.
+ *
+ * It was a fifth tab for a day. The user pushed back: an open bill belongs with
+ * the open bills, and a till does not need more tabs. The research agreed —
+ * Toast keeps unpaid checks from the previous day in the Open tab and separates
+ * them by sort and search, not by a tab — and so did our own `D-146`, which
+ * this had quietly broken.
+ */
 const VIEWS: { key: OrderView; label: MessageKey }[] = [
   { key: "open", label: "orders.viewOpen" },
-  // D-164 — bills still open from a day that has ended. A different job from
-  // serving a table, so a tab of its own rather than the top of this one.
-  { key: "carried", label: "orders.viewCarried" },
   { key: "closed", label: "orders.viewClosed" },
   // FR-9, D-070 — the refunds were only visible inside the bill they came from.
   { key: "returned", label: "orders.viewReturned" },
@@ -107,20 +119,17 @@ const VIEWS: { key: OrderView; label: MessageKey }[] = [
 ];
 
 /**
- * The carried tab wears its count (`D-164`).
+ * The switch wears its count (`D-164`), and appears only when there is one.
  *
- * **Without it the tab hides the number as well as the old list did.** A shop
- * carrying three hundred bills would learn it by opening a tab nobody has a
- * reason to open, which is how the backlog grew unseen in the first place.
+ * **Without the number it hides the backlog as well as the old mixed list did.**
+ * A shop carrying three hundred bills would learn it by turning on a switch
+ * nobody has a reason to touch — which is how the backlog grew unseen.
  *
- * Zero is drawn as a plain label rather than "(0)": nothing to clear is not a
- * figure worth reading, and a badge that is always there stops being noticed.
+ * With nothing carried the switch is not drawn at all: an empty floor is the
+ * whole answer, and a control that is always there with "(0)" beside it stops
+ * being read.
  */
-function tabLabel(option: { key: OrderView; label: MessageKey }): string {
-  if (option.key !== "carried" || !props.carriedCount) return t(option.label);
-
-  return `${t(option.label)} (${formatNumber(props.carriedCount)})`;
-}
+const showCarriedSwitch = computed(() => props.view === "open" && Boolean(props.carriedCount));
 </script>
 
 <template>
@@ -238,9 +247,24 @@ function tabLabel(option: { key: OrderView; label: MessageKey }): string {
           :aria-selected="view === option.key"
           @click="emit('update:view', option.key)"
         >
-          {{ tabLabel(option) }}
+          {{ t(option.label) }}
         </button>
       </div>
+
+      <!-- Bills whose business day has ended: asked for, inside the list they
+           belong to (`D-168`). -->
+      <label
+        v-if="showCarriedSwitch"
+        class="mb-4 flex w-fit cursor-pointer items-center gap-2.5 rounded-[14px] border border-line bg-background px-4 py-2.5 text-xs text-subtle transition-colors duration-100 ease-rpos hover:text-content"
+      >
+        <input
+          type="checkbox"
+          :checked="includeCarried"
+          class="h-4 w-4 accent-primary"
+          @change="emit('update:includeCarried', ($event.target as HTMLInputElement).checked)"
+        >
+        {{ t("orders.showCarried", { count: formatNumber(carriedCount ?? 0) }) }}
+      </label>
 
       <!-- D-080 — the last answer the server gave, with its age on it. -->
       <p

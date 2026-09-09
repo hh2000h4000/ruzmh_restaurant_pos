@@ -449,8 +449,8 @@ class TheFloorHoldsOneDay(OrderTestBase):
 		frappe.db.set_value("Restaurant Order", order.name, "restaurant_shift", yesterday.name)
 		return yesterday
 
-	def _names(self, view):
-		return {row["name"] for row in api.list_orders(self.profile, view)}
+	def _names(self, view, include_carried=0):
+		return {row["name"] for row in api.list_orders(self.profile, view, include_carried)}
 
 	def test_a_bill_from_a_closed_day_leaves_the_floor(self):
 		order = self._order()
@@ -458,18 +458,23 @@ class TheFloorHoldsOneDay(OrderTestBase):
 
 		self.assertNotIn(order.name, self._names("open"))
 
-	def test_and_is_not_lost_but_carried(self):
-		"""**Moved, not hidden.** It is money to collect or a bill to cancel."""
+	def test_and_is_not_lost_but_asked_for(self):
+		"""**Set aside, not hidden** — and asked for inside the open view.
+
+		A carried bill is an open bill (`D-168`), so it is not a view of its own:
+		the switch widens the list a cashier is already looking at, which is what
+		Toast does and what the user said every till they know does.
+		"""
 		order = self._order()
 		self._carry(order)
 
-		self.assertIn(order.name, self._names("carried"))
+		self.assertIn(order.name, self._names("open", include_carried=1))
 
 	def test_todays_bill_stays_on_the_floor(self):
 		order = self._order()
 
 		self.assertIn(order.name, self._names("open"))
-		self.assertNotIn(order.name, self._names("carried"))
+		self.assertIn(order.name, self._names("open", include_carried=1))
 
 	def test_everything_still_means_everything(self):
 		"""`D-151` — a tab named for holding all of them has to hold all of them."""
@@ -504,10 +509,22 @@ class TheFloorHoldsOneDay(OrderTestBase):
 		# to make visible.
 		self.assertEqual(api.count_carried_orders(self.profile)["carried"], before + 1)
 
+	def test_a_view_of_its_own_is_refused(self):
+		"""`D-168` — the views are statuses, and age is not one.
+
+		Kept as a test rather than left to the docstring: "carried" was a view
+		for a day, and a caller that still asks for one must be told, not handed
+		a silently empty list.
+		"""
+		with self.assertRaises(frappe.ValidationError):
+			api.list_orders(self.profile, "carried")
+
 	def test_the_carried_list_is_capped_and_the_count_is_not(self):
 		"""A capped list that reported its own length would say "100" where there
 		are three hundred — the lie this split exists to remove."""
-		self.assertLessEqual(len(api.list_orders(self.profile, "carried")), api.CARRIED_LIMIT)
+		rows = api.list_orders(self.profile, "open", 1)
+
+		self.assertLessEqual(len(rows), api.CARRIED_LIMIT + len(self._names("open")))
 
 	def test_the_newest_carried_bill_is_reachable_even_behind_a_backlog(self):
 		"""**Newest first, and the floor's rule reversed on purpose.**
@@ -522,7 +539,7 @@ class TheFloorHoldsOneDay(OrderTestBase):
 		order = self._order()
 		self._carry(order)
 
-		self.assertIn(order.name, self._names("carried"))
+		self.assertIn(order.name, self._names("open", include_carried=1))
 
 	def test_with_no_day_open_the_floor_is_empty_and_nothing_vanishes(self):
 		"""Between one day and the next, every open bill is carried — which is
@@ -534,6 +551,6 @@ class TheFloorHoldsOneDay(OrderTestBase):
 		frappe.db.set_value("Restaurant Shift", shift, "status", "closed")
 		try:
 			self.assertEqual(self._names("open"), set())
-			self.assertIn(order.name, self._names("carried"))
+			self.assertIn(order.name, self._names("open", include_carried=1))
 		finally:
 			frappe.db.set_value("Restaurant Shift", shift, "status", "open")

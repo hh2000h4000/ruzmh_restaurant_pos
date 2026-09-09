@@ -222,23 +222,31 @@ export interface ModifierChoice {
  * note is not an order — sound, and answering the wrong question: these history
  * tabs are the day's transactions, and a refund is one of them.
  *
- * `carried` is bills still open from a day that has closed (`D-164`) — a
- * different job from serving a table, so a different tab. `open` holds today's
- * floor and nothing older.
+ * **Every one of these is a status, and a bill's age is not one** (`D-168`).
+ * `open` holds today's floor; bills carried from a day that has closed are asked
+ * for *inside* it — a carried bill is an open bill.
  */
-export type OrderView = "open" | "carried" | "closed" | "returned" | "all";
+export type OrderView = "open" | "closed" | "returned" | "all";
 
 /** Branch-wide, not terminal-wide — see the docstring on the endpoint. */
-export function listOrders(posProfile: string, view: OrderView = "open"): Promise<OpenOrder[]> {
-  return query<OpenOrder[]>("order.list_orders", { pos_profile: posProfile, view });
+export function listOrders(
+  posProfile: string,
+  view: OrderView = "open",
+  includeCarried = false,
+): Promise<OpenOrder[]> {
+  return query<OpenOrder[]>("order.list_orders", {
+    pos_profile: posProfile,
+    view,
+    include_carried: includeCarried ? 1 : 0,
+  });
 }
 
 /**
- * How many bills are carried, for the tab to say so without being opened.
+ * How many bills are carried, for the switch to say so without being turned on.
  *
- * A count rather than a list: a tab labelled "carried" that has to be opened to
- * learn whether it holds three bills or three hundred hides the number as surely
- * as the old mixed list did (`D-164`).
+ * A count rather than a list: a switch that has to be turned on to learn whether
+ * it holds three bills or three hundred hides the number as surely as the old
+ * mixed list did (`D-164`).
  */
 export function countCarriedOrders(posProfile: string): Promise<{ carried: number }> {
   return query<{ carried: number }>("order.count_carried_orders", { pos_profile: posProfile });

@@ -1055,6 +1055,116 @@ class BuyTwoGetTheThirdFree(PromotionTestBase):
 		self.assertEqual(order.promotion_amount, 50.0)
 
 
+class AKabsaAndAnyDrinkFree(BuyTwoGetTheThirdFree):
+	"""`D-175` — the user's other example, and a decision of mine reversed.
+
+	*Buy a kabsa, take any drink from the group free.* `D-163` shut this on the
+	reasoning that naming a **group** leaves somebody to choose which drink, and
+	choosing needs a screen.
+
+	**It does not. The guest chooses by ordering.** They ask for a Pepsi, the
+	cashier rings it, and the offer takes its price off a line already on the
+	ticket — which is what the research says every till of this kind does: it
+	discounts a line, it does not invent one.
+
+	Inherits the two-price fixture from its neighbour, because "the cheapest one
+	is the free one" needs two prices to mean anything.
+	"""
+
+	def _free_drink(self, **fields):
+		"""Buy the burger, get the cheap item free."""
+		return self._promotion(
+			title="RPOS test kabsa",
+			title_ar="كبسة ومشروب مجاناً",
+			promotion_type="free_item",
+			item_scope="specific_items",
+			applicable_items=[{"item": ITEM}],
+			free_item=self.cheap_item,
+			free_qty=1,
+			**fields,
+		)
+
+	def test_the_drink_on_the_bill_comes_free(self):
+		self._free_drink()
+
+		order = self._order()
+		orders.add_item(order, item=ITEM, qty=1)  # 25.00 — the qualifier
+		orders.add_item(order, item=self.cheap_item, qty=1)  # 5.00 — the reward
+		order.reload()
+
+		self.assertEqual(order.promotion_amount, 5.0)
+		self.assertEqual(promotions.per_line(order), {2: 5.0})
+
+	def test_it_never_adds_a_line_nobody_ordered(self):
+		"""**The whole reason this needs no screen, and the line it must not
+		cross.** A bill with the kabsa and no drink gets nothing: putting a drink
+		on it would charge the guest nothing for it and tell the kitchen to make
+		it."""
+		self._free_drink()
+
+		order = self._bill()  # the qualifier alone
+
+		self.assertEqual(order.promotion_amount, 0.0)
+		self.assertEqual(len(order.items), 1, "no line invented")
+
+	def test_an_offer_that_can_give_nothing_is_not_on_offer(self):
+		"""It used to be exempt from the worth-something test, because its value
+		was a list price rather than money off this bill. Showing it to a cashier
+		would be offering what cannot be given."""
+		self._free_drink()
+
+		self.assertEqual([row.title for row in promotions.active_for(self._bill())], [])
+
+	def test_only_one_drink_comes_free_however_many_were_ordered(self):
+		"""`free_qty` is the whole of it, and the cheapest is the free one."""
+		self._free_drink()
+
+		order = self._order()
+		orders.add_item(order, item=ITEM, qty=1)
+		orders.add_item(order, item=self.cheap_item, qty=3)  # 15.00
+		order.reload()
+
+		self.assertEqual(order.promotion_amount, 5.0, "one unit, not the line")
+
+	def test_two_free_when_the_offer_says_two(self):
+		self._free_drink(free_qty=2)
+
+		order = self._order()
+		orders.add_item(order, item=ITEM, qty=1)
+		orders.add_item(order, item=self.cheap_item, qty=3)
+		order.reload()
+
+		self.assertEqual(order.promotion_amount, 10.0)
+
+	def test_a_group_reward_takes_the_cheapest_in_it(self):
+		"""*Any drink*, and the guest took two: the shop gives the cheaper."""
+		self._promotion(
+			title="RPOS test any drink",
+			promotion_type="free_item",
+			item_scope="specific_items",
+			applicable_items=[{"item": ITEM}],
+			free_item_group=frappe.db.get_value("Item", self.cheap_item, "item_group"),
+			free_qty=1,
+		)
+
+		order = self._order()
+		orders.add_item(order, item=ITEM, qty=1)  # 25.00 — also in the group
+		orders.add_item(order, item=self.cheap_item, qty=1)  # 5.00
+		order.reload()
+
+		self.assertEqual(order.promotion_amount, 5.0, "the cheap one")
+
+	def test_the_bill_has_to_qualify_first(self):
+		"""A drink with no kabsa is a drink somebody pays for."""
+		self._free_drink()
+
+		order = self._order()
+		orders.add_item(order, item=self.cheap_item, qty=1)
+		order.reload()
+
+		self.assertEqual(order.promotion_amount, 0.0)
+
+
 class ASilentPromotionIsRefused(PromotionTestBase):
 	"""`D-074` — a promotion that looks configured and does nothing.
 

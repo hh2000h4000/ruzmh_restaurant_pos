@@ -1,3 +1,7 @@
+"An order is either settled at the till or billed to an account, not both.",الطلب إما يُسدَّد في التِل أو يُقيَّد على حساب، لا الاثنين معاً.
+"No printer is linked to this terminal, so nothing can be printed.",لا توجد طابعة مربوطة بهذه الطرفية، فلا شيء يمكن طباعته.
+"Order {0} has not been paid, so there is nothing to return.",الطلب {0} غير مدفوع، فلا شيء لإرجاعه.
+"This bill is from a day that has been closed, so nothing can be added to it. ",هذه الفاتورة من يوم مُغلق، فلا يمكن إضافة شيء إليها. ما زال بالإمكان دفعها أو إلغاؤها.
 A mobile number is required.,رقم الجوال مطلوب.
 A name is required.,الاسم مطلوب.
 A paid order cannot be cancelled. Create a return instead.,الطلب المدفوع لا يُلغى. أنشئ مرتجعاً بدلاً من ذلك.
@@ -11,7 +15,6 @@ A return quantity must be greater than zero.,كمية الإرجاع يجب أن
 An address line is required.,العنوان مطلوب.
 An empty order cannot be paid.,لا يمكن دفع طلب فارغ.
 An offline order must carry the totals it was sold at.,الطلب المرسل من وضع عدم الاتصال يجب أن يحمل إجمالياته.
-"An order is either settled at the till or billed to an account, not both.",الطلب إما يُسدَّد في التِل أو يُقيَّد على حساب، لا الاثنين معاً.
 Attendance needs the HR app. Ask an administrator to install it.,الحضور يحتاج تطبيق الموارد البشرية. اطلب من المسؤول تثبيته.
 Choose at least one item to return.,اختر صنفاً واحداً على الأقل للإرجاع.
 Choose how to refund this.,اختر طريقة الإرجاع.
@@ -32,7 +35,6 @@ Manager authorisation is required.,يلزم تفويض المدير.
 Modifier group {0} does not apply to this item.,مجموعة الإضافات {0} لا تنطبق على هذا الصنف.
 Modifier option {0} is not available.,خيار الإضافة {0} غير متاح.
 No price is configured for {0} in price list {1}.,لا يوجد سعر للصنف {0} في قائمة الأسعار {1}.
-"No printer is linked to this terminal, so nothing can be printed.",لا توجد طابعة مربوطة بهذه الطرفية، فلا شيء يمكن طباعته.
 Only {0} of that line is left to return.,المتبقي من هذا السطر للإرجاع: {0}.
 Open a shift before taking orders.,افتح المناوبة قبل استقبال الطلبات.
 Open the till,افتح نقطة البيع
@@ -41,7 +43,6 @@ Order type {0} is not available here.,نوع الطلب {0} غير متاح عل
 Order type {0} needs a customer.,نوع الطلب {0} يحتاج عميلاً.
 Order type {0} requires a customer.,نوع الطلب {0} يتطلب عميلاً.
 Order type {0} requires a table.,نوع الطلب {0} يتطلب طاولة.
-"Order {0} has not been paid, so there is nothing to return.",الطلب {0} غير مدفوع، فلا شيء لإرجاعه.
 Order {0} is already cancelled.,الطلب {0} ملغى أصلاً.
 Order {0} is {1} and can no longer be modified.,الطلب {0} حالته {1} ولا يمكن تعديله.
 POS Audit Log,سجل التدقيق
@@ -53,8 +54,8 @@ POS Permissions,الصلاحيات
 POS Print Agent,وكيل الطباعة
 POS Print Job,مهمة طباعة
 POS Print Template,قالب طباعة
-POS Printer,طابعة
 POS Printer Routing Rule,قاعدة توجيه الطباعة
+POS Printer,طابعة
 POS Quick Note,ملاحظة سريعة
 POS Screen Layout,تخطيط الشاشة
 POS Sync Entry,مُدخل مزامنة
@@ -66,8 +67,8 @@ Printing,الطباعة
 Production Center,مركز إنتاج
 Quantity must be greater than zero.,الكمية يجب أن تكون أكبر من صفر.
 Restaurant Floor Plan,مخطط الصالة
-Restaurant Order,طلب
 Restaurant Order Type,نوع الطلب
+Restaurant Order,طلب
 Restaurant Orders,الطلبات
 Restaurant POS,نقاط البيع
 Restaurant Promotion,عرض ترويجي
@@ -97,7 +98,6 @@ The day and the drawer,اليوم والدرج
 The floor,الصالة
 The menu,القائمة
 There is nothing new to send to the kitchen.,لا يوجد جديد لإرساله للمطبخ.
-"This bill is from a day that has been closed, so nothing can be added to it. ",هذه الفاتورة من يوم مُغلق، فلا يمكن إضافة شيء إليها. ما زال بالإمكان دفعها أو إلغاؤها.
 This bill prices differently on the screen ({0}) and on the invoice ({1}). ,هذه الفاتورة تُحسب على الشاشة ({0}) وعلى الفاتورة ({1}) بشكل مختلف. لم يُخصم شيء. راجع قالب الضريبة على الجهاز.
 This bill was sold offline at {0} but comes to {1} here ,هذه الفاتورة بيعت بلا اتصال بمبلغ {0} وتُحسب هنا {1}
 This login is not linked to an employee record.,هذا الحساب غير مرتبط بسجل موظف.
@@ -109,6 +109,16 @@ You are not clocked in.,لم تسجّل حضورك.
 You cannot set {0} above your own limit of {1}%.,لا يمكنك رفع {0} فوق حدّك {1}%.
 You do not have access to branch {0}.,لا تملك صلاحية على الفرع {0}.
 You do not have permission to perform this action.,لا تملك صلاحية هذا الإجراء.
+all,الكل,Restaurant Promotion
+buy_x_get_y,اشترِ كذا واحصل على كذا مجاناً,Restaurant Promotion
+by_branch,حسب الفرع,Restaurant Promotion
+by_order_type,حسب نوع الطلب,Restaurant Promotion
+by_section,حسب القسم,Restaurant Promotion
+fixed_amount,مبلغ ثابت,Restaurant Promotion
+free_item,صنف مجاني,Restaurant Promotion
+percentage,نسبة مئوية,Restaurant Promotion
+specific_groups,مجموعات محدّدة,Restaurant Promotion
+specific_items,أصناف محدّدة,Restaurant Promotion
 {0} already uses this number.,{0} يستخدم هذا الرقم بالفعل.
 {0} is not a payment method on this terminal.,{0} ليست طريقة دفع على هذا الجهاز.
 {0} is not accepted for this order type.,{0} غير مقبولة لهذا النوع من الطلبات.

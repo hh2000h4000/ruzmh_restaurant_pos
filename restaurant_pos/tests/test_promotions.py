@@ -1059,15 +1059,13 @@ class ASilentPromotionIsRefused(PromotionTestBase):
 	"""`D-074` — a promotion that looks configured and does nothing.
 
 	It reads as active in the list, and the shop finds out when a guest who was
-	promised an offer does not get it. So a reward the engine cannot honour is
-	refused at the door, and a reward it *can* honour is refused while
-	half-configured.
+	promised an offer does not get it.
 
-	**`free_item` was not refused, and that was the whole defect** (`D-169`): it
-	validated, saved, and sat among the live offers while `promotions.SUPPORTED`
-	quietly excluded it. `buy_x_get_y` had the same hole and was shut for it;
-	its fields have since arrived and it is built (`D-173`), which is what the
-	comment on that branch always said would happen.
+	**Every reward is built now** (`D-173`, `D-175`), so nothing here is refused
+	for being unavailable any more. What is still refused is a reward that is
+	*half* configured: "buy 0", "get 0", or a free item that names neither an item
+	nor a group. Each of those would save, read as active, and be discovered at
+	the till.
 	"""
 
 	def test_a_buy_x_get_y_with_no_quantities_is_refused(self):
@@ -1080,16 +1078,19 @@ class ASilentPromotionIsRefused(PromotionTestBase):
 			with self.subTest(fields=fields), self.assertRaises(frappe.ValidationError):
 				self._promotion(title="RPOS test bogo", promotion_type="buy_x_get_y", **fields)
 
-	def test_a_free_item_says_it_is_not_available(self):
-		"""Named item and all: there is no shape of this the engine can honour."""
+	def test_a_free_item_needs_an_item_or_a_group(self):
+		"""Built now (`D-175`), and still not half-configurable: a reward that
+		names nothing frees nothing, and would save looking configured."""
 		with self.assertRaises(frappe.ValidationError):
-			self._promotion(title="RPOS test free", promotion_type="free_item", free_item=ITEM)
+			self._promotion(title="RPOS test free", promotion_type="free_item")
 
-	def test_not_even_when_a_group_is_named(self):
+	def test_and_not_both(self):
+		"""Two answers to one question: which item is the guest being given?"""
 		with self.assertRaises(frappe.ValidationError):
 			self._promotion(
 				title="RPOS test free",
 				promotion_type="free_item",
+				free_item=ITEM,
 				free_item_group=frappe.db.get_value("Item", ITEM, "item_group"),
 			)
 

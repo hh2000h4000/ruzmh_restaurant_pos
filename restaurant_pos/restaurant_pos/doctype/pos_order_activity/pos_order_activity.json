@@ -57,7 +57,7 @@
    "in_list_view": 1,
    "in_standard_filter": 1,
    "label": "Action",
-   "options": "opened\nviewed\nleft\nitem_added\nitem_qty_changed\nitem_removed\nitem_voided\nnote_changed\ndiscount_applied\ndiscount_removed\ncustomer_set\ncustomer_removed\ntable_changed\ntype_changed\nsent_to_kitchen\nbill_previewed\npaid\ncancelled\nreturned\nreprinted\nitems_moved_out\nitems_moved_in\nmerged\ntables_merged",
+   "options": "opened\nviewed\nleft\nitem_added\nitem_qty_changed\nitem_removed\nitem_voided\nnote_changed\ndiscount_applied\ndiscount_removed\npromotion_applied\npromotion_removed\ncustomer_set\ncustomer_removed\ntable_changed\ntype_changed\nsent_to_kitchen\nbill_previewed\npaid\ncancelled\nreturned\nreprinted\nitems_moved_out\nitems_moved_in\nmerged\ntables_merged",
    "reqd": 1
   },
   {

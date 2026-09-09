@@ -66,6 +66,8 @@ const messages: Catalogue["messages"] = {
   "log.note_changed": "غيّر الملاحظة",
   "log.discount_applied": "طبّق خصماً — {subject}",
   "log.discount_removed": "ألغى الخصم",
+  "log.promotion_applied": "نزل عرض — {subject}",
+  "log.promotion_removed": "لم يعد العرض ينطبق — {subject}",
   "log.customer_set": "حدّد العميل — {subject}",
   "log.customer_removed": "أزال العميل",
   "log.table_changed": "غيّر الطاولة — {subject}",

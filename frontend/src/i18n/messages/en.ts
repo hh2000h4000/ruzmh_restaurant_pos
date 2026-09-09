@@ -76,6 +76,8 @@ export const messages = {
   "log.note_changed": "Note changed",
   "log.discount_applied": "Discount applied — {subject}",
   "log.discount_removed": "Discount removed",
+  "log.promotion_applied": "Offer applied — {subject}",
+  "log.promotion_removed": "Offer no longer applies — {subject}",
   "log.customer_set": "Customer set — {subject}",
   "log.customer_removed": "Customer removed",
   "log.table_changed": "Table changed — {subject}",

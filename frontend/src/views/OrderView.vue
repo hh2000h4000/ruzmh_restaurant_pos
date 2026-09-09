@@ -328,6 +328,22 @@ async function punchClock(): Promise<void> {
 /** Confirmed, because signing out by accident mid-rush is a real annoyance. */
 const signingOut = ref(false);
 const showingLog = ref(false);
+
+/**
+ * Whose story the log is showing (`D-172`).
+ *
+ * Usually the bill in the till. But a refund's story lives on the bill it
+ * reverses — that is where `return_created` is written — and the refund sheet
+ * has to be able to reach it. **It could not**: the sheet replaced the old
+ * behaviour of opening the sale (`D-171`), and the sale was the only route to
+ * the timeline, so closing one hole opened another.
+ */
+const logFor = ref<{ orderName: string; number: number } | null>(null);
+
+function showLogFor(orderName: string, number: number): void {
+  logFor.value = { orderName, number };
+  showingLog.value = true;
+}
 const showingRoster = ref(false);
 
 async function signOut(): Promise<void> {
@@ -1022,7 +1038,10 @@ function onAction(action: OrderAction): void {
   else if (action.key === "cancel") cancelling.value = maySell();
   // FR-9 — a refund out of a counted drawer is a sale into one, backwards.
   else if (action.key === "return") returning.value = maySell();
-  else if (action.key === "log") showingLog.value = true;
+  else if (action.key === "log") {
+    logFor.value = null;
+    showingLog.value = true;
+  }
   else if (action.key === "split") splitting.value = maySell();
   else if (action.key === "join") joining.value = maySell();
   // BR-063 — one party across more than one table. `maySell` because it changes
@@ -1643,8 +1662,8 @@ async function send(): Promise<void> {
     <!-- FR-9 — the only way to reverse a sale (D-063, D-064). -->
     <ActivityDialog
       v-model="showingLog"
-      :order-name="orders.order?.order_name ?? null"
-      :number="orders.order?.daily_number ?? null"
+      :order-name="logFor?.orderName ?? orders.order?.order_name ?? null"
+      :number="logFor?.number ?? orders.order?.daily_number ?? null"
     />
 
     <SplitBillDialog
@@ -1759,6 +1778,7 @@ async function send(): Promise<void> {
       :open="Boolean(refundOpen)"
       :credit-note="refundOpen"
       @reprint="reprintRefund"
+      @show-log="showLogFor"
       @close="refundOpen = null"
     />
   </main>

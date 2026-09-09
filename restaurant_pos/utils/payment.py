@@ -422,6 +422,20 @@ def _apply_promotion(order, promotion: str | None) -> None:
 
 	order.chosen_promotion = promotion
 
+	# **Audited, because a person did it** (`D-172`). An automatic offer is the
+	# shop's own rule firing and the bill's story is the whole record of it;
+	# choosing one by hand is somebody spending the shop's money under a
+	# permission, which is the same class of act as a discount beyond a ceiling
+	# and belongs in the compliance log beside it (`08` §5).
+	log_audit(
+		"promotion_applied",
+		branch=order.branch,
+		pos_profile=order.pos_profile,
+		restaurant_order=order.name,
+		reason=promotion,
+		details={"promotion": promotion},
+	)
+
 
 def _create_sales_invoice(order, payments, settlement: str = "till"):
 	"""Build and submit the invoice through ERPNext's own controller.

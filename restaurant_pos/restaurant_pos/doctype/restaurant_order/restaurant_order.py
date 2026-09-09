@@ -7,6 +7,15 @@ from frappe.model.document import Document
 from frappe.utils import cint, flt, get_datetime
 
 
+def _title_of(promotion: str | None) -> str:
+	"""What to call a promotion on the story — its Arabic name, or its id."""
+	if not promotion:
+		return ""
+
+	titles = frappe.get_cached_value("Restaurant Promotion", promotion, ["title_ar", "title"])
+	return (titles[0] or titles[1] or promotion) if titles else promotion
+
+
 class RestaurantOrder(Document):
 	def validate(self):
 		self.validate_order_type_change()
@@ -14,6 +23,56 @@ class RestaurantOrder(Document):
 		self.validate_discount()
 		self.validate_items()
 		self.validate_lifecycle()
+
+	def on_update(self):
+		self.record_the_promotion()
+
+	def record_the_promotion(self):
+		"""Put the offer on the bill's story (`FR-12.7`, `D-172`).
+
+		**Money came off and the story said nothing.** A bill of 82.00 settled at
+		46.00 because an offer took 36.00, and its timeline read: opened, three
+		items added. Anything that happens to a bill is supposed to be written
+		down, and this was the one movement that changed the total without a
+		person doing it — so the only record of it was the total itself.
+
+		**On change, not on every recalculation.** `totals.calculate` runs on
+		every tap: adding a dish, changing a quantity, opening the payment
+		screen. Logging there would write a line per keystroke and bury the story
+		it was meant to tell. What is worth recording is the offer *changing* —
+		arriving, being swapped for a better one, or falling away when the bill
+		drops back under a minimum — which happens once or twice on a real bill.
+
+		**And on save, so a preview leaves no trace.** `preview_totals`
+		recalculates in memory and never saves (`FR-11.2`); a cashier reading
+		what a discount would come to has not applied anything, and a story that
+		said otherwise would be worse than none.
+		"""
+		before = self._doc_before_save.promotion if self._doc_before_save else None
+		if before == self.promotion:
+			return
+
+		from restaurant_pos.utils import activity
+
+		if not self.promotion:
+			activity.log(self, "promotion_removed", subject=_title_of(before))
+			return
+
+		activity.log(
+			self,
+			"promotion_applied",
+			subject=f"{_title_of(self.promotion)} · {flt(self.promotion_amount):.2f}",
+			details={
+				"promotion": self.promotion,
+				"amount": flt(self.promotion_amount),
+				# Whether anybody chose it, or the engine did. A manual offer is
+				# somebody spending the shop's money and is audited as well
+				# (`D-165`); an automatic one is the shop's own rule firing, and
+				# this line is the whole record of it.
+				"chosen_by_hand": bool(self.chosen_promotion),
+				"replaced": before,
+			},
+		)
 
 	def validate_order_type_change(self):
 		"""The type may change, but only through the one path that handles it.

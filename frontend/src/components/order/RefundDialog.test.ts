@@ -100,6 +100,23 @@ describe("the sheet a refund row opens", () => {
   });
 
   /**
+   * `D-172` — and it exists because closing one hole opened another.
+   *
+   * A refund's story is written on the bill it reverses (`return_created`), and
+   * the sale was the only route to the timeline. Making the row open this sheet
+   * instead (`D-171`) cut that route, so the sheet has to carry it — with the
+   * **sale's** name and number, not its own.
+   */
+  it("reaches the story of the bill it reverses", async () => {
+    const wrapper = await sheet();
+
+    await wrapper.findAll("button").find((button) => button.text() === t("log.action"))
+      ?.trigger("click");
+
+    expect(wrapper.emitted("showLog")).toEqual([["RO-2026-09-00017", 17]]);
+  });
+
+  /**
    * `D-074` — a sheet that opens empty is indistinguishable from a refund with
    * nothing on it.
    */

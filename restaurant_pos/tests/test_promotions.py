@@ -29,9 +29,9 @@ from restaurant_pos.api import order as api_order
 from restaurant_pos.api import payment as api_payment
 from restaurant_pos.tests.test_order import ITEM, OrderTestBase, _make_cashier
 from restaurant_pos.tests.test_payment import CASH
+from restaurant_pos.utils import activity, promotions, totals
 from restaurant_pos.utils import order as orders
 from restaurant_pos.utils import payment as payment_service
-from restaurant_pos.utils import promotions, totals
 
 
 class PromotionTestBase(OrderTestBase):
@@ -489,6 +489,43 @@ class ChoosingOneIsSpendingTheShopsMoney(PromotionTestBase):
 			frappe.set_user("Administrator")
 			frappe.local.rpos_permission_cache = {}
 
+	def test_choosing_one_by_hand_is_audited(self):
+		"""**Two logs, two questions** (`D-172`, `08` §5).
+
+		The bill's story carries every offer that reached it, automatic or not.
+		The audit log carries the ones a *person* chose — spending the shop's
+		money under a permission, the same class of act as a discount beyond a
+		ceiling. An automatic offer is the shop's own rule firing and has no
+		place there; this one does.
+		"""
+		promo = self._promotion(title="RPOS test manual", is_auto_apply=0, discount_value=20)
+		order = self._bill()
+
+		self._pay(order, promo.name)
+
+		audited = frappe.get_all(
+			"POS Audit Log",
+			filters={"restaurant_order": order.name, "action_type": "promotion_applied"},
+			pluck="reason",
+		)
+		self.assertEqual(audited, [promo.name])
+
+	def test_an_automatic_one_is_not_audited(self):
+		"""It belongs on the story, not in the compliance record — folding them
+		together buries the override worth finding under a day of routine."""
+		self._promotion(title="RPOS test auto", discount_value=10)
+		order = self._bill()
+
+		self._pay(order, None)
+
+		self.assertEqual(
+			frappe.get_all(
+				"POS Audit Log",
+				filters={"restaurant_order": order.name, "action_type": "promotion_applied"},
+			),
+			[],
+		)
+
 	def test_the_invoice_names_the_promotion_that_actually_applied(self):
 		"""It used to name whatever string the client sent — written onto a
 		submitted financial document with nothing checking it, explaining a total
@@ -788,6 +825,85 @@ class AnExclusiveOfferRefusesADiscount(PromotionTestBase):
 
 	def test_and_nothing_is_blocked_when_no_offer_says_so(self):
 		self.assertEqual(api_payment.preview_totals(self._bill().name)["discount_blocked_by"], "")
+
+
+class TheBillsStorySaysTheOfferHappened(PromotionTestBase):
+	"""`D-172` — money came off and the story said nothing.
+
+	The user's own bill: 82.00 settled at 46.00 because an offer took 36.00, and
+	its timeline read *opened · item added · item added · item added*. Anything
+	that happens to a bill is written down, and this was the one movement that
+	changed the total without a person doing it — so the only record of it was
+	the total itself.
+	"""
+
+	def _story(self, order):
+		return [(row["action"], row["subject"]) for row in activity.timeline(order.name)]
+
+	def test_an_offer_that_applies_is_written_down(self):
+		self._promotion(title="RPOS test ten", title_ar="عرض العشرة", discount_value=10)
+
+		order = self._bill()
+
+		applied = [row for row in self._story(order) if row[0] == "promotion_applied"]
+		self.assertEqual(len(applied), 1)
+		self.assertIn("عرض العشرة", applied[0][1])
+		self.assertIn("2.50", applied[0][1])
+
+	def test_it_is_written_once_and_not_on_every_tap(self):
+		"""`totals.calculate` runs on every keystroke. A line per recalculation
+		would bury the story it exists to tell."""
+		self._promotion(title="RPOS test ten", discount_value=10)
+
+		order = self._bill()
+		orders.add_item(order, item=ITEM, qty=1)
+		orders.add_item(order, item=ITEM, qty=1)
+		order.reload()
+
+		applied = [row for row in self._story(order) if row[0] == "promotion_applied"]
+		self.assertEqual(len(applied), 1, "the offer arrived once; the bill grew three times")
+
+	def test_swapping_one_offer_for_another_is_written_down(self):
+		"""The bill crossing a minimum is a real event and changes what is owed."""
+		self._promotion(title="RPOS test small", discount_value=5)
+		self._promotion(title="RPOS test big spenders", min_order_amount=50, discount_value=40)
+
+		order = self._bill()  # 25.00 — only the small one qualifies
+		orders.add_item(order, item=ITEM, qty=3)  # 100.00 — the big one takes over
+		order.reload()
+
+		applied = [row for row in self._story(order) if row[0] == "promotion_applied"]
+		self.assertEqual(len(applied), 2)
+
+	def test_an_offer_falling_away_is_written_down(self):
+		"""A bill dropping back under a minimum loses the offer, and the total
+		goes up. Silence there is the same defect pointed the other way."""
+		self._promotion(title="RPOS test big spenders", min_order_amount=50, discount_value=10)
+
+		order = self._bill(qty=4)  # 100.00
+		orders.set_item_qty(order, item_idx=1, qty=1)  # 25.00 — under the minimum
+		order.reload()
+
+		self.assertIn("promotion_removed", [row[0] for row in self._story(order)])
+
+	def test_a_preview_leaves_no_trace(self):
+		"""`preview_totals` recalculates in memory and never saves. A cashier
+		reading what a discount would come to has not applied anything."""
+		self._promotion(title="RPOS test ten", discount_value=10)
+
+		order = self._bill()
+		before = len(self._story(order))
+		api_payment.preview_totals(order.name, "percentage", 10)
+
+		self.assertEqual(len(self._story(order)), before)
+
+	def test_a_bill_with_no_offer_says_nothing_about_offers(self):
+		order = self._bill()
+
+		self.assertEqual(
+			[row for row in self._story(order) if row[0].startswith("promotion")],
+			[],
+		)
 
 
 class ASilentPromotionIsRefused(PromotionTestBase):

@@ -24,7 +24,11 @@ import { formatNumber, t } from "@/i18n";
  * (`CLAUDE.md` §5.1) — nothing here multiplies anything.
  */
 const props = defineProps<{ open: boolean; creditNote: string | null }>();
-const emit = defineEmits<{ close: []; reprint: [dailyNumber: number] }>();
+const emit = defineEmits<{
+  close: [];
+  reprint: [dailyNumber: number];
+  showLog: [orderName: string, number: number];
+}>();
 
 const refund = ref<RefundDetail | null>(null);
 const failure = ref<string | null>(null);
@@ -118,13 +122,26 @@ function money(value: number): string {
         </div>
       </dl>
 
-      <button
-        type="button"
-        class="mt-5 min-h-[3.25rem] w-full rounded-rpos border border-line text-sm font-medium transition-colors duration-100 ease-rpos hover:border-primary"
-        @click="emit('reprint', refund.daily_number)"
-      >
-        {{ t("print.receiptAgain") }}
-      </button>
+      <div class="mt-5 grid grid-cols-2 gap-2.5">
+        <button
+          type="button"
+          class="min-h-[3.25rem] rounded-rpos border border-line text-sm font-medium transition-colors duration-100 ease-rpos hover:border-primary"
+          @click="emit('reprint', refund.daily_number)"
+        >
+          {{ t("print.receiptAgain") }}
+        </button>
+        <!-- **A refund's story is the bill's story** (`D-172`). `return_created`
+             is written on the sale it reverses, because that is the thing with a
+             history: sold, then partly sent back. This sheet is the only way to
+             reach it now that the row no longer opens the sale (`D-171`). -->
+        <button
+          type="button"
+          class="min-h-[3.25rem] rounded-rpos border border-line text-sm font-medium transition-colors duration-100 ease-rpos hover:border-primary"
+          @click="emit('showLog', refund.order_name, refund.returns_daily_number)"
+        >
+          {{ t("log.action") }}
+        </button>
+      </div>
     </template>
   </BaseDialog>
 </template>

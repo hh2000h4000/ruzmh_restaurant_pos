@@ -83,6 +83,12 @@ def log_audit(
 #: Audit actions that belong in a bill's timeline, and what they are called
 #: there. Anything absent is about a shift, a terminal or a person rather than
 #: about one bill, and has no place on its story.
+#:
+#: **`promotion_applied` is deliberately not here** (`D-172`). The bill's story
+#: already carries every offer that reached it, written where the change itself
+#: happens — `RestaurantOrder.record_the_promotion` — so mapping the audit entry
+#: too would put one event on the timeline twice. The audit row answers the other
+#: question: *who chose it by hand*, and under which permission.
 _ORDER_STORY = {
 	"void_item": "item_voided",
 	"bill_split": "items_moved_out",

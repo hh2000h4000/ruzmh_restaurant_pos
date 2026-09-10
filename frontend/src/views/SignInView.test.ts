@@ -110,6 +110,42 @@ describe("the welcome screen's attendance button", () => {
   });
 });
 
+/**
+ * Arrive before you sell (`D-186`).
+ *
+ * The user found the hole: *"ممكن يسوي دخول للكاشير ويبيع حتى لو ما سجل حضور"*.
+ * The way into the till sat beside the clock-in as an equal choice, so a cashier
+ * could walk past it and work all evening with no record of having been there —
+ * and the shift they were owed for existed nowhere.
+ *
+ * The rule is narrow on purpose: it stops **only** somebody who owes an arrival.
+ * Everyone else keeps the button, because for them there is nothing else to do
+ * on this screen.
+ */
+describe("the way into the till", () => {
+  it("is not offered while an arrival is owed", () => {
+    expect(welcome({ clocked_in: false }).text()).not.toContain(t("auth.enterTill"));
+  });
+
+  it("is the clock-in that carries them in, and it is the filled button", () => {
+    // At most one button wears the brand colour: the one that moves them on.
+    const screen = welcome({ clocked_in: false });
+
+    expect(punchButton(screen)!.classes()).toContain("bg-primary");
+  });
+
+  it("is offered to somebody already at work", () => {
+    expect(welcome({ clocked_in: true, holding_till: false }).text()).toContain(
+      t("auth.enterTill"),
+    );
+  });
+
+  it("is offered to a login on no payroll", () => {
+    // They can never clock in, so withholding it would lock them out entirely.
+    expect(welcome({ employee: null }).text()).toContain(t("auth.enterTill"));
+  });
+});
+
 describe("a login on no payroll", () => {
   /**
    * `D-184` — the attendance button used to vanish, and the screen was skipped

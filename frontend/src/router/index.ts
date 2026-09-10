@@ -123,6 +123,21 @@ router.beforeEach(async (to) => {
     if (!auth.signedIn) return { name: "sign-in" };
   }
 
+  // **Arrive before you sell** (`D-186`). Somebody who owes a clock-in is sent
+  // back to the screen that takes it, so the till cannot be reached by a
+  // bookmark, the back button, or a URL typed on a keyboard the kiosk normally
+  // has not got.
+  //
+  // The screen offers no other way forward either — this is the same rule, held
+  // where a screen cannot be walked around. It is **not** a permission check:
+  // the server does not refuse a sale for a missing punch, and the reason is
+  // written where that decision lives (`D-186`). Only a punch that is genuinely
+  // on offer stops anybody; a login on no payroll, a cashier already at work,
+  // and one holding a drawer all pass straight through.
+  if (to.meta.requiresSignIn !== false && auth.punchOnOffer === "in") {
+    return { name: "sign-in" };
+  }
+
   if (to.meta.requiresSession === false) return true;
 
   // Every screen but setup needs the terminal configuration; without it there

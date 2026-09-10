@@ -200,10 +200,19 @@ async function punch(): Promise<void> {
              payroll** (`D-184`). The refusal is one the reader can lift, so the
              control stays and the line beneath it says how — the same shape
              `FR-2.1b` uses for order types that cannot be converted. -->
+        <!-- **Filled when it is the only way forward** (`D-186`). At most one
+             button on a screen carries the brand colour, and it is the one that
+             moves the person on — here that is the clock-in, because the way
+             into the till is not offered beside it. -->
         <button
           v-if="auth.punchOnOffer || auth.notOnPayroll"
           type="button"
-          class="h-14 w-full rounded-rpos border border-line-strong bg-background text-base font-medium text-content transition duration-200 ease-rpos hover:border-primary disabled:cursor-not-allowed disabled:opacity-50"
+          class="h-14 w-full rounded-rpos text-base font-medium transition duration-200 ease-rpos disabled:cursor-not-allowed disabled:opacity-50"
+          :class="
+            auth.punchOnOffer === 'in'
+              ? 'bg-primary text-primary-contrast shadow-primary hover:brightness-110 disabled:shadow-none'
+              : 'border border-line-strong bg-background text-content hover:border-primary'
+          "
           :disabled="auth.busy || auth.notOnPayroll"
           @click="punch"
         >
@@ -226,10 +235,18 @@ async function punch(): Promise<void> {
           {{ t("auth.closeTillFirst") }}
         </p>
 
-        <!-- `text-on-primary` was not a colour either: the contrast token is
+        <!-- **Not offered while an arrival is owed** (`D-186`). It used to sit
+             here always, so a cashier could walk past the clock-in and sell all
+             evening with no record of having been at work — and the shift they
+             were owed for existed nowhere. The clock-in is the way in for them;
+             for everybody else — already at work, holding a drawer, or on no
+             payroll — this is, and it is the only button they see.
+
+             `text-on-primary` was not a colour either: the contrast token is
              `primary-contrast`, so the label on the one filled button in the
              app was inheriting whatever it found. -->
         <button
+          v-if="auth.punchOnOffer !== 'in'"
           type="button"
           class="h-14 w-full rounded-rpos bg-primary text-base font-medium text-primary-contrast shadow-primary transition duration-200 ease-rpos hover:brightness-110 disabled:opacity-50 disabled:shadow-none"
           :disabled="auth.busy"

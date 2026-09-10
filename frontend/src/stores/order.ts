@@ -34,6 +34,27 @@ export const useOrderStore = defineStore("order", () => {
   const pendingSync = ref(false);
 
   /**
+   * Bumped whenever a call through `run` comes back without throwing (`D-180`).
+   *
+   * **The floor list has no other way to know.** It polls every fifteen
+   * seconds, so a bill this cashier had just cancelled sat on their own screen
+   * until the next tick — the user watched a row they had killed linger for
+   * seconds. Polling answers "what did the *other* terminals do"; it is the
+   * wrong instrument for "what did I just do", and no interval short enough to
+   * hide that is one a till should be running.
+   *
+   * A counter rather than a call at each site: there are eighteen mutations
+   * here and the nineteenth is the one somebody forgets (`CLAUDE.md` §5.5).
+   * `run` is the door every one of them already goes through.
+   *
+   * It bumps on reads too — `open` uses `run` as well — and that is left alone
+   * deliberately. Opening a bill is a moment the floor list is worth having
+   * right, the listener coalesces anyway, and a flag at each call site to tell
+   * the two apart is the per-site memory this exists to avoid.
+   */
+  const changedAt = ref(0);
+
+  /**
    * The bill this device is composing while the line is down (D-073).
    *
    * `null` whenever the order in hand belongs to the server, which is every
@@ -113,7 +134,11 @@ export const useOrderStore = defineStore("order", () => {
     busy.value = true;
     error.value = null;
     try {
-      return await action();
+      const result = await action();
+      // After it landed, never before: a refused action changed nothing, and a
+      // list told otherwise would fetch the same rows back and look broken.
+      changedAt.value += 1;
+      return result;
     } catch (cause) {
       error.value = cause instanceof Error ? cause.message : String(cause);
       return null;
@@ -524,6 +549,7 @@ export const useOrderStore = defineStore("order", () => {
     error,
     unrouted,
     pendingSync,
+    changedAt,
     payOffline,
     lines,
     voided,

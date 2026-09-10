@@ -15,22 +15,35 @@
  * So two things are held here: the default, and the moment each row is sorted
  * by — which is the same moment the row prints under its number.
  */
+import { flushPromises } from "@vue/test-utils";
 import { createPinia, setActivePinia } from "pinia";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import * as orderApi from "@/api/order";
 import type { OpenOrder } from "@/api/order";
 import { useOpenOrders } from "@/composables/useOpenOrders";
+import { useOrderStore } from "@/stores/order";
 import { useSessionStore } from "@/stores/session";
 import type { PosSession } from "@/types/session";
 
-vi.mock("@/api/order", () => ({ listOrders: vi.fn(), searchOrders: vi.fn() }));
+vi.mock("@/api/order", () => ({
+  listOrders: vi.fn(),
+  searchOrders: vi.fn(),
+  // Driven for real in "when the list refetches": the chain under test is
+  // cancel -> the store's `run` -> `changedAt` -> the list asking again.
+  cancelOrder: vi.fn(),
+}));
 vi.mock("@/offline/orderMirror", () => ({
   recall: vi.fn(),
   remember: vi.fn(),
   warm: vi.fn(),
 }));
-vi.mock("@/offline/queue", () => ({ queuedSales: vi.fn().mockResolvedValue([]) }));
+vi.mock("@/offline/queue", () => ({
+  queuedSales: vi.fn().mockResolvedValue([]),
+  // The store asks whether an answer was deferred rather than performed; here
+  // the server is up, so every answer is a real one.
+  isQueued: vi.fn().mockReturnValue(false),
+}));
 
 function bill(extra: Partial<OpenOrder>): OpenOrder {
   return {
@@ -116,5 +129,101 @@ describe("the order the list comes in", () => {
     );
 
     expect(names).toEqual(["RO-OLD", "RO-NEW"]);
+  });
+});
+
+/**
+ * When the list asks the server again (`D-180`).
+ *
+ * The user cancelled an open bill and watched the row sit there for seconds:
+ * *"المفترض فوري يتم حذف الصف من القائمة"*. Nothing told the list — it polls
+ * every fifteen seconds, and that interval was doing double duty as the only
+ * notice of the cashier's **own** actions. Polling answers what the other
+ * terminals did; it is the wrong instrument for what this hand just did.
+ *
+ * These hold the wiring both ways: a mutation asks again at once, and a burst
+ * of them does not turn into a burst of requests.
+ */
+describe("when the list refetches", () => {
+  /** A mounted list, so the store's signal is actually being watched. */
+  async function floorOnScreen() {
+    useSessionStore().data = { pos_profile: { name: "T1" } } as unknown as PosSession;
+    vi.mocked(orderApi.listOrders).mockResolvedValue([]);
+
+    const floor = useOpenOrders();
+    await floor.refresh();
+    vi.mocked(orderApi.listOrders).mockClear();
+    return floor;
+  }
+
+  it("asks again the moment an order changes", async () => {
+    await floorOnScreen();
+
+    // What every mutation in the store does when it comes back without
+    // throwing — cancelling a bill among them.
+    useOrderStore().changedAt += 1;
+    await flushPromises();
+
+    expect(orderApi.listOrders).toHaveBeenCalledOnce();
+  });
+
+  it("a cancelled bill takes the row off the floor at once", async () => {
+    const floor = await floorOnScreen();
+    const store = useOrderStore();
+    store.order = { order_name: "RO-1" } as never;
+    vi.mocked(orderApi.cancelOrder).mockResolvedValue({ order_name: "RO-1" } as never);
+    // The bill is gone from the server's answer, which is the whole point.
+    vi.mocked(orderApi.listOrders).mockResolvedValue([]);
+
+    await store.cancel("wrong table");
+    await flushPromises();
+
+    expect(orderApi.listOrders).toHaveBeenCalledOnce();
+    expect(floor.visible.value).toEqual([]);
+  });
+
+  it("leaves the list alone when the action was refused", async () => {
+    // A refused action changed nothing. Asking again would fetch the same rows
+    // back and make a working screen look like it had flickered for no reason.
+    await floorOnScreen();
+    const store = useOrderStore();
+    store.order = { order_name: "RO-1" } as never;
+    vi.mocked(orderApi.cancelOrder).mockRejectedValue(new Error("A paid order cannot be cancelled."));
+
+    await store.cancel("changed my mind");
+    await flushPromises();
+
+    expect(orderApi.listOrders).not.toHaveBeenCalled();
+  });
+
+  it("collapses a second change during a fetch into one follow-up", async () => {
+    const floor = await floorOnScreen();
+    const store = useOrderStore();
+
+    let release: (rows: never[]) => void = () => {};
+    vi.mocked(orderApi.listOrders).mockReturnValueOnce(
+      new Promise((resolve) => {
+        release = resolve as (rows: never[]) => void;
+      }),
+    );
+
+    store.changedAt += 1;
+    await flushPromises();
+    expect(orderApi.listOrders).toHaveBeenCalledOnce();
+
+    // A second action lands while the first answer is still on its way. Without
+    // coalescing this starts a second request racing the first, and the list
+    // draws whichever returns last.
+    store.changedAt += 1;
+    await flushPromises();
+    expect(orderApi.listOrders).toHaveBeenCalledOnce();
+
+    vi.mocked(orderApi.listOrders).mockResolvedValue([]);
+    release([]);
+    await flushPromises();
+
+    // Exactly one follow-up, and it is the one that sees everything.
+    expect(orderApi.listOrders).toHaveBeenCalledTimes(2);
+    expect(floor.visible.value).toEqual([]);
   });
 });

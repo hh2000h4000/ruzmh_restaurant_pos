@@ -11,6 +11,7 @@ import { t } from "@/i18n";
 import { recall, remember, warm } from "@/offline/orderMirror";
 import { queuedSales } from "@/offline/queue";
 import { useConnectionStore } from "@/stores/connection";
+import { useOrderStore } from "@/stores/order";
 import { useSessionStore } from "@/stores/session";
 
 export type OrderSort = "oldest" | "newest" | "amount";
@@ -275,22 +276,75 @@ export function useOpenOrders() {
     }
   }
 
-  /** Cheap enough to poll, and a stale row sends a cashier to the wrong table. */
+  /**
+   * The poll, and **what it is now for** (`D-180`).
+   *
+   * Fifteen seconds answers "what have the *other* terminals done" — a bill
+   * settled at the counter beside this one, a table seated by a waiter. It was
+   * also, by accident, the only thing that noticed **this** cashier's own
+   * actions, and that is what the user saw: a bill they had just cancelled sat
+   * on their screen for seconds afterwards. Their own work now arrives through
+   * `changedAt` the moment it lands, and no interval has to apologise for it.
+   */
   const REFRESH_MS = 15_000;
 
   let timer: number | undefined;
 
+  /**
+   * One fetch at a time, and never a queue of them.
+   *
+   * Every trigger — the poll, the tab coming back, a mutation — comes through
+   * here. A cashier adding six items sends six signals, and without this each
+   * would start its own request: six answers racing, the list rendering
+   * whichever returned last. Instead the first runs and the rest collapse into
+   * exactly one follow-up, which is guaranteed to see all of them.
+   *
+   * Leading-edge on purpose. A debounce would make every action wait out a
+   * delay to spare a burst that mostly never happens; this is instant for the
+   * single action and bounded for the burst.
+   */
+  let fetching = false;
+  let again = false;
+
+  async function refreshNow(): Promise<void> {
+    if (fetching) {
+      again = true;
+      return;
+    }
+
+    fetching = true;
+    try {
+      await refresh();
+    } finally {
+      fetching = false;
+      if (again) {
+        again = false;
+        void refreshNow();
+      }
+    }
+  }
+
+  /**
+   * The cashier's own work, the moment it lands (`D-180`).
+   *
+   * Not an optimistic removal of the row: the server's answer is a round trip
+   * away, and a screen that deletes a line before the server has agreed is a
+   * screen that has to put it back when the server refuses (`CLAUDE.md` §5.1
+   * is the same rule about money). This asks again and draws what comes back.
+   */
+  watch(() => useOrderStore().changedAt, () => void refreshNow());
+
   function onVisibilityChange(): void {
-    if (document.visibilityState === "visible") void refresh();
+    if (document.visibilityState === "visible") void refreshNow();
   }
 
   // Changing the tab is a different question for the server, not a filter over
   // what is already here: today's closed orders were never fetched.
-  watch(view, () => void refresh());
+  watch(view, () => void refreshNow());
 
   // The same question asked of the server, not a filter over rows already here:
   // the carried ones were never fetched.
-  watch(includeCarried, () => void refresh());
+  watch(includeCarried, () => void refreshNow());
 
   // D-081 — the line came back. Take a fresh copy of every tab now, while it is
   // there to take, rather than waiting for the next outage to discover that the
@@ -298,7 +352,7 @@ export function useOpenOrders() {
   watch(
     () => connection.isOnline,
     (online) => {
-      if (online) void refresh().then(warmMirror);
+      if (online) void refreshNow().then(warmMirror);
     },
   );
 
@@ -321,8 +375,8 @@ export function useOpenOrders() {
   }
 
   onMounted(() => {
-    void refresh().then(warmMirror);
-    timer = window.setInterval(refresh, REFRESH_MS);
+    void refreshNow().then(warmMirror);
+    timer = window.setInterval(refreshNow, REFRESH_MS);
     document.addEventListener("visibilitychange", onVisibilityChange);
   });
 
@@ -338,7 +392,7 @@ export function useOpenOrders() {
     older,
     searchOlder,
     searchingOlder,
-    refresh,
+    refresh: refreshNow,
     scope,
     search,
     searching: computed(() => Boolean(search.value.trim())),

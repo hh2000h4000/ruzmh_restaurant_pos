@@ -52,6 +52,14 @@ export interface ShiftReport {
    * does not stop the other.
    */
   carrying_too_many?: boolean;
+  /**
+   * How many people are still on the clock at this branch (`D-178`).
+   *
+   * Closing the day sends every one of them home, at the moment it is closed.
+   * Said on the screen the manager presses the button on, rather than found
+   * later in a payroll report — it is the same courtesy the open bills get.
+   */
+  on_duty?: number;
   by_order_type: { order_type: string; title_ar: string; count: number; sales: number }[];
   by_method: MethodLine[];
   voids: number;
@@ -131,6 +139,14 @@ export function closeTill(payload: {
 export function closeDay(payload: {
   shift: string;
   force?: number;
-}): Promise<{ shift: string; report: ShiftReport; closed_tills: string[] }> {
+  /** The terminal it was closed from, for the audit rows the close writes. */
+  pos_profile?: string;
+}): Promise<{
+  shift: string;
+  report: ShiftReport;
+  closed_tills: string[];
+  /** Who the close sent home (`D-178`). */
+  clocked_out?: { employee: string; employee_name: string; at: string }[];
+}> {
   return mutate("shift.close_day", payload);
 }

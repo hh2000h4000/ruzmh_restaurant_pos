@@ -113,13 +113,23 @@ def close_till(
 
 
 @frappe.whitelist()
-def close_day(shift: str, force: int | bool = 0, queue_id: str | None = None) -> dict:
-	"""End of day — any drawer left open is closed at its expected figures."""
+def close_day(
+	shift: str,
+	force: int | bool = 0,
+	pos_profile: str | None = None,
+	queue_id: str | None = None,
+) -> dict:
+	"""End of day — any drawer left open is closed at its expected figures.
+
+	`pos_profile` names the terminal it was closed from, for the audit rows the
+	close writes (`D-178`). Optional, because a queued replay from an older
+	client will not carry it and a day must still be closable.
+	"""
 	replay = idempotency.previous_result(queue_id)
 	if replay is not None:
 		return replay
 
-	result = service.close_day(shift_name=shift, force=bool(int(force or 0)))
+	result = service.close_day(shift_name=shift, force=bool(int(force or 0)), pos_profile=pos_profile)
 	idempotency.remember(
 		queue_id, "close_day", result, reference_doctype="Restaurant Shift", reference_name=shift
 	)

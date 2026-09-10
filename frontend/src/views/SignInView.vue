@@ -4,7 +4,7 @@ import { useRouter } from "vue-router";
 
 import DigitPad from "@/components/DigitPad.vue";
 import LocaleToggle from "@/components/LocaleToggle.vue";
-import { dateOnly, t, timeOnly } from "@/i18n";
+import { sinceWhen, t } from "@/i18n";
 import { useAuthStore } from "@/stores/auth";
 import { useSessionStore } from "@/stores/session";
 
@@ -31,7 +31,7 @@ const boxes = computed(() => Array.from({ length: auth.pinLength }, (_, index) =
 
 const clockedInAt = computed(() => {
   const since = auth.attendance?.since;
-  return since ? `${dateOnly(since)} ${timeOnly(since)}` : null;
+  return since ? sinceWhen(since) : null;
 });
 
 onMounted(() => {

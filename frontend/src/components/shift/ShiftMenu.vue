@@ -2,7 +2,7 @@
 import { computed } from "vue";
 
 import AppIcon, { type IconName } from "@/components/AppIcon.vue";
-import { dateOnly, t, timeOnly, type MessageKey } from "@/i18n";
+import { dateOnly, sinceWhen, t, type MessageKey } from "@/i18n";
 import { useAuthStore } from "@/stores/auth";
 import { useSessionStore } from "@/stores/session";
 import { useShiftStore } from "@/stores/shift";
@@ -74,9 +74,10 @@ const attendance = computed<MenuEntry | null>(() => {
     label: auth.punchOnOffer === "out" ? "auth.clockOut" : "auth.clockIn",
     icon: "hourglass",
     // Since when, because "am I still clocked in from yesterday?" is the
-    // question this row is usually opened to answer.
+    // question this row is usually opened to answer — and it used to answer it
+    // with a bare time, which is the one shape that cannot (`D-178`).
     detail:
-      auth.clockedIn && auth.attendance?.since ? timeOnly(auth.attendance.since) : undefined,
+      auth.clockedIn && auth.attendance?.since ? sinceWhen(auth.attendance.since) : undefined,
   };
 });
 

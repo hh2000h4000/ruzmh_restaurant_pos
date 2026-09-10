@@ -21,7 +21,7 @@ import { computed, ref, watch } from "vue";
 import * as attendanceApi from "@/api/attendance";
 import type { AttendanceRow } from "@/api/attendance";
 import BaseDialog from "@/components/BaseDialog.vue";
-import { formatNumber, t, timeOnly } from "@/i18n";
+import { formatNumber, sinceWhen, t } from "@/i18n";
 
 const props = defineProps<{ open: boolean; posProfile: string | null }>();
 const emit = defineEmits<{ close: [] }>();
@@ -142,7 +142,7 @@ const people = computed<AttendanceRow[]>(() => roster.value?.people ?? []);
         <span
           v-if="row.on_duty && row.since"
           class="rpos-numeric shrink-0 text-xs text-muted"
-        >{{ timeOnly(row.since) }}</span>
+        >{{ sinceWhen(row.since) }}</span>
         <span class="rpos-numeric shrink-0 text-base">{{ spell(row.minutes) }}</span>
       </li>
     </ul>

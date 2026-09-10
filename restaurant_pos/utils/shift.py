@@ -141,7 +141,7 @@ def open_day(*, pos_profile: str, title: str | None = None) -> dict:
 	return {"shift": day.name, "joined": False}
 
 
-def close_day(*, shift_name: str, force: bool = False) -> dict:
+def close_day(*, shift_name: str, force: bool = False, pos_profile: str | None = None) -> dict:
 	"""End of day (FR-8.2, BR-043, BR-045).
 
 	Any till still open under it is closed first, at its expected figures. A day
@@ -205,11 +205,37 @@ def close_day(*, shift_name: str, force: bool = False) -> dict:
 	day.settlement_data = frappe.as_json({"report": report, "tills": closed_tills})
 	day.save(ignore_permissions=True)
 
+	# Read before the loop below clears them: an audit row names the terminal an
+	# action happened on, and by the time the sweep runs none of these still
+	# points at the day.
+	terminals = frappe.get_all("POS Profile", filters={"restaurant_shift": shift_name}, pluck="name")
+
 	# The terminal stops selling the moment the day ends (BR-044).
-	for profile in frappe.get_all("POS Profile", filters={"restaurant_shift": shift_name}, pluck="name"):
+	for profile in terminals:
 		frappe.db.set_value("POS Profile", profile, "restaurant_shift", None, update_modified=False)
 
-	return {"shift": day.name, "report": report, "closed_tills": closed_tills}
+	# **And the people, like the drawers** (`D-178`). The paragraph above says a
+	# day that ended over an open till leaves a count nobody made; a day that
+	# ended over an open clock-in leaves hours nobody worked, running until
+	# somebody notices. The manager closing the day is the only thing in the
+	# building that knows the shift is over.
+	from restaurant_pos.utils import attendance
+
+	# The terminal it was closed from, when the caller knows it; otherwise one
+	# of the day's own. An audit row requires a terminal, and a branch with one
+	# till — which is most of them — loses nothing to the fallback.
+	sent_home = attendance.clock_out_everyone(
+		day.branch,
+		at=day.closed_at,
+		pos_profile=pos_profile or (terminals[0] if terminals else None),
+	)
+
+	return {
+		"shift": day.name,
+		"report": report,
+		"closed_tills": closed_tills,
+		"clocked_out": sent_home,
+	}
 
 
 # --------------------------------------------------------------------------- #
@@ -412,6 +438,13 @@ def summarise(shift_name: str) -> dict:
 	# this only decides whether the screen mentions the pile it is carrying.
 	report["carrying_too_many"] = _carrying_too_many(day.branch, still_open)
 	report["carry_over_warning_at"] = _carry_over_warning_at(day.branch)
+
+	# **Who is still on the clock, said before the day is closed** (`D-178`).
+	# Closing it sends them home, and a manager should read that on the screen
+	# they press the button on rather than discover it in a payroll report.
+	from restaurant_pos.utils import attendance
+
+	report["on_duty"] = len(attendance.on_duty_in(day.branch))
 	return report
 
 

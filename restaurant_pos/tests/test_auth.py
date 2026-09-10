@@ -20,6 +20,8 @@ from restaurant_pos.utils import manager_pin as pins
 
 STAFF = "rpos_pin_staff@example.com"
 OTHER = "rpos_pin_other@example.com"
+#: A login nothing in this module ever gives an `Employee` to.
+NOBODY = "rpos_pin_no_employee@example.com"
 
 
 def _user(email: str) -> str:
@@ -244,22 +246,32 @@ class TestWhyAPinWasRefused(FrappeTestCase):
 
 
 class TestClockingInAndOut(FrappeTestCase):
+	"""A login that is on no payroll.
+
+	**It owns its own user**, and that is the point of `NOBODY`. These used to
+	name `STAFF`, whose `Employee` is built by the classes below — so the
+	premise held only while this class happened to sort first, and the moment a
+	later class committed, the *next* whole-suite run failed here on data from
+	the previous one. A test whose subject somebody else creates is a test about
+	the alphabet.
+	"""
+
 	@classmethod
 	def setUpClass(cls):
 		super().setUpClass()
-		_user(STAFF)
+		_user(NOBODY)
 		frappe.db.commit()
 
 	def test_somebody_with_no_employee_record_is_not_clocked_in(self):
 		"""Signing in still works; only the attendance buttons go away."""
-		state = attendance.state(STAFF)
+		state = attendance.state(NOBODY)
 
 		self.assertIsNone(state["employee"])
 		self.assertFalse(state["clocked_in"])
 
 	def test_clocking_in_without_an_employee_record_says_so(self):
 		with self.assertRaises(frappe.ValidationError):
-			attendance.punch(STAFF, log_type=attendance.IN)
+			attendance.punch(NOBODY, log_type=attendance.IN)
 
 
 class TestAPunchThatActuallyLands(FrappeTestCase):
@@ -480,6 +492,174 @@ class TestGoingHomeOverAnOpenDrawer(OrderTestBase):
 			self.assertTrue(auth.me()["holding_till"])
 		finally:
 			frappe.set_user(signed_in)
+
+
+class TestClosingTheDaySendsPeopleHome(OrderTestBase):
+	"""A forgotten clock-in is closed when the branch's day is (`D-178`).
+
+	The user met this as a screen offering *تسجيل انصراف* at seven in the
+	morning, three days after a punch nobody had closed. Nothing in the building
+	knows a shift ended except the manager ending the day, so that is where it
+	is ended — which is what Toast does at its business-day cutoff, on by
+	default, and Square does against the rostered end.
+
+	**And the punch is marked**, because the time on it is the day's close
+	rather than something a person did. Payroll reads these rows; an invented
+	hour that looks punched cannot be questioned.
+	"""
+
+	@classmethod
+	def setUpClass(cls):
+		super().setUpClass()
+		_user(STAFF)
+		frappe.db.commit()
+
+	def setUp(self):
+		super().setUp()
+		if not frappe.db.exists("DocType", "Employee Checkin"):
+			self.skipTest("hrms is not installed on this site")
+
+		self.employee = _employee_for(STAFF)
+		if not self.employee:
+			self.skipTest("this site cannot create an Employee (no company or holiday list)")
+
+		frappe.db.delete("Employee Checkin", {"employee": self.employee})
+		# A terminal reaches its branch through its section — `POS Profile` has
+		# no branch column of its own.
+		self.branch = frappe.db.get_value(
+			"Restaurant Section",
+			frappe.db.get_value("POS Profile", self.profile, "restaurant_section"),
+			"branch",
+		)
+
+	def tearDown(self):
+		# One of these closes the branch's day for real, which also settles the
+		# fixture's drawer and unhooks the terminal. Everything after it — in
+		# this class and in every module that runs later — expects a terminal
+		# that can sell, so it is put back.
+		from restaurant_pos.tests.test_order import _ensure_shift
+
+		_ensure_shift(self.profile)
+		super().tearDown()
+
+	def _clocked_in_days_ago(self, days: int) -> None:
+		"""A punch left open, the way the user's was — outside the roster's window."""
+		frappe.get_doc(
+			{
+				"doctype": attendance.CHECKIN,
+				"employee": self.employee,
+				"log_type": attendance.IN,
+				"time": add_to_date(now_datetime(), days=-days),
+			}
+		).insert(ignore_permissions=True)
+
+	def test_a_punch_older_than_the_roster_window_is_still_found(self):
+		"""The case the whole thing exists for.
+
+		`roster` measures a window — a day by default — so a three-day-old punch
+		is invisible to it. Asking the roster would have found nobody and closed
+		the day over them again.
+		"""
+		self._clocked_in_days_ago(3)
+
+		on_duty = [employee.name for employee, _ in attendance.on_duty_in(self.branch)]
+
+		self.assertIn(self.employee, on_duty)
+
+	def test_closing_the_day_clocks_them_out(self):
+		self._clocked_in_days_ago(3)
+
+		sent_home = attendance.clock_out_everyone(self.branch, at=now_datetime())
+
+		self.assertIn(self.employee, [row["employee"] for row in sent_home])
+		self.assertFalse(attendance.state(STAFF)["clocked_in"])
+
+	def test_closing_the_day_for_real_is_what_sends_them_home(self):
+		"""End to end, through the manager's button rather than the helper.
+
+		The helper being right is not the feature; the day's close calling it
+		is. Deleting that one line left every test above green.
+		"""
+		from restaurant_pos.utils import shift as shift_service
+
+		self._clocked_in_days_ago(2)
+		day = frappe.db.get_value("POS Profile", self.profile, "restaurant_shift")
+
+		result = shift_service.close_day(shift_name=day, force=True, pos_profile=self.profile)
+
+		self.assertFalse(attendance.state(STAFF)["clocked_in"])
+		self.assertIn(self.employee, [row["employee"] for row in result["clocked_out"]])
+
+	def test_the_punch_says_the_system_wrote_it(self):
+		"""Toast flags these so a manager can list and correct them; so do we."""
+		self._clocked_in_days_ago(1)
+
+		attendance.clock_out_everyone(self.branch, at=now_datetime())
+
+		self.assertEqual(
+			frappe.db.get_value(
+				"Employee Checkin",
+				{"employee": self.employee, "log_type": attendance.OUT},
+				"rpos_auto_clock_out",
+			),
+			1,
+		)
+
+	def test_somebody_already_gone_home_is_left_alone(self):
+		"""No second OUT: two in a row is a shift whose length cannot be read."""
+		self._clocked_in_days_ago(1)
+		attendance.punch(STAFF, log_type=attendance.OUT)
+		before = frappe.db.count("Employee Checkin", {"employee": self.employee})
+
+		self.assertEqual(attendance.clock_out_everyone(self.branch, at=now_datetime()), [])
+		self.assertEqual(frappe.db.count("Employee Checkin", {"employee": self.employee}), before)
+
+	def test_the_punch_is_never_earlier_than_the_arrival(self):
+		"""A shift of no length is at least arithmetic somebody can read; a
+		negative one is a payroll figure nobody can."""
+		# Whole seconds: MySQL stores a `Datetime` without microseconds, so a
+		# value read back is always a shade earlier than one built in Python —
+		# and this assertion is about an ordering, not about that.
+		arrival = add_to_date(now_datetime(), days=1).replace(microsecond=0)
+		frappe.get_doc(
+			{
+				"doctype": attendance.CHECKIN,
+				"employee": self.employee,
+				"log_type": attendance.IN,
+				"time": arrival,
+			}
+		).insert(ignore_permissions=True)
+
+		sent_home = attendance.clock_out_everyone(self.branch, at=now_datetime())
+
+		self.assertEqual(len(sent_home), 1)
+		self.assertGreaterEqual(sent_home[0]["at"], arrival)
+
+	def test_the_day_says_how_many_it_will_send_home(self):
+		"""Said on the screen the manager presses the button on, not found later
+		in a payroll report."""
+		from restaurant_pos.utils import shift as shift_service
+
+		self._clocked_in_days_ago(1)
+		day = frappe.db.get_value("POS Profile", self.profile, "restaurant_shift")
+
+		self.assertGreaterEqual(shift_service.summarise(day)["on_duty"], 1)
+
+	def test_the_sweep_is_recorded_as_an_automatic_one(self):
+		"""Anything that happens to somebody's hours is answerable for."""
+		self._clocked_in_days_ago(1)
+
+		attendance.clock_out_everyone(self.branch, at=now_datetime(), pos_profile=self.profile)
+
+		entry = frappe.get_all(
+			"POS Audit Log",
+			filters={"action_type": "clock_out", "branch": self.branch},
+			fields=["details"],
+			order_by="creation desc",
+			limit=1,
+		)
+		self.assertTrue(entry)
+		self.assertIn('"automatic":true', entry[0].details.lower().replace(" ", ""))
 
 
 def _a_gender() -> str:

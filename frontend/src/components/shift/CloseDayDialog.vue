@@ -44,6 +44,9 @@ watch(
 
 const stillOpen = computed(() => report.value?.orders.still_open ?? 0);
 
+/** Still on the clock — every one of them goes home when this day closes. */
+const onDuty = computed(() => report.value?.on_duty ?? 0);
+
 /**
  * Whether these open bills stand between the cashier and the end of the day.
  *
@@ -205,6 +208,19 @@ function money(value: number): string {
         class="mb-4 rounded-rpos bg-status-cleaning/10 p-3 text-sm text-status-cleaning"
       >
         {{ t("shift.stillOpenCarries", { count: formatNumber(stillOpen) }) }}
+      </p>
+
+      <!-- **And the people, like the drawers** (`D-178`). Closing the day
+           clocks out whoever is still on it, at this moment — said here rather
+           than left to be found in a payroll report weeks later. Its own line,
+           not an `v-else-if` in the chain above: it is true at the same time as
+           an open bill, and the two are different facts. -->
+      <p
+        v-if="onDuty"
+        role="status"
+        class="mb-4 rounded-rpos bg-background p-3 text-sm text-muted"
+      >
+        {{ t("shift.clockingOut", { count: formatNumber(onDuty) }) }}
       </p>
 
       <p

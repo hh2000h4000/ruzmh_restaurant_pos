@@ -26,6 +26,8 @@ import frappe
 from frappe import _
 from frappe.utils import add_to_date, now_datetime, time_diff_in_seconds
 
+from restaurant_pos.utils.audit import log_audit
+
 IN, OUT = "IN", "OUT"
 
 
@@ -108,14 +110,7 @@ def roster(branch: str | None = None, *, days: int = 1) -> dict:
 
 	since = add_to_date(now_datetime(), days=-max(int(days or 1), 1))
 
-	employees = frappe.get_all(
-		"Employee",
-		filters={"status": "Active"},
-		fields=["name", "employee_name", "branch"],
-		limit_page_length=0,
-	)
-	if branch:
-		employees = [row for row in employees if not row.branch or row.branch == branch]
+	employees = staff_of(branch)
 
 	by_name = {row.name: row for row in employees}
 	if not by_name:
@@ -138,6 +133,29 @@ def roster(branch: str | None = None, *, days: int = 1) -> dict:
 		"on_duty": [row for row in people if row["on_duty"]],
 		"people": people,
 	}
+
+
+def staff_of(branch: str | None) -> list:
+	"""The active employees a branch's screens speak for.
+
+	**An employee with no branch set belongs to everyone.** A restaurant that
+	never filled the field would otherwise see an empty roster and conclude the
+	feature is broken — and, since `clock_out_everyone` reads the same list, its
+	staff would be left on the clock for the same silent reason.
+
+	One definition, because the roster and the day's close have to agree about
+	who works here (`CLAUDE.md` §5.5).
+	"""
+	employees = frappe.get_all(
+		"Employee",
+		filters={"status": "Active"},
+		fields=["name", "employee_name", "branch"],
+		limit_page_length=0,
+	)
+	if not branch:
+		return employees
+
+	return [row for row in employees if not row.branch or row.branch == branch]
 
 
 def _by_employee(punches) -> dict[str, list]:
@@ -169,6 +187,110 @@ def _worked(employee, punches) -> dict:
 		"since": started,
 		"minutes": int(minutes),
 	}
+
+
+def on_duty_in(branch: str | None) -> list[tuple]:
+	"""Everyone whose last punch was a clock-in — however long ago (`D-178`).
+
+	**Deliberately not `roster`'s answer.** That one measures a window, a day by
+	default, and computes hours inside it; a punch older than the window is
+	invisible to it. The stale clock-in this was written for is precisely the
+	punch that falls outside — the user's was three days old — so asking the
+	roster would have found nobody and closed the day over them again.
+
+	The question here has no window: what was this person's last punch, and was
+	it an arrival. One definition, read by the day's summary and by the sweep
+	that acts on it (`CLAUDE.md` §5.5).
+	"""
+	if not is_available():
+		return []
+
+	standing = []
+	for employee in staff_of(branch):
+		punch = last_punch(employee.name)
+		if punch and punch.log_type == IN:
+			standing.append((employee, punch))
+
+	return standing
+
+
+def clock_out_everyone(branch: str, *, at, pos_profile: str | None = None) -> list[dict]:
+	"""Send home whoever is still on the clock when the branch's day ends (`D-178`).
+
+	**Why this exists.** A clock-in nothing ever closes stays open forever. The
+	user met it as a screen offering *تسجيل انصراف* at seven in the morning,
+	three days after a punch they had forgotten — the app was telling the truth
+	and the truth was useless. Nothing in the building knows the shift ended
+	except the manager closing the day, so that is where it is closed.
+
+	**This is what the reference systems do.** Toast clocks out everyone still
+	in at the business-day cutoff, on by default. Square offers the same tied to
+	the rostered end. Lightspeed leaves it to a manager's edit — and that is the
+	behaviour we had, which is how a punch survived three days.
+
+	**And the punch is marked as ours.** `rpos_auto_clock_out` says the time is
+	the day's close rather than something a person did, because payroll reads
+	these rows and an invented hour that looks punched cannot be questioned.
+	Toast flags them for exactly this and lets a manager list and correct them;
+	so does the desk list, which is where a marked row is visible.
+
+	**Never fatal.** A day has to be closable. A record that will not save is
+	logged and skipped rather than stranding the close — the failure belongs in
+	the error log, not in front of a manager at two in the morning.
+
+	Returns what it did, so the screen can say so rather than acting silently.
+	"""
+	sent_home = []
+	for employee, punch in on_duty_in(branch):
+		try:
+			sent_home.append(_close_the_punch(employee, punch, at, pos_profile))
+		except Exception:
+			# Named, so the log says which person was left on the clock.
+			frappe.log_error(f"Could not clock {employee.name} out with the day", "RPOS attendance")
+			continue
+
+		# **Audited separately, and that is not tidiness.** Written together,
+		# an audit row that would not save discarded a punch that already had —
+		# the person was clocked out and reported as not clocked out. Two
+		# failures with different consequences deserve two answers: one loses
+		# somebody's hours, the other loses the record of who ended them.
+		try:
+			log_audit(
+				"clock_out",
+				branch=branch,
+				pos_profile=pos_profile,
+				details={"employee": employee.name, "automatic": True},
+			)
+		except Exception:
+			frappe.log_error(
+				f"Clocked {employee.name} out with the day but could not record it",
+				"RPOS attendance",
+			)
+
+	return sent_home
+
+
+def _close_the_punch(employee, punch, at, pos_profile: str | None) -> dict:
+	"""One automatic OUT.
+
+	Never earlier than the punch it closes: a clock-in made after the moment the
+	day is being closed for would otherwise produce negative hours, and a shift
+	of no length is at least arithmetic somebody can read.
+	"""
+	when = at if at >= punch.time else punch.time
+
+	frappe.get_doc(
+		{
+			"doctype": CHECKIN,
+			"employee": employee.name,
+			"log_type": OUT,
+			"time": when,
+			"device_id": pos_profile,
+			"rpos_auto_clock_out": 1,
+		}
+	).insert(ignore_permissions=True)
+
+	return {"employee": employee.name, "employee_name": employee.employee_name, "at": when}
 
 
 def holds_a_drawer(user: str) -> bool:

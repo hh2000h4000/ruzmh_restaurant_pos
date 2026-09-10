@@ -108,7 +108,10 @@ export const useShiftStore = defineStore("shift", () => {
     const shift = state.value?.day.shift;
     if (!shift) return false;
 
-    const done = await run(() => shiftApi.closeDay({ shift, force: force ? 1 : 0 }));
+    const done = await run(() =>
+      // The terminal it was closed from, for the audit rows the close writes.
+      shiftApi.closeDay({ shift, force: force ? 1 : 0, pos_profile: session.profile?.name }),
+    );
     if (!done) return false;
 
     // Closing the day settles every till still open under it, this cashier's

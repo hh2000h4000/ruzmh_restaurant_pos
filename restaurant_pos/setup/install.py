@@ -31,6 +31,24 @@ CUSTOM_FIELDS = {
 			"insert_after": "pos_profile",
 		},
 	],
+	# **A punch the system made, marked as one** (`D-178`).
+	#
+	# Closing the business day sends home whoever forgot to clock out, and the
+	# time on that punch is the day's close — a reasonable figure, not a fact.
+	# Payroll reads `Employee Checkin`, so the mark has to be *on the row*: an
+	# entry indistinguishable from a real punch is an hour nobody can question.
+	# Toast does exactly this and lets a manager list them and correct the time.
+	"Employee Checkin": [
+		{
+			"fieldname": "rpos_auto_clock_out",
+			"fieldtype": "Check",
+			"label": "Automatic Clock Out",
+			"read_only": 1,
+			"in_list_view": 1,
+			"description": "Written when the restaurant's business day was closed, not punched by the employee.",
+			"insert_after": "skip_auto_attendance",
+		},
+	],
 	# BR-043 — a difference has to be answered for, and ERPNext's closing entry
 	# has nowhere to write the answer.
 	"POS Closing Entry": [

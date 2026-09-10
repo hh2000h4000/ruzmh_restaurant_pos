@@ -178,6 +178,31 @@ export function timeOnly(value: string): string {
   );
 }
 
+/**
+ * When something started — as briefly as it can be said **truthfully**.
+ *
+ * The time alone while it is still today's, because that is the whole answer
+ * and a date beside it is noise. **The date the moment it is not**, and that
+ * half is the point (`D-178`): a clock-in from three days ago drawn as
+ * `02:12 م` reads as this afternoon. The till menu did exactly that, under a
+ * row whose stated job was to answer *"am I still clocked in from yesterday?"*
+ * — and the user read it as a clock-out offered for no reason.
+ *
+ * One function rather than the three places that each asked it: the till menu,
+ * the welcome screen and the manager's roster (`CLAUDE.md` §5.5).
+ */
+export function sinceWhen(value: string): string {
+  const at = parse(value);
+  const now = new Date();
+
+  const sameDay =
+    at.getFullYear() === now.getFullYear() &&
+    at.getMonth() === now.getMonth() &&
+    at.getDate() === now.getDate();
+
+  return sameDay ? timeOnly(value) : `${dateOnly(value)} ${timeOnly(value)}`;
+}
+
 export function setLocale(next: Locale): void {
   locale.value = next;
 

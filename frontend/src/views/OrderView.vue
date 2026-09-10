@@ -36,6 +36,7 @@ import {
   toDisplayState,
   useCustomerDisplayPublisher,
 } from "@/composables/useCustomerDisplay";
+import { useDismiss } from "@/composables/useDismiss";
 import { useOpenOrders } from "@/composables/useOpenOrders";
 import { formatNumber, t } from "@/i18n";
 import { useAuthStore } from "@/stores/auth";
@@ -280,6 +281,16 @@ function onNavigate(key: string): void {
 // --------------------------------------------------------------------------
 
 const menuOpen = ref(false);
+
+/**
+ * The sheet closes when the cashier turns back to the bill.
+ *
+ * The anchor holds the bar as well as the sheet, because the bar's last entry is
+ * the toggle: outside it, and the tap that opened the sheet would close it again
+ * on its way up to the document.
+ */
+const menuAnchor = useDismiss(menuOpen);
+
 const openingTill = ref(false);
 const closingTill = ref(false);
 const closingDay = ref(false);
@@ -1389,11 +1400,13 @@ async function send(): Promise<void> {
           <!-- Under the working column, so the bill beside it keeps the full
                height of the screen (06 Screen 3). -->
           <!-- `relative` anchors the menu sheet above the bar. -->
-          <div class="relative">
+          <div
+            ref="menuAnchor"
+            class="relative"
+          >
             <ShiftMenu
               :open="menuOpen"
               @select="onMenu"
-              @close="menuOpen = false"
             />
 
             <OrderBottomNav

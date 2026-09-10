@@ -21,8 +21,17 @@ import type { OpenOrder } from "@/api/order";
 import OpenOrderRow from "@/components/pos/OpenOrderRow.vue";
 import { t } from "@/i18n";
 
-function row(order: Partial<OpenOrder>, mayReprint = true) {
+/**
+ * `attach` puts the row in the real document.
+ *
+ * Off by default, because most of these read text and mounting detached leaves
+ * nothing behind. On for the dismissal test, and that is not a detail: a
+ * detached row never sees a `document` click at all, so the test passed with
+ * the anchor ref deleted — it was measuring nothing.
+ */
+function row(order: Partial<OpenOrder>, mayReprint = true, attach = false) {
   return mount(OpenOrderRow, {
+    attachTo: attach ? document.body : undefined,
     props: {
       mayReprint,
       order: {
@@ -60,6 +69,32 @@ async function menu(wrapper: ReturnType<typeof row>) {
   // entry says, and in whichever language the app is running.
   return wrapper.findAll("button").filter((button) => button.text() === t("print.receiptAgain"));
 }
+
+describe("the row's menu", () => {
+  /**
+   * The wiring, not the mechanism — `useDismiss` has its own tests. A row's
+   * anchor ref left off, or misspelled, silently does nothing: Vue drops an
+   * unmatched `ref` without a word, so the menu opens over the list and stays
+   * there. That is what the user reported on the order screen's sheet.
+   */
+  it("goes away when the tap lands on another row", async () => {
+    const wrapper = row({ sales_invoice: "ACC-SINV-2026-00199" }, true, true);
+
+    // The opening tap reaches the document like any other. With no anchor to
+    // recognise it by, this alone would close the menu it just opened.
+    await menu(wrapper);
+    expect(wrapper.text()).toContain(t("print.receiptAgain"));
+
+    const elsewhere = document.createElement("div");
+    document.body.appendChild(elsewhere);
+    elsewhere.click();
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.text()).not.toContain(t("print.receiptAgain"));
+    elsewhere.remove();
+    wrapper.unmount();
+  });
+});
 
 describe("which document a row says it is", () => {
   it("a sale shows its order number", () => {

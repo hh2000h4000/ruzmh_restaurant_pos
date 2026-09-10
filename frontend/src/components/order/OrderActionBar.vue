@@ -2,6 +2,7 @@
 import { ref } from "vue";
 
 import AppIcon, { type IconName } from "@/components/AppIcon.vue";
+import { useDismiss } from "@/composables/useDismiss";
 import { t, type MessageKey } from "@/i18n";
 
 /**
@@ -42,6 +43,9 @@ const emit = defineEmits<{ select: [action: OrderAction] }>();
 
 const menuOpen = ref(false);
 
+/** A tap anywhere else puts the sheet away — it covers the item grid. */
+const menuAnchor = useDismiss(menuOpen);
+
 function choose(action: OrderAction): void {
   if (action.disabled) return;
   menuOpen.value = false;
@@ -74,6 +78,7 @@ function choose(action: OrderAction): void {
 
     <div
       v-if="more.length"
+      ref="menuAnchor"
       class="relative"
     >
       <button

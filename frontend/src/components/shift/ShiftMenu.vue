@@ -37,7 +37,9 @@ export interface MenuEntry {
 }
 
 defineProps<{ open: boolean }>();
-const emit = defineEmits<{ select: [key: string]; close: [] }>();
+// No `close` here: the sheet is opened and dismissed by the bar that owns it,
+// and an event nothing ever emitted was a way out that did not exist (§5.5).
+const emit = defineEmits<{ select: [key: string] }>();
 
 const session = useSessionStore();
 const shift = useShiftStore();

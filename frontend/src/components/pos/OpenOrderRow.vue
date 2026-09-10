@@ -3,6 +3,7 @@ import { computed, ref } from "vue";
 
 import type { OpenOrder } from "@/api/order";
 import AppIcon from "@/components/AppIcon.vue";
+import { useDismiss } from "@/composables/useDismiss";
 import { dateOnly, formatNumber, pick, t, timeOnly } from "@/i18n";
 
 /**
@@ -69,6 +70,19 @@ const happenedAt = computed(() => props.order.closed_at ?? props.order.opened_at
 const menuOpen = ref(false);
 
 /**
+ * A tap on another row puts this one's menu away.
+ *
+ * The anchor is the whole row, not the small button: a tap inside the row is
+ * the row's own overlay opening the order, and that leaves this list anyway.
+ *
+ * **And `@click.stop` came off the menu's buttons for this.** It hid those taps
+ * from the dismissal listener, which the anchor already accounts for — two
+ * mechanisms for one rule (§5.5), and the one that stops the event stops it for
+ * everybody. Nothing above this row was listening.
+ */
+const menuAnchor = useDismiss(menuOpen);
+
+/**
  * Status colour follows the order lifecycle and is never the only signal: the
  * status is written out, in words, in every language the app ships
  * (06 §Accessibility).
@@ -129,6 +143,7 @@ function choose(where: "order" | "floor" | "reprint"): void {
 
 <template>
   <div
+    ref="menuAnchor"
     class="relative flex min-h-[76px] items-center gap-6 rounded-rpos-lg border border-line bg-surface px-5 py-[18px] transition-[background-color,border-color] duration-100 ease-rpos hover:border-primary/40"
   >
     <!-- The whole row opens the order; the menu sits above it. -->
@@ -264,7 +279,7 @@ function choose(where: "order" | "floor" | "reprint"): void {
       class="relative z-10 grid h-11 w-11 shrink-0 place-items-center rounded-xl text-muted transition-colors duration-100 ease-rpos hover:bg-background"
       :aria-label="t('card.options')"
       :aria-expanded="menuOpen"
-      @click.stop="menuOpen = !menuOpen"
+      @click="menuOpen = !menuOpen"
     >
       <AppIcon
         name="more"
@@ -279,7 +294,7 @@ function choose(where: "order" | "floor" | "reprint"): void {
       <button
         type="button"
         class="block min-h-tap w-full px-4 py-3 text-start text-xs transition-colors duration-100 ease-rpos hover:bg-background"
-        @click.stop="choose('order')"
+        @click="choose('order')"
       >
         {{ t("card.openOrder") }}
       </button>
@@ -287,7 +302,7 @@ function choose(where: "order" | "floor" | "reprint"): void {
         v-if="props.order.table_number"
         type="button"
         class="block min-h-tap w-full px-4 py-3 text-start text-xs transition-colors duration-100 ease-rpos hover:bg-background"
-        @click.stop="choose('floor')"
+        @click="choose('floor')"
       >
         {{ t("card.goToTable") }}
       </button>
@@ -297,7 +312,7 @@ function choose(where: "order" | "floor" | "reprint"): void {
         v-if="receipt && mayReprint"
         type="button"
         class="block min-h-tap w-full px-4 py-3 text-start text-xs transition-colors duration-100 ease-rpos hover:bg-background"
-        @click.stop="choose('reprint')"
+        @click="choose('reprint')"
       >
         {{ t("print.receiptAgain") }}
       </button>

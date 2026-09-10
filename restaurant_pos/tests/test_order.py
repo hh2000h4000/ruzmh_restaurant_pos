@@ -487,6 +487,33 @@ class TestVoidAndCancel(OrderTestBase):
 		self.assertEqual(order.status, "cancelled")
 		self.assertEqual(frappe.db.get_value("Restaurant Table", table, "status"), "available")
 
+	def test_a_bill_somebody_else_already_cancelled_is_refused(self):
+		"""Two cashiers, one bill — the user's question, and the answer.
+
+		A floor list can be up to fifteen seconds behind another terminal
+		(`D-180`), so a row that is already dead can still be tapped here. The
+		screen is not what stops it: **this is**. The second cancellation is
+		refused outright, and the bill keeps the first one's reason and the
+		first one's name on it.
+
+		Not the same as replaying one cancellation from the offline queue — that
+		carries the same `queue_id` and is answered from the first result
+		(`test_replaying_cancel_order_is_accepted_and_changes_nothing`). Two
+		people are two different actions, and the second is a mistake.
+		"""
+		order = self._order()
+		service.cancel_order(order, reason="Table walked out")
+		cancelled_by = frappe.db.get_value("Restaurant Order", order.name, "cancelled_by")
+
+		order.reload()
+		with self.assertRaises(frappe.ValidationError):
+			service.cancel_order(order, reason="Wrong bill")
+
+		order.reload()
+		self.assertEqual(order.status, "cancelled")
+		self.assertEqual(order.cancel_reason, "Table walked out")
+		self.assertEqual(order.cancelled_by, cancelled_by)
+
 	def test_a_paid_order_cannot_be_cancelled(self):
 		"""BR-014 — use a return instead."""
 		order = self._order()

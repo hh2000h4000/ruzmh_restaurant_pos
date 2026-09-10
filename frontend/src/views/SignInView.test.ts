@@ -1,15 +1,21 @@
 // @vitest-environment jsdom
 
 /**
- * The welcome screen, and which attendance button it draws (`D-177`).
+ * The welcome screen: which attendance button it draws, and where the punch
+ * leads (`D-177`, `D-179`).
  *
- * The rule itself lives in the auth store and has its own tests; this holds the
- * **wiring** — that the screen reads that rule rather than deciding for itself,
- * which is what it used to do. It is also the screen the user was looking at:
- * "المفترض إذا دخل المستخدم بداية اليوم وليس لديه مناوبة مفتوحة تظهر عنده
- * الشاشة بزر تسجيل حضور".
+ * Two defects the user found on this screen, in that order. First it offered a
+ * clock-out over an open drawer. Then, once the button was right, it recorded
+ * the punch and **stayed** — so `punchOnOffer` flipped and drew the opposite
+ * action under the finger that had just tapped: *"نقرت عليها وظهر شاشة تسجيل
+ * انصراف ونقرت عليها"*, clocked in and back out in two taps without ever
+ * opening a shift.
+ *
+ * `FR-8.4` step 3 had said since Phase 4 that clocking in drops the cashier
+ * into the till screen. It was never wired. These hold both halves: the button
+ * that is drawn, and the place the tap leads.
  */
-import { mount } from "@vue/test-utils";
+import { flushPromises, mount } from "@vue/test-utils";
 import { createPinia, setActivePinia } from "pinia";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -18,12 +24,24 @@ import { t } from "@/i18n";
 import { useAuthStore } from "@/stores/auth";
 import SignInView from "@/views/SignInView.vue";
 
-vi.mock("vue-router", () => ({ useRouter: () => ({ push: vi.fn() }) }));
+const api = vi.hoisted(() => ({
+  push: vi.fn(),
+  clockIn: vi.fn(),
+  clockOut: vi.fn(),
+  signOut: vi.fn(),
+}));
 
-function welcome(over: { clocked_in?: boolean; holding_till?: boolean }) {
-  const auth = useAuthStore();
-  auth.known = true;
-  auth.identity = {
+vi.mock("vue-router", () => ({ useRouter: () => ({ push: api.push }) }));
+vi.mock("@/api/auth", () => ({
+  clockIn: api.clockIn,
+  clockOut: api.clockOut,
+  signOut: api.signOut,
+  me: vi.fn(),
+  signIn: vi.fn(),
+}));
+
+function identity(over: { clocked_in?: boolean; holding_till?: boolean }): Identity {
+  return {
     user: "cashier@example.com",
     full_name: "سعيد الغامدي",
     pos_profile: "T1",
@@ -35,13 +53,32 @@ function welcome(over: { clocked_in?: boolean; holding_till?: boolean }) {
     holding_till: over.holding_till ?? false,
     pin_length: 5,
   } as Identity;
+}
+
+function welcome(over: { clocked_in?: boolean; holding_till?: boolean }) {
+  const auth = useAuthStore();
+  auth.known = true;
+  auth.identity = identity(over);
 
   return mount(SignInView, {
     global: { stubs: { DigitPad: true, LocaleToggle: true } },
   });
 }
 
-beforeEach(() => setActivePinia(createPinia()));
+/** The attendance button, whichever way it reads. */
+function punchButton(screen: ReturnType<typeof welcome>) {
+  return screen
+    .findAll("button")
+    .find((button) => [t("auth.clockIn"), t("auth.clockOut")].includes(button.text()));
+}
+
+beforeEach(() => {
+  setActivePinia(createPinia());
+  api.push.mockReset();
+  api.clockIn.mockReset();
+  api.clockOut.mockReset();
+  api.signOut.mockReset();
+});
 
 describe("the welcome screen's attendance button", () => {
   it("asks somebody arriving to clock in", () => {
@@ -52,9 +89,7 @@ describe("the welcome screen's attendance button", () => {
   });
 
   it("offers a clock-out once the drawer is counted", () => {
-    const screen = welcome({ clocked_in: true, holding_till: false });
-
-    expect(screen.text()).toContain(t("auth.clockOut"));
+    expect(welcome({ clocked_in: true, holding_till: false }).text()).toContain(t("auth.clockOut"));
   });
 
   it("withholds the clock-out while the drawer is open, and says why", () => {
@@ -68,5 +103,63 @@ describe("the welcome screen's attendance button", () => {
     // Withholding the punch must not withhold the work: the drawer they are
     // holding is open on this very terminal.
     expect(welcome({ clocked_in: true, holding_till: true }).text()).toContain(t("auth.enterTill"));
+  });
+});
+
+describe("where the punch leads", () => {
+  it("clocking in takes the cashier to the till", async () => {
+    api.clockIn.mockResolvedValue({
+      employee: "HR-EMP-0001",
+      clocked_in: true,
+      since: "2026-09-10 08:00:00",
+    });
+    const screen = welcome({ clocked_in: false });
+
+    await punchButton(screen)!.trigger("click");
+    await flushPromises();
+
+    expect(api.clockIn).toHaveBeenCalledOnce();
+    expect(api.push).toHaveBeenCalledOnce();
+  });
+
+  it("never leaves the opposite action under the finger that just tapped", async () => {
+    // The defect as reported: clock in, and a clock-out button appears exactly
+    // where the clock-in was.
+    api.clockIn.mockResolvedValue({
+      employee: "HR-EMP-0001",
+      clocked_in: true,
+      since: "2026-09-10 08:00:00",
+    });
+    const screen = welcome({ clocked_in: false });
+
+    await punchButton(screen)!.trigger("click");
+    await flushPromises();
+
+    expect(api.clockOut).not.toHaveBeenCalled();
+    expect(api.push).toHaveBeenCalledOnce();
+  });
+
+  it("clocking out signs them out of the terminal", async () => {
+    api.clockOut.mockResolvedValue({ employee: "HR-EMP-0001", clocked_in: false, since: null });
+    const screen = welcome({ clocked_in: true, holding_till: false });
+
+    await punchButton(screen)!.trigger("click");
+    await flushPromises();
+
+    expect(api.clockOut).toHaveBeenCalledOnce();
+    expect(api.signOut).toHaveBeenCalledOnce();
+  });
+
+  it("stays put when the punch was refused", async () => {
+    // The server is the authority and it said no; moving on would hide that.
+    api.clockIn.mockRejectedValue(new Error("You are already clocked in."));
+    const screen = welcome({ clocked_in: false });
+
+    await punchButton(screen)!.trigger("click");
+    await flushPromises();
+
+    expect(api.push).not.toHaveBeenCalled();
+    expect(api.signOut).not.toHaveBeenCalled();
+    expect(screen.text()).toContain("You are already clocked in.");
   });
 });

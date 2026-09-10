@@ -66,8 +66,34 @@ async function enterTill(): Promise<void> {
   await router.push({ name: session.isLoaded ? "home" : "setup" });
 }
 
+/**
+ * Record the punch, and then **go where it means** (`FR-8.4` step 3, `D-179`).
+ *
+ * This screen used to record it and stay, and the requirement has said since
+ * Phase 4 that clocking in "drops the cashier straight into the till screen".
+ * It was never wired, and what stood in its place was worse than a missing
+ * convenience: the moment the punch landed, `punchOnOffer` flipped and **the
+ * opposite action was drawn under the finger that had just tapped**. The user
+ * clocked in and clocked straight back out in two taps, without ever opening a
+ * shift — "نقرت عليها وظهر شاشة تسجيل انصراف ونقرت عليها".
+ *
+ * So arriving leads to the till, which is what the person came for, and
+ * leaving leads out of the app, which is what *they* came for. Toast ends a
+ * clock-out on its passcode screen for the same reason. Neither one leaves a
+ * live button where the last one was.
+ *
+ * The direction is read **before** the punch: afterwards it is already the
+ * other one.
+ */
 async function punch(): Promise<void> {
+  const arriving = auth.punchOnOffer === "in";
+
   await auth.punch(posProfile.value);
+  // Nothing happened, and the screen already says so — staying is right.
+  if (auth.error) return;
+
+  if (arriving) await enterTill();
+  else await auth.signOut();
 }
 </script>
 

@@ -329,11 +329,24 @@ function openCustomerDisplay(): void {
  * decided by the server from the last punch — the screen only asks; a second
  * press in the same direction comes back refused rather than writing a shift
  * whose length cannot be computed.
+ *
+ * **Clocking out ends the session** (`D-179`). It is the same rule the welcome
+ * screen follows: a punch leads where it means, and going home means leaving
+ * the till — not standing at it with "تسجيل حضور" now drawn under the finger
+ * that just tapped "تسجيل انصراف". The drawer is already counted by the time
+ * this entry appears (`D-177`), so there is nothing left here for them.
  */
 async function punchClock(): Promise<void> {
   const auth = useAuthStore();
+  const arriving = auth.punchOnOffer === "in";
+
   await auth.punch(session.profile?.name ?? null);
-  if (auth.error) orders.error = auth.error;
+  if (auth.error) {
+    orders.error = auth.error;
+    return;
+  }
+
+  if (!arriving) await signOut();
 }
 
 /** Confirmed, because signing out by accident mid-rush is a real annoyance. */

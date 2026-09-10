@@ -455,6 +455,11 @@ def summarise_till(opening_entry: str) -> dict:
 	entry too: the orders this user settled on this terminal since the drawer was
 	taken. An order carries no link to the session — it is created before anybody
 	knows which drawer will settle it.
+
+	A bill still open counts in no drawer, by design: it has taken no money, and
+	it belongs to the floor until somebody settles it. The **day's** report is
+	where an open bill is counted, and that is the report that refuses to close
+	over one (`summarise`).
 	"""
 	entry = frappe.get_doc("POS Opening Entry", opening_entry)
 	day = frappe.db.get_value(
@@ -471,10 +476,20 @@ def summarise_till(opening_entry: str) -> dict:
 	# day, so it still holds when the entry predates the shift link.
 	validate_branch_access(day.branch if day else _profile(entry.pos_profile).branch)
 
+	# **What this drawer settled, not what was opened while it stood** (`D-188`).
+	#
+	# The docstring above has always said "settled" and the filter said
+	# `opened_at`, which are the same thing only while one cashier opens and
+	# closes every bill themselves. A bill opened at eleven and paid at three,
+	# after the drawer changed hands, was **in no drawer's figures at all**: too
+	# early for the one holding the notes, and its opener's drawer was counted
+	# and closed hours before the money arrived.
+	#
+	# `cashier` is now whoever took the money, so the pair finally agree.
 	filters = {
 		"pos_profile": entry.pos_profile,
 		"cashier": entry.user,
-		"opened_at": (">=", entry.period_start_date),
+		"closed_at": (">=", entry.period_start_date),
 	}
 	if day:
 		filters["restaurant_shift"] = day.name

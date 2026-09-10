@@ -84,6 +84,21 @@ def process_payment(
 	order.sales_invoice = invoice.name
 	order.status = "closed"
 	order.closed_at = now_datetime()
+
+	# **The bill is filed under whoever took the money** (`D-188`).
+	#
+	# It used to keep the person who *opened* it, and that is the wrong one for
+	# everything this field is used for. The money is physically in this
+	# cashier's drawer, and `summarise_till` attributes a drawer's takings by
+	# `cashier` — so a bill opened by somebody who then went home was counted
+	# against their closed drawer and missing from the one the notes are
+	# actually sitting in. The count comes up over, and nobody can say why.
+	#
+	# Nothing is lost by overwriting it: Frappe's own `owner` records who
+	# created the order, and the bill's story carries `opened` with their name
+	# (`D-106`). The user's rule, in their words: الفاتورة تسجل باسم اللي
+	# أغلقها وليس اللي فتحها.
+	order.cashier = frappe.session.user
 	order.save(ignore_permissions=True)
 
 	# BR-061 / FR-2.7g — the table is not free until it has been cleaned, and not

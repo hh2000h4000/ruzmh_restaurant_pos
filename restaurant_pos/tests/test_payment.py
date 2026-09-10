@@ -9,10 +9,10 @@ Refs: BR-016, BR-020..BR-024, FR-2.7, FR-10.2, FR-10.3, FR-10.4
 import uuid
 
 import frappe
-from frappe.utils import flt, getdate
+from frappe.utils import add_to_date, flt, getdate, now_datetime
 
 from restaurant_pos.api import payment as api
-from restaurant_pos.tests.test_order import ITEM, OrderTestBase, free_table
+from restaurant_pos.tests.test_order import ITEM, OrderTestBase, _make_cashier, free_table
 from restaurant_pos.utils import order as orders
 from restaurant_pos.utils import payment as service
 from restaurant_pos.utils import totals
@@ -404,3 +404,116 @@ class TestPaymentIdempotency(PaymentTestBase):
 		self.assertEqual(first["sales_invoice"], second["sales_invoice"])
 		self.assertTrue(second.get("already_processed"))
 		self.assertEqual(frappe.db.count("Sales Invoice", {"remarks": ("like", f"%{order.name}%")}), 1)
+
+
+def _make_settler() -> str:
+	"""A second cashier, distinct from the suite's own user and from the opener.
+
+	`_make_cashier` hands back one shared login; a test about *handing a bill
+	over* needs two different people in it, or it proves nothing about either.
+	"""
+	email = "rpos_settling_cashier@example.com"
+	if not frappe.db.exists("User", email):
+		frappe.get_doc(
+			{
+				"doctype": "User",
+				"email": email,
+				"first_name": "RPOS Settling Cashier",
+				"send_welcome_email": 0,
+				"roles": [{"role": "POS Cashier"}],
+			}
+		).insert(ignore_permissions=True)
+
+	return email
+
+
+class TheBillIsFiledUnderWhoeverTookTheMoney(PaymentTestBase):
+	"""`D-188` — and the drawer that holds the notes is the one that counts them.
+
+	**The user's case, exactly.** Nora opened a bill; ruzmh settled it while
+	signed in at the till. The list went on showing Nora, and the reason that
+	mattered was not the label: `summarise_till` attributes a drawer's takings by
+	`Restaurant Order.cashier`, so the money sat in ruzmh's drawer and was
+	counted against Nora's — which had been counted and closed hours before.
+
+	> الفاتورة تسجل باسم اللي أغلقها وليس اللي فتحها
+
+	Nothing is lost by it. Frappe's own `owner` records who created the order,
+	and the bill's story carries `opened` with their name (`D-106`).
+	"""
+
+	def _opened_by_somebody_else(self):
+		"""A bill created by another cashier, then handed over unpaid.
+
+		**A genuinely different person.** The first version of this named
+		`Administrator` — which is the user the suite itself runs as, so
+		`cashier == frappe.session.user` held before the change as well as
+		after, and two mutations walked straight through a green test.
+		"""
+		order = self._payable_order()
+		other = _make_cashier()
+		self.assertNotEqual(other, frappe.session.user, "the fixture must hand over to somebody else")
+
+		frappe.db.set_value("Restaurant Order", order.name, "cashier", other)
+		order.reload()
+		return order
+
+	def test_settling_it_files_it_under_the_settler(self):
+		"""**Driven as the settler**, not as whoever the suite happens to run as.
+
+		Asserting `cashier == frappe.session.user` from the default session was
+		too weak: `Administrator` is the suite's user *and* the owner of most
+		fixtures, so an implementation filing the bill under the terminal's owner
+		passed it. Paying as a named third person pins the claim to the actor.
+		"""
+		order = self._opened_by_somebody_else()
+		settler = _make_settler()
+
+		was = frappe.session.user
+		frappe.set_user(settler)
+		try:
+			self._pay(order)
+		finally:
+			frappe.set_user(was)
+
+		order.reload()
+		self.assertEqual(order.cashier, settler)
+
+	def test_who_opened_it_is_not_lost(self):
+		"""`owner` is Frappe's own record of who created the document."""
+		order = self._opened_by_somebody_else()
+		opener = frappe.db.get_value("Restaurant Order", order.name, "owner")
+
+		self._pay(order)
+
+		self.assertEqual(frappe.db.get_value("Restaurant Order", order.name, "owner"), opener)
+
+	def test_the_money_lands_in_the_drawer_that_holds_it(self):
+		"""The half that is money rather than a label.
+
+		The drawer counted what was **opened** inside it, so a bill opened before
+		this drawer was taken — and settled into it — was in no drawer's figures
+		at all: too early for the one holding the notes, and its opener's drawer
+		was closed before the money arrived.
+		"""
+		from restaurant_pos.utils import shift as shift_service
+
+		# A bill opened before this drawer exists, by somebody else.
+		order = self._opened_by_somebody_else()
+		frappe.db.set_value(
+			"Restaurant Order", order.name, "opened_at", add_to_date(now_datetime(), hours=-3)
+		)
+		order.reload()
+
+		for name in frappe.get_all(
+			"POS Opening Entry", filters={"pos_profile": self.profile, "status": "Open"}, pluck="name"
+		):
+			frappe.db.set_value("POS Opening Entry", name, "status", "Closed")
+
+		taken = shift_service.open_till(pos_profile=self.profile)
+		self._pay(order)
+
+		report = shift_service.summarise_till(taken["entry"])
+
+		self.assertEqual(report["orders"]["closed"], 1, "the drawer counts what it settled")
+		self.assertGreater(report["till_expected"], 0.0)

@@ -53,13 +53,13 @@ const auth = useAuthStore();
  * and meet the PIN pad again to say they had gone home. The two are one errand
  * and they belong in one place.
  *
- * **Above the drawer entries, not among them.** A clock-in is a person and a
+ * **Above the drawer entries, not among them.** Going home is a person and a
  * till shift is a drawer (`D-057`); the row is separated so the menu does not
  * quietly teach that ending one ends the other.
  *
- * Absent for anyone with no `Employee` behind their login — an administrator or
- * an integration user is not on a payroll, and a button that always refuses is
- * worse than no button.
+ * Absent for anyone with no `Employee` behind their login. The welcome screen
+ * says why to them instead (`D-184`) — here it would be a disabled row in a
+ * list of live ones, which reads as a fault rather than as a rule.
  */
 const attendance = computed<MenuEntry | null>(() => {
   // **The same rule the welcome screen reads** (`D-177`, §5.5). This menu used
@@ -67,11 +67,16 @@ const attendance = computed<MenuEntry | null>(() => {
   // "close the till" — so it offered a cashier the way home while the drawer
   // they are answerable for was still open. The entry appears once the drawer
   // is counted, which is the order the shift actually runs in.
-  if (!auth.punchOnOffer) return null;
+  //
+  // **Going home only — never arriving** (`D-185`). Clocking in belongs to the
+  // welcome screen, which everyone now passes through (`D-184`) and which drops
+  // them here the moment they tap it (`D-179`). An entry offering to clock in
+  // *from inside the till* is a second door into a room they are standing in.
+  if (auth.punchOnOffer !== "out") return null;
 
   return {
     key: "clock",
-    label: auth.punchOnOffer === "out" ? "auth.clockOut" : "auth.clockIn",
+    label: "auth.clockOut",
     icon: "hourglass",
     // Since when, because "am I still clocked in from yesterday?" is the
     // question this row is usually opened to answer — and it used to answer it

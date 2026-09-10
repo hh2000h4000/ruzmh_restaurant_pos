@@ -15,7 +15,6 @@ import { useOrderStore } from "@/stores/order";
 import { useSessionStore } from "@/stores/session";
 
 export type OrderSort = "oldest" | "newest" | "amount";
-export type OrderScope = "mine" | "all";
 
 /**
  * The floor: every order still open, kept fresh, filtered, and sorted.
@@ -76,15 +75,25 @@ export function useOpenOrders() {
    */
   const includeCarried = ref(false);
 
-  /** "Mine" is the default even for a supervisor: the smaller list is the calmer one. */
-  const scope = ref<OrderScope>("mine");
-
   /**
-   * `null` hides the switch entirely. The backend enforces the same rule — without
-   * the right it does not return other people's orders — so this only decides
-   * whether an empty tab is worth offering.
+   * **There is no "mine" any more** (`D-187`).
+   *
+   * The user searched for a bill another cashier had opened, and the screen
+   * answered *لا يوجد ما يطابق البحث* — a number they were reading off paper,
+   * on a bill sitting one tab away. The switch defaulted to "mine" and quietly
+   * took the answer out of the list.
+   *
+   * Underneath it was backwards. The server hands the **whole floor** to every
+   * cashier on purpose (`D-121`): a bill left by somebody who went on break has
+   * to be findable by whoever took over, and the floor plan lists that table's
+   * bills anyway. The permission scopes **history**, not the floor. So the
+   * switch was drawn only for somebody holding `can_view_all_orders` — and it
+   * defaulted to hiding things from them. The person with more rights saw less,
+   * and the plain cashier beside them, who never had the switch, saw the lot.
+   *
+   * The permission is the whole rule now, and it is enforced where it belongs:
+   * on the server. One list, in one place, the same for everyone looking at it.
    */
-  const maySeeEveryone = computed(() => session.can("can_view_all_orders"));
 
   /**
    * Bills sold on this device and still in the queue (D-075).
@@ -162,7 +171,7 @@ export function useOpenOrders() {
   }
 
   /** Any new question drops the last answer, so the two are never mixed. */
-  watch([search, view, scope], () => {
+  watch([search, view], () => {
     older.value = null;
   });
 
@@ -177,10 +186,6 @@ export function useOpenOrders() {
       view.value === "closed" || view.value === "all"
         ? [...queued.value, ...rows.value]
         : rows.value;
-
-    if (maySeeEveryone.value && scope.value === "mine") {
-      list = list.filter((order) => order.cashier === session.data?.user);
-    }
 
     const needle = search.value.trim().toLowerCase();
     if (needle) {
@@ -404,12 +409,10 @@ export function useOpenOrders() {
   return {
     error,
     loading,
-    maySeeEveryone,
     older,
     searchOlder,
     searchingOlder,
     refresh: refreshNow,
-    scope,
     search,
     searching: computed(() => Boolean(search.value.trim())),
     sort,

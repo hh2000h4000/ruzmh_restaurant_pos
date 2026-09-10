@@ -18,8 +18,6 @@ const props = defineProps<{
   loading: boolean;
   error: string | null;
   searching: boolean;
-  /** `null` when this user may not see anyone else's orders. */
-  scope: "mine" | "all" | null;
   /** `null` on the till screen, which only ever shows the open floor. */
   view?: OrderView | null;
   /**
@@ -33,8 +31,8 @@ const props = defineProps<{
   /**
    * Whether this cashier may ask for paper again (`can_reprint_receipt`).
    *
-   * Passed in rather than read here, like `scope` above: the panel shows a
-   * list, the screen owns who the cashier is. The server checks it again.
+   * Passed in rather than read here: the panel shows a list, the screen owns
+   * who the cashier is. The server checks it again.
    */
   mayReprint?: boolean;
   /** `null` until somebody searched past today; then, what came back (`D-152`). */
@@ -51,7 +49,6 @@ const emit = defineEmits<{
   open: [order: OpenOrder];
   reprint: [order: OpenOrder];
   floorPlan: [];
-  "update:scope": [scope: "mine" | "all"];
   "update:view": [view: OrderView];
   "update:includeCarried": [include: boolean];
 }>();
@@ -154,26 +151,6 @@ const showCarriedSwitch = computed(() => props.view === "open" && Boolean(props.
         </div>
 
         <div class="flex flex-wrap items-center gap-2.5">
-          <!-- Only for someone who may see the whole floor. The backend enforces
-               the same rule regardless (FR-12.3). -->
-          <div
-            v-if="scope"
-            class="flex rounded-full bg-background p-1"
-            role="group"
-          >
-            <button
-              v-for="option in (['mine', 'all'] as const)"
-              :key="option"
-              type="button"
-              class="min-h-tap rounded-full px-6 text-xs font-medium transition-colors duration-100 ease-rpos"
-              :class="scope === option ? 'bg-primary text-primary-contrast' : 'text-muted'"
-              :aria-pressed="scope === option"
-              @click="emit('update:scope', option)"
-            >
-              {{ option === "mine" ? t("home.scopeMine") : t("home.scopeAll") }}
-            </button>
-          </div>
-
           <div class="flex h-[58px] w-[124px] rounded-[15px] bg-background p-[5px]">
             <button
               v-for="option in (['grid', 'list'] as const)"

@@ -116,8 +116,6 @@ export const messages = {
   "type.hintQuick": "Straight to the order",
   "home.openOrdersEmpty": "Nothing on the floor. Pick an order type to start one.",
   "home.openOrdersFailed": "The open orders could not be loaded.",
-  "home.scopeMine": "Mine",
-  "home.scopeAll": "All",
   "home.search": "Search open orders…",
   "home.searchEmpty": "Nothing matches that.",
   "home.viewList": "List view",

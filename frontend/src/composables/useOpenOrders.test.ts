@@ -248,3 +248,58 @@ describe("when the list refetches", () => {
     expect(floor.visible.value).toEqual([]);
   });
 });
+
+
+/**
+ * Whose bills the floor shows (`D-187`).
+ *
+ * The user searched for a bill another cashier had opened and the screen said
+ * *لا يوجد ما يطابق البحث* — a number they were reading off paper, on a bill
+ * one tab away. A "mine / all" switch defaulted to mine and took the answer out
+ * of the list before the search ever saw it.
+ *
+ * And it was backwards underneath. The server hands the whole floor to every
+ * cashier on purpose (`D-121`); the permission scopes **history**. So the
+ * switch was drawn only for somebody holding `can_view_all_orders`, and
+ * defaulted to hiding things **from them** — while the plain cashier beside
+ * them, who never had the switch, saw everything.
+ */
+describe("whose bills the floor shows", () => {
+  async function floorOf(rows: OpenOrder[], mayViewAll: boolean) {
+    const session = useSessionStore();
+    session.data = {
+      pos_profile: { name: "T1" },
+      user: "me@example.com",
+      permissions: { can_view_all_orders: mayViewAll ? 1 : 0 },
+    } as unknown as PosSession;
+    vi.mocked(orderApi.listOrders).mockResolvedValue(rows);
+
+    const floor = useOpenOrders();
+    await floor.refresh();
+    return floor;
+  }
+
+  const theirs = bill({ name: "RO-2026-09-00037", cashier: "nora@example.com" });
+  const mine = bill({ name: "RO-2026-09-00040", cashier: "me@example.com" });
+
+  it("shows another cashier's open bill to a supervisor", async () => {
+    const floor = await floorOf([theirs, mine], true);
+
+    expect(floor.visible.value.map((row) => row.name)).toContain("RO-2026-09-00037");
+  });
+
+  it("finds it by number, which is what the user could not do", async () => {
+    const floor = await floorOf([theirs, mine], true);
+    floor.search.value = "00037";
+
+    expect(floor.visible.value.map((row) => row.name)).toEqual(["RO-2026-09-00037"]);
+  });
+
+  it("shows the same list to a plain cashier", async () => {
+    // The floor was never the permission's business (`D-121`): a bill left by
+    // somebody on break has to be findable by whoever took over.
+    const floor = await floorOf([theirs, mine], false);
+
+    expect(floor.visible.value).toHaveLength(2);
+  });
+});

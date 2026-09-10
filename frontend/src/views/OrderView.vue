@@ -217,11 +217,9 @@ const floorLayout = ref<"list" | "grid">("list");
 const {
   error: floorError,
   loading: floorLoading,
-  maySeeEveryone: floorMaySeeEveryone,
   older: floorOlder,
   searchOlder: floorSearchOlder,
   searchingOlder: floorSearchingOlder,
-  scope: floorScope,
   search: floorSearch,
   searching: floorSearching,
   sort: floorSort,
@@ -1379,7 +1377,6 @@ async function send(): Promise<void> {
             :loading="floorLoading"
             :error="floorError"
             :searching="floorSearching"
-            :scope="floorMaySeeEveryone ? floorScope : null"
             :view="floorView"
             :stale-at="floorStaleAt"
             :carried-count="floorCarriedCount"
@@ -1391,7 +1388,6 @@ async function send(): Promise<void> {
             @open="switchTo"
             @reprint="reprint"
             @floor-plan="pane = 'tables'"
-            @update:scope="floorScope = $event"
             @update:view="floorView = $event"
             @update:include-carried="floorIncludeCarried = $event"
           />

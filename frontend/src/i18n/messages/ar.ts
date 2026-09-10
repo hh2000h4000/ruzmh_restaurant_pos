@@ -106,8 +106,6 @@ const messages: Catalogue["messages"] = {
   "type.hintQuick": "مباشرة إلى الطلب",
   "home.openOrdersEmpty": "لا توجد طلبات مفتوحة. اختر نوع الطلب للبدء.",
   "home.openOrdersFailed": "تعذّر تحميل الطلبات المفتوحة.",
-  "home.scopeMine": "طلباتي",
-  "home.scopeAll": "الكل",
   "home.search": "البحث في الطلبات المفتوحة…",
   "home.searchEmpty": "لا يوجد ما يطابق البحث.",
   "home.viewList": "عرض قائمة",

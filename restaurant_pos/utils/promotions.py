@@ -117,13 +117,145 @@ def active_for(order, total: float | None = None) -> list[frappe._dict]:
 	return [row for row in eligible if flt(row.benefit) > 0]
 
 
-def best_for(order, total: float | None = None) -> frappe._dict | None:
-	"""The one promotion that applies to this bill, or nothing.
+def applied_to(order, total: float | None = None) -> list:
+	"""Every offer that lands on this bill, and which lines each one took (`D-182`).
 
-	One, because a second would have to touch an item the first already did —
-	and that is the rule this module exists to hold (rule 1 above). Splitting a
-	bill's items between two promotions is a real thing to want and is not this;
-	it needs per-line application, and is not built.
+	**`BR-034` has always said this** — *multiple promotions can apply to one
+	bill, on different items; a single item is never touched by two* — and the
+	engine applied exactly one, because per-line application had not been built
+	(`D-163`). A shop running *15% off grills* and *buy two get one on drinks*
+	got whichever ranked higher and silently lost the other.
+
+	The rule that made one offer safe is what makes several safe, so it is kept
+	verbatim: **a line is claimed once.** Offers are walked in `BR-035` order —
+	priority, then the better deal — and each is priced against **only the lines
+	still unclaimed**. Not against the whole bill with the claimed ones removed
+	afterwards: *buy 2 get 1 on drinks* must count the drinks it can actually
+	have, or an offer whose qualifying units were taken by another would still
+	hand one over.
+
+	**A cashier's own choice claims first** (`D-165`). It used to *replace* the
+	automatic pick; now it takes its lines before them, which is the same
+	precedence one layer down — and the automatic offers still reach whatever it
+	did not want, rather than being suppressed by a choice that had nothing to do
+	with them.
+
+	Each returned row carries `shares` (what came off each line, keyed by `idx`)
+	and a `benefit` recomputed from them, because the ranking's benefit was
+	measured against the whole bill and this one is what the offer actually got.
+	"""
+	on_offer = active_for(order, total)
+	chosen = order.get("chosen_promotion")
+
+	# Stable: `active_for` already ordered by `BR-035`, and this lifts the
+	# cashier's pick to the front without disturbing the rest.
+	if chosen:
+		on_offer.sort(key=lambda row: row.name != chosen)
+
+	applied: list = []
+	claimed: set[int] = set()
+
+	for row in on_offer:
+		if not row.is_auto_apply and row.name != chosen:
+			continue
+
+		shares = _shares_of(row, _without(order, claimed))
+		if not shares:
+			continue
+
+		claimed.update(shares)
+		row.shares = shares
+		row.benefit = flt(sum(shares.values()), 2)
+		applied.append(row)
+
+	return applied
+
+
+class _Lines:
+	"""A bill seen as its lines alone, for pricing the next offer.
+
+	**Not a `frappe._dict`.** That is a `dict` subclass, so `.items` resolves to
+	the mapping's own method rather than to the key of that name — the share
+	functions received a bound method where they expected rows, and every offer
+	after the first priced nothing. It cost a run of the suite to see, and the
+	failure named a type rather than a bill.
+	"""
+
+	__slots__ = ("items",)
+
+	def __init__(self, items: list):
+		self.items = items
+
+	def get(self, field, default=None):
+		"""The share functions ask a bill for `chosen_promotion` and the like."""
+		return default
+
+
+def _without(order, claimed: set[int]):
+	"""The same bill with the claimed lines taken out, for the next offer to read.
+
+	A view rather than a copy of the document: the share functions read ``items``
+	and nothing else, and rebuilding an order would be a second definition of one
+	(§5.5).
+	"""
+	if not claimed:
+		return order
+
+	return _Lines([row for row in (order.items or []) if row.idx not in claimed])
+
+
+def _shares_of(promotion, order) -> dict[int, float]:
+	"""What one offer takes off each line it reaches.
+
+	The unit rewards name specific units; the other two spread across what they
+	cover, in proportion, with the last covered line absorbing the rounding so
+	the parts sum to the whole exactly (`D-166`).
+	"""
+	if promotion.promotion_type == "buy_x_get_y":
+		return _free_units(promotion, order)
+
+	if promotion.promotion_type == "free_item":
+		return _free_reward_units(promotion, order)
+
+	covered = _covered_lines(promotion, order)
+	base = flt(sum(flt(row.amount) for row in covered), 2)
+	if not covered or base <= 0:
+		return {}
+
+	total = benefit_of(promotion, order)
+	if total <= 0:
+		return {}
+
+	return _spread(total, covered, base)
+
+
+def _spread(total: float, covered: list, base: float) -> dict[int, float]:
+	"""``total`` divided over ``covered`` in proportion to what each contributed.
+
+	The last line takes the remainder rather than its own rounded share, so the
+	lines sum to the figure on the bill and not to a cent beside it — a receipt
+	whose parts do not add up is read as a mistake by the one person who cannot
+	check it (`D-162`).
+	"""
+	shares: dict[int, float] = {}
+	running = 0.0
+
+	for row in covered[:-1]:
+		share = flt(total * flt(row.amount) / base, 2)
+		shares[row.idx] = share
+		running = flt(running + share, 2)
+
+	shares[covered[-1].idx] = flt(total - running, 2)
+	return shares
+
+
+def best_for(order, total: float | None = None) -> frappe._dict | None:
+	"""The highest-ranked offer on this bill — the one it is filed under.
+
+	**Not "the only one that applies" any more** (`D-182`). Several may, on
+	different lines; this names the one the bill is recorded against, for the
+	invoice remark and the story on the bill's own log, where a single name is
+	what the reader expects. The money is the sum of them all.
 
 	**A cashier's own choice outranks the ranking** (`D-165`). Priority and the
 	better-deal tiebreak decide between promotions when *nobody* has decided —
@@ -136,15 +268,18 @@ def best_for(order, total: float | None = None) -> frappe._dict | None:
 	whose hours have passed, or that covers nothing on this bill, does not apply
 	because it was picked — it just stops being on offer.
 	"""
-	on_offer = active_for(order, total)
+	applied = applied_to(order, total)
+	return applied[0] if applied else None
 
-	if order.get("chosen_promotion"):
-		picked = [row for row in on_offer if row.name == order.chosen_promotion]
-		if picked:
-			return picked[0]
 
-	auto = [row for row in on_offer if row.is_auto_apply]
-	return auto[0] if auto else None
+def promotion_total(order, total: float | None = None) -> float:
+	"""What every offer on this bill takes off, together (`D-182`).
+
+	The sum of what each one actually got, not of what each was worth on its
+	own: two offers over one bill are priced in turn, and the second sees only
+	the lines the first left.
+	"""
+	return flt(sum(flt(row.benefit) for row in applied_to(order, total)), 2)
 
 
 def benefit_of(promotion, order) -> float:
@@ -290,15 +425,19 @@ def blocks_a_discount(order) -> str:
 	Returns the title so the caller can name it. A refusal that will not say
 	*which* offer is the report nobody can act on.
 	"""
-	chosen = best_for(order)
-	if not chosen or not chosen.is_exclusive:
-		return ""
+	# **Any** of them, not the highest-ranked one (`D-182`). A bill may now carry
+	# several, and an exclusive offer sitting second would have been ignored —
+	# the shop giving away the offer and the discount together, which is the
+	# exact defect this function was written for.
+	for row in applied_to(order):
+		if row.is_exclusive:
+			return row.title_ar or row.title or row.name
 
-	return chosen.title_ar or chosen.title or chosen.name
+	return ""
 
 
 def per_line(order) -> dict[int, float]:
-	"""Which lines the promotion touched, and what came off each (`D-166`).
+	"""Which lines the offers touched, and what came off each (`D-166`, `D-182`).
 
 	**A total that says "-13.00" does not say which dish it came off.** On a bill
 	where the offer covers three items out of seven, the cashier cannot answer
@@ -308,61 +447,44 @@ def per_line(order) -> dict[int, float]:
 	covered lines and leaves the rest bare. All three answer *which*, which the
 	bill's own total never can.
 
-	**The parts add up to the whole, exactly.** Each line takes its share of the
-	promotion in proportion to what it contributed, and the last covered line
-	absorbs whatever rounding left over — because a receipt whose lines do not
-	sum to its total is read as a mistake by the one person who cannot check it
-	(`D-162`).
+	Merged across every offer that applied, and they cannot collide: `applied_to`
+	claims each line once, which is `BR-034` and the reason several offers on one
+	bill are safe at all.
 
-	Keyed by ``idx``, and empty when no promotion applied.
+	**Scaled to the figure actually on the bill.** `_promotion_for` caps the
+	offers at what is left after a person's own discount, and when that cap bites
+	the marks have to come down with it — lines that sum to more than the total
+	they explain are a receipt read as a mistake (`D-162`). The last line takes
+	the remainder, so they sum exactly.
 	"""
-	if not order.get("promotion") or not flt(order.get("promotion_amount")):
+	total = flt(order.get("promotion_amount"))
+	if not total:
 		return {}
 
-	promotion = frappe.db.get_value(
-		"Restaurant Promotion",
-		order.promotion,
-		[
-			"name",
-			"item_scope",
-			"promotion_type",
-			"buy_qty",
-			"get_qty",
-			"free_item",
-			"free_item_group",
-			"free_qty",
-		],
-		as_dict=True,
-	)
-	if not promotion:
+	raw: dict[int, float] = {}
+	for row in applied_to(order):
+		raw.update(row.shares)
+
+	if not raw:
 		return {}
 
-	# **A reward that frees whole units does not spread across the bill.**
-	# Specific units are free — the cheapest ones — so the marks are exactly
-	# those, worked out by the same function that priced them.
-	if promotion.promotion_type == "buy_x_get_y":
-		return _free_units(promotion, order)
-
-	if promotion.promotion_type == "free_item":
-		return _free_reward_units(promotion, order)
-
-	covered = _covered_lines(promotion, order)
-	base = flt(sum(flt(row.amount) for row in covered), 2)
-	if not covered or base <= 0:
+	earned = flt(sum(raw.values()), 2)
+	if earned <= 0:
 		return {}
 
-	total = flt(order.promotion_amount)
+	# The ordinary case: nothing was capped, so the shares stand as priced.
+	if earned == total:
+		return raw
+
+	idx = list(raw)
 	shares: dict[int, float] = {}
 	running = 0.0
-
-	for row in covered[:-1]:
-		share = flt(total * flt(row.amount) / base, 2)
-		shares[row.idx] = share
+	for line in idx[:-1]:
+		share = flt(total * raw[line] / earned, 2)
+		shares[line] = share
 		running = flt(running + share, 2)
 
-	# The last one takes the remainder rather than its own rounded share, so the
-	# lines sum to the figure on the bill and not to a cent beside it.
-	shares[covered[-1].idx] = flt(total - running, 2)
+	shares[idx[-1]] = flt(total - running, 2)
 	return shares
 
 
@@ -416,10 +538,26 @@ def on_the_bill(order) -> dict:
 		if order.promotion
 		else None
 	)
+
+	# **And the others with it** (`D-182`). A bill may carry several now, and a
+	# row naming one of them while the figure covers all of them is the same
+	# unanswerable report as no name at all: the guest points at a dish the named
+	# offer never touched. The screens draw the first and can list the rest.
+	applied = applied_to(order) if flt(order.promotion_amount) else []
+
 	return {
 		"promotion_amount": flt(order.promotion_amount),
 		"promotion_title": (titles[0] if titles else "") or "",
 		"promotion_title_ar": (titles[1] if titles else "") or "",
+		"promotions": [
+			{
+				"name": row.name,
+				"title": row.title or "",
+				"title_ar": row.title_ar or "",
+				"amount": flt(row.benefit),
+			}
+			for row in applied
+		],
 	}
 
 

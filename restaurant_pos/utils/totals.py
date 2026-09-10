@@ -266,12 +266,20 @@ def _promotion_for(order, after_manual: float) -> tuple[str | None, float]:
 	from restaurant_pos.utils import promotions
 
 	try:
-		chosen = promotions.best_for(order, total=after_manual)
+		applied = promotions.applied_to(order, total=after_manual)
 	except Exception:
 		frappe.log_error("Promotion evaluation failed", "RPOS promotions")
 		return None, 0.0
 
-	if not chosen:
+	if not applied:
 		return None, 0.0
 
-	return chosen.name, flt(min(flt(chosen.benefit), max(0.0, after_manual)), 2)
+	# **The sum of all of them, capped once** (`D-182`). A bill may carry several
+	# offers on different lines (`BR-034`); the cap is on what leaves the bill,
+	# not on each offer in turn, or two that each fitted under it would together
+	# hand money back.
+	earned = flt(sum(flt(row.benefit) for row in applied), 2)
+
+	# The head of the list is the one the bill is filed under — for the invoice
+	# remark and the story on its log, where a reader expects one name.
+	return applied[0].name, flt(min(earned, max(0.0, after_manual)), 2)

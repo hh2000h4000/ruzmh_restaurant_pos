@@ -20,6 +20,59 @@ function bill(extra: Partial<Parameters<typeof reductionsOn>[0]> = {}) {
   } as NonNullable<Parameters<typeof reductionsOn>[0]>;
 }
 
+describe("a bill carrying more than one offer", () => {
+  /**
+   * `D-182` — several offers may land on one bill, on different lines
+   * (`BR-034`). A row naming one of them while the figure covers both is the
+   * same unanswerable report as no name at all: the guest points at a dish the
+   * named offer never touched.
+   */
+  it("names every offer that landed", () => {
+    const { promotion } = reductionsOn(
+      bill({
+        discount_amount: 13,
+        promotion_amount: 13,
+        promotion_title: "Grills",
+        promotion_title_ar: "الشوايات",
+        promotions: [
+          { name: "P1", title: "Grills", title_ar: "الشوايات", amount: 8 },
+          { name: "P2", title: "Drinks", title_ar: "المشروبات", amount: 5 },
+        ],
+      }),
+    );
+
+    expect(promotion).toEqual({ title: "الشوايات، المشروبات", amount: 13 });
+  });
+
+  it("keeps the single name when only one landed", () => {
+    const { promotion } = reductionsOn(
+      bill({
+        discount_amount: 8,
+        promotion_amount: 8,
+        promotion_title: "Grills",
+        promotion_title_ar: "الشوايات",
+        promotions: [{ name: "P1", title: "Grills", title_ar: "الشوايات", amount: 8 }],
+      }),
+    );
+
+    expect(promotion).toEqual({ title: "الشوايات", amount: 8 });
+  });
+
+  it("falls back to the bill's own title when the server sent no list", () => {
+    // An older server, or a bill built offline where the engine never ran.
+    const { promotion } = reductionsOn(
+      bill({
+        discount_amount: 8,
+        promotion_amount: 8,
+        promotion_title: "Grills",
+        promotion_title_ar: "الشوايات",
+      }),
+    );
+
+    expect(promotion).toEqual({ title: "الشوايات", amount: 8 });
+  });
+});
+
 describe("telling a promotion from a discount", () => {
   it("names the promotion and leaves the discount at nothing", () => {
     const { promotion, discount } = reductionsOn(

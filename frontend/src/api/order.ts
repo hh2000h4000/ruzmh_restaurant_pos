@@ -7,7 +7,7 @@
  */
 import { mutate, query } from "./client";
 
-import { pick } from "@/i18n";
+import { pick, t } from "@/i18n";
 import { mutateOrQueue, type Queued } from "@/offline/queue";
 
 /**
@@ -28,8 +28,17 @@ import { mutateOrQueue, type Queued } from "@/offline/queue";
  */
 export interface PromotionOnBill {
   promotion_amount: number;
+  /** The offer the bill is filed under — the highest-ranked of them. */
   promotion_title: string;
   promotion_title_ar: string;
+  /**
+   * Every offer that landed, and what each one took (`D-182`).
+   *
+   * A bill may carry several now, on different lines (`BR-034`). Optional
+   * because a bill built offline ran no engine, and an older server does not
+   * send it — in both cases the single title above still stands.
+   */
+  promotions?: { name: string; title: string; title_ar: string; amount: number }[];
 }
 
 /**
@@ -51,8 +60,19 @@ export function reductionsOn(bill: (PromotionOnBill & { discount_amount: number 
 } {
   if (!bill) return { promotion: null, discount: 0 };
 
-  const title = pick(bill.promotion_title_ar, bill.promotion_title);
   const amount = bill.promotion_amount ?? 0;
+
+  // **Named by all of them when there are several** (`D-182`). A line reading
+  // "خصم الشوايات ‎-13.00" on a bill where 8.00 of that came off the drinks is
+  // the same unanswerable report as no name at all: the guest points at a dish
+  // the named offer never touched. Joined in the catalogue's own separator, so
+  // the list reads as a list in either language.
+  const carried = bill.promotions ?? [];
+  const title =
+    carried.length > 1
+      ? carried.map((row) => pick(row.title_ar, row.title)).join(t("common.listSeparator"))
+      : pick(bill.promotion_title_ar, bill.promotion_title);
+
   const named = amount > 0 && Boolean(title);
 
   return {

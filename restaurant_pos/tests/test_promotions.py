@@ -1251,3 +1251,149 @@ class ASilentPromotionIsRefused(PromotionTestBase):
 					discount_value=1,
 					free_item=ITEM,
 				)
+
+
+class TwoOffersOnOneBill(BuyTwoGetTheThirdFree):
+	"""`BR-034` at last: several offers on one bill, on different items (`D-182`).
+
+	The engine applied exactly one for as long as it has existed, because
+	per-line application had not been built (`D-163`) — so a shop running *15%
+	off grills* and *buy two get one on drinks* got whichever ranked higher and
+	silently lost the other. The rule that made one offer safe is what makes
+	several safe, and it is unchanged: **a line is claimed once.**
+
+	Inherits the two-item fixture from its neighbour, because "on different
+	items" needs two items to mean anything: `ITEM` at 25 and `cheap_item` at 5.
+	"""
+
+	def _on(self, item, **fields):
+		"""An offer scoped to one item, so the two never reach for the same line."""
+		return self._promotion(
+			item_scope="specific_items",
+			applicable_items=[{"item": item}],
+			**fields,
+		)
+
+	def _two_line_bill(self):
+		order = self._order()
+		orders.add_item(order, item=ITEM, qty=1)  # 25.00
+		orders.add_item(order, item=self.cheap_item, qty=1)  # 5.00
+		order.reload()
+		return order
+
+	def test_both_apply_when_they_reach_different_lines(self):
+		self._on(ITEM, title="RPOS test grills", discount_value=20)  # 5.00
+		self._on(self.cheap_item, title="RPOS test drinks", discount_value=10)  # 0.50
+
+		order = self._two_line_bill()
+
+		self.assertEqual(order.promotion_amount, 5.5, "both, not the better one")
+		self.assertEqual(promotions.per_line(order), {1: 5.0, 2: 0.5})
+
+	def test_a_line_is_still_claimed_only_once(self):
+		"""The invariant the whole thing rests on. Both reach the same line, so
+		the second gets nothing — 20% off, never 36%."""
+		self._on(ITEM, title="RPOS test twenty", discount_value=20, priority=10)
+		self._on(ITEM, title="RPOS test other twenty", discount_value=20, priority=5)
+
+		order = self._two_line_bill()
+
+		self.assertEqual(order.promotion_amount, 5.0)
+		self.assertEqual([row.title for row in promotions.applied_to(order)], ["RPOS test twenty"])
+
+	def test_the_bill_is_filed_under_the_highest_ranked(self):
+		"""One name where a reader expects one — the invoice remark and the log."""
+		self._on(self.cheap_item, title="RPOS test small", discount_value=10, priority=1)
+		self._on(ITEM, title="RPOS test large", discount_value=20, priority=99)
+
+		order = self._two_line_bill()
+
+		self.assertEqual(
+			frappe.db.get_value("Restaurant Promotion", order.promotion, "title"),
+			"RPOS test large",
+		)
+
+	def test_the_bill_names_every_offer_it_carries(self):
+		"""A row naming one offer while the figure covers two is the same
+		unanswerable report as no name at all (`D-074`)."""
+		self._on(ITEM, title="RPOS test grills", discount_value=20)
+		self._on(self.cheap_item, title="RPOS test drinks", discount_value=10)
+
+		carried = promotions.on_the_bill(self._two_line_bill())
+
+		self.assertEqual(
+			sorted(row["title"] for row in carried["promotions"]),
+			["RPOS test drinks", "RPOS test grills"],
+		)
+		self.assertEqual(flt(sum(row["amount"] for row in carried["promotions"]), 2), 5.5)
+
+	def test_the_second_offer_is_priced_on_what_is_left(self):
+		"""**Not on the whole bill with the claimed lines removed afterwards.**
+
+		*Buy 2 get 1 on drinks* has to count the drinks it can actually have. One
+		water is already claimed by a free-item offer, so two are left — and two
+		does not qualify. Priced against all three first, it would hand over a
+		free water the remaining basket no longer earns.
+		"""
+		self._promotion(
+			title="RPOS test free water",
+			promotion_type="free_item",
+			free_item=self.cheap_item,
+			free_qty=1,
+			item_scope="specific_items",
+			applicable_items=[{"item": self.cheap_item}],
+			priority=99,
+		)
+		self._promotion(
+			title="RPOS test bogo drinks",
+			promotion_type="buy_x_get_y",
+			buy_qty=2,
+			get_qty=1,
+			item_scope="specific_items",
+			applicable_items=[{"item": self.cheap_item}],
+			priority=1,
+		)
+
+		order = self._order()
+		for _ in range(3):
+			orders.add_item(order, item=self.cheap_item, qty=1)
+		order.reload()
+
+		self.assertEqual(
+			[row.title for row in promotions.applied_to(order)],
+			["RPOS test free water"],
+			"two units left, and buy-2-get-1 needs three",
+		)
+		self.assertEqual(order.promotion_amount, 5.0)
+
+	def test_an_exclusive_offer_blocks_even_when_it_is_not_the_first(self):
+		"""It used to be read off the highest-ranked one alone, so an exclusive
+		offer sitting second was ignored — the shop giving away the offer and the
+		manual discount together."""
+		self._on(ITEM, title="RPOS test plain", discount_value=20, priority=99)
+		self._on(self.cheap_item, title="RPOS test exclusive", discount_value=10, is_exclusive=1)
+
+		blocked = promotions.blocks_a_discount(self._two_line_bill())
+
+		self.assertEqual(blocked, "عرض اختبار")
+
+	def test_the_cap_brings_the_marks_down_with_it(self):
+		"""The offers are capped at what is left after a person's own discount,
+		and lines that sum to more than the total they explain are read as a
+		mistake by the one person who cannot check it (`D-162`)."""
+		self._on(ITEM, title="RPOS test grills", discount_value=100)  # would take 25
+		self._on(self.cheap_item, title="RPOS test drinks", discount_value=100)  # would take 5
+
+		order = self._two_line_bill()
+		order.discount_type = "amount"
+		order.discount_value = 28
+		# **Recomputed explicitly.** `save` alone does not: the controller
+		# validates the discount and nothing recalculates, so the bill would
+		# keep the figure it had before the discount existed — which is how the
+		# neighbouring test passed while asserting nothing about the cap.
+		totals.calculate(order)
+		order.save(ignore_permissions=True)
+		order.reload()
+
+		self.assertEqual(order.promotion_amount, 2.0, "only what the discount left")
+		self.assertEqual(flt(sum(promotions.per_line(order).values()), 2), 2.0)

@@ -34,7 +34,8 @@ export const useOrderStore = defineStore("order", () => {
   const pendingSync = ref(false);
 
   /**
-   * Bumped whenever a call through `run` comes back without throwing (`D-180`).
+   * Bumped whenever a call through `run` **settles** — succeeded or refused
+   * (`D-180`, amended by `D-181`).
    *
    * **The floor list has no other way to know.** It polls every fifteen
    * seconds, so a bill this cashier had just cancelled sat on their own screen
@@ -42,6 +43,15 @@ export const useOrderStore = defineStore("order", () => {
    * seconds. Polling answers "what did the *other* terminals do"; it is the
    * wrong instrument for "what did I just do", and no interval short enough to
    * hide that is one a till should be running.
+   *
+   * **On refusal too, and that is the whole of `D-181`.** It fired on success
+   * only at first, on the reasoning that a refused action changed nothing. It
+   * changed nothing *on the server* — but a refusal is the strongest evidence
+   * there is that **this screen** is wrong: "that order is already cancelled"
+   * means somebody else ended it and we are still drawing it. So the moment we
+   * are told we were mistaken is the moment to ask again. TanStack Query
+   * settled on the same rule and names it in one line — *always refetch after
+   * error or success* — which is why its invalidation goes in `onSettled`.
    *
    * A counter rather than a call at each site: there are eighteen mutations
    * here and the nineteenth is the one somebody forgets (`CLAUDE.md` §5.5).
@@ -52,7 +62,7 @@ export const useOrderStore = defineStore("order", () => {
    * right, the listener coalesces anyway, and a flag at each call site to tell
    * the two apart is the per-site memory this exists to avoid.
    */
-  const changedAt = ref(0);
+  const settledAt = ref(0);
 
   /**
    * The bill this device is composing while the line is down (D-073).
@@ -134,16 +144,16 @@ export const useOrderStore = defineStore("order", () => {
     busy.value = true;
     error.value = null;
     try {
-      const result = await action();
-      // After it landed, never before: a refused action changed nothing, and a
-      // list told otherwise would fetch the same rows back and look broken.
-      changedAt.value += 1;
-      return result;
+      return await action();
     } catch (cause) {
       error.value = cause instanceof Error ? cause.message : String(cause);
       return null;
     } finally {
       busy.value = false;
+      // In `finally`, so it fires on the refusal as well. The early return
+      // above — the one that turns a re-entrant call away — is outside this
+      // block on purpose: nothing was attempted there, so nothing settled.
+      settledAt.value += 1;
     }
   }
 
@@ -549,7 +559,7 @@ export const useOrderStore = defineStore("order", () => {
     error,
     unrouted,
     pendingSync,
-    changedAt,
+    settledAt,
     payOffline,
     lines,
     voided,

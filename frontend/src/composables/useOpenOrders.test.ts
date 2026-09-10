@@ -22,6 +22,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as orderApi from "@/api/order";
 import type { OpenOrder } from "@/api/order";
 import { useOpenOrders } from "@/composables/useOpenOrders";
+import { useConnectionStore } from "@/stores/connection";
 import { useOrderStore } from "@/stores/order";
 import { useSessionStore } from "@/stores/session";
 import type { PosSession } from "@/types/session";
@@ -30,7 +31,7 @@ vi.mock("@/api/order", () => ({
   listOrders: vi.fn(),
   searchOrders: vi.fn(),
   // Driven for real in "when the list refetches": the chain under test is
-  // cancel -> the store's `run` -> `changedAt` -> the list asking again.
+  // cancel -> the store's `run` -> `settledAt` -> the list asking again.
   cancelOrder: vi.fn(),
 }));
 vi.mock("@/offline/orderMirror", () => ({
@@ -161,7 +162,7 @@ describe("when the list refetches", () => {
 
     // What every mutation in the store does when it comes back without
     // throwing — cancelling a bill among them.
-    useOrderStore().changedAt += 1;
+    useOrderStore().settledAt += 1;
     await flushPromises();
 
     expect(orderApi.listOrders).toHaveBeenCalledOnce();
@@ -182,15 +183,35 @@ describe("when the list refetches", () => {
     expect(floor.visible.value).toEqual([]);
   });
 
-  it("leaves the list alone when the action was refused", async () => {
-    // A refused action changed nothing. Asking again would fetch the same rows
-    // back and make a working screen look like it had flickered for no reason.
-    await floorOnScreen();
+  it("asks again when the action was refused, because the refusal says we are wrong", async () => {
+    // **This reverses what the first version of `D-180` asserted here.** It
+    // said a refused action changed nothing, so there was nothing to fetch.
+    // Nothing changed *on the server* — but "that order is already cancelled"
+    // is another terminal's work arriving as an error, and the row it names is
+    // still on this screen. The refusal is the best reason to ask again.
+    const floor = await floorOnScreen();
     const store = useOrderStore();
     store.order = { order_name: "RO-1" } as never;
-    vi.mocked(orderApi.cancelOrder).mockRejectedValue(new Error("A paid order cannot be cancelled."));
+    vi.mocked(orderApi.cancelOrder).mockRejectedValue(
+      new Error("Order RO-1 is already cancelled."),
+    );
+    vi.mocked(orderApi.listOrders).mockResolvedValue([]);
 
     await store.cancel("changed my mind");
+    await flushPromises();
+
+    expect(orderApi.listOrders).toHaveBeenCalledOnce();
+    expect(floor.visible.value).toEqual([]);
+  });
+
+  it("does not chase a server that is not there", async () => {
+    // Offline the list is already drawing the device's own copy, and a request
+    // to a dead server costs a timeout to learn nothing.
+    await floorOnScreen();
+    useConnectionStore().state = "offline";
+    const store = useOrderStore();
+
+    store.settledAt += 1;
     await flushPromises();
 
     expect(orderApi.listOrders).not.toHaveBeenCalled();
@@ -207,14 +228,14 @@ describe("when the list refetches", () => {
       }),
     );
 
-    store.changedAt += 1;
+    store.settledAt += 1;
     await flushPromises();
     expect(orderApi.listOrders).toHaveBeenCalledOnce();
 
     // A second action lands while the first answer is still on its way. Without
     // coalescing this starts a second request racing the first, and the list
     // draws whichever returns last.
-    store.changedAt += 1;
+    store.settledAt += 1;
     await flushPromises();
     expect(orderApi.listOrders).toHaveBeenCalledOnce();
 

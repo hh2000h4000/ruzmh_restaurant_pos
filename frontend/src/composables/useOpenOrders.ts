@@ -325,14 +325,30 @@ export function useOpenOrders() {
   }
 
   /**
-   * The cashier's own work, the moment it lands (`D-180`).
+   * The cashier's own work, the moment it settles (`D-180`, `D-181`).
    *
    * Not an optimistic removal of the row: the server's answer is a round trip
    * away, and a screen that deletes a line before the server has agreed is a
    * screen that has to put it back when the server refuses (`CLAUDE.md` §5.1
    * is the same rule about money). This asks again and draws what comes back.
+   *
+   * **Refusals included.** "That order is already cancelled" is another
+   * terminal's work arriving as an error message, and the row it refers to is
+   * still on this screen — so the refusal is the best reason there is to ask
+   * again, not a reason to sit still.
+   *
+   * **Except with the line down.** Offline the answer is already coming from
+   * the device's own copy, and a request to a server that is not there costs a
+   * timeout to learn nothing. The poll keeps its own offline behaviour — it
+   * refreshes the queued rows, which live here — so this guard is on the
+   * settle path alone.
    */
-  watch(() => useOrderStore().changedAt, () => void refreshNow());
+  watch(
+    () => useOrderStore().settledAt,
+    () => {
+      if (connection.isOnline) void refreshNow();
+    },
+  );
 
   function onVisibilityChange(): void {
     if (document.visibilityState === "visible") void refreshNow();

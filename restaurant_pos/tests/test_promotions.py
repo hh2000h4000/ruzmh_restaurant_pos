@@ -1114,6 +1114,34 @@ class AKabsaAndAnyDrinkFree(BuyTwoGetTheThirdFree):
 
 		self.assertEqual([row.title for row in promotions.active_for(self._bill())], [])
 
+	def test_a_voided_drink_earns_nothing(self):
+		"""**A line struck off the bill is not on the bill** (`D-175`).
+
+		Found by mutation, not by reading: taking the void filter out of
+		`_free_reward_units` left all eighty-one tests green. The guest orders
+		the drink, changes their mind, the cashier voids it — and the offer went
+		on taking its price off a drink nobody is being served. Money given away
+		for nothing, on every bill it happened on.
+
+		The engine's other half has excluded voids since it was written; this
+		reward was added beside it and nothing held the same line here.
+		"""
+		self._free_drink()
+
+		order = self._order()
+		orders.add_item(order, item=ITEM, qty=1)  # the qualifier
+		orders.add_item(order, item=self.cheap_item, qty=1)  # the reward
+		orders.void_item(order, item_idx=2, reason="RPOS test")
+		order.reload()
+
+		self.assertEqual(order.promotion_amount, 0.0)
+		self.assertEqual(promotions.per_line(order), {}, "nothing to mark")
+		self.assertEqual(
+			[row.title for row in promotions.active_for(order)],
+			[],
+			"and nothing left to offer",
+		)
+
 	def test_only_one_drink_comes_free_however_many_were_ordered(self):
 		"""`free_qty` is the whole of it, and the cheapest is the free one."""
 		self._free_drink()

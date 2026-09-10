@@ -40,13 +40,17 @@ vi.mock("@/api/auth", () => ({
   signIn: vi.fn(),
 }));
 
-function identity(over: { clocked_in?: boolean; holding_till?: boolean }): Identity {
+function identity(over: {
+  clocked_in?: boolean;
+  holding_till?: boolean;
+  employee?: string | null;
+}): Identity {
   return {
     user: "cashier@example.com",
     full_name: "سعيد الغامدي",
     pos_profile: "T1",
     attendance: {
-      employee: "HR-EMP-0001",
+      employee: over.employee === undefined ? "HR-EMP-0001" : over.employee,
       clocked_in: over.clocked_in ?? false,
       since: over.clocked_in ? "2026-09-10 07:00:00" : null,
     },
@@ -55,7 +59,7 @@ function identity(over: { clocked_in?: boolean; holding_till?: boolean }): Ident
   } as Identity;
 }
 
-function welcome(over: { clocked_in?: boolean; holding_till?: boolean }) {
+function welcome(over: Parameters<typeof identity>[0]) {
   const auth = useAuthStore();
   auth.known = true;
   auth.identity = identity(over);
@@ -103,6 +107,43 @@ describe("the welcome screen's attendance button", () => {
     // Withholding the punch must not withhold the work: the drawer they are
     // holding is open on this very terminal.
     expect(welcome({ clocked_in: true, holding_till: true }).text()).toContain(t("auth.enterTill"));
+  });
+});
+
+describe("a login on no payroll", () => {
+  /**
+   * `D-184` — the attendance button used to vanish, and the screen was skipped
+   * outright, so the owner signing in found no button anywhere and nothing
+   * anywhere saying why. `D-139` was right that a control which always refuses
+   * is worse than none — and wrong that this is one of those: linking the login
+   * to an `Employee` lifts it, and the person who can do that is the one
+   * standing here.
+   */
+  it("draws the clock-in disabled rather than hiding it", () => {
+    const screen = welcome({ employee: null });
+    const button = punchButton(screen);
+
+    expect(button).toBeTruthy();
+    expect(button!.attributes("disabled")).toBeDefined();
+  });
+
+  it("says what has to happen for it to work", () => {
+    expect(welcome({ employee: null }).text()).toContain(t("auth.noEmployeeRecord"));
+  });
+
+  it("does not punch when the disabled button is driven anyway", async () => {
+    // The screen's own guard is cosmetic; the store refuses on the same fact.
+    const screen = welcome({ employee: null });
+
+    await punchButton(screen)!.trigger("click");
+    await flushPromises();
+
+    expect(api.clockIn).not.toHaveBeenCalled();
+  });
+
+  it("still lets them into the till", () => {
+    // They are here to work, not to be paid by the hour.
+    expect(welcome({ employee: null }).text()).toContain(t("auth.enterTill"));
   });
 });
 

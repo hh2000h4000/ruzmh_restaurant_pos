@@ -48,6 +48,7 @@ const messages: Catalogue["messages"] = {
   "auth.clockIn": "تسجيل حضور",
   "auth.clockOut": "تسجيل انصراف",
   "auth.closeTillFirst": "أغلق العهدة قبل تسجيل الانصراف",
+  "auth.noEmployeeRecord": "هذا الحساب غير مرتبط بسجلّ موظّف، فلا يمكنه تسجيل الحضور. يربطه المدير من لوحة الإدارة.",
   "auth.enterTill": "الدخول للكاشير",
   "auth.exit": "خروج",
 

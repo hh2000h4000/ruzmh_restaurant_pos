@@ -57,9 +57,12 @@ watch(pin, async (value) => {
   // is a screen lying to the person reading it.
   if (session.isLoaded && posProfile.value) await session.load(posProfile.value);
 
-  // Somebody who cannot clock in has nothing to choose between, so the second
-  // pane would be a screen with one button on it.
-  if (!auth.isEmployee) void enterTill();
+  // **Everybody sees the second pane now** (`D-184`). It used to be skipped for
+  // a login with no `Employee` behind it, on the reasoning that somebody who
+  // cannot clock in has nothing to choose between — and the cost of that was
+  // the user signing in as the owner, finding no attendance button anywhere,
+  // and having no way to learn why. The screen says why instead. It costs an
+  // administrator one extra tap per sign-in, which is the trade this makes.
 });
 
 async function enterTill(): Promise<void> {
@@ -193,19 +196,29 @@ async function punch(): Promise<void> {
              The button follows that order rather than only the clock: offering
              a clock-out over an open drawer is a count nobody made against
              somebody who has left. -->
+        <!-- **Drawn disabled rather than hidden when this login is on no
+             payroll** (`D-184`). The refusal is one the reader can lift, so the
+             control stays and the line beneath it says how — the same shape
+             `FR-2.1b` uses for order types that cannot be converted. -->
         <button
-          v-if="auth.punchOnOffer"
+          v-if="auth.punchOnOffer || auth.notOnPayroll"
           type="button"
-          class="h-14 w-full rounded-rpos border border-line-strong bg-background text-base font-medium text-content transition duration-200 ease-rpos hover:border-primary disabled:opacity-50"
-          :disabled="auth.busy"
+          class="h-14 w-full rounded-rpos border border-line-strong bg-background text-base font-medium text-content transition duration-200 ease-rpos hover:border-primary disabled:cursor-not-allowed disabled:opacity-50"
+          :disabled="auth.busy || auth.notOnPayroll"
           @click="punch"
         >
           {{ auth.punchOnOffer === "out" ? t("auth.clockOut") : t("auth.clockIn") }}
         </button>
 
-        <!-- And when there is nothing to offer, it says why. A cashier who came
-             to clock out and finds the button gone has no way to tell a rule
-             from a broken screen (`D-074`). -->
+        <!-- And whenever there is nothing to offer, it says why. Somebody who
+             came to clock in and finds the button gone has no way to tell a
+             rule from a broken screen (`D-074`). -->
+        <p
+          v-if="auth.notOnPayroll"
+          class="rounded-rpos bg-background px-4 py-3 text-center text-sm text-muted"
+        >
+          {{ t("auth.noEmployeeRecord") }}
+        </p>
         <p
           v-else-if="auth.heldByTill"
           class="rounded-rpos bg-background px-4 py-3 text-center text-sm text-muted"

@@ -55,6 +55,7 @@ export const messages = {
   "auth.clockIn": "Clock in",
   "auth.clockOut": "Clock out",
   "auth.closeTillFirst": "Close your till before clocking out.",
+  "auth.noEmployeeRecord": "This login is not linked to an employee record, so it cannot clock in. A manager links it from the desk.",
   "auth.enterTill": "Go to the till",
   "auth.exit": "Exit",
 

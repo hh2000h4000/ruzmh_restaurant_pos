@@ -52,6 +52,21 @@ export const useAuthStore = defineStore("auth", () => {
   /** Why no clock-out is offered, when that is the reason. */
   const heldByTill = computed(() => clockedIn.value && identity.value?.holding_till === true);
 
+  /**
+   * This login is on no payroll, so attendance is not its to record (`D-184`).
+   *
+   * **A refusal the reader can lift**, which is the distinction `D-139` missed.
+   * That decision hid the entry entirely on the rule that a button which always
+   * refuses is worse than no button — right for a permanent condition, and this
+   * is not one: linking the login to an `Employee` fixes it, and the person who
+   * can do that is the one signing in. Hidden, they had nothing to act on and
+   * nothing to search for, which is how the user met it.
+   *
+   * The same shape `FR-2.1b` already uses for order types that cannot be
+   * converted: listed disabled with the reason, not hidden.
+   */
+  const notOnPayroll = computed(() => signedIn.value && !isEmployee.value);
+
   async function run<T>(work: () => Promise<T>): Promise<T | null> {
     busy.value = true;
     error.value = null;
@@ -143,6 +158,7 @@ export const useAuthStore = defineStore("auth", () => {
     pinLength,
     punchOnOffer,
     heldByTill,
+    notOnPayroll,
     probe,
     signIn,
     signOut,

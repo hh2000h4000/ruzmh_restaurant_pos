@@ -54,6 +54,7 @@ export const messages = {
   "auth.clockedInAt": "Clocked in at {at}",
   "auth.clockIn": "Clock in",
   "auth.clockOut": "Clock out",
+  "auth.closeTillFirst": "Close your till before clocking out.",
   "auth.enterTill": "Go to the till",
   "auth.exit": "Exit",
 

@@ -3,6 +3,7 @@ import { computed, ref } from "vue";
 
 import * as shiftApi from "@/api/shift";
 import type { ShiftReport, ShiftState } from "@/api/shift";
+import { useAuthStore } from "@/stores/auth";
 import { useSessionStore } from "@/stores/session";
 
 /**
@@ -18,6 +19,7 @@ import { useSessionStore } from "@/stores/session";
  */
 export const useShiftStore = defineStore("shift", () => {
   const session = useSessionStore();
+  const auth = useAuthStore();
 
   const state = ref<ShiftState | null>(null);
   const busy = ref(false);
@@ -66,6 +68,7 @@ export const useShiftStore = defineStore("shift", () => {
     // The session payload carries the shift the terminal sells under, and
     // BR-044 reads it — so it has to be re-read, not patched.
     await session.load(profile);
+    await auth.probe(profile);
     await refresh();
     return true;
   }
@@ -90,7 +93,13 @@ export const useShiftStore = defineStore("shift", () => {
     // BR-044 reads it on every screen — so closing a drawer has to re-read it
     // too. Without this the till was closed on the server while the browser
     // still believed a shift was open, and the item guard never fired.
+    //
+    // The identity too (`D-177`): it carries whether a drawer is still this
+    // person's to count, and that is what decides whether they may clock out.
+    // Closing the till is the moment the answer changes, so a screen holding
+    // the old one would go on refusing the button it should now offer.
     await session.load(session.profile!.name);
+    await auth.probe(session.profile!.name);
     await refresh();
     return true;
   }
@@ -102,7 +111,10 @@ export const useShiftStore = defineStore("shift", () => {
     const done = await run(() => shiftApi.closeDay({ shift, force: force ? 1 : 0 }));
     if (!done) return false;
 
+    // Closing the day settles every till still open under it, this cashier's
+    // included — so the identity changes here as well.
     await session.load(session.profile!.name);
+    await auth.probe(session.profile!.name);
     await refresh();
     return true;
   }

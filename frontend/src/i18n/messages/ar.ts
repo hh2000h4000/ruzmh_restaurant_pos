@@ -47,6 +47,7 @@ const messages: Catalogue["messages"] = {
   "auth.clockedInAt": "سجّلت حضورك {at}",
   "auth.clockIn": "تسجيل حضور",
   "auth.clockOut": "تسجيل انصراف",
+  "auth.closeTillFirst": "أغلق العهدة قبل تسجيل الانصراف",
   "auth.enterTill": "الدخول للكاشير",
   "auth.exit": "خروج",
 

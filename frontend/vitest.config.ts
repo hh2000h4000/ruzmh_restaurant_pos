@@ -31,6 +31,10 @@ export default defineConfig({
   resolve: {
     alias: { "@": resolve(__dirname, "src") },
   },
+  // The build stamp the sign-in screen prints (`D-100`). Vite supplies it at
+  // build time; without it here, mounting that view throws a ReferenceError and
+  // the failure reads as nothing to do with the test that hit it.
+  define: { __RPOS_BUILD__: JSON.stringify("test") },
   test: {
     environment: "node",
     setupFiles: ["./src/offline/testing/setup.ts"],

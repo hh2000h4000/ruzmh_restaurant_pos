@@ -62,11 +62,16 @@ const auth = useAuthStore();
  * worse than no button.
  */
 const attendance = computed<MenuEntry | null>(() => {
-  if (!auth.isEmployee) return null;
+  // **The same rule the welcome screen reads** (`D-177`, §5.5). This menu used
+  // to decide for itself, from `clockedIn` alone, and it sits directly above
+  // "close the till" — so it offered a cashier the way home while the drawer
+  // they are answerable for was still open. The entry appears once the drawer
+  // is counted, which is the order the shift actually runs in.
+  if (!auth.punchOnOffer) return null;
 
   return {
     key: "clock",
-    label: auth.clockedIn ? "auth.clockOut" : "auth.clockIn",
+    label: auth.punchOnOffer === "out" ? "auth.clockOut" : "auth.clockIn",
     icon: "hourglass",
     // Since when, because "am I still clocked in from yesterday?" is the
     // question this row is usually opened to answer.

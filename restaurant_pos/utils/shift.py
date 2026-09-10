@@ -746,6 +746,22 @@ def _my_till(profile) -> frappe._dict | None:
 	)
 
 
+def held_till(user: str) -> str | None:
+	"""The drawer this person still has open, on **any** terminal (`D-177`).
+
+	Deliberately not scoped to a POS Profile, unlike `_my_till`. That one answers
+	"may this terminal sell"; this one answers "may this person go home", and a
+	drawer left open on the till at the other end of the counter is still theirs
+	to count. Scoping it would let a cashier clock out by walking to a different
+	screen.
+	"""
+	return frappe.db.get_value(
+		"POS Opening Entry",
+		{"user": user, "status": "Open", "docstatus": 1},
+		"name",
+	)
+
+
 def _any_till(profile) -> frappe._dict | None:
 	return frappe.db.get_value(
 		"POS Opening Entry",

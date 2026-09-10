@@ -11,6 +11,14 @@ export interface Identity {
     clocked_in: boolean;
     since: string | null;
   };
+  /**
+   * A drawer still open under this person's name, on any terminal (`D-177`).
+   *
+   * Beside `attendance` rather than inside it, because it is not attendance: it
+   * is the one till fact a person's working time depends on, and the module
+   * that answers it says why (`utils/attendance.holds_a_drawer`).
+   */
+  holding_till: boolean;
   /** From the server, so the boxes on the pad match what it will accept. */
   pin_length: number;
 }

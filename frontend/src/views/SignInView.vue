@@ -163,15 +163,29 @@ async function punch(): Promise<void> {
           </p>
         </div>
 
+        <!-- Arrive, open the drawer, work, close the drawer, go home (`D-177`).
+             The button follows that order rather than only the clock: offering
+             a clock-out over an open drawer is a count nobody made against
+             somebody who has left. -->
         <button
-          v-if="auth.isEmployee"
+          v-if="auth.punchOnOffer"
           type="button"
           class="h-14 w-full rounded-rpos border border-line-strong bg-background text-base font-medium text-content transition duration-200 ease-rpos hover:border-primary disabled:opacity-50"
           :disabled="auth.busy"
           @click="punch"
         >
-          {{ auth.clockedIn ? t("auth.clockOut") : t("auth.clockIn") }}
+          {{ auth.punchOnOffer === "out" ? t("auth.clockOut") : t("auth.clockIn") }}
         </button>
+
+        <!-- And when there is nothing to offer, it says why. A cashier who came
+             to clock out and finds the button gone has no way to tell a rule
+             from a broken screen (`D-074`). -->
+        <p
+          v-else-if="auth.heldByTill"
+          class="rounded-rpos bg-background px-4 py-3 text-center text-sm text-muted"
+        >
+          {{ t("auth.closeTillFirst") }}
+        </p>
 
         <!-- `text-on-primary` was not a colour either: the contrast token is
              `primary-contrast`, so the label on the one filled button in the

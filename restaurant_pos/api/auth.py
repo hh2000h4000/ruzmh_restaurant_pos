@@ -99,6 +99,11 @@ def me(pos_profile: str | None = None) -> dict:
 		"full_name": full_name,
 		"pos_profile": pos_profile,
 		"attendance": attendance.state(user),
+		# Whether a drawer is still theirs to count (`D-177`). The welcome screen
+		# decides which attendance button to draw from it, and `punch` refuses on
+		# the same fact — the screen is only saying in advance what the server
+		# would answer (`CLAUDE.md` §5.4).
+		"holding_till": attendance.holds_a_drawer(user),
 		"pin_length": manager_pin.PIN_LENGTH,
 	}
 

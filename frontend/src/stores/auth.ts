@@ -28,6 +28,30 @@ export const useAuthStore = defineStore("auth", () => {
   const clockedIn = computed(() => identity.value?.attendance.clocked_in === true);
   const pinLength = computed(() => identity.value?.pin_length ?? 5);
 
+  /**
+   * Which attendance button this person should be offered (`D-177`, `FR-8.4`).
+   *
+   * **The order of a shift, in one expression** — arrive, open the drawer, work,
+   * close the drawer, go home. Read by the welcome screen and by the till menu,
+   * because two screens asking one question have to agree (`CLAUDE.md` §5.5);
+   * the till menu once decided this for itself and offered a clock-out to a
+   * cashier holding an open drawer.
+   *
+   * `null` while the drawer is open: there is nothing to offer yet, and the
+   * screen says so in words rather than drawing nothing (`D-074`).
+   *
+   * Clocking **in** is never withheld. Somebody who opened a drawer having
+   * forgotten to clock in must still be able to record that they are here.
+   */
+  const punchOnOffer = computed<"in" | "out" | null>(() => {
+    if (!isEmployee.value) return null;
+    if (!clockedIn.value) return "in";
+    return identity.value?.holding_till ? null : "out";
+  });
+
+  /** Why no clock-out is offered, when that is the reason. */
+  const heldByTill = computed(() => clockedIn.value && identity.value?.holding_till === true);
+
   async function run<T>(work: () => Promise<T>): Promise<T | null> {
     busy.value = true;
     error.value = null;
@@ -90,8 +114,18 @@ export const useAuthStore = defineStore("auth", () => {
     known.value = true;
   }
 
+  /**
+   * Clock in or out — whichever is on offer, and nothing when none is.
+   *
+   * The direction comes from `punchOnOffer` rather than from `clockedIn`, so
+   * the button and the request cannot disagree: read the other way, a stale
+   * screen would send a clock-out the server is bound to refuse.
+   */
   async function punch(posProfile: string | null): Promise<void> {
-    const going = clockedIn.value ? api.clockOut : api.clockIn;
+    const direction = punchOnOffer.value;
+    if (!direction) return;
+
+    const going = direction === "in" ? api.clockIn : api.clockOut;
     const state = await run(() => going(posProfile));
     if (state && identity.value) identity.value = { ...identity.value, attendance: state };
   }
@@ -107,6 +141,8 @@ export const useAuthStore = defineStore("auth", () => {
     isEmployee,
     clockedIn,
     pinLength,
+    punchOnOffer,
+    heldByTill,
     probe,
     signIn,
     signOut,

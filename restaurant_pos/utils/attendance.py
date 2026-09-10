@@ -9,6 +9,10 @@ apart constantly: under ``shift_type = single`` a cashier joining a colleague
 opens no drawer at all, and a waiter never opens one — yet both are at work and
 both have to be paid.
 
+**One exception, and only one** (`D-177`): a clock-*out* is refused while the
+person still holds an open drawer. Separate records, but going home is one gate
+— see `holds_a_drawer`.
+
 Built on ERPNext's own `Employee Checkin` and `Employee`, so the punches land
 where payroll already looks for them rather than in a table only this app knows
 about.
@@ -167,6 +171,32 @@ def _worked(employee, punches) -> dict:
 	}
 
 
+def holds_a_drawer(user: str) -> bool:
+	"""Whether this person still has a till open somewhere (`D-177`).
+
+	**The one place hours and drawers touch**, and the docstring at the top of
+	this module says why they otherwise do not. A cash drawer is money somebody
+	is answerable for; going home is the moment that answerability ends. Letting
+	a cashier clock out over an open drawer leaves a count nobody made against a
+	person who is no longer at work — which is exactly the case a shortage is
+	meant to be traceable through.
+
+	It is the order the user described: open the till, work, close the till,
+	*then* clock out. Every till of consequence enforces it — Toast refuses the
+	clock-out and names the open shift.
+
+	The clock-*in* is not gated the same way, on purpose. Somebody who opened a
+	drawer having forgotten to clock in must still be able to record that they
+	are here; refusing would lose the hours to protect a sequence.
+
+	Imported here rather than at the top, following `utils/order.py`: `shift`
+	pulls in half the app, and this module is loaded on every sign-in.
+	"""
+	from restaurant_pos.utils.shift import held_till
+
+	return bool(held_till(user))
+
+
 def punch(user: str, *, log_type: str, pos_profile: str | None = None) -> dict:
 	"""Record one clock-in or clock-out.
 
@@ -189,6 +219,8 @@ def punch(user: str, *, log_type: str, pos_profile: str | None = None) -> dict:
 		frappe.throw(_("You are already clocked in."))
 	if log_type == OUT and not current["clocked_in"]:
 		frappe.throw(_("You are not clocked in."))
+	if log_type == OUT and holds_a_drawer(user):
+		frappe.throw(_("Close your till before clocking out."))
 
 	checkin = frappe.get_doc(
 		{

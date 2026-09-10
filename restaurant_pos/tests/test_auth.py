@@ -14,6 +14,7 @@ import frappe
 from frappe.tests.utils import FrappeTestCase
 from frappe.utils import add_to_date, now_datetime
 
+from restaurant_pos.tests.test_order import OrderTestBase
 from restaurant_pos.utils import attendance
 from restaurant_pos.utils import manager_pin as pins
 
@@ -364,6 +365,121 @@ def _employee_for(user: str) -> str | None:
 		)
 	except Exception:
 		return None
+
+
+class TestGoingHomeOverAnOpenDrawer(OrderTestBase):
+	"""A clock-out waits for the drawer to be counted (`D-177`, `FR-8.4`).
+
+	The user described the order a shift actually runs in — arrive, take the
+	drawer, work, count it, go home — and the screen offered the last step at
+	any point in the middle. Somebody who clocks out over an open till leaves a
+	count nobody made, against a name that is no longer at work; that is the one
+	place a shortage is meant to be traceable to a person.
+
+	**The one exception to `D-057`**, which otherwise keeps hours and drawers
+	apart, so it is held here rather than assumed.
+
+	Built on `OrderTestBase` for its open drawer: the fixture opens one through
+	the real service, and these hand it to the person under test rather than
+	writing a second definition of what an open till is.
+	"""
+
+	@classmethod
+	def setUpClass(cls):
+		super().setUpClass()
+		_user(STAFF)
+		frappe.db.commit()
+
+	def setUp(self):
+		super().setUp()
+		if not frappe.db.exists("DocType", "Employee Checkin"):
+			self.skipTest("hrms is not installed on this site")
+
+		self.employee = _employee_for(STAFF)
+		if not self.employee:
+			self.skipTest("this site cannot create an Employee (no company or holiday list)")
+
+		frappe.db.delete("Employee Checkin", {"employee": self.employee})
+
+		self.till = frappe.db.get_value(
+			"POS Opening Entry",
+			{"pos_profile": self.profile, "status": "Open", "docstatus": 1},
+			"name",
+		)
+		if not self.till:
+			self.skipTest("the fixture left no drawer open to hand over")
+
+		self.drawer_owner = frappe.db.get_value("POS Opening Entry", self.till, "user")
+
+	def tearDown(self):
+		# Handed back. Every later test in the suite reads this drawer as the
+		# fixture's, and one left in somebody else's name stops the terminal
+		# selling (`BR-044`).
+		frappe.db.set_value("POS Opening Entry", self.till, {"user": self.drawer_owner, "status": "Open"})
+		super().tearDown()
+
+	def _hand_over_the_drawer(self) -> None:
+		frappe.db.set_value("POS Opening Entry", self.till, "user", STAFF)
+
+	def test_a_drawer_is_found_under_whoever_holds_it(self):
+		self._hand_over_the_drawer()
+
+		self.assertTrue(attendance.holds_a_drawer(STAFF))
+
+	def test_a_counted_drawer_is_no_longer_held(self):
+		self._hand_over_the_drawer()
+		frappe.db.set_value("POS Opening Entry", self.till, "status", "Closed")
+
+		self.assertFalse(attendance.holds_a_drawer(STAFF))
+
+	def test_somebody_elses_drawer_does_not_keep_this_person_here(self):
+		"""The fixture's drawer belongs to whoever opened it, and only them."""
+		self.assertFalse(attendance.holds_a_drawer(STAFF))
+
+	def test_clocking_out_over_an_open_drawer_is_refused(self):
+		attendance.punch(STAFF, log_type=attendance.IN)
+		self._hand_over_the_drawer()
+
+		with self.assertRaises(frappe.ValidationError):
+			attendance.punch(STAFF, log_type=attendance.OUT)
+
+		# And they are still at work — a refused punch that half-landed would be
+		# worse than the thing it refused.
+		self.assertTrue(attendance.state(STAFF)["clocked_in"])
+
+	def test_clocking_out_once_the_drawer_is_counted(self):
+		attendance.punch(STAFF, log_type=attendance.IN)
+
+		state = attendance.punch(STAFF, log_type=attendance.OUT)
+
+		self.assertFalse(state["clocked_in"])
+
+	def test_clocking_in_is_never_withheld_over_a_drawer(self):
+		"""Deliberately not symmetrical.
+
+		Somebody who took the drawer having forgotten to clock in must still be
+		able to record that they are here. Refusing would lose the hours in
+		order to protect the sequence, which is the wrong way round.
+		"""
+		self._hand_over_the_drawer()
+
+		state = attendance.punch(STAFF, log_type=attendance.IN)
+
+		self.assertTrue(state["clocked_in"])
+
+	def test_the_welcome_screen_is_told_who_holds_a_drawer(self):
+		"""The screen draws its button from this, and the server refuses on the
+		same fact — so the two cannot disagree (`CLAUDE.md` §5.4)."""
+		from restaurant_pos.api import auth
+
+		self._hand_over_the_drawer()
+
+		signed_in = frappe.session.user
+		frappe.set_user(STAFF)
+		try:
+			self.assertTrue(auth.me()["holding_till"])
+		finally:
+			frappe.set_user(signed_in)
 
 
 def _a_gender() -> str:

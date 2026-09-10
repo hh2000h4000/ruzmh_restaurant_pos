@@ -275,3 +275,151 @@ class TheRightThatFinallyDoesSomething(TwoTablesOnePartyBase):
 		service.merge_tables(order, tables=[second])
 
 		self.assertEqual(self._status(second), "occupied")
+
+
+class TheJoinedTableCarriesItsPartysBill(TwoTablesOnePartyBase):
+	"""The tap that did nothing (`D-183`).
+
+	Occupancy was right — the joined table went red and stayed red. What it did
+	not have was **the bill**: `_annotate_orders` matched `Restaurant Order.table`
+	alone, so the second table of a party carried an empty `orders` list. On the
+	floor plan that reads as *"4 seats"*, the very line an empty table shows, and
+	the tap fell through both branches of `onTable` — open the bill when there is
+	one, seat when the table is free — and returned.
+
+	A waiter tapping a table with people at it got nothing at all. Silence is
+	the worst report a till can give (`D-074`), and this one was on the busiest
+	screen in the building.
+
+	Drawing the two as a merged unit is deferred by the user (`D-183`); this is
+	not that. It is the bill being reachable from the table it is eaten at.
+	"""
+
+	def _plan(self) -> dict:
+		from restaurant_pos.api.table import get_floor_plan
+
+		return {row.name: row for row in get_floor_plan(self.section)["tables"]}
+
+	def test_both_tables_carry_the_partys_bill(self):
+		first, second = self.tables
+		party = self._seat(first)
+		service.merge_tables(party, tables=[second])
+
+		plan = self._plan()
+
+		self.assertEqual([row["name"] for row in plan[first].orders], [party.name])
+		self.assertEqual(
+			[row["name"] for row in plan[second].orders],
+			[party.name],
+			"the same party is sitting at it",
+		)
+
+	def test_the_joined_table_shows_the_bill_not_its_seat_count(self):
+		"""The screen falls back to the seat count only when there is no bill —
+		which is what made a table with people at it read as an empty one."""
+		first, second = self.tables
+		party = self._seat(first)
+		service.merge_tables(party, tables=[second])
+
+		joined = self._plan()[second].orders[0]
+
+		self.assertEqual(joined["item_count"], 1)
+		self.assertIsNotNone(joined["opened_at"])
+
+	def test_an_unjoined_table_is_still_empty(self):
+		"""The obvious other half: this must not hang bills on tables that have
+		nobody at them."""
+		first, second = self.tables
+		self._seat(first)
+
+		self.assertEqual(self._plan()[second].orders, [])
+
+	def test_the_bill_lets_go_of_both_tables_when_it_closes(self):
+		"""`BR-063` — the merge is reversed when the order closes, and the plan
+		has to stop showing the party on either table."""
+		first, second = self.tables
+		party = self._seat(first)
+		service.merge_tables(party, tables=[second])
+
+		service.cancel_order(party, reason="RPOS test")
+
+		plan = self._plan()
+		self.assertEqual(plan[first].orders, [])
+		self.assertEqual(plan[second].orders, [])
+
+
+class APartySpreadAcrossTwoHalls(TwoTablesOnePartyBase):
+	"""A bill joined onto a table in a **different** section (`D-183`).
+
+	`merge_tables` scopes the join to the **branch**, not the section, so this is
+	reachable: a party at a table on the terrace joined to one inside. The floor
+	plan is asked for one section at a time, and a bill whose own table is in the
+	other one has to be found by the table it was joined onto — not by the table
+	it started at, which is nowhere in this query.
+
+	This is the half of the fix nothing else covers. Reverting the lookup to the
+	bill's own table left the same-section tests green, because there the bill is
+	found by its own table and hung on the joined one from the same mapping.
+	"""
+
+	@classmethod
+	def setUpClass(cls):
+		super().setUpClass()
+		branch = frappe.db.get_value("Restaurant Section", cls.section, "branch")
+		cls.other_section = frappe.db.get_value(
+			"Restaurant Section", {"branch": branch, "name": ("!=", cls.section)}, "name"
+		)
+		if not cls.other_section:
+			cls.other_section = (
+				frappe.get_doc(
+					{
+						"doctype": "Restaurant Section",
+						"title": "RPOS Test Terrace",
+						"title_ar": "تراس الاختبار",
+						"branch": branch,
+						"section_type": "indoor",
+					}
+				)
+				.insert(ignore_permissions=True)
+				.name
+			)
+
+		cls.far_table = frappe.db.get_value(
+			"Restaurant Table", {"section": cls.other_section, "is_active": 1}, "name"
+		) or (
+			frappe.get_doc(
+				{
+					"doctype": "Restaurant Table",
+					"table_number": "RPOS-T99",
+					"section": cls.other_section,
+					"status": "available",
+					"capacity": 4,
+					"is_active": 1,
+				}
+			)
+			.insert(ignore_permissions=True)
+			.name
+		)
+		frappe.db.commit()
+
+	def setUp(self):
+		super().setUp()
+		free_table(self.far_table)
+
+	def tearDown(self):
+		free_table(self.far_table)
+		super().tearDown()
+
+	def test_the_far_table_carries_the_partys_bill(self):
+		from restaurant_pos.api.table import get_floor_plan
+
+		party = self._seat(self.tables[0])
+		service.merge_tables(party, tables=[self.far_table])
+
+		plan = {row.name: row for row in get_floor_plan(self.other_section)["tables"]}
+
+		self.assertEqual(
+			[row["name"] for row in plan[self.far_table].orders],
+			[party.name],
+			"its own table is in the other section, so only the join can find it",
+		)

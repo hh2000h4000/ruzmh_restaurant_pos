@@ -78,9 +78,19 @@ def _annotate_orders(tables: list) -> None:
 	if not names:
 		return
 
+	# **Both places a bill can hold a table** (`D-183`, `BR-063`). A party spread
+	# across two tables keeps the first in `table` and the rest in `extra_tables`
+	# (`tables_of`), and matching only the first left the joined table carrying
+	# no bill at all: it drew "4 seats", exactly like an empty one, and tapping
+	# it did nothing — `onTable` opens a bill when there is one and seats when
+	# the table is free, and that was neither. A waiter tapping a table with
+	# people at it got silence (`D-074`).
+	joined_to = _joined_tables(names)
+
 	bills = frappe.get_all(
 		"Restaurant Order",
-		filters={"table": ("in", names), "status": ("not in", FINAL_STATES)},
+		filters={"status": ("not in", FINAL_STATES)},
+		or_filters={"table": ("in", names), "name": ("in", list(joined_to) or [""])},
 		fields=["name", "table", "daily_number", "opened_at", "status", "total_amount"],
 		order_by="creation asc",
 	)
@@ -100,21 +110,47 @@ def _annotate_orders(tables: list) -> None:
 
 	by_table: dict[str, list] = {}
 	for bill in bills:
-		by_table.setdefault(bill.table, []).append(
-			{
-				"name": bill.name,
-				"daily_number": bill.daily_number,
-				"status": bill.status,
-				"total_amount": bill.total_amount,
-				"item_count": counts.get(bill.name, 0),
-				# When it was opened, not how long ago (`D-121`). "4,625 minutes"
-				# is a true figure nobody can read; a bill from Tuesday says so.
-				"opened_at": bill.opened_at,
-			}
-		)
+		row = {
+			"name": bill.name,
+			"daily_number": bill.daily_number,
+			"status": bill.status,
+			"total_amount": bill.total_amount,
+			"item_count": counts.get(bill.name, 0),
+			# When it was opened, not how long ago (`D-121`). "4,625 minutes"
+			# is a true figure nobody can read; a bill from Tuesday says so.
+			"opened_at": bill.opened_at,
+		}
+
+		# Its own table. A bill joined onto a table here may have started at one
+		# in another section, and the key it lands under is simply never read —
+		# `by_table` is only ever asked about this section's tables. A guard
+		# here read well and did nothing, and a mutation run proved it.
+		by_table.setdefault(bill.table, []).append(row)
+
+		# And every table it was joined onto. The same bill hangs on each of
+		# them, because each of them has the same party sitting at it.
+		for table in joined_to.get(bill.name, ()):
+			by_table.setdefault(table, []).append(row)
 
 	for table in tables:
 		table.orders = by_table.get(table.name, [])
+
+
+def _joined_tables(names: list[str]) -> dict[str, list[str]]:
+	"""Bills joined onto any of these tables, and which of them each holds.
+
+	One query for the section rather than one per table: the floor plan redraws
+	on every realtime event, and `_annotate_orders` is two queries by design.
+	"""
+	joined: dict[str, list[str]] = {}
+	for row in frappe.get_all(
+		"Restaurant Order Table",
+		filters={"table": ("in", names), "parenttype": "Restaurant Order"},
+		fields=["parent", "table"],
+	):
+		joined.setdefault(row.parent, []).append(row.table)
+
+	return joined
 
 
 @frappe.whitelist()

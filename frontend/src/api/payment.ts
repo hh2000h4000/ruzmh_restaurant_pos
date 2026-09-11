@@ -5,7 +5,7 @@
  * (`CLAUDE.md` §5.1): the discount is applied on the server and the resulting
  * figures come back before anyone is charged.
  */
-import type { PromotionOnBill } from "./order";
+import type { LoyaltyOnBill, PromotionOnBill } from "./order";
 import { command, mutate, query } from "./client";
 
 export interface PaymentMethodOption {
@@ -18,7 +18,7 @@ export interface PaymentMethodOption {
   is_credit: 0 | 1;
 }
 
-export interface PaymentSummary extends PromotionOnBill {
+export interface PaymentSummary extends PromotionOnBill, LoyaltyOnBill {
   order_name: string;
   subtotal: number;
   discount_amount: number;
@@ -35,7 +35,7 @@ export interface PaymentSummary extends PromotionOnBill {
   blocker: string | null;
 }
 
-export interface TotalsPreview extends PromotionOnBill {
+export interface TotalsPreview extends PromotionOnBill, LoyaltyOnBill {
   subtotal: number;
   discount_amount: number;
   tax_amount: number;
@@ -59,6 +59,9 @@ export interface PaymentResult {
   total_amount: number;
   change_amount: number;
   status: string;
+  /** Absent when the bill is outside the loyalty scheme (`D-189`). */
+  loyalty_points_earned?: number;
+  loyalty_balance?: number;
 }
 
 export interface EvenSplit {
@@ -89,12 +92,14 @@ export function previewTotals(
   discountType: "percentage" | "amount" | null,
   discountValue: number,
   promotion: string | null = null,
+  loyaltyPoints = 0,
 ): Promise<TotalsPreview> {
   return query<TotalsPreview>("payment.preview_totals", {
     order_name: orderName,
     discount_type: discountType,
     discount_value: discountValue,
     promotion,
+    loyalty_points: loyaltyPoints,
   });
 }
 
@@ -136,6 +141,8 @@ export function processPayment(payload: {
   /** The promotion the cashier picked, if any (`D-165`). */
   promotion?: string | null;
   manager_override_token?: string | null;
+  /** Points the customer spends on this bill (`FR-10.5`, `D-189`). */
+  loyalty_points_redeemed?: number;
 }): Promise<PaymentResult> {
   return mutate<PaymentResult>("payment.process_payment", payload);
 }

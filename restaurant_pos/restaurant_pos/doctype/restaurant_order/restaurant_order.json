@@ -38,6 +38,9 @@
   "discount_amount",
   "promotion",
   "promotion_amount",
+  "loyalty_points",
+  "loyalty_amount",
+  "loyalty_points_earned",
   "totals_cb",
   "discount_approved_by",
   "tax_amount",
@@ -272,6 +275,32 @@
    "read_only": 1,
    "default": "0",
    "description": "How much of `discount_amount` came from the promotion rather than from a person."
+  },
+  {
+   "fieldname": "loyalty_points",
+   "fieldtype": "Int",
+   "label": "Loyalty Points Spent",
+   "default": "0",
+   "no_copy": 1,
+   "description": "Points the customer spent on this bill (FR-10.5, D-189). Input, like `chosen_promotion`: set at the payment screen and checked against the balance there."
+  },
+  {
+   "fieldname": "loyalty_amount",
+   "fieldtype": "Currency",
+   "label": "Loyalty Amount",
+   "read_only": 1,
+   "default": "0",
+   "no_copy": 1,
+   "description": "How much of `discount_amount` the points paid. A discount, not a payment: ZATCA taxes what is left after them (D-189)."
+  },
+  {
+   "fieldname": "loyalty_points_earned",
+   "fieldtype": "Int",
+   "label": "Loyalty Points Earned",
+   "read_only": 1,
+   "default": "0",
+   "no_copy": 1,
+   "description": "Points this bill granted when it was paid — on the invoice's net total, before VAT and after every reduction (BR-084)."
   },
   {
    "fieldname": "totals_cb",

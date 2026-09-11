@@ -11,9 +11,9 @@ Refs: 07_API_Design.md §3, FR-2.7, 09 §8
 
 import frappe
 from frappe import _
-from frappe.utils import flt
+from frappe.utils import cint, flt
 
-from restaurant_pos.utils import idempotency, promotions, totals
+from restaurant_pos.utils import idempotency, loyalty, promotions, totals
 from restaurant_pos.utils import payment as service
 from restaurant_pos.utils.permissions import get_pos_permission_set, validate_branch_access
 
@@ -42,12 +42,6 @@ def process_payment(
 	if order.sales_invoice:
 		frappe.throw(_("Order {0} was already paid — invoice {1}.").format(order.name, order.sales_invoice))
 
-	if flt(loyalty_points_redeemed):
-		# FR-10.5 needs the ERPNext Loyalty Program wired through the invoice;
-		# refusing is better than silently ignoring a redemption the cashier
-		# already promised the customer.
-		frappe.throw(_("Loyalty redemption is not available yet."))
-
 	result = service.process_payment(
 		order,
 		payments=payments,
@@ -55,6 +49,9 @@ def process_payment(
 		discount_value=discount_value,
 		promotion=promotion,
 		override_token=manager_override_token,
+		# FR-10.5, D-189 — spent as a discount and checked against the balance
+		# under a lock, inside the same transaction as the invoice.
+		loyalty_points=cint(loyalty_points_redeemed),
 	)
 
 	idempotency.remember(
@@ -91,6 +88,7 @@ def preview_totals(
 	discount_type: str | None = None,
 	discount_value: float = 0,
 	promotion: str | None = None,
+	loyalty_points: int = 0,
 ) -> dict:
 	"""What the order would come to with this discount and promotion, unapplied.
 
@@ -111,6 +109,9 @@ def preview_totals(
 	# two come to disagree (`D-165`, §5.5). Set in memory and discarded, like the
 	# discount beside it: nothing here is saved.
 	order.chosen_promotion = promotion or None
+	# And the points, for the same reason (`D-189`): a third way to reduce the
+	# bill, previewed on the one road, never a second mechanism beside it.
+	order.loyalty_points = max(0, cint(loyalty_points))
 	totals.calculate(order)
 
 	percentage = service.discount_percentage(order, discount_type, discount_value)
@@ -125,6 +126,7 @@ def preview_totals(
 		"subtotal": order.subtotal,
 		"discount_amount": order.discount_amount,
 		**promotions.on_the_bill(order),
+		**loyalty.on_the_bill(order),
 		"tax_amount": order.tax_amount,
 		"total_amount": order.total_amount,
 		"discount_percentage": flt(percentage, 2),
@@ -200,6 +202,7 @@ def get_payment_summary(order_name: str) -> dict:
 		"subtotal": order.subtotal,
 		"discount_amount": order.discount_amount,
 		**promotions.on_the_bill(order),
+		**loyalty.on_the_bill(order),
 		"tax_amount": order.tax_amount,
 		"total_amount": order.total_amount,
 		"payment_methods": allowed,

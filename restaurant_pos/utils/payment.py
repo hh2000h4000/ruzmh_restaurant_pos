@@ -20,9 +20,9 @@ Refs: BR-016, BR-020..BR-024, FR-2.7, FR-10.2, FR-10.3, FR-10.4
 
 import frappe
 from frappe import _
-from frappe.utils import flt, now_datetime
+from frappe.utils import cint, flt, now_datetime
 
-from restaurant_pos.utils import activity, kitchen, printing, promotions, totals
+from restaurant_pos.utils import activity, kitchen, loyalty, printing, promotions, totals
 from restaurant_pos.utils.audit import log_audit
 from restaurant_pos.utils.order import (
 	assert_mutable,
@@ -51,6 +51,7 @@ def process_payment(
 	discount_value: float = 0,
 	promotion: str | None = None,
 	override_token: str | None = None,
+	loyalty_points: int = 0,
 ) -> dict:
 	"""Settle an order and submit its Sales Invoice (FR-2.7)."""
 	# BR-044 is in here too (D-058): taking money is the sale, not a step after
@@ -69,7 +70,12 @@ def process_payment(
 	_apply_discount(order, discount_type, discount_value, override_token)
 	_apply_promotion(order, promotion)
 
+	# FR-10.5 — set on every payment, so the bill carries exactly what this one
+	# spends and never a figure left over from an attempt that was refused.
+	order.loyalty_points = max(0, cint(loyalty_points))
+
 	totals.calculate(order)
+	loyalty.assert_redeemable(order)
 	order.save(ignore_permissions=True)
 
 	_validate_methods(order, payments)
@@ -84,6 +90,10 @@ def process_payment(
 	order.sales_invoice = invoice.name
 	order.status = "closed"
 	order.closed_at = now_datetime()
+
+	# D-189 — after the invoice and inside its transaction: points move only if
+	# the sale posts, and a refused sale leaves the balance where it was.
+	points = loyalty.settle(order, invoice)
 
 	# **The bill is filed under whoever took the money** (`D-188`).
 	#
@@ -160,6 +170,9 @@ def process_payment(
 		"outstanding_amount": flt(invoice.outstanding_amount),
 		"status": order.status,
 		"kots_created": kots,
+		# What the bill earned and what the customer now holds — empty when the
+		# bill is outside the scheme, which the screen reads as nothing to say.
+		**points,
 	}
 
 
@@ -556,6 +569,11 @@ def _create_sales_invoice(order, payments, settlement: str = "till"):
 	if order.promotion:
 		title = frappe.db.get_value("Restaurant Promotion", order.promotion, "title")
 		invoice.remarks = f"{invoice.remarks} | {_('Promotion')}: {title or order.promotion}"
+
+	# The figure alone is a discount nobody can explain from the invoice; the
+	# remark names what paid for it, as the promotion's does.
+	if cint(order.get("loyalty_points")):
+		invoice.remarks = f"{invoice.remarks} | {_('Loyalty points')}: {cint(order.loyalty_points)}"
 
 	invoice.flags.ignore_permissions = True
 	invoice.insert()

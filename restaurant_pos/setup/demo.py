@@ -221,6 +221,7 @@ def create_demo_data(pos_profile: str | None = None) -> dict:
 		"modifier_groups": _modifier_groups(),
 		"tables": _tables(profile.restaurant_section),
 		"screen_layout": _screen_layout(profile),
+		"loyalty_program": [_loyalty_program(profile)],
 	}
 
 	frappe.db.commit()
@@ -274,6 +275,42 @@ def _profile(pos_profile: str | None) -> frappe._dict:
 # --------------------------------------------------------------------------- #
 # Builders
 # --------------------------------------------------------------------------- #
+
+
+DEMO_LOYALTY = "RPOS Demo Loyalty"
+
+
+def _loyalty_program(profile) -> str:
+	"""The scheme the user approved (`D-189`), on ERPNext's own DocType.
+
+	A point for every riyal spent before VAT, a hundred points worth five riyals
+	— five percent back — spendable from a hundred, on at most half a bill, and
+	kept for a year. Opting customers in, so every regular the till creates is
+	in it from their first bill.
+	"""
+	name = frappe.db.get_value("Loyalty Program", {"loyalty_program_name": DEMO_LOYALTY}, "name")
+	if name:
+		return name
+
+	return (
+		frappe.get_doc(
+			{
+				"doctype": "Loyalty Program",
+				"loyalty_program_name": DEMO_LOYALTY,
+				"loyalty_program_type": "Single Tier Program",
+				"from_date": frappe.utils.today(),
+				"auto_opt_in": 1,
+				"company": profile.company,
+				"collection_rules": [{"tier_name": "Guest", "min_spent": 0, "collection_factor": 1}],
+				"conversion_factor": 0.05,
+				"expiry_duration": 365,
+				"rpos_min_redeem_points": 100,
+				"rpos_max_redeem_percent": 50,
+			}
+		)
+		.insert(ignore_permissions=True)
+		.name
+	)
 
 
 #: The KSA rate. Written here because this is demo *data*, not code: no part of

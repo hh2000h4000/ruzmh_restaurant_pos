@@ -63,6 +63,17 @@ const discountValue = ref(0);
 const chosenPromotion = ref<string | null>(null);
 const offers = ref<paymentApi.PromotionOffer[]>([]);
 const mayChoosePromotion = ref(false);
+
+/**
+ * Points the customer is spending on this bill (`FR-10.5`, `D-189`).
+ *
+ * The third way to reduce a bill, and it takes the same road as the other two:
+ * previewed by `preview_totals`, sent with the payment, checked again by the
+ * server against the balance under a lock. The offer — balance, minimum, the
+ * most this bill can take — comes from the server with the figures, so the
+ * button offers exactly what will be accepted (`D-125`).
+ */
+const loyaltyPoints = ref(0);
 const overrideToken = ref<string | null>(null);
 const busy = ref(false);
 const failure = ref<string | null>(null);
@@ -224,6 +235,15 @@ const reductions = computed(() =>
   ),
 );
 
+/**
+ * What this customer's points can do on the bill as it now stands, or `null`
+ * when the bill is outside the scheme — and then the column says nothing.
+ *
+ * The preview's when there is one, because the most a bill can take is a share
+ * of what is left after the discount and the offer the cashier is choosing.
+ */
+const loyalty = computed(() => (preview.value ?? summary.value)?.loyalty ?? null);
+
 function round(value: number): number {
   return Math.round(value * 100) / 100;
 }
@@ -315,7 +335,12 @@ onMounted(async () => {
  * show a total neither of them produced.
  */
 async function reprice(): Promise<void> {
-  if (!discountType.value && !discountValue.value && !chosenPromotion.value) {
+  if (
+    !discountType.value &&
+    !discountValue.value &&
+    !chosenPromotion.value &&
+    !loyaltyPoints.value
+  ) {
     preview.value = null;
     return;
   }
@@ -326,6 +351,7 @@ async function reprice(): Promise<void> {
       discountType.value,
       discountValue.value,
       chosenPromotion.value,
+      loyaltyPoints.value,
     );
   } catch (cause) {
     failure.value = cause instanceof Error ? cause.message : String(cause);
@@ -342,6 +368,24 @@ watch([discountType, discountValue], () => {
 });
 
 watch(chosenPromotion, () => void reprice());
+watch(loyaltyPoints, () => void reprice());
+
+/**
+ * A bigger discount leaves less for the points to pay, so the most the bill can
+ * take may drop under what was already chosen. Brought down to it rather than
+ * left to be refused at Confirm (`D-125`).
+ */
+watch(
+  () => loyalty.value?.max_points,
+  (most) => {
+    if (loyaltyPoints.value > (most ?? 0)) loyaltyPoints.value = most ?? 0;
+  },
+);
+
+/** Spend as much as the bill can take, or tap again to spend nothing. */
+function toggleLoyalty(): void {
+  loyaltyPoints.value = loyaltyPoints.value ? 0 : (loyalty.value?.max_points ?? 0);
+}
 
 /**
  * Pick an offer, or tap the chosen one again to drop it.
@@ -503,6 +547,7 @@ async function confirm(): Promise<void> {
       discount_value: discountValue.value,
       promotion: chosenPromotion.value,
       manager_override_token: overrideToken.value,
+      loyalty_points_redeemed: loyaltyPoints.value,
     });
   } catch (cause) {
     failure.value = cause instanceof Error ? cause.message : String(cause);
@@ -555,6 +600,19 @@ async function confirm(): Promise<void> {
         class="rpos-numeric mb-4 text-lg text-status-reserved"
       >
         {{ t("pay.change") }}: {{ money(done.change_amount) }}
+      </p>
+      <!-- What the bill earned, said while the guest is still at the counter
+           — the moment a loyalty scheme is actually noticed (`D-189`). -->
+      <p
+        v-if="done.loyalty_points_earned"
+        class="mb-4 text-sm text-secondary"
+      >
+        {{
+          t("pay.loyaltyEarned", {
+            points: formatNumber(done.loyalty_points_earned, 0),
+            balance: formatNumber(done.loyalty_balance ?? 0, 0),
+          })
+        }}
       </p>
       <!-- Offline there is no invoice number yet, and saying so is the point:
            the money is taken, the document is not written (D-073). -->
@@ -942,9 +1000,62 @@ async function confirm(): Promise<void> {
           >{{ t("pay.authorized") }} ✓</span>
         </p>
 
-        <p class="text-xs text-muted">
-          {{ t("pay.loyaltySoon") }}
-        </p>
+        <!-- **The customer's own points** (`FR-10.5`, `D-189`). Last in the
+             column because they are spent on what is left once the shop's own
+             reductions are taken, and the server works them out in that order.
+
+             One button, for the most this bill can take: the server sends that
+             figure and what it is worth, so the screen neither multiplies nor
+             offers a number it would refuse. Nothing is drawn when the bill is
+             outside the scheme — a hint about points on a walk-in's coffee is
+             noise. -->
+        <div
+          v-if="loyalty"
+          class="flex flex-col gap-2.5"
+        >
+          <p class="text-sm font-medium">
+            {{ t("pay.loyalty") }}
+          </p>
+          <p class="text-sm text-muted">
+            {{
+              t("pay.loyaltyBalance", {
+                points: formatNumber(loyalty.balance, 0),
+                worth: money(loyalty.worth),
+              })
+            }}
+          </p>
+          <button
+            v-if="loyalty.max_points > 0"
+            type="button"
+            data-loyalty
+            class="flex min-h-[3.375rem] items-center justify-between gap-3 rounded-rpos border px-[18px] text-start transition duration-200 ease-rpos"
+            :class="
+              loyaltyPoints
+                ? 'border-primary bg-primary text-primary-contrast'
+                : 'border-line bg-background hover:border-primary'
+            "
+            :aria-pressed="loyaltyPoints > 0"
+            @click="toggleLoyalty"
+          >
+            <span class="text-sm">
+              {{ t("pay.loyaltyUse", { points: formatNumber(loyaltyPoints || loyalty.max_points, 0) }) }}
+            </span>
+            <span class="rpos-numeric shrink-0 text-sm">−{{
+              money(loyaltyPoints ? (preview?.loyalty_amount ?? loyalty.max_amount) : loyalty.max_amount)
+            }}</span>
+          </button>
+          <!-- Why there is no button: said, not left for the cashier to guess. -->
+          <p
+            v-else
+            class="text-xs text-muted"
+          >
+            {{
+              loyalty.balance < loyalty.min_points
+                ? t("pay.loyaltyBelowMinimum", { points: formatNumber(loyalty.min_points, 0) })
+                : t("pay.loyaltyNothingFits")
+            }}
+          </p>
+        </div>
       </section>
 
       <!-- 3 — summary -->
@@ -984,6 +1095,18 @@ async function confirm(): Promise<void> {
             </dt>
             <dd class="rpos-numeric shrink-0">
               −{{ money(reductions.promotion.amount) }}
+            </dd>
+          </div>
+          <!-- A third line, not folded into the discount: the guest spent their
+               own balance, and a manager approving a discount must be shown
+               the discount alone (`D-189`). -->
+          <div
+            v-if="reductions.loyalty"
+            class="flex items-baseline justify-between gap-3 text-secondary"
+          >
+            <dt>{{ t("totals.loyalty") }}</dt>
+            <dd class="rpos-numeric">
+              −{{ money(reductions.loyalty.amount) }}
             </dd>
           </div>
           <div

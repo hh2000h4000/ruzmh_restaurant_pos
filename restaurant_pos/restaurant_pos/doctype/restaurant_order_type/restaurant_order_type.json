@@ -36,6 +36,7 @@
   "allowed_payment_methods",
   "promotion_section",
   "auto_promotions",
+  "allows_loyalty",
   "item_visibility_section",
   "hidden_item_groups",
   "additional_fields_section",
@@ -224,6 +225,13 @@
    "fieldtype": "Table",
    "label": "Auto Promotions",
    "options": "OT Promotion"
+  },
+  {
+   "default": "1",
+   "fieldname": "allows_loyalty",
+   "fieldtype": "Check",
+   "label": "Loyalty Points",
+   "description": "Orders of this type earn and spend loyalty points. An 'account' type never does, whatever this says — a platform's guest or a company billed monthly is somebody else's debt (D-189). Switch it off here for a walk-in type that should not take part."
   },
   {
    "fieldname": "item_visibility_section",

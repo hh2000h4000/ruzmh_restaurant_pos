@@ -17,6 +17,7 @@ import { flushPromises, mount } from "@vue/test-utils";
 import { createPinia, setActivePinia } from "pinia";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { LoyaltyOffer } from "@/api/order";
 import type { PaymentMethodOption, PaymentSummary } from "@/api/payment";
 import * as paymentApi from "@/api/payment";
 import { useSessionStore } from "@/stores/session";
@@ -368,7 +369,8 @@ describe("choosing an offer the shop configured", () => {
     await offerButton(wrapper, "عرض الإفطار").trigger("click");
     await flushPromises();
 
-    expect(paymentApi.previewTotals).toHaveBeenCalledWith(ORDER, null, 0, "PROMO-001");
+    // The fifth argument is the points being spent — none here (`D-189`).
+    expect(paymentApi.previewTotals).toHaveBeenCalledWith(ORDER, null, 0, "PROMO-001", 0);
   });
 
   /**
@@ -419,5 +421,112 @@ describe("choosing an offer the shop configured", () => {
     const wrapper = await open(summary(), { offers: [], may_choose: true });
 
     expect(wrapper.text()).not.toContain("عروض على هذي الفاتورة");
+  });
+});
+
+/**
+ * `FR-10.5`, `D-189`. The server sends the most this bill can take; the button
+ * offers exactly that, and the payment carries exactly what was chosen. The
+ * server refuses anything else under a lock — these ask whether the screen ever
+ * lets a cashier promise a guest something it would refuse.
+ */
+describe("loyalty points on the bill", () => {
+  function pointsOffer(extra: Partial<LoyaltyOffer> = {}): LoyaltyOffer {
+    return {
+      balance: 400,
+      worth: 20,
+      point_value: 0.05,
+      min_points: 100,
+      max_points: 250,
+      max_amount: 12.5,
+      ...extra,
+    };
+  }
+
+  function priced(offer: LoyaltyOffer) {
+    return {
+      subtotal: 100,
+      discount_amount: 12.5,
+      promotion_amount: 0,
+      promotion_title: "",
+      promotion_title_ar: "",
+      loyalty_points: 250,
+      loyalty_amount: 12.5,
+      loyalty: offer,
+      tax_amount: 11.41,
+      total_amount: 87.5,
+      discount_percentage: 0,
+      max_discount_percentage: 20,
+      requires_override: false,
+    };
+  }
+
+  function pointsButton(wrapper: Wrapper) {
+    return wrapper.find("[data-loyalty]");
+  }
+
+  it("draws nothing on a bill outside the scheme", async () => {
+    const wrapper = await open(summary({ loyalty: null }));
+
+    expect(pointsButton(wrapper).exists()).toBe(false);
+    expect(wrapper.text()).not.toContain("نقاط الولاء");
+  });
+
+  it("previews and pays with exactly the points the server offered", async () => {
+    vi.mocked(paymentApi.previewTotals).mockResolvedValue(priced(pointsOffer()));
+    vi.mocked(paymentApi.processPayment).mockResolvedValue({ order_name: ORDER } as never);
+    const wrapper = await open(summary({ loyalty: pointsOffer() }));
+
+    await pointsButton(wrapper).trigger("click");
+    await flushPromises();
+    await tender(wrapper, "Cash");
+    await confirmButton(wrapper).click();
+    await flushPromises();
+
+    expect(vi.mocked(paymentApi.previewTotals)).toHaveBeenLastCalledWith(ORDER, null, 0, null, 250);
+    expect(vi.mocked(paymentApi.processPayment).mock.calls[0][0]).toMatchObject({
+      loyalty_points_redeemed: 250,
+    });
+  });
+
+  it("spends nothing once the cashier taps it again", async () => {
+    vi.mocked(paymentApi.previewTotals).mockResolvedValue(priced(pointsOffer()));
+    vi.mocked(paymentApi.processPayment).mockResolvedValue({ order_name: ORDER } as never);
+    const wrapper = await open(summary({ loyalty: pointsOffer() }));
+
+    await pointsButton(wrapper).trigger("click");
+    await flushPromises();
+    await pointsButton(wrapper).trigger("click");
+    await flushPromises();
+    await tender(wrapper, "Cash");
+    await confirmButton(wrapper).click();
+    await flushPromises();
+
+    expect(vi.mocked(paymentApi.processPayment).mock.calls[0][0]).toMatchObject({
+      loyalty_points_redeemed: 0,
+    });
+  });
+
+  it("brings the points down when the bill can take fewer than were chosen", async () => {
+    // A discount chosen after the points leaves less for them to pay: the
+    // server says 100 now, and the screen must not carry 250 to Confirm.
+    vi.mocked(paymentApi.previewTotals).mockResolvedValue(
+      priced(pointsOffer({ max_points: 100, max_amount: 5 })),
+    );
+    const wrapper = await open(summary({ loyalty: pointsOffer() }));
+
+    await pointsButton(wrapper).trigger("click");
+    await flushPromises();
+
+    expect(vi.mocked(paymentApi.previewTotals)).toHaveBeenLastCalledWith(ORDER, null, 0, null, 100);
+  });
+
+  it("says why there is no button when the balance is below the minimum", async () => {
+    const wrapper = await open(
+      summary({ loyalty: pointsOffer({ balance: 50, worth: 2.5, max_points: 0, max_amount: 0 }) }),
+    );
+
+    expect(pointsButton(wrapper).exists()).toBe(false);
+    expect(wrapper.text()).toContain("تُستخدم النقاط من");
   });
 });

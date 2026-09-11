@@ -42,6 +42,42 @@ export interface PromotionOnBill {
 }
 
 /**
+ * What one customer's points can do on this bill (`FR-10.5`, `D-189`).
+ *
+ * Worked out on the server on the bill as it stands — after the discount and
+ * the offer — so `max_points` is exactly what the payment will accept.
+ */
+export interface LoyaltyOffer {
+  balance: number;
+  /** What the whole balance is worth, in money. */
+  worth: number;
+  point_value: number;
+  /** Nothing can be spent below this balance. */
+  min_points: number;
+  /** The most this bill can take now; zero when nothing can be spent. */
+  max_points: number;
+  /** What `max_points` would take off — sent, never multiplied here (§5.1). */
+  max_amount: number;
+}
+
+/**
+ * Points on a bill (`D-189`). Optional throughout: a bill built offline spends
+ * none, and an older server sends none.
+ */
+export interface LoyaltyOnBill {
+  /** Points spent on this bill. */
+  loyalty_points?: number;
+  /** What they took off, inside `discount_amount`. */
+  loyalty_amount?: number;
+  /**
+   * The customer's balance and limits — `null` when the bill is outside the
+   * scheme: no customer, the terminal's own, an order type with loyalty off, or
+   * no program. Only the payment screen is sent this.
+   */
+  loyalty?: LoyaltyOffer | null;
+}
+
+/**
  * The two reductions, told apart — for every screen that shows a total.
  *
  * The server folds both into `discount_amount` so the tax is worked out once,
@@ -54,11 +90,14 @@ export interface PromotionOnBill {
  * where the engine did not run (`D-163`), and a nameless line the guest cannot
  * read is worse than none.
  */
-export function reductionsOn(bill: (PromotionOnBill & { discount_amount: number }) | null): {
+export function reductionsOn(
+  bill: (PromotionOnBill & LoyaltyOnBill & { discount_amount: number }) | null,
+): {
   promotion: { title: string; amount: number } | null;
+  loyalty: { points: number; amount: number } | null;
   discount: number;
 } {
-  if (!bill) return { promotion: null, discount: 0 };
+  if (!bill) return { promotion: null, loyalty: null, discount: 0 };
 
   const amount = bill.promotion_amount ?? 0;
 
@@ -75,11 +114,19 @@ export function reductionsOn(bill: (PromotionOnBill & { discount_amount: number 
 
   const named = amount > 0 && Boolean(title);
 
+  // **The points are a line of their own** (`D-189`). The guest spent their own
+  // balance; nobody at the till discounted anything, and a manager asked to
+  // approve a discount must not be shown the points as one.
+  const spent = bill.loyalty_amount ?? 0;
+
   return {
     promotion: named ? { title, amount } : null,
+    loyalty: spent > 0 ? { points: bill.loyalty_points ?? 0, amount: spent } : null,
     // Only what was actually shown as an offer is taken out of the discount, or
-    // an unnamed promotion would vanish from the bill altogether.
-    discount: bill.discount_amount - (named ? amount : 0),
+    // an unnamed promotion would vanish from the bill altogether. Rounded to the
+    // halala, because three floats subtracted leave 1e-15 behind and a discount
+    // line reading −0.00 is a line the guest asks about.
+    discount: Math.round((bill.discount_amount - (named ? amount : 0) - spent) * 100) / 100,
   };
 }
 

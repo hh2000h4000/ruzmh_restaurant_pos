@@ -243,11 +243,23 @@ CUSTOMER_RECEIPT = """
 		<span class="val amt">{{{{ "%.2f" | format(doc.net_total) }}}}</span>
 		<span class="ar">قبل الضريبة</span>
 	</div>
-	{{% if doc.discount_amount %}}
+	{{# The points are part of the invoice's discount — ZATCA treats them as one
+	    (`D-189`) — but the guest spent their own balance, so they print as a
+	    line of their own and the discount line carries only the rest. The two
+	    still add up to the document's figure. #}}
+	{{% set points_off = loyalty.amount if loyalty else 0 %}}
+	{{% if doc.discount_amount - points_off > 0.005 %}}
 	<div class="tri">
 		<span class="en">Discount</span>
-		<span class="val amt">{{{{ "%.2f" | format(doc.discount_amount) }}}}</span>
+		<span class="val amt">{{{{ "%.2f" | format(doc.discount_amount - points_off) }}}}</span>
 		<span class="ar">الخصم</span>
+	</div>
+	{{% endif %}}
+	{{% if points_off %}}
+	<div class="tri">
+		<span class="en">Points {{{{ loyalty.spent }}}}</span>
+		<span class="val amt">{{{{ "%.2f" | format(points_off) }}}}</span>
+		<span class="ar">نقاط الولاء</span>
 	</div>
 	{{% endif %}}
 	{{% for tax in doc.taxes %}}
@@ -272,6 +284,22 @@ CUSTOMER_RECEIPT = """
 		<span class="en">Change</span>
 		<span class="val amt">{{{{ "%.2f" | format(doc.change_amount) }}}}</span>
 		<span class="ar">الباقي</span>
+	</div>
+	{{% endif %}}
+	{{% if loyalty %}}
+	{{# What the bill earned and what the guest now holds — the receipt is the
+	    one thing they take home, and a scheme nobody sees is a scheme nobody
+	    uses (`D-189`). No digit sits in an Arabic cell (`D-090`). #}}
+	<hr>
+	<div class="tri">
+		<span class="en">Points earned</span>
+		<span class="val amt">{{{{ loyalty.earned }}}}</span>
+		<span class="ar">نقاط مكتسبة</span>
+	</div>
+	<div class="tri">
+		<span class="en">Points balance</span>
+		<span class="val amt">{{{{ loyalty.balance }}}}</span>
+		<span class="ar">رصيد النقاط</span>
 	</div>
 	{{% endif %}}
 	{{% if zatca_qr %}}

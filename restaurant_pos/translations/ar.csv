@@ -1,6 +1,7 @@
 "An order is either settled at the till or billed to an account, not both.",الطلب إما يُسدَّد في التِل أو يُقيَّد على حساب، لا الاثنين معاً.
 "No printer is linked to this terminal, so nothing can be printed.",لا توجد طابعة مربوطة بهذه الطرفية، فلا شيء يمكن طباعته.
 "Order {0} has not been paid, so there is nothing to return.",الطلب {0} غير مدفوع، فلا شيء لإرجاعه.
+"Set how many days points last. Left empty, they would expire the day they are earned.",حدّد كم يوماً تبقى النقاط. لو تُرك فارغاً تنتهي في يوم كسبها.
 "This bill is from a day that has been closed, so nothing can be added to it. ",هذه الفاتورة من يوم مُغلق، فلا يمكن إضافة شيء إليها. ما زال بالإمكان دفعها أو إلغاؤها.
 A mobile number is required.,رقم الجوال مطلوب.
 A name is required.,الاسم مطلوب.
@@ -15,6 +16,7 @@ A return quantity must be greater than zero.,كمية الإرجاع يجب أن
 An address line is required.,العنوان مطلوب.
 An empty order cannot be paid.,لا يمكن دفع طلب فارغ.
 An offline order must carry the totals it was sold at.,الطلب المرسل من وضع عدم الاتصال يجب أن يحمل إجمالياته.
+At most {0} points can be used on this bill.,أقصى ما يمكن استخدامه على هذه الفاتورة {0} نقطة.
 Attendance needs the HR app. Ask an administrator to install it.,الحضور يحتاج تطبيق الموارد البشرية. اطلب من المسؤول تثبيته.
 Choose at least one item to return.,اختر صنفاً واحداً على الأقل للإرجاع.
 Choose how to refund this.,اختر طريقة الإرجاع.
@@ -31,6 +33,8 @@ Invoice {0} did not come from this till.,الفاتورة {0} ليست من هذ
 Item {0} does not exist.,الصنف {0} غير موجود.
 Item {0} is disabled.,الصنف {0} موقوف.
 Kitchen Order Ticket,تذكرة مطبخ
+Loyalty points cannot be used on this bill.,لا يمكن استخدام نقاط الولاء على هذه الفاتورة.
+Loyalty points,نقاط الولاء
 Manager authorisation is invalid or has expired.,تفويض المدير غير صالح أو انتهت صلاحيته.
 Manager authorisation is required.,يلزم تفويض المدير.
 Modifier group {0} does not apply to this item.,مجموعة الإضافات {0} لا تنطبق على هذا الصنف.
@@ -64,6 +68,7 @@ Paper and problems,الورق والأعطال
 Payment method {0} does not exist.,طريقة الدفع {0} غير موجودة.
 Payment of {0} does not cover the total of {1}.,المبلغ {0} لا يغطي الإجمالي {1}.
 People and the trail,الأشخاص والأثر
+Points can be used from {0} upwards; this customer has {1}.,تُستخدم النقاط من {0} فأكثر، ورصيد هذا العميل {1}.
 Printing,الطباعة
 Production Center,مركز إنتاج
 Quantity must be greater than zero.,الكمية يجب أن تكون أكبر من صفر.
@@ -71,6 +76,7 @@ Restaurant Floor Plan,مخطط الصالة
 Restaurant Order Type,نوع الطلب
 Restaurant Order,طلب
 Restaurant Orders,الطلبات
+Restaurant POS runs single-tier loyalty programs. Tiers are not supported yet.,نقاط البيع تعمل ببرنامج ولاء بمستوى واحد. المستويات غير مدعومة بعد.
 Restaurant POS,نقاط البيع
 Restaurant Promotion,عرض ترويجي
 Restaurant Reservation,حجز
@@ -85,6 +91,8 @@ Row #{0} is voided.,السطر رقم {0} ملغى.
 Select at least one payment method.,اختر طريقة دفع واحدة على الأقل.
 Service,الخدمة
 Set a default customer on POS Profile {0} before taking payment.,عيّن عميلاً افتراضياً على الطرفية {0} قبل استلام الدفع.
+Set one collection rule: how much a customer spends to earn one point.,حدّد قاعدة تجميع واحدة: كم ينفق العميل ليكسب نقطة.
+Set what one point is worth when it is spent.,حدّد قيمة النقطة الواحدة عند صرفها.
 Sign in first.,سجّل الدخول أولاً.
 Table {0} does not exist.,الطاولة {0} غير موجودة.
 Table {0} is not in this branch.,الطاولة {0} ليست في هذا الفرع.
@@ -97,10 +105,14 @@ The PIN must be exactly {0} digits.,الرقم السري يجب أن يكون {
 The amount received is less than the amount being paid.,المبلغ المستلم أقل من المبلغ المدفوع.
 The day and the drawer,اليوم والدرج
 The floor,الصالة
+The loyalty balance changed while this bill was being paid. Nothing has been charged.,تغيّر رصيد النقاط أثناء دفع هذه الفاتورة. لم يُخصم شيء.
 The menu,القائمة
+The minimum balance to spend points cannot be negative.,الحد الأدنى للرصيد لا يكون سالباً.
+The share of a bill points may pay must be between 1 and 100 percent.,نسبة الفاتورة التي تدفعها النقاط يجب أن تكون بين 1 و100.
 There is nothing new to send to the kitchen.,لا يوجد جديد لإرساله للمطبخ.
 This bill prices differently on the screen ({0}) and on the invoice ({1}). ,هذه الفاتورة تُحسب على الشاشة ({0}) وعلى الفاتورة ({1}) بشكل مختلف. لم يُخصم شيء. راجع قالب الضريبة على الجهاز.
 This bill was sold offline at {0} but comes to {1} here ,هذه الفاتورة بيعت بلا اتصال بمبلغ {0} وتُحسب هنا {1}
+This customer has {0} points.,رصيد هذا العميل {0} نقطة.
 This login is not linked to an employee record.,هذا الحساب غير مرتبط بسجل موظف.
 This order type must be paid by {0}.,هذا النوع من الطلبات يُدفع بـ{0}.
 This till session is already closed.,هذه المناوبة مغلقة أصلاً.

@@ -33,6 +33,11 @@ def _summary(order) -> dict:
 		"subtotal": order.subtotal,
 		"discount_amount": order.discount_amount,
 		**promotions.on_the_bill(order),
+		# What the points paid, so a paid bill reads them as points and not as a
+		# discount (`D-189`). The balance is not here: every order fetch would
+		# pay for a ledger sum the till screen never shows.
+		"loyalty_points": cint(order.get("loyalty_points")),
+		"loyalty_amount": flt(order.get("loyalty_amount")),
 		"tax_amount": order.tax_amount,
 		"total_amount": order.total_amount,
 		"item_count": len([row for row in order.items if row.status != "void"]),

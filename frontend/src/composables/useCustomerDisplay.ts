@@ -75,6 +75,8 @@ export interface DisplayState {
    * bare "discount" line does not tell them it was honoured.
    */
   promotion: { title: string; amount: number } | null;
+  /** The guest's own points, spent on this bill (`D-189`). */
+  loyalty: { points: number; amount: number } | null;
   /** What a person decided to take off, which is not the same thing. */
   discount: number;
   tax: number;
@@ -97,6 +99,7 @@ export const IDLE: DisplayState = {
   lines: [],
   beforeTax: 0,
   promotion: null,
+  loyalty: null,
   discount: 0,
   tax: 0,
   total: 0,

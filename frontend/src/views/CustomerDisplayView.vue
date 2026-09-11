@@ -169,6 +169,15 @@ const money = (value: number) => formatNumber(value, 2);
           <span class="truncate">{{ state.promotion.title }}</span>
           <span class="rpos-numeric shrink-0">−{{ money(state.promotion.amount) }}</span>
         </div>
+        <!-- Their own points, named as theirs — the one line on this screen
+             the guest paid for with something other than money (`D-189`). -->
+        <div
+          v-if="state.loyalty"
+          class="flex justify-between gap-4 text-status-available"
+        >
+          <span>{{ t("totals.loyalty") }}</span>
+          <span class="rpos-numeric shrink-0">−{{ money(state.loyalty.amount) }}</span>
+        </div>
         <div
           v-if="state.discount"
           class="flex justify-between text-subtle"

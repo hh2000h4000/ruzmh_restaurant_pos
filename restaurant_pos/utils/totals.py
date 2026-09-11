@@ -239,9 +239,18 @@ def calculate(order) -> None:
 	order.promotion = promotion
 	order.promotion_amount = promoted
 
+	# **Points last** (`D-189`). They are the customer's own, spent on what the
+	# bill comes to once the shop's reductions are taken — and resolved to an
+	# amount off here, like the promotion, so `compute` keeps its one shape. An
+	# offline bill spends none: the balance is on the server.
+	from restaurant_pos.utils import loyalty
+
+	spent = loyalty.amount_for(order, subtotal - manual - promoted)
+	order.loyalty_amount = spent
+
 	# One reduction from here down, so `compute` keeps the single shape the
-	# offline port mirrors. What each half of it was is on the order above.
-	totals = compute(amounts, "amount", manual + promoted, pricing)
+	# offline port mirrors. What each part of it was is on the order above.
+	totals = compute(amounts, "amount", manual + promoted + spent, pricing)
 
 	order.subtotal = totals["subtotal"]
 	order.discount_amount = totals["discount_amount"]

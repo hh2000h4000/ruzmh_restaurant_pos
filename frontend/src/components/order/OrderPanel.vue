@@ -253,6 +253,16 @@ function money(value: number | undefined): string {
           −{{ money(reductions.promotion.amount) }}
         </dd>
       </div>
+      <!-- The guest's own points, apart from any discount (`D-189`). -->
+      <div
+        v-if="reductions.loyalty"
+        class="flex justify-between gap-3 text-status-available"
+      >
+        <dt>{{ t("totals.loyalty") }}</dt>
+        <dd class="rpos-numeric shrink-0">
+          −{{ money(reductions.loyalty.amount) }}
+        </dd>
+      </div>
       <div
         v-if="reductions.discount"
         class="flex justify-between text-status-available"

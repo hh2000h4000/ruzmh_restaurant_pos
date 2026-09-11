@@ -110,6 +110,7 @@ describe("telling a promotion from a discount", () => {
   it("shows no offer on a bill that had none", () => {
     expect(reductionsOn(bill({ discount_amount: 5 }))).toEqual({
       promotion: null,
+      loyalty: null,
       discount: 5,
     });
   });
@@ -130,7 +131,45 @@ describe("telling a promotion from a discount", () => {
   });
 
   it("has nothing to report with no bill at all", () => {
-    expect(reductionsOn(null)).toEqual({ promotion: null, discount: 0 });
+    expect(reductionsOn(null)).toEqual({ promotion: null, loyalty: null, discount: 0 });
+  });
+});
+
+/**
+ * `D-189`. The server folds the points into `discount_amount` too — they are a
+ * discount for VAT, which is what ZATCA says — so every screen has to take them
+ * back out, or the guest's own points read as somebody's discount.
+ */
+describe("telling the points from a discount", () => {
+  it("draws the points as their own line and leaves the discount at nothing", () => {
+    const { loyalty, discount } = reductionsOn(
+      bill({ discount_amount: 12.5, loyalty_points: 250, loyalty_amount: 12.5 }),
+    );
+
+    expect(loyalty).toEqual({ points: 250, amount: 12.5 });
+    expect(discount).toBe(0);
+  });
+
+  it("separates all three when an offer, a discount and points share one bill", () => {
+    const { promotion, loyalty, discount } = reductionsOn(
+      bill({
+        discount_amount: 23.35,
+        promotion_amount: 10,
+        promotion_title: "Breakfast offer",
+        promotion_title_ar: "عرض الإفطار",
+        loyalty_points: 207,
+        loyalty_amount: 10.35,
+      }),
+    );
+
+    expect(promotion?.amount).toBe(10);
+    expect(loyalty?.amount).toBe(10.35);
+    // 23.35 − 10 − 10.35 is 3.0000000000000018 in floats; the till says 3.00.
+    expect(discount).toBe(3);
+  });
+
+  it("draws no points line on a bill that spent none", () => {
+    expect(reductionsOn(bill({ discount_amount: 5 })).loyalty).toBeNull();
   });
 });
 

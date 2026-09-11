@@ -22,7 +22,7 @@ import frappe
 from frappe import _
 from frappe.utils import flt, now_datetime
 
-from restaurant_pos.utils import numbering, payment, printing
+from restaurant_pos.utils import loyalty, numbering, payment, printing
 from restaurant_pos.utils.audit import log_audit
 from restaurant_pos.utils.payment import is_credit_method
 from restaurant_pos.utils.permissions import (
@@ -207,6 +207,10 @@ def create_return(
 
 	credit = _build_credit_note(order, invoice, wanted, reason, refund_method)
 
+	# D-189 — the points follow the money back, in the same transaction: what the
+	# returned share earned is taken back and what it spent is given back.
+	points = loyalty.reverse(order, credit, completes=_completes(invoice, {}))
+
 	log_audit(
 		"return_created",
 		branch=order.branch,
@@ -240,6 +244,7 @@ def create_return(
 		# it negative, which is the ledger's business and not the screen's.
 		"refund_amount": abs(flt(credit.rounded_total or credit.grand_total)),
 		"returnable": returnable(order),
+		**points,
 	}
 
 
@@ -373,9 +378,65 @@ def _compose(invoice: str, wanted: dict[str, float]):
 		kept.append(row)
 
 	credit.set("items", kept)
+	_share_the_discount(credit, invoice, wanted)
 	credit.set_missing_values()
 	credit.calculate_taxes_and_totals()
 	return credit
+
+
+def _share_the_discount(credit, invoice: str, wanted: dict[str, float]) -> None:
+	"""A partial return takes back its share of the bill's discount (`D-190`).
+
+	`make_return_doc` copies the sale's **whole** `discount_amount` onto the
+	credit note, which is right for a full return and wrong for every other one:
+	one dish back off a discounted bill of two carried the entire reduction, and
+	the customer was refunded the dish minus the discount on both. It has been
+	so for every cashier's discount and every offer; loyalty found it, because a
+	redemption is a discount (`D-189`).
+
+	**By the value of the lines coming back**, before any reduction — the same
+	measure `loyalty.reverse` uses for the points, so the money and the points
+	come back in one proportion. And the return that empties the bill takes
+	**whatever is left** rather than its own share, so a bill returned in parts
+	gives back every riyal of its discount, not that less a halala of rounding.
+	"""
+	whole = abs(flt(frappe.db.get_value("Sales Invoice", invoice, "discount_amount")))
+	if not whole:
+		return
+
+	if _completes(invoice, wanted):
+		earlier = sum(
+			abs(flt(amount))
+			for amount in frappe.get_all(
+				"Sales Invoice",
+				filters={"return_against": invoice, "docstatus": 1},
+				pluck="discount_amount",
+			)
+		)
+		share = whole - earlier
+	else:
+		sale = flt(frappe.db.get_value("Sales Invoice", invoice, "total"))
+		coming_back = sum(abs(flt(row.qty)) * flt(row.rate) for row in credit.items)
+		share = whole * coming_back / sale if sale else 0.0
+
+	# Negative, like everything else on a credit note.
+	credit.discount_amount = -flt(max(0.0, share), 2)
+
+
+def _completes(invoice: str, wanted: dict[str, float]) -> bool:
+	"""Whether nothing is left to return on the bill once `wanted` has come back.
+
+	`wanted` is empty when the question is asked after the credit note is
+	submitted, because `_returned_quantities` already counts it by then.
+	"""
+	rows = frappe.get_all(
+		"Sales Invoice Item",
+		filters={"parent": invoice, "parenttype": "Sales Invoice"},
+		fields=["name", "qty"],
+	)
+	taken = _returned_quantities([row.name for row in rows])
+
+	return all(flt(taken.get(row.name)) + flt(wanted.get(row.name)) >= flt(row.qty) - 0.0001 for row in rows)
 
 
 def _build_credit_note(order, invoice: str, wanted: dict[str, float], reason: str, refund_method: str | None):

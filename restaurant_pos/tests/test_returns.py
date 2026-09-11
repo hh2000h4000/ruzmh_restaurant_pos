@@ -13,12 +13,13 @@ Refs: FR-9.1..FR-9.3, BR-050..BR-055, D-064
 from unittest.mock import patch
 
 import frappe
+from frappe.utils import flt
 
 from restaurant_pos.api import returns as api_returns
 from restaurant_pos.tests.test_order import ITEM, OrderTestBase
 from restaurant_pos.tests.test_payment import CASH, _ensure_fiscal_year
 from restaurant_pos.utils import order as orders
-from restaurant_pos.utils import payment
+from restaurant_pos.utils import payment, totals
 from restaurant_pos.utils import returns as service
 from restaurant_pos.utils import shift as shift_service
 
@@ -560,3 +561,58 @@ class TheRefundRowOpensTheRefund(ReturnTestBase):
 		order, credit = self._refunded()
 
 		self.assertEqual(api_returns.get_refund(credit)["order_name"], order.name)
+
+
+class TestADiscountedBillComesBackInShares(ReturnTestBase):
+	"""D-190 — a partial return takes back its share of the discount, not all of it.
+
+	ERPNext's `make_return_doc` copies the sale's whole `discount_amount` onto the
+	credit note, and a partial return trims the lines and keeps it. So one dish
+	back off a discounted bill of two carried the **entire** discount, and the
+	customer was refunded the dish minus the whole bill's reduction.
+
+	Found building loyalty, because a redemption is a discount (`D-189`) — but
+	every cashier's discount and every offer has been refunded this way.
+	"""
+
+	def _discounted(self):
+		_ensure_fiscal_year()
+
+		order = self._order()
+		orders.add_item(order, item=ITEM, qty=2)
+		order.reload()
+
+		# Set on the bill and priced, the way a discount chosen earlier arrives at
+		# the payment — so no ceiling is asked, which is not what is tested here.
+		order.discount_type = "amount"
+		order.discount_value = 10
+		totals.calculate(order)
+		order.save(ignore_permissions=True)
+
+		payment.process_payment(order, payments=[{"method": CASH, "amount": order.total_amount}])
+		order.reload()
+		return order
+
+	def _paid_for(self, order) -> float:
+		invoice = frappe.db.get_value(
+			"Sales Invoice", order.sales_invoice, ["rounded_total", "grand_total"], as_dict=True
+		)
+		return flt(invoice.rounded_total or invoice.grand_total)
+
+	def test_half_the_bill_back_is_half_the_money_paid(self):
+		order = self._discounted()
+		paid = self._paid_for(order)
+
+		result = service.create_return(order, items=[{"row": self._row(order), "qty": 1}], reason_code=REASON)
+
+		self.assertAlmostEqual(result["refund_amount"], paid / 2, delta=0.05)
+
+	def test_the_whole_bill_back_in_two_parts_is_every_riyal_paid(self):
+		order = self._discounted()
+		paid = self._paid_for(order)
+		row = self._row(order)
+
+		first = service.create_return(order, items=[{"row": row, "qty": 1}], reason_code=REASON)
+		second = service.create_return(order, items=[{"row": row, "qty": 1}], reason_code=REASON)
+
+		self.assertAlmostEqual(first["refund_amount"] + second["refund_amount"], paid, places=2)

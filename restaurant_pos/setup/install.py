@@ -310,6 +310,33 @@ CUSTOM_FIELDS = {
 			"insert_after": "is_return",
 		},
 	],
+	# **The two rules ERPNext's program has no field for** (`D-189`). Earning,
+	# the value of a point and the expiry are ERPNext's own fields; these are
+	# the limits on *spending*, which ERPNext leaves to whoever builds the till.
+	"Loyalty Program": [
+		{
+			"fieldname": "rpos_section",
+			"fieldtype": "Section Break",
+			"label": "Restaurant POS",
+			"insert_after": "expiry_duration",
+		},
+		{
+			"fieldname": "rpos_min_redeem_points",
+			"fieldtype": "Int",
+			"label": "Minimum Balance to Spend",
+			"default": "100",
+			"description": "A customer spends nothing until they hold at least this many points.",
+			"insert_after": "rpos_section",
+		},
+		{
+			"fieldname": "rpos_max_redeem_percent",
+			"fieldtype": "Percent",
+			"label": "Most of a Bill Points May Pay",
+			"default": "50",
+			"description": "Taken of what is left after the offers and any discount.",
+			"insert_after": "rpos_min_redeem_points",
+		},
+	],
 	"Mode of Payment": [
 		{
 			"fieldname": "rpos_is_credit",

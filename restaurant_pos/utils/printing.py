@@ -28,7 +28,7 @@ from dataclasses import dataclass
 
 import frappe
 from frappe import _
-from frappe.utils import add_days, now_datetime, nowdate
+from frappe.utils import add_days, cint, flt, now_datetime, nowdate
 
 #: Printable width in dots, by paper size, at the 203 dpi every one of these
 #: printers uses. The paper is wider than the print head can reach — 80mm paper
@@ -587,6 +587,37 @@ def receipt_context(invoice, order=None) -> dict:
 		"tax_inclusive": any(tax.included_in_print_rate for tax in invoice.taxes),
 		# FR-7.5 — ZATCA Phase 1. Local arithmetic, no integration (`D-092`).
 		"zatca_qr": zatca.invoice_qr(invoice),
+		"loyalty": _receipt_loyalty(invoice, order),
+	}
+
+
+def _receipt_loyalty(invoice, order) -> dict | None:
+	"""Points on this receipt: what the bill spent and earned, and what is left.
+
+	**A sale only** (`D-189`). A credit note's receipt reverses money, and the
+	sale's points printed under it would tell the guest they earned something on
+	a refund. And nothing at all on a bill that neither spent nor earned — a
+	walk-in's coffee does not need a loyalty block.
+
+	The balance is the balance **when this prints**, which on a reprint weeks
+	later is that day's — still a true statement of what the guest holds.
+	"""
+	if invoice.get("is_return") or not order or not order.get("customer"):
+		return None
+
+	spent = cint(order.get("loyalty_points"))
+	earned = cint(order.get("loyalty_points_earned"))
+	if not spent and not earned:
+		return None
+
+	from restaurant_pos.utils import loyalty
+
+	program = frappe.db.get_value("Customer", order.customer, "loyalty_program")
+	return {
+		"spent": spent,
+		"amount": flt(order.get("loyalty_amount")),
+		"earned": earned,
+		"balance": loyalty.balance(order.customer, program) if program else 0,
 	}
 
 
@@ -622,7 +653,21 @@ def _receipt_order(order_name: str | None):
 	order = frappe.db.get_value(
 		"Restaurant Order",
 		order_name,
-		["name", "daily_number", "call_name", "table", "order_type", "cashier", "branch", "pos_profile"],
+		[
+			"name",
+			"daily_number",
+			"call_name",
+			"table",
+			"order_type",
+			"cashier",
+			"branch",
+			"pos_profile",
+			# D-189 — the receipt's points block.
+			"customer",
+			"loyalty_points",
+			"loyalty_amount",
+			"loyalty_points_earned",
+		],
 		as_dict=True,
 	)
 	if not order:

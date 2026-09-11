@@ -41,7 +41,17 @@ doc_events = {
 	# D-063 — a point-of-sale sale is reversed by a return, never by cancelling
 	# the invoice. Cancelling from the desk left the ledger reversed and the
 	# order still saying `closed`, with nobody told (D-062).
-	"Sales Invoice": {"before_cancel": "restaurant_pos.utils.payment.block_invoice_cancel"},
+	#
+	# D-189 — and ERPNext's own loyalty stays off an RPOS invoice. It fetches the
+	# customer's program onto every invoice and grants its own points on submit,
+	# which doubled every balance beside the ledger rows RPOS writes.
+	"Sales Invoice": {
+		"before_cancel": "restaurant_pos.utils.payment.block_invoice_cancel",
+		"validate": "restaurant_pos.utils.loyalty.keep_erpnext_out",
+	},
+	# D-189 — a program RPOS cannot honour is refused when it is saved: tiers
+	# (ERPNext's pick the wrong one) and an empty expiry (points die tonight).
+	"Loyalty Program": {"validate": "restaurant_pos.utils.loyalty.validate_program"},
 }
 
 # D-085 — a print job carries the bitmap it printed, about 15 KB of base64 each.

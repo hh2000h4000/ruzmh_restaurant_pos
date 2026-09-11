@@ -40,6 +40,19 @@ Item {0} is disabled.,الصنف {0} موقوف.
 Kitchen Order Ticket,تذكرة مطبخ
 Loyalty points cannot be used on this bill.,لا يمكن استخدام نقاط الولاء على هذه الفاتورة.
 Loyalty points,نقاط الولاء
+Loyalty Points Balance,رصيد نقاط الولاء
+Balance on,الرصيد بتاريخ
+Expected to be spent (%),نسبة الصرف المتوقّعة (٪)
+Net of VAT,الصافي قبل الضريبة
+Points held,النقاط غير المصروفة
+Their value,قيمتها
+Liability at {0}% expected to be spent,الالتزام بنسبة صرف متوقّعة {0}٪
+Points owed back by customers,نقاط مستحقّة على العملاء
+Choose the company to report on.,اختر الشركة التي تريد تقريرها.
+"This company's terminals sell under tax templates that disagree, so the net and the liability are left out. Work them from the value.",أجهزة هذه الشركة تبيع بقوالب ضريبة مختلفة، فلم يُحسب الصافي ولا الالتزام. احسبهما من القيمة.
+"These terminals charge no VAT, so the net is the value itself.",هذه الأجهزة لا تحتسب ضريبة، فالصافي هو القيمة نفسها.
+"Net of VAT at {0}%, which the menu prices include, from the terminals' tax template.",الصافي قبل ضريبة {0}٪ المشمولة في أسعار القائمة، من قالب الضريبة على الأجهزة.
+"Points come off before VAT on these terminals, so the net is the value itself.",النقاط تُخصم قبل الضريبة على هذه الأجهزة، فالصافي هو القيمة نفسها.
 Manager authorisation is invalid or has expired.,تفويض المدير غير صالح أو انتهت صلاحيته.
 Manager authorisation is required.,يلزم تفويض المدير.
 Modifier group {0} does not apply to this item.,مجموعة الإضافات {0} لا تنطبق على هذا الصنف.

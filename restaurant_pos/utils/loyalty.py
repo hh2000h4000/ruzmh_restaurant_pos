@@ -196,28 +196,46 @@ def value_of(points: int, program) -> float:
 # --------------------------------------------------------------------------- #
 
 
-def balance(customer: str, program: str) -> int:
-	"""Points the customer can spend today.
+def balances(on=None, *, company=None, customer=None, program=None) -> list:
+	"""Points held on a day, per customer and program — the ledger's one sum.
 
-	The plain sum of every unexpired row — which is right because of the
+	Every row posted by that day and not yet expired on it. Right because of the
 	ledger's one rule: a movement carries its grant's expiry, so when a grant
 	lapses its spending and its clawbacks lapse with it and the sum stays true.
+	And a movement posted after the day does not count, so the last day of a
+	month reads what stood that night, whatever was spent since — the figure an
+	accountant closes the month on (`docs/12_Loyalty_Points.md` §5.3).
+
+	The till asks for one customer today; the balance report for everyone on a
+	chosen day. One query for both, so the two cannot disagree (`D-196`).
+	"""
+	on = getdate(on or today())
+	entry = frappe.qb.DocType(LEDGER)
+	query = (
+		frappe.qb.from_(entry)
+		.select(entry.customer, entry.loyalty_program, Sum(entry.loyalty_points).as_("points"))
+		.where((entry.posting_date <= on) & (entry.expiry_date >= on))
+		.groupby(entry.customer, entry.loyalty_program)
+	)
+	if company:
+		query = query.where(entry.company == company)
+	if customer:
+		query = query.where(entry.customer == customer)
+	if program:
+		query = query.where(entry.loyalty_program == program)
+
+	return query.run(as_dict=True)
+
+
+def balance(customer: str, program: str) -> int:
+	"""Points the customer can spend today.
 
 	**It can be negative.** A return claws back points the bill earned even when
 	they were already spent, and the debt is recovered from the next purchases
 	rather than refusing the refund (`D-189`).
 	"""
-	entry = frappe.qb.DocType(LEDGER)
-	rows = (
-		frappe.qb.from_(entry)
-		.select(Sum(entry.loyalty_points))
-		.where(
-			(entry.customer == customer)
-			& (entry.loyalty_program == program)
-			& (entry.expiry_date >= getdate(today()))
-		)
-	).run()
-	return cint(rows[0][0]) if rows else 0
+	rows = balances(customer=customer, program=program)
+	return cint(rows[0].points) if rows else 0
 
 
 def _most_points(program, have: int, before_points: float) -> int:

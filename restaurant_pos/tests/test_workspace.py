@@ -37,11 +37,24 @@ class TestTheDeskPages(FrappeTestCase):
 				if row["type"] != "Link":
 					continue
 
+				# A report is linked by name as well, and looked up among reports.
+				kind = row.get("link_type") or "DocType"
 				with self.subTest(page=name, link=row["link_to"]):
 					self.assertTrue(
-						frappe.db.exists("DocType", row["link_to"]),
-						f"{name}: link to {row['link_to']}, which is not a DocType",
+						frappe.db.exists(kind, row["link_to"]),
+						f"{name}: link to {row['link_to']}, which is not a {kind}",
 					)
+
+	def test_a_script_report_is_linked_as_one(self):
+		"""Without `is_query_report` the link opens the report builder on its DocType (`D-196`)."""
+		for name, page in _pages():
+			for row in page["links"]:
+				if row["type"] != "Link" or row.get("link_type") != "Report":
+					continue
+
+				with self.subTest(page=name, link=row["link_to"]):
+					kind = frappe.db.get_value("Report", row["link_to"], "report_type")
+					self.assertEqual(row["is_query_report"], int(kind in ("Script Report", "Query Report")))
 
 	def test_no_link_points_at_a_child_table(self):
 		"""A child table has no list view — the link opens an error page."""

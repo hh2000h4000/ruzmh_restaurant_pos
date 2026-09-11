@@ -134,14 +134,26 @@ const showCarriedSwitch = computed(() => props.view === "open" && Boolean(props.
     Two rows: the toolbar sizes to its content, the list takes what is left and
     scrolls inside it. Both rows are declared here rather than left to flex, so
     the list cannot grow the panel and take the page with it.
+
+    **On a phone the toolbar is four lines, not seven** (`D-195`). Measured on
+    a 360px Galaxy A55 with a bill in hand, every control wrapped — the toggle
+    under the title, the sort under the search, the tabs onto two rows — and
+    the toolbar took 471 of the panel's 513px: the list was 0px tall, not one
+    order on screen. Below 640 the title and toggle share a line, the search
+    and sort share one, and the four tabs are one segmented row of equal parts,
+    as a phone's segmented control is — not a strip that scrolls, which hides
+    the last status behind the edge. Every control keeps 48px for a finger.
   -->
   <section
-    class="grid min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)] rounded-rpos bg-surface p-6 shadow-card"
+    class="grid min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)] rounded-rpos bg-surface p-6 shadow-card max-sm:p-4"
   >
     <div>
-      <div class="mb-5 flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h2 class="text-[25px] font-medium leading-tight text-content">
+      <div
+        data-orders-header
+        class="mb-5 flex flex-wrap items-start justify-between gap-4 max-sm:mb-3 max-sm:flex-nowrap max-sm:items-center max-sm:gap-3"
+      >
+        <div class="min-w-0">
+          <h2 class="text-[25px] font-medium leading-tight text-content max-sm:text-xl">
             {{ t("home.openOrders") }}
           </h2>
           <p class="mt-1.5 text-[13.5px] text-subtle">
@@ -150,7 +162,7 @@ const showCarriedSwitch = computed(() => props.view === "open" && Boolean(props.
           </p>
         </div>
 
-        <div class="flex flex-wrap items-center gap-2.5">
+        <div class="flex flex-wrap items-center gap-2.5 max-sm:shrink-0">
           <div class="flex h-[58px] w-[124px] rounded-[15px] bg-background p-[5px]">
             <button
               v-for="option in (['grid', 'list'] as const)"
@@ -172,8 +184,11 @@ const showCarriedSwitch = computed(() => props.view === "open" && Boolean(props.
         </div>
       </div>
 
-      <div class="mb-4 flex flex-wrap items-center gap-2.5">
-        <label class="flex h-14 min-w-[220px] flex-1 items-center gap-2.5 rounded-[15px] border border-line bg-background px-[18px]">
+      <div class="mb-4 flex flex-wrap items-center gap-2.5 max-sm:mb-3 max-sm:flex-nowrap max-sm:gap-2">
+        <label
+          data-orders-search
+          class="flex h-14 min-w-[220px] flex-1 items-center gap-2.5 rounded-[15px] border border-line bg-background px-[18px] max-sm:h-12 max-sm:min-w-0 max-sm:px-3"
+        >
           <AppIcon
             name="search"
             :size="20"
@@ -190,7 +205,7 @@ const showCarriedSwitch = computed(() => props.view === "open" && Boolean(props.
 
         <select
           v-model="sort"
-          class="h-14 w-[168px] shrink-0 rounded-[15px] border border-line bg-background px-[18px] text-xs text-content"
+          class="h-14 w-[168px] shrink-0 rounded-[15px] border border-line bg-background px-[18px] text-xs text-content max-sm:h-12 max-sm:w-[132px] max-sm:px-3"
           :aria-label="t('home.sort')"
         >
           <option
@@ -207,7 +222,7 @@ const showCarriedSwitch = computed(() => props.view === "open" && Boolean(props.
            floor is on offer (D-042). -->
       <div
         v-if="view"
-        class="mb-4 flex flex-wrap gap-2"
+        class="mb-4 flex flex-wrap gap-2 max-sm:mb-3 max-sm:grid max-sm:grid-cols-4 max-sm:gap-1.5"
         role="tablist"
       >
         <button
@@ -215,7 +230,7 @@ const showCarriedSwitch = computed(() => props.view === "open" && Boolean(props.
           :key="option.key"
           type="button"
           role="tab"
-          class="h-[50px] rounded-[14px] border px-6 text-xs font-medium transition-colors duration-100 ease-rpos"
+          class="h-[50px] rounded-[14px] border px-6 text-xs font-medium transition-colors duration-100 ease-rpos max-sm:h-12 max-sm:px-1 max-sm:leading-tight"
           :class="
             view === option.key
               ? 'border-primary bg-primary text-primary-contrast'
@@ -232,7 +247,7 @@ const showCarriedSwitch = computed(() => props.view === "open" && Boolean(props.
            belong to (`D-168`). -->
       <label
         v-if="showCarriedSwitch"
-        class="mb-4 flex w-fit cursor-pointer items-center gap-2.5 rounded-[14px] border border-line bg-background px-4 py-2.5 text-xs text-subtle transition-colors duration-100 ease-rpos hover:text-content"
+        class="mb-4 flex w-fit cursor-pointer items-center max-sm:mb-3 gap-2.5 rounded-[14px] border border-line bg-background px-4 py-2.5 text-xs text-subtle transition-colors duration-100 ease-rpos hover:text-content"
       >
         <input
           type="checkbox"

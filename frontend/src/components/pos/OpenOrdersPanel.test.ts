@@ -101,3 +101,28 @@ describe("asking for the bills carried from a day that has ended", () => {
     expect(wrapper.emitted("update:includeCarried")).toEqual([[true]]);
   });
 });
+
+/**
+ * `D-195` — on a 360px phone every control wrapped and the toolbar took 471 of
+ * the panel's 513px, leaving the list 0px tall. jsdom lays nothing out, so
+ * these hold what the markup promises; the heights were measured in a browser.
+ */
+describe("the toolbar on a phone", () => {
+  it("keeps the title and the layout toggle on one line", () => {
+    expect(panel().get("[data-orders-header]").classes()).toContain("max-sm:flex-nowrap");
+  });
+
+  it("lets the search give up its minimum so the sort fits beside it", () => {
+    const search = panel().get("[data-orders-search]");
+
+    expect(search.classes()).toContain("max-sm:min-w-0");
+    expect(search.element.parentElement!.className).toContain("max-sm:flex-nowrap");
+  });
+
+  it("lays the four statuses out as one row of equal parts, none hidden past the edge", () => {
+    const strip = panel().get('[role="tablist"]');
+
+    expect(strip.classes()).toEqual(expect.arrayContaining(["max-sm:grid", "max-sm:grid-cols-4"]));
+    expect(strip.findAll('[role="tab"]')).toHaveLength(4);
+  });
+});

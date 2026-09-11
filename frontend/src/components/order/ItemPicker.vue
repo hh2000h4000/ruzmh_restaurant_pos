@@ -4,6 +4,7 @@ import { computed, ref } from "vue";
 // `pick` is already this component's "add this item" handler, so the i18n
 // helper comes in under a name that says what it does here.
 import AppIcon from "@/components/AppIcon.vue";
+import MenuTile from "@/components/order/MenuTile.vue";
 import { formatNumber, pick as localized, t } from "@/i18n";
 import { useSessionStore } from "@/stores/session";
 import type { CatalogItem, LayoutButton, OrderType } from "@/types/session";
@@ -48,8 +49,7 @@ const breadcrumb = computed(() => {
   if (search.value.trim()) return t("picker.search");
   if (!activeGroup.value) return t("picker.allItems");
 
-  const group = session.data?.item_groups.find((row) => row.name === activeGroup.value);
-  return group?.item_group_name ?? activeGroup.value;
+  return groupOf(activeGroup.value)?.item_group_name ?? activeGroup.value;
 });
 
 const available = computed(() => session.visibleItems(props.orderType));
@@ -186,17 +186,29 @@ function gridStyle(button: LayoutButton): Record<string, string> {
   };
 }
 
+function groupOf(name: string | null) {
+  return name ? session.data?.item_groups.find((row) => row.name === name) : undefined;
+}
+
+/** A layout button's dish, when it is one — for its picture and its price. */
+function dishOf(button: LayoutButton): CatalogItem | undefined {
+  return button.button_type === "item" ? itemFor(button.item) : undefined;
+}
+
 /**
- * Layout buttons carry their own colours from the designer (05 §9), so these
- * are configuration rather than hardcoded values — the one place a colour
- * legitimately arrives as data.
+ * The picture on a layout button's tile (`D-192`): its own when the layout gave
+ * it one, else its dish's or its group's — ERPNext's `image` on each — else the
+ * tile draws a placeholder.
+ *
+ * The button's **colour** goes to the tile's strip and its **text colour** is no
+ * longer used: it was chosen for text on a coloured fill, and the tile is white
+ * now — white text there would be no text at all.
  */
-function buttonStyle(button: LayoutButton): Record<string, string> {
-  const style: Record<string, string> = gridStyle(button);
-  if (button.bg_color) style.backgroundColor = button.bg_color;
-  if (button.text_color) style.color = button.text_color;
-  if (button.font_size) style.fontSize = `${button.font_size}px`;
-  return style;
+function imageOf(button: LayoutButton): string | null {
+  if (button.image) return button.image;
+  if (button.button_type === "item") return dishOf(button)?.image ?? null;
+  if (button.button_type === "item_group") return groupOf(button.item_group)?.image ?? null;
+  return null;
 }
 
 function label(button: LayoutButton): string {
@@ -207,7 +219,17 @@ function label(button: LayoutButton): string {
     const item = itemFor(button.item);
     return item ? itemName(item) : (button.item ?? "");
   }
-  return button.item_group ?? button.action_type ?? "";
+  // The group's own name, not its record id, when the button carries no text.
+  if (button.button_type === "item_group") {
+    return groupOf(button.item_group)?.item_group_name ?? button.item_group ?? "";
+  }
+  return button.action_type ?? "";
+}
+
+/** The line under a dish's name: its price, or why it cannot be sold (`D-020`). */
+function priceLine(item: CatalogItem): string {
+  const price = priceOf(item);
+  return price === null ? t("picker.noPrice") : formatNumber(price, 2);
 }
 
 function itemName(item: CatalogItem): string {
@@ -297,26 +319,20 @@ function priceOf(item: CatalogItem): number | null {
     <!-- Search wins over whatever else is on screen. -->
     <div
       v-if="search.trim()"
-      class="grid auto-rows-min content-start grid-cols-2 gap-2 overflow-y-auto sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5"
+      class="grid auto-rows-min content-start grid-cols-2 gap-3 overflow-y-auto sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5"
     >
-      <button
+      <MenuTile
         v-for="item in searchResults"
         :key="item.item_code"
-        type="button"
-        class="flex min-h-[4.5rem] flex-col justify-between rounded-rpos border border-line bg-surface p-3 text-start transition duration-200 ease-rpos hover:-translate-y-px hover:border-primary/40 hover:shadow-card disabled:cursor-not-allowed disabled:opacity-40"
+        class="min-h-[9.5rem]"
+        :label="itemName(item)"
+        :image="item.image"
+        placeholder="cloche"
+        :detail="priceLine(item)"
+        :detail-danger="priceOf(item) === null"
         :disabled="priceOf(item) === null || disabled"
-        @click="pick(item)"
-      >
-        <span class="line-clamp-2 font-semibold leading-snug">{{ itemName(item) }}</span>
-        <span
-          v-if="priceOf(item) !== null"
-          class="rpos-numeric font-bold text-primary"
-        >{{ formatNumber(priceOf(item)!, 2) }}</span>
-        <span
-          v-else
-          class="text-sm text-danger"
-        >{{ t("picker.noPrice") }}</span>
-      </button>
+        @select="pick(item)"
+      />
       <p
         v-if="!searchResults.length"
         class="col-span-full p-6 text-center text-muted"
@@ -342,25 +358,19 @@ function priceOf(item: CatalogItem): number | null {
         />
         {{ t("action.back") }}
       </button>
-      <div class="grid auto-rows-min content-start grid-cols-2 gap-2 overflow-y-auto sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
-        <button
+      <div class="grid auto-rows-min content-start grid-cols-2 gap-3 overflow-y-auto sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
+        <MenuTile
           v-for="item in groupItems"
           :key="item.item_code"
-          type="button"
-          class="flex min-h-[4.5rem] flex-col justify-between rounded-rpos border border-line bg-surface p-3 text-start transition duration-200 ease-rpos hover:-translate-y-px hover:border-primary/40 hover:shadow-card disabled:cursor-not-allowed disabled:opacity-40"
+          class="min-h-[9.5rem]"
+          :label="itemName(item)"
+          :image="item.image"
+          placeholder="cloche"
+          :detail="priceLine(item)"
+          :detail-danger="priceOf(item) === null"
           :disabled="priceOf(item) === null || disabled"
-          @click="pick(item)"
-        >
-          <span class="line-clamp-2 font-semibold leading-snug">{{ itemName(item) }}</span>
-          <span
-            v-if="priceOf(item) !== null"
-            class="rpos-numeric font-bold text-primary"
-          >{{ formatNumber(priceOf(item)!, 2) }}</span>
-          <span
-            v-else
-            class="text-sm text-danger"
-          >{{ t("picker.noPrice") }}</span>
-        </button>
+          @select="pick(item)"
+        />
       </div>
     </div>
 
@@ -379,33 +389,39 @@ function priceOf(item: CatalogItem): number | null {
       :class="layoutFills ? 'h-full' : 'content-start'"
       :style="layoutStyle"
     >
-      <button
+      <!-- A drawn grid sizes its rows to the tiles, so a tile there needs a
+           height of its own; in flow the row gives it one. -->
+      <MenuTile
         v-for="button in layout.buttons"
         :key="button.idx"
-        type="button"
-        class="flex items-center justify-center rounded-rpos-lg border border-line bg-surface p-[18px] text-center text-[19px] font-medium transition duration-200 ease-rpos hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-40"
-        :style="buttonStyle(button)"
+        :class="layoutFills ? '' : 'min-h-[9rem]'"
+        :style="gridStyle(button)"
+        :label="label(button)"
+        :image="imageOf(button)"
+        :placeholder="button.button_type === 'item' ? 'cloche' : 'grid'"
+        :accent="button.bg_color"
+        :font-size="button.font_size"
+        :detail="dishOf(button) ? priceLine(dishOf(button)!) : null"
+        :detail-danger="dishOf(button) ? priceOf(dishOf(button)!) === null : false"
         :disabled="disabled || !isUsable(button)"
-        @click="onLayoutButton(button)"
-      >
-        {{ label(button) }}
-      </button>
+        @select="onLayoutButton(button)"
+      />
     </div>
 
     <!-- No layout configured: browse by group. -->
     <div
       v-else
-      class="grid auto-rows-min content-start grid-cols-2 gap-2 overflow-y-auto sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5"
+      class="grid auto-rows-min content-start grid-cols-2 gap-3 overflow-y-auto sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5"
     >
-      <button
+      <MenuTile
         v-for="group in groups"
         :key="group.name"
-        type="button"
-        class="flex min-h-[9.375rem] items-center justify-center rounded-rpos-lg border border-line-strong bg-background p-[18px] text-center text-[19px] font-medium transition duration-200 ease-rpos hover:-translate-y-0.5 hover:border-primary"
-        @click="activeGroup = group.name"
-      >
-        {{ group.item_group_name }}
-      </button>
+        class="min-h-[9.5rem]"
+        :label="group.item_group_name"
+        :image="group.image"
+        placeholder="grid"
+        @select="activeGroup = group.name"
+      />
       <p
         v-if="!groups.length"
         class="col-span-full p-6 text-center text-muted"

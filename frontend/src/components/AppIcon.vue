@@ -59,6 +59,9 @@ const PATHS = {
   // a percent sign because a fixed-amount voucher is an offer too, and a "%"
   // beside "−50.00" says the wrong thing.
   tag: "M3 12V4a1 1 0 011-1h8l9 9-9 9zM7.5 7.5h.01",
+  // A dish under its cover: what stands in on a menu tile for a dish with no
+  // picture (`D-192`). A group with none shows `grid`, the menu's own mark.
+  cloche: "M4 17h16M12 7a7 7 0 017 7v3H5v-3a7 7 0 017-7zM12 5v2M3 20h18",
 } as const;
 
 export type IconName = keyof typeof PATHS;

@@ -561,10 +561,13 @@ def _catalog(profile, order_types: list[dict]) -> tuple[list[dict], list[dict]]:
 
 
 def _item_groups() -> list[dict]:
+	# `image` is ERPNext's own field on the Item Group (`D-192`): the picture on the
+	# group's tile, uploaded in the desk. No field of ours — the till draws a
+	# placeholder when it is empty.
 	return frappe.get_all(
 		"Item Group",
 		filters={"is_group": 0},
-		fields=["name", "item_group_name", "parent_item_group", "default_production_center"],
+		fields=["name", "item_group_name", "parent_item_group", "default_production_center", "image"],
 		order_by="name asc",
 	)
 

@@ -149,6 +149,8 @@ export interface CatalogItem {
 export interface ItemGroup {
   name: string;
   item_group_name: string;
+  /** ERPNext's own `Item Group.image` — the group's tile picture (`D-192`). */
+  image: string | null;
   parent_item_group: string | null;
   default_production_center: string | null;
 }

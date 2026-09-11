@@ -91,3 +91,99 @@ describe("fitting the groups on one screen", () => {
     expect(columnsOf(withTiles(50, "grid"))).toBe(4);
   });
 });
+
+/**
+ * `D-192` — the tiles carry pictures: the group's or dish's own, from ERPNext's
+ * `image` field, and a drawn placeholder where there is none.
+ */
+describe("the pictures on the menu", () => {
+  const groups = [
+    {
+      name: "Burgers",
+      item_group_name: "برغر",
+      image: "/files/burgers.png",
+      parent_item_group: null,
+      default_production_center: null,
+    },
+    {
+      name: "Drinks",
+      item_group_name: "مشروبات",
+      image: null,
+      parent_item_group: null,
+      default_production_center: null,
+    },
+  ];
+
+  function dish(code: string, group: string) {
+    return {
+      item_code: code,
+      item_name: code,
+      pos_display_name_ar: null,
+      display_name: code,
+      item_group: group,
+      image: null,
+      rate: 10,
+      rates: {},
+      modifier_groups: [],
+    };
+  }
+
+  it("draws a group's own picture, and the placeholder for one without", () => {
+    useSessionStore().data = {
+      items: [dish("B1", "Burgers"), dish("D1", "Drinks")],
+      item_groups: groups,
+      screen_layout: null,
+    } as unknown as PosSession;
+
+    const wrapper = mount(ItemPicker, { props: { orderType: null } });
+
+    const pictures = wrapper.findAll("[data-picture]");
+    expect(pictures).toHaveLength(1);
+    expect(pictures[0].attributes("src")).toBe("/files/burgers.png");
+    expect(wrapper.findAll("[data-placeholder]")).toHaveLength(1);
+  });
+
+  it("gives a layout button its group's picture, and its colour to the strip", () => {
+    useSessionStore().data = {
+      items: [],
+      item_groups: groups,
+      screen_layout: {
+        name: "SL-TEST",
+        title: "test",
+        layout_mode: "flow",
+        grid_columns: 4,
+        grid_rows: 4,
+        background_color: null,
+        buttons: [
+          {
+            idx: 1,
+            button_type: "item_group",
+            item_group: "Burgers",
+            item: null,
+            goto_screen: null,
+            action_type: null,
+            col_start: 1,
+            col_span: 1,
+            row_start: 1,
+            row_span: 1,
+            display_text: null,
+            display_text_ar: null,
+            image: null,
+            bg_color: "rgb(139, 44, 44)",
+            text_color: "rgb(255, 255, 255)",
+            font_size: null,
+          },
+        ],
+      },
+    } as unknown as PosSession;
+
+    const wrapper = mount(ItemPicker, { props: { orderType: null } });
+
+    expect(wrapper.find("[data-picture]").attributes("src")).toBe("/files/burgers.png");
+    expect(wrapper.find("[data-accent]").attributes("style")).toContain("rgb(139, 44, 44)");
+    // White text was chosen for a coloured fill; on a white tile it would vanish.
+    expect(wrapper.html()).not.toContain("color: rgb(255, 255, 255)");
+    // The group's own name, not its record id, when the button carries no text.
+    expect(wrapper.text()).toContain("برغر");
+  });
+});

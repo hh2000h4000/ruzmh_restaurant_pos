@@ -72,6 +72,15 @@ class TestLoadPosSession(OrderTestBase):
 		self.assertTrue(burger["display_name"])
 		self.assertIn("modifier_groups", burger)
 
+	def test_an_item_group_brings_its_picture(self):
+		"""`D-192` — ERPNext's own `Item Group.image` is the group's tile picture."""
+		group = frappe.db.get_value("Item", ITEM, "item_group")
+		frappe.db.set_value("Item Group", group, "image", "/files/rpos-test-group.png")
+
+		row = next(row for row in self._load()["item_groups"] if row["name"] == group)
+
+		self.assertEqual(row["image"], "/files/rpos-test-group.png")
+
 	def test_an_item_with_no_price_is_null_not_zero(self):
 		"""D-020 — the UI must tell 'unpriced' apart from 'free'."""
 		code = "RPOS-TEST-UNPRICED"

@@ -251,9 +251,6 @@ const navEntries = computed<NavEntry[]>(() => [
     count: floorView.value === "open" ? floorOrders.value.length : 0,
   },
   { key: "tables", label: "nav.tables", icon: "floorPlan" },
-  // D-191 — the host is the cashier, between two sales, so the day's bookings
-  // are a pane of the same screen rather than somewhere else to go.
-  { key: "reservations", label: "nav.reservations", icon: "calendar" },
   // D-048 — the till's occasional operations, and the way home. A menu rather
   // than four more places nobody visits during a rush.
   { key: "menu", label: "nav.menu", icon: "more" },
@@ -309,6 +306,10 @@ function onMenu(key: string): void {
   else if (key === "clock") void punchClock();
   else if (key === "roster") showingRoster.value = true;
   else if (key === "customerDisplay") openCustomerDisplay();
+  // D-191 — a pane like the bar's own, reached from the menu because the bar
+  // had no room for a sixth. Through `onNavigate`, so walking to it cancels a
+  // table or a booking waiting for its order type, exactly as the bar does.
+  else if (key === "reservations") onNavigate("reservations");
 }
 
 /**

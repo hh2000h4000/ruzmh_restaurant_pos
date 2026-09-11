@@ -86,12 +86,23 @@ const attendance = computed<MenuEntry | null>(() => {
   };
 });
 
+/**
+ * The day's bookings (`D-191`).
+ *
+ * **Here, not on the bar.** The bar holds what is reached without looking, and
+ * a sixth entry there broke it onto a second line — the user saw it and moved
+ * it here. Offered with the day closed too: tomorrow's booking is taken on the
+ * phone before anybody has opened a drawer.
+ */
+const BOOKINGS: MenuEntry = { key: "reservations", label: "nav.reservations", icon: "calendar" };
+
 const entries = computed<MenuEntry[]>(() => {
   const rows: MenuEntry[] = [];
   if (attendance.value) rows.push(attendance.value);
 
   if (!shift.dayOpen) {
     rows.push({ key: "openTill", label: "shift.openTill", icon: "card" });
+    rows.push(BOOKINGS);
     rows.push({ key: "logout", label: "home.logout", icon: "logout", destructive: true });
     return rows;
   }
@@ -101,6 +112,8 @@ const entries = computed<MenuEntry[]>(() => {
   } else if (!shift.tillOpen) {
     rows.push({ key: "openTill", label: "shift.openTill", icon: "card" });
   }
+
+  rows.push(BOOKINGS);
 
   // Who is at work — for whoever may read a report. Above the destructive pair
   // and below the drawer, because it changes nothing: it only answers.

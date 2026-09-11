@@ -106,3 +106,40 @@ describe("the till menu's attendance entry", () => {
     expect(text).toContain(t("shift.closeDay"));
   });
 });
+
+/**
+ * `D-191` — the bookings moved here from the bar. The user saw a sixth entry
+ * break the bar onto two lines and asked for it in this menu.
+ */
+describe("the day's bookings", () => {
+  it("are one tap behind More while the day is open", () => {
+    expect(menu({ clocked_in: true, holding_till: true }).text()).toContain(t("nav.reservations"));
+  });
+
+  it("are offered with the day closed too — tomorrow's booking comes by phone", () => {
+    useSessionStore().data = { pos_profile: { name: "T1" }, permissions: {} } as unknown as PosSession;
+    useShiftStore().state = {
+      branch: "Riyadh",
+      shift_type: "single",
+      settlement_required: false,
+      day: { open: false, shift: null },
+      till: { open: false, entry: null, is_mine: false },
+    } as never;
+    useAuthStore().identity = identity({ clocked_in: false });
+
+    const wrapper = mount(ShiftMenu, { props: { open: true } });
+
+    expect(wrapper.text()).toContain(t("nav.reservations"));
+    expect(wrapper.text()).toContain(t("shift.openTill"));
+  });
+
+  it("hands the till the pane to open", async () => {
+    const wrapper = menu({ clocked_in: true, holding_till: true });
+    const entry = wrapper.findAll("button").find((button) => button.text().includes(t("nav.reservations")));
+    if (!entry) throw new Error("no bookings entry in the menu");
+
+    await entry.trigger("click");
+
+    expect(wrapper.emitted("select")).toEqual([["reservations"]]);
+  });
+});

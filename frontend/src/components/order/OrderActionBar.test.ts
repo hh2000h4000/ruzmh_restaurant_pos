@@ -68,3 +68,41 @@ describe("OrderActionBar", () => {
     wrapper.unmount();
   });
 });
+
+/**
+ * `D-194` — on a 412px Fold the four labelled buttons broke onto a second line.
+ * jsdom lays nothing out, so these hold what the markup promises; the row was
+ * measured on one line in a browser.
+ */
+describe("OrderActionBar on a phone", () => {
+  const ROW: OrderAction[] = [
+    { key: "send", label: "order.sendToKitchen", icon: "kitchen", primary: true },
+    { key: "notes", label: "note.orderAction", icon: "note" },
+  ];
+
+  /** The label is the last span in a button, after whatever the icon draws. */
+  function label(button: ReturnType<ReturnType<typeof mount>["get"]>) {
+    return button.findAll("span").at(-1)!;
+  }
+
+  it("keeps the primary's words and folds the rest to icons that still carry their names", () => {
+    const wrapper = mount(OrderActionBar, { props: { actions: ROW, more: MORE } });
+    const [send, note, more] = wrapper.findAll("button");
+
+    expect(label(send).classes()).not.toContain("max-sm:sr-only");
+    expect(label(note).classes()).toContain("max-sm:sr-only");
+    expect(label(more).classes()).toContain("max-sm:sr-only");
+    // Hidden from the eye, not from a screen reader: the words are still there.
+    expect(note.text()).not.toBe("");
+  });
+
+  it("stays on one line, and opens its sheet back across the screen from the edge", async () => {
+    const wrapper = mount(OrderActionBar, { props: { actions: ROW, more: MORE }, attachTo: document.body });
+
+    expect(wrapper.classes()).toContain("max-sm:flex-nowrap");
+
+    await wrapper.get("[aria-expanded]").trigger("click");
+    expect(wrapper.get("[aria-expanded] + div").classes()).toContain("max-sm:end-0");
+    wrapper.unmount();
+  });
+});

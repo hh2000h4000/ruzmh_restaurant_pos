@@ -17,6 +17,13 @@ import { t, type MessageKey } from "@/i18n";
  * in the menu, one deliberate tap further away, because the row is where a
  * busy hand lands without looking.
  *
+ * **On a phone the corrections are icons** (`D-194`). Four labelled buttons
+ * need 551px and a 412px Fold gives the row 376, so it broke onto a second
+ * line. Only the
+ * primary keeps its words; the note, refresh and «المزيد» become squares, and
+ * each still carries its label for a screen reader. The note stays in the row
+ * rather than moving into the menu — an allergy is still one tap away.
+ *
  * **The order never changes.** A cashier learns positions by hand, not by eye;
  * sorting by recent use would move the target every shift. Permissions may
  * remove an entry, but the survivors keep their order.
@@ -54,7 +61,10 @@ function choose(action: OrderAction): void {
 </script>
 
 <template>
-  <div class="flex flex-wrap items-center gap-2.5">
+  <div class="flex flex-wrap items-center gap-2.5 max-sm:flex-nowrap max-sm:gap-2">
+    <!-- One line on a phone: the primary takes what the squares leave, and
+         would sooner shorten its label than push them onto a second row.
+         Inside the root, not above it — a comment there makes a fragment. -->
     <button
       v-for="action in actions"
       :key="action.key"
@@ -62,8 +72,8 @@ function choose(action: OrderAction): void {
       class="flex min-h-[3.375rem] items-center gap-2.5 whitespace-nowrap rounded-rpos px-[22px] text-sm font-medium transition duration-200 ease-rpos disabled:cursor-not-allowed disabled:opacity-40"
       :class="
         action.primary
-          ? 'bg-primary text-primary-contrast shadow-primary disabled:shadow-none'
-          : 'border border-line-strong bg-surface hover:border-primary'
+          ? 'bg-primary text-primary-contrast shadow-primary disabled:shadow-none max-sm:min-w-0 max-sm:flex-1 max-sm:justify-center max-sm:px-4'
+          : 'border border-line-strong bg-surface hover:border-primary max-sm:w-[3.375rem] max-sm:shrink-0 max-sm:justify-center max-sm:px-0'
       "
       :disabled="action.disabled"
       @click="choose(action)"
@@ -71,33 +81,35 @@ function choose(action: OrderAction): void {
       <AppIcon
         :name="action.icon"
         :size="19"
-        class="opacity-85"
+        class="shrink-0 opacity-85"
       />
-      {{ t(action.label) }}
+      <span :class="action.primary ? 'truncate' : 'max-sm:sr-only'">{{ t(action.label) }}</span>
     </button>
 
     <div
       v-if="more.length"
       ref="menuAnchor"
-      class="relative"
+      class="relative max-sm:shrink-0"
     >
       <button
         type="button"
-        class="flex min-h-[3.375rem] items-center gap-2.5 whitespace-nowrap rounded-rpos border border-line-strong bg-surface px-[22px] text-sm font-medium transition duration-200 ease-rpos hover:border-primary"
+        class="flex min-h-[3.375rem] items-center gap-2.5 whitespace-nowrap rounded-rpos border border-line-strong bg-surface px-[22px] text-sm font-medium transition duration-200 ease-rpos hover:border-primary max-sm:w-[3.375rem] max-sm:justify-center max-sm:px-0"
         :aria-expanded="menuOpen"
         @click="menuOpen = !menuOpen"
       >
         <AppIcon
           name="moreHorizontal"
           :size="19"
-          class="opacity-85"
+          class="shrink-0 opacity-85"
         />
-        {{ t("order.more") }}
+        <span class="max-sm:sr-only">{{ t("order.more") }}</span>
       </button>
 
+      <!-- On a phone the trigger sits at the row's far end, so the sheet opens
+           back across the screen from that edge instead of off it. -->
       <div
         v-if="menuOpen"
-        class="absolute top-full z-20 mt-2 w-64 overflow-hidden rounded-rpos border border-line bg-surface shadow-lift"
+        class="absolute top-full z-20 mt-2 w-64 overflow-hidden rounded-rpos border border-line bg-surface shadow-lift max-sm:end-0"
       >
         <button
           v-for="action in more"

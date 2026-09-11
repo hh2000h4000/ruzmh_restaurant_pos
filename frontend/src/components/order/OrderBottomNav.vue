@@ -26,6 +26,14 @@ import { formatNumber, t, type MessageKey } from "@/i18n";
  * says where you are. At 48px it is exactly the minimum a finger needs
  * (`--rpos-tap-target`) and not a pixel more.
  *
+ * **On a phone the icon stands over the label** (`D-194`). The rule above was
+ * about height; below 640px the shortage is width. Beside their icons, five
+ * labels on a 412px Fold got a column each too narrow for «الأصناف», and every
+ * one was cut. Stacked, the label has the whole column — and the strip keeps
+ * its height, because its 60px already had room for both. The entries stay on
+ * the bar rather than behind a menu: they are the places a cashier crosses
+ * between every few seconds, and hiding them costs a tap every time.
+ *
  * **Five equal columns on a card.** They were fixed-width and evenly spaced,
  * on the argument that stretched entries read as slabs rather than signposts.
  * Sized to the bar they read as a segmented control instead, which is what
@@ -50,13 +58,14 @@ const emit = defineEmits<{ select: [key: string] }>();
 
 <template>
   <nav
-    class="grid shrink-0 grid-cols-5 gap-2 rounded-rpos-lg border border-line bg-surface p-2.5"
+    class="grid shrink-0 grid-cols-5 gap-2 rounded-rpos-lg border border-line bg-surface p-2.5 max-sm:gap-1 max-sm:p-1.5"
   >
     <button
       v-for="entry in entries"
       :key="entry.key"
       type="button"
-      class="flex min-h-[3.75rem] items-center justify-center gap-2.5 rounded-rpos text-sm font-medium transition duration-200 ease-rpos"
+      data-nav-entry
+      class="flex min-h-[3.75rem] min-w-0 items-center justify-center gap-2.5 rounded-rpos text-sm font-medium transition duration-200 ease-rpos max-sm:flex-col max-sm:gap-1 max-sm:px-1"
       :class="
         active === entry.key
           ? 'bg-primary text-primary-contrast'
@@ -65,23 +74,31 @@ const emit = defineEmits<{ select: [key: string] }>();
       :aria-current="active === entry.key ? 'page' : undefined"
       @click="emit('select', entry.key)"
     >
-      <AppIcon
-        :name="entry.icon"
-        :size="18"
-        class="shrink-0 opacity-85"
-      />
-      <span class="truncate">{{ t(entry.label) }}</span>
-      <!-- Beside the label, not floating over the icon. A count that overlaps
-           what it counts is unreadable the moment it reaches two digits. -->
+      <!-- On a phone the count rides beside the icon, over the label. Where the
+           row is wide this wrapper is `contents`, so its two children join the
+           row and the count falls back behind the label. -->
       <span
-        v-if="entry.count"
-        class="rpos-numeric grid h-[1.375rem] min-w-[1.375rem] shrink-0 place-items-center rounded-full px-1.5 text-xs"
-        :class="
-          active === entry.key
-            ? 'bg-primary-contrast/20 text-primary-contrast'
-            : 'bg-primary text-primary-contrast'
-        "
-      >{{ formatNumber(entry.count) }}</span>
+        data-nav-icon
+        class="contents max-sm:flex max-sm:items-center max-sm:gap-1.5"
+      >
+        <AppIcon
+          :name="entry.icon"
+          :size="18"
+          class="shrink-0 opacity-85"
+        />
+        <!-- Beside the label, not floating over the icon. A count that overlaps
+             what it counts is unreadable the moment it reaches two digits. -->
+        <span
+          v-if="entry.count"
+          class="rpos-numeric grid h-[1.375rem] min-w-[1.375rem] shrink-0 place-items-center rounded-full px-1.5 text-xs sm:order-last"
+          :class="
+            active === entry.key
+              ? 'bg-primary-contrast/20 text-primary-contrast'
+              : 'bg-primary text-primary-contrast'
+          "
+        >{{ formatNumber(entry.count) }}</span>
+      </span>
+      <span class="max-w-full truncate">{{ t(entry.label) }}</span>
     </button>
   </nav>
 </template>

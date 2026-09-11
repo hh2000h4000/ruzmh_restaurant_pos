@@ -533,6 +533,7 @@ def _catalog(profile, order_types: list[dict]) -> tuple[list[dict], list[dict]]:
 			by_list[row.price_list][row.item_code] = flt(row.price_list_rate)
 
 	prices = by_list.get(profile.selling_price_list, {})
+	picture = _default_picture("default_item_image")
 
 	modifiers: dict[str, list[str]] = {}
 	for row in frappe.get_all(
@@ -556,20 +557,36 @@ def _catalog(profile, order_types: list[dict]) -> tuple[list[dict], list[dict]]:
 		}
 		row.modifier_groups = modifiers.get(row.item_code, [])
 		row.display_name = row.pos_display_name_ar or row.item_name
+		row.image = row.image or picture
 
 	return items, _item_groups()
 
 
 def _item_groups() -> list[dict]:
 	# `image` is ERPNext's own field on the Item Group (`D-192`): the picture on the
-	# group's tile, uploaded in the desk. No field of ours — the till draws a
-	# placeholder when it is empty.
-	return frappe.get_all(
+	# group's tile, uploaded in the desk.
+	groups = frappe.get_all(
 		"Item Group",
 		filters={"is_group": 0},
 		fields=["name", "item_group_name", "parent_item_group", "default_production_center", "image"],
 		order_by="name asc",
 	)
+	picture = _default_picture("default_group_image")
+	for row in groups:
+		row.image = row.image or picture
+	return groups
+
+
+def _default_picture(field: str) -> str | None:
+	"""The picture a dish or a group shows when it has none of its own (`D-197`).
+
+	Filled in here, where every picture on the till passes, not in each tile that
+	draws one: the menu's four grids, the screen layout's buttons and a line's
+	detail all read `image`, and a fallback remembered in five places is one
+	forgotten in the sixth (`CLAUDE.md` §5.5). And it rides in the payload the
+	device keeps, so it holds offline. Left empty, the till draws its own icon.
+	"""
+	return frappe.db.get_single_value("Restaurant POS Settings", field) or None
 
 
 def _promotions(branch: str | None) -> list[dict]:

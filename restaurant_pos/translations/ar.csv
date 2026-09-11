@@ -41,6 +41,14 @@ Kitchen Order Ticket,تذكرة مطبخ
 Loyalty points cannot be used on this bill.,لا يمكن استخدام نقاط الولاء على هذه الفاتورة.
 Loyalty points,نقاط الولاء
 Loyalty Points Balance,رصيد نقاط الولاء
+Restaurant POS Settings,إعدادات نقاط البيع
+Menu pictures,صور القائمة
+"Left empty, the till draws its own icon.",إن تُركت فارغة يرسم الكاشير أيقونته.
+Default group picture,الصورة الافتراضية للمجموعات
+Default dish picture,الصورة الافتراضية للأصناف
+Shown on a group's tile when the group has no picture of its own.,تظهر على بطاقة المجموعة إذا لم تكن لها صورة خاصة.
+Shown on a dish's tile when the dish has no picture of its own.,تظهر على بطاقة الصنف إذا لم تكن له صورة خاصة.
+"{0} is a private file, and the till cannot show it to a cashier. Upload it as public.",{0} ملف خاص، والكاشير لا يستطيع عرضه. ارفعه كملف عام.
 Balance on,الرصيد بتاريخ
 Expected to be spent (%),نسبة الصرف المتوقّعة (٪)
 Net of VAT,الصافي قبل الضريبة

@@ -1,0 +1,83 @@
+{
+ "actions": [],
+ "creation": "2026-09-12 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "menu_pictures_section",
+  "default_group_image",
+  "menu_pictures_cb",
+  "default_item_image"
+ ],
+ "fields": [
+  {
+   "description": "Left empty, the till draws its own icon.",
+   "fieldname": "menu_pictures_section",
+   "fieldtype": "Section Break",
+   "label": "Menu pictures"
+  },
+  {
+   "description": "Shown on a group's tile when the group has no picture of its own.",
+   "fieldname": "default_group_image",
+   "fieldtype": "Attach Image",
+   "label": "Default group picture",
+   "make_attachment_public": 1
+  },
+  {
+   "fieldname": "menu_pictures_cb",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "Shown on a dish's tile when the dish has no picture of its own.",
+   "fieldname": "default_item_image",
+   "fieldtype": "Attach Image",
+   "label": "Default dish picture",
+   "make_attachment_public": 1
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "issingle": 1,
+ "links": [],
+ "modified": "2026-09-12 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Restaurant POS",
+ "name": "Restaurant POS Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "Restaurant Admin",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "Restaurant Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "read": 1,
+   "role": "POS Manager"
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

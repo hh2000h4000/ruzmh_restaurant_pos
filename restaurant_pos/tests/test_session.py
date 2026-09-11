@@ -81,6 +81,58 @@ class TestLoadPosSession(OrderTestBase):
 
 		self.assertEqual(row["image"], "/files/rpos-test-group.png")
 
+	def _default(self, field: str, url: str | None) -> None:
+		"""Set a default picture on the settings page, and clear it after the test."""
+		frappe.db.set_single_value("Restaurant POS Settings", field, url)
+		self.addCleanup(frappe.db.set_single_value, "Restaurant POS Settings", field, None)
+
+	def _pictures(self, group: str) -> tuple[str | None, str | None]:
+		payload = self._load()
+		dish = next(row for row in payload["items"] if row["item_code"] == ITEM)
+		tile = next(row for row in payload["item_groups"] if row["name"] == group)
+		return tile["image"], dish["image"]
+
+	def test_a_group_and_a_dish_with_no_picture_show_the_defaults(self):
+		"""`D-197` — the pictures the manager set on the settings page."""
+		group = frappe.db.get_value("Item", ITEM, "item_group")
+		frappe.db.set_value("Item Group", group, "image", None)
+		frappe.db.set_value("Item", ITEM, "image", None)
+		self._default("default_group_image", "/files/rpos-test-default-group.png")
+		self._default("default_item_image", "/files/rpos-test-default-dish.png")
+
+		self.assertEqual(
+			self._pictures(group), ("/files/rpos-test-default-group.png", "/files/rpos-test-default-dish.png")
+		)
+
+	def test_a_picture_of_its_own_wins_over_the_default(self):
+		group = frappe.db.get_value("Item", ITEM, "item_group")
+		frappe.db.set_value("Item Group", group, "image", "/files/rpos-test-group.png")
+		frappe.db.set_value("Item", ITEM, "image", "/files/rpos-test-dish.png")
+		self._default("default_group_image", "/files/rpos-test-default-group.png")
+		self._default("default_item_image", "/files/rpos-test-default-dish.png")
+
+		self.assertEqual(self._pictures(group), ("/files/rpos-test-group.png", "/files/rpos-test-dish.png"))
+
+	def test_with_no_default_set_the_till_draws_its_icon(self):
+		"""Nothing on the page and nothing of its own: `null`, and the tile's placeholder."""
+		group = frappe.db.get_value("Item", ITEM, "item_group")
+		frappe.db.set_value("Item Group", group, "image", None)
+		frappe.db.set_value("Item", ITEM, "image", None)
+		self._default("default_group_image", None)
+		self._default("default_item_image", None)
+
+		self.assertEqual(self._pictures(group), (None, None))
+
+	def test_a_cleared_default_is_not_an_empty_picture(self):
+		"""Clearing the field leaves `""`, and `<img src="">` is a broken tile."""
+		group = frappe.db.get_value("Item", ITEM, "item_group")
+		frappe.db.set_value("Item Group", group, "image", None)
+		frappe.db.set_value("Item", ITEM, "image", None)
+		self._default("default_group_image", "")
+		self._default("default_item_image", "")
+
+		self.assertEqual(self._pictures(group), (None, None))
+
 	def test_an_item_with_no_price_is_null_not_zero(self):
 		"""D-020 — the UI must tell 'unpriced' apart from 'free'."""
 		code = "RPOS-TEST-UNPRICED"
@@ -281,6 +333,29 @@ class TestLoadPosSession(OrderTestBase):
 			with_more_items,
 			baseline,
 			"load_pos_session issued more queries for a bigger menu — N+1",
+		)
+
+
+class TestTheSettingsPage(FrappeTestCase):
+	"""`D-197` — the till's settings, a page in the desk."""
+
+	def test_a_private_picture_is_refused(self):
+		"""A cashier may not fetch a private file; the tile would draw a broken picture."""
+		settings = frappe.get_single("Restaurant POS Settings")
+		settings.default_item_image = "/private/files/rpos-test-dish.png"
+
+		with self.assertRaises(frappe.ValidationError):
+			settings.save(ignore_permissions=True)
+
+	def test_a_public_picture_is_kept(self):
+		settings = frappe.get_single("Restaurant POS Settings")
+		settings.default_item_image = "/files/rpos-test-dish.png"
+		settings.save(ignore_permissions=True)
+		self.addCleanup(frappe.db.set_single_value, "Restaurant POS Settings", "default_item_image", None)
+
+		self.assertEqual(
+			frappe.db.get_single_value("Restaurant POS Settings", "default_item_image"),
+			"/files/rpos-test-dish.png",
 		)
 
 

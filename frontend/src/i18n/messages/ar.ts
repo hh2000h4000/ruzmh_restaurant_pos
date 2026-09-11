@@ -214,6 +214,8 @@ const messages: Catalogue["messages"] = {
   "order.notRouted": "لم يُوجَّه للمطبخ: {items} — ستُطبع على طابعة الكاشير.",
   "order.sendToKitchen": "إرسال للمطبخ",
   "order.pay": "دفع",
+  "order.bill": "الفاتورة",
+  "order.hideBill": "إخفاء الفاتورة",
   "order.cancelOrder": "إلغاء الطلب",
   "order.voidReason": "سبب الإلغاء",
   "order.voidPlaceholder": "مثال: طلب الزبون التغيير",

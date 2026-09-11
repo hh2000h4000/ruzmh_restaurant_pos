@@ -198,3 +198,48 @@ describe("a dish tapped before there is a bill", () => {
     expect(orderApi.addItem).not.toHaveBeenCalled();
   });
 });
+
+/**
+ * `D-193` — below a landscape tablet the bill folds into a bar and opens as a
+ * sheet. Measured on a portrait iPad Mini, the stacked bill took 486px and left
+ * the menu 387. jsdom lays nothing out, so these ask what the markup promises:
+ * the sheet is shut until the bar opens it, and it shuts like every popover.
+ */
+describe("the bill on a narrow screen", () => {
+  function sheet(wrapper: Wrapper) {
+    return wrapper.find("[data-bill-sheet]");
+  }
+
+  it("folds into a bar whose Pay waits for something to pay", async () => {
+    till();
+    const wrapper = await open();
+
+    expect(sheet(wrapper).classes()).toContain("max-lg:hidden");
+    expect((wrapper.find("[data-bill-pay]").element as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it("opens as a sheet from the bar, and a tap outside folds it again", async () => {
+    till();
+    const wrapper = await open();
+
+    await wrapper.find("[data-bill-toggle]").trigger("click");
+    expect(sheet(wrapper).classes()).not.toContain("max-lg:hidden");
+    expect(wrapper.find("[data-bill-toggle]").attributes("aria-expanded")).toBe("true");
+
+    await wrapper.find("[data-bill-backdrop]").trigger("click");
+    expect(sheet(wrapper).classes()).toContain("max-lg:hidden");
+  });
+
+  it("folds on Escape, like every popover (`D-176`)", async () => {
+    till();
+    // `useDismiss` listens on `document`, so the key reaches it with the screen
+    // mounted anywhere.
+    const wrapper = await open();
+
+    await wrapper.find("[data-bill-toggle]").trigger("click");
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    await flushPromises();
+
+    expect(sheet(wrapper).classes()).toContain("max-lg:hidden");
+  });
+});

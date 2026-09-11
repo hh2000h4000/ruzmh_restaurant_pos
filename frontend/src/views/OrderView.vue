@@ -40,7 +40,7 @@ import {
 } from "@/composables/useCustomerDisplay";
 import { useDismiss } from "@/composables/useDismiss";
 import { useOpenOrders } from "@/composables/useOpenOrders";
-import { formatNumber, t } from "@/i18n";
+import { formatNumber, t, tn } from "@/i18n";
 import { useAuthStore } from "@/stores/auth";
 import { useOrderStore } from "@/stores/order";
 import { useSessionStore } from "@/stores/session";
@@ -708,6 +708,13 @@ function switchTo(order: OpenOrder): void {
 /** The credit note being looked at, or `null` (`D-171`). */
 const refundOpen = ref<string | null>(null);
 
+/**
+ * The bill as a sheet, below a landscape tablet (`D-193`) — open, or folded into
+ * the bar. Closed by a tap outside it or by Escape, like every popover (`D-176`).
+ */
+const billOpen = ref(false);
+const billAnchor = useDismiss(billOpen);
+
 function openOrder(orderName: string): void {
   pane.value = "items";
   if (orderName === orders.order?.order_name) return;
@@ -1308,7 +1315,9 @@ async function send(): Promise<void> {
         should take whatever a wider terminal offers, and the bill should not
         grow to 600px on one.
       -->
-      <div class="grid min-h-0 gap-[18px] lg:grid-cols-[minmax(0,1fr)_minmax(310px,380px)]">
+      <div
+        class="grid min-h-0 gap-[18px] max-lg:grid-rows-[minmax(0,1fr)_auto] lg:grid-cols-[minmax(0,1fr)_minmax(310px,380px)]"
+      >
         <!--
           A column, not a row template. The notices below are `empty:hidden`, so
           on a quiet screen they are not a grid item at all — and every child
@@ -1492,17 +1501,84 @@ async function send(): Promise<void> {
 
         <!-- Drawn whether a bill is in hand or not (D-059): the bill is
              furniture, and a till that rearranges itself between customers is
-             one the cashier has to re-read every time. -->
-        <OrderPanel
-          :order="orders.order"
-          :lines="orders.lines"
-          :busy="locked"
-          :can-pay="!locked && !orders.isEmpty"
-          @void="askVoid"
-          @repeat="repeat"
-          @inspect="inspect"
-          @pay="goToPayment"
-        />
+             one the cashier has to re-read every time.
+
+             **Below a landscape tablet it is a sheet, not a column** (`D-193`).
+             Measured on a portrait iPad Mini (768 × 1024): stacked under the
+             menu, an empty bill took 486px of the height and left the menu 387 —
+             the tiles lost their pictures and a group's dishes showed a row and
+             a half. `06` asked for a switch there from the start. So under `lg`
+             the bill folds into a bar — how many items, and Pay with the total —
+             and the same panel opens over the screen when the bar is tapped.
+
+             One panel, two places: at `lg` both wrappers are `contents`, so the
+             panel is the grid's second column exactly as it always was. -->
+        <div
+          ref="billAnchor"
+          class="lg:contents"
+        >
+          <div
+            class="flex items-center gap-3 rounded-rpos-lg border border-line bg-surface p-3 lg:hidden"
+          >
+            <button
+              type="button"
+              data-bill-toggle
+              class="flex min-h-tap min-w-0 flex-1 items-center gap-2 rounded-rpos px-3 text-start font-medium transition duration-200 ease-rpos hover:bg-background"
+              :aria-expanded="billOpen"
+              @click="billOpen = !billOpen"
+            >
+              <AppIcon
+                name="receipt"
+                :size="20"
+              />
+              <span class="truncate">{{ t("order.bill") }}</span>
+              <span class="rpos-numeric text-sm text-muted">{{ tn("count.items", orders.lines.length) }}</span>
+            </button>
+            <button
+              type="button"
+              data-bill-pay
+              class="min-h-tap shrink-0 rounded-rpos bg-primary px-5 font-semibold text-primary-contrast transition duration-200 ease-rpos hover:brightness-110 disabled:opacity-50"
+              :disabled="locked || orders.isEmpty"
+              @click="goToPayment"
+            >
+              {{ t("order.payWithTotal", { total: formatNumber(orders.order?.total_amount ?? 0, 2) }) }}
+            </button>
+          </div>
+
+          <!-- Inside the anchor, so it answers its own tap rather than through
+               `useDismiss`, which counts anything in here as inside. -->
+          <div
+            v-if="billOpen"
+            data-bill-backdrop
+            class="fixed inset-0 z-30 bg-black/40 lg:hidden"
+            aria-hidden="true"
+            @click="billOpen = false"
+          />
+
+          <div
+            data-bill-sheet
+            class="max-lg:fixed max-lg:inset-x-0 max-lg:bottom-0 max-lg:z-40 max-lg:grid max-lg:h-[85dvh] max-lg:grid-rows-[auto_minmax(0,1fr)] max-lg:gap-2 max-lg:p-3 lg:contents"
+            :class="billOpen ? '' : 'max-lg:hidden'"
+          >
+            <button
+              type="button"
+              class="min-h-tap justify-self-center rounded-full bg-surface px-5 text-sm font-medium shadow-card lg:hidden"
+              @click="billOpen = false"
+            >
+              {{ t("order.hideBill") }}
+            </button>
+            <OrderPanel
+              :order="orders.order"
+              :lines="orders.lines"
+              :busy="locked"
+              :can-pay="!locked && !orders.isEmpty"
+              @void="askVoid"
+              @repeat="repeat"
+              @inspect="inspect"
+              @pay="goToPayment"
+            />
+          </div>
+        </div>
       </div>
     </div>
 

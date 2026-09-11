@@ -228,6 +228,8 @@ export const messages = {
   "order.notRouted": "Not routed to a kitchen: {items} — printing on the cashier printer.",
   "order.sendToKitchen": "Send to kitchen",
   "order.pay": "Pay",
+  "order.bill": "Bill",
+  "order.hideBill": "Hide the bill",
   "order.cancelOrder": "Cancel order",
   "order.voidReason": "Reason for voiding",
   "order.voidPlaceholder": "For example: the customer changed their mind",

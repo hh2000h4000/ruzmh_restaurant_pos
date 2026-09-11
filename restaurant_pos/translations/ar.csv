@@ -2,7 +2,10 @@
 "No printer is linked to this terminal, so nothing can be printed.",لا توجد طابعة مربوطة بهذه الطرفية، فلا شيء يمكن طباعته.
 "Order {0} has not been paid, so there is nothing to return.",الطلب {0} غير مدفوع، فلا شيء لإرجاعه.
 "Set how many days points last. Left empty, they would expire the day they are earned.",حدّد كم يوماً تبقى النقاط. لو تُرك فارغاً تنتهي في يوم كسبها.
+"Table {0} belongs to section {1}, not {2}.",الطاولة {0} في قسم {1} وليست في {2}.
 "This bill is from a day that has been closed, so nothing can be added to it. ",هذه الفاتورة من يوم مُغلق، فلا يمكن إضافة شيء إليها. ما زال بالإمكان دفعها أو إلغاؤها.
+"This reservation is for {0}, not today.",هذا الحجز ليوم {0} وليس لليوم.
+A guest cannot miss a reservation before its time.,لا يُسجَّل عدم الحضور قبل موعد الحجز.
 A mobile number is required.,رقم الجوال مطلوب.
 A name is required.,الاسم مطلوب.
 A paid order cannot be cancelled. Create a return instead.,الطلب المدفوع لا يُلغى. أنشئ مرتجعاً بدلاً من ذلك.
@@ -18,6 +21,8 @@ An empty order cannot be paid.,لا يمكن دفع طلب فارغ.
 An offline order must carry the totals it was sold at.,الطلب المرسل من وضع عدم الاتصال يجب أن يحمل إجمالياته.
 At most {0} points can be used on this bill.,أقصى ما يمكن استخدامه على هذه الفاتورة {0} نقطة.
 Attendance needs the HR app. Ask an administrator to install it.,الحضور يحتاج تطبيق الموارد البشرية. اطلب من المسؤول تثبيته.
+Cancel Reason is required when a reservation is cancelled.,سبب الإلغاء مطلوب عند إلغاء الحجز.
+Choose a table for this reservation first.,اختر طاولة لهذا الحجز أولاً.
 Choose at least one item to return.,اختر صنفاً واحداً على الأقل للإرجاع.
 Choose how to refund this.,اختر طريقة الإرجاع.
 Choose why this is being returned.,اختر سبب الإرجاع.
@@ -61,10 +66,12 @@ POS Print Job,مهمة طباعة
 POS Print Template,قالب طباعة
 POS Printer Routing Rule,قاعدة توجيه الطباعة
 POS Printer,طابعة
+POS Profile {0} has no Restaurant Section configured.,الطرفية {0} ليس لها قسم مضبوط.
 POS Quick Note,ملاحظة سريعة
 POS Screen Layout,تخطيط الشاشة
 POS Sync Entry,مُدخل مزامنة
 Paper and problems,الورق والأعطال
+Party Size must be at least 1.,عدد الضيوف لا يقل عن واحد.
 Payment method {0} does not exist.,طريقة الدفع {0} غير موجودة.
 Payment of {0} does not cover the total of {1}.,المبلغ {0} لا يغطي الإجمالي {1}.
 People and the trail,الأشخاص والأثر
@@ -72,6 +79,8 @@ Points can be used from {0} upwards; this customer has {1}.,تُستخدم ال�
 Printing,الطباعة
 Production Center,مركز إنتاج
 Quantity must be greater than zero.,الكمية يجب أن تكون أكبر من صفر.
+Reservation {0} does not exist.,الحجز {0} غير موجود.
+Reservation {0} is not in this branch.,الحجز {0} ليس في هذا الفرع.
 Restaurant Floor Plan,مخطط الصالة
 Restaurant Order Type,نوع الطلب
 Restaurant Order,طلب
@@ -95,12 +104,15 @@ Set one collection rule: how much a customer spends to earn one point.,حدّد 
 Set what one point is worth when it is spent.,حدّد قيمة النقطة الواحدة عند صرفها.
 Sign in first.,سجّل الدخول أولاً.
 Table {0} does not exist.,الطاولة {0} غير موجودة.
+Table {0} is already booked at {1} for {2}.,الطاولة {0} محجوزة الساعة {1} باسم {2}.
 Table {0} is not in this branch.,الطاولة {0} ليست في هذا الفرع.
 Table {0} is out of service.,الطاولة {0} خارج الخدمة.
+Table {0} seats {1}; the party is {2}.,الطاولة {0} تتّسع لـ{1}، والعدد {2}.
 Table {0} still has an open order.,الطاولة {0} عليها طلب مفتوح.
 Terminals,الطرفيات
 That PIN is already in use. Choose a different one.,هذا الرقم مستخدم. اختر رقماً آخر.
 That PIN was not recognised.,الرقم السري غير صحيح.
+That time has already passed.,هذا الوقت فات.
 The PIN must be exactly {0} digits.,الرقم السري يجب أن يكون {0} أرقام بالضبط.
 The amount received is less than the amount being paid.,المبلغ المستلم أقل من المبلغ المدفوع.
 The day and the drawer,اليوم والدرج
@@ -115,6 +127,7 @@ This bill was sold offline at {0} but comes to {1} here ,هذه الفاتورة
 This customer has {0} points.,رصيد هذا العميل {0} نقطة.
 This login is not linked to an employee record.,هذا الحساب غير مرتبط بسجل موظف.
 This order type must be paid by {0}.,هذا النوع من الطلبات يُدفع بـ{0}.
+This reservation is {0} and can no longer be changed.,هذا الحجز {0} ولا يمكن تغييره.
 This till session is already closed.,هذه المناوبة مغلقة أصلاً.
 What prints where,ما يُطبع وأين
 You are already clocked in.,أنت مسجَّل حضورك بالفعل.
@@ -127,9 +140,15 @@ buy_x_get_y,اشترِ كذا واحصل على كذا مجاناً,Restaurant P
 by_branch,حسب الفرع,Restaurant Promotion
 by_order_type,حسب نوع الطلب,Restaurant Promotion
 by_section,حسب القسم,Restaurant Promotion
+cancelled,ملغى,Restaurant Reservation
+completed,مكتمل,Restaurant Reservation
+confirmed,مؤكَّد,Restaurant Reservation
 fixed_amount,مبلغ ثابت,Restaurant Promotion
 free_item,صنف مجاني,Restaurant Promotion
+no_show,لم يحضر,Restaurant Reservation
+pending,بانتظار التأكيد,Restaurant Reservation
 percentage,نسبة مئوية,Restaurant Promotion
+seated,جلس,Restaurant Reservation
 specific_groups,مجموعات محدّدة,Restaurant Promotion
 specific_items,أصناف محدّدة,Restaurant Promotion
 {0} already uses this number.,{0} يستخدم هذا الرقم بالفعل.

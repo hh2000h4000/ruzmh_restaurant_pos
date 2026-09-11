@@ -117,6 +117,11 @@ def process_payment(
 	# (`BR-063`) and paying it is what reverses the join.
 	release_tables_of(order, to="cleaning")
 
+	# D-191 — a party seated from a booking has paid: the booking is done.
+	from restaurant_pos.utils import reservation
+
+	reservation.complete(order)
+
 	kots = _send_kitchen_if_due(order)
 
 	if flt(order.discount_amount):

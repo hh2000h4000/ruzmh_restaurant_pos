@@ -56,6 +56,12 @@ def get_floor_plan(section: str) -> dict:
 
 	_annotate_orders(tables)
 
+	# After the bills: a table with people at it stays occupied and carries the
+	# booking as a note; only an empty one reads as reserved (`D-191`).
+	from restaurant_pos.utils import reservation
+
+	reservation.on_the_floor(tables, details.branch)
+
 	return {
 		"section": details,
 		"floor_plan": plan or {"canvas_width": 1200, "canvas_height": 800},

@@ -24,7 +24,9 @@
   "status_section",
   "status",
   "restaurant_order",
+  "seated_at",
   "status_cb",
+  "auto_no_show",
   "cancel_reason",
   "created_by_name",
   "notes_section",
@@ -148,8 +150,25 @@
    "read_only": 1
   },
   {
+   "fieldname": "seated_at",
+   "fieldtype": "Datetime",
+   "label": "Seated At",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
    "fieldname": "status_cb",
    "fieldtype": "Column Break"
+  },
+  {
+   "default": "0",
+   "description": "Recorded as a no-show by the system when the day was closed, not by a host who saw it happen (D-191).",
+   "fieldname": "auto_no_show",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Automatic No-Show",
+   "no_copy": 1,
+   "read_only": 1
   },
   {
    "depends_on": "eval:doc.status=='cancelled'",

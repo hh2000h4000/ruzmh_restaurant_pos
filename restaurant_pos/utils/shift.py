@@ -230,11 +230,19 @@ def close_day(*, shift_name: str, force: bool = False, pos_profile: str | None =
 		pos_profile=pos_profile or (terminals[0] if terminals else None),
 	)
 
+	# **And the bookings nobody came for** (`D-191`). The same moment and the
+	# same reason as the clock-ins above: the evening is over, and only the
+	# person closing the day knows it. Marked as the system's, not a host's.
+	from restaurant_pos.utils import reservation
+
+	no_shows = reservation.close_out(day.branch, at=day.closed_at)
+
 	return {
 		"shift": day.name,
 		"report": report,
 		"closed_tills": closed_tills,
 		"clocked_out": sent_home,
+		"no_shows": no_shows,
 	}
 
 

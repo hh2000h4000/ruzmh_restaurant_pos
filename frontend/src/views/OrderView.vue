@@ -29,6 +29,8 @@ import RosterDialog from "@/components/shift/RosterDialog.vue";
 import ShiftMenu from "@/components/shift/ShiftMenu.vue";
 import FloorPane from "@/components/order/FloorPane.vue";
 import NewOrderPane from "@/components/order/NewOrderPane.vue";
+import ReservationsPane from "@/components/order/ReservationsPane.vue";
+import { seatReservation } from "@/api/reservation";
 import OrderBottomNav, { type NavEntry } from "@/components/order/OrderBottomNav.vue";
 import OpenOrdersPanel from "@/components/pos/OpenOrdersPanel.vue";
 import {
@@ -249,6 +251,9 @@ const navEntries = computed<NavEntry[]>(() => [
     count: floorView.value === "open" ? floorOrders.value.length : 0,
   },
   { key: "tables", label: "nav.tables", icon: "floorPlan" },
+  // D-191 — the host is the cashier, between two sales, so the day's bookings
+  // are a pane of the same screen rather than somewhere else to go.
+  { key: "reservations", label: "nav.reservations", icon: "calendar" },
   // D-048 — the till's occasional operations, and the way home. A menu rather
   // than four more places nobody visits during a rush.
   { key: "menu", label: "nav.menu", icon: "more" },
@@ -262,6 +267,7 @@ function onNavigate(key: string): void {
   // arriving on whatever bill they open next is worse than no dish.
   if (key !== "new") {
     pendingTable.value = null;
+    pendingReservation.value = null;
     waitingPick.value = null;
   }
 
@@ -392,6 +398,14 @@ async function startAnother(orderType: OrderType): Promise<void> {
   // BR-044 — before any of the questions below, because none of them matter
   // if the order cannot be created at the end of them.
   if (!maySell()) return;
+
+  // A booking waiting for its kind of order (`D-191`) — the same question the
+  // floor asks for a tapped table, answered by the same buttons.
+  const booked = pendingReservation.value;
+  if (booked) {
+    await seatWith(booked.name, orderType);
+    return;
+  }
 
   // The cashier came here from a table they had already tapped: this answers
   // the question the floor could not.
@@ -606,6 +620,48 @@ async function openAnotherHere(): Promise<void> {
   else {
     pendingTable.value = table;
     pane.value = "new";
+  }
+}
+
+/**
+ * A booking waiting for the cashier to say which kind of order to open for it
+ * (`D-191`). Only when the terminal has more than one type that seats people —
+ * the same condition, and the same pane, as a tapped table.
+ */
+const pendingReservation = ref<{ name: string; tableNumber: string | null } | null>(null);
+
+/**
+ * The party that booked has arrived (`FR-14.3`).
+ *
+ * **One way in, from the floor and from the list alike.** Both hand the booking
+ * here, so which kind of order opens — and how the cashier is asked when the
+ * terminal has several — is decided once, by the rule a tapped table already
+ * follows.
+ */
+async function seatBooking(name: string, tableNumber: string | null): Promise<void> {
+  if (!maySell()) return;
+
+  const type = tableTypes.value.length === 1 ? tableTypes.value[0] : null;
+  if (!type) {
+    pendingReservation.value = { name, tableNumber };
+    pane.value = "new";
+    return;
+  }
+
+  await seatWith(name, type);
+}
+
+async function seatWith(name: string, type: OrderType): Promise<void> {
+  pendingReservation.value = null;
+  try {
+    const seated = await seatReservation({
+      name,
+      pos_profile: session.profile!.name,
+      order_type: type.name,
+    });
+    openOrder(seated.order_name);
+  } catch (cause) {
+    orders.error = cause instanceof Error ? cause.message : String(cause);
   }
 }
 
@@ -1397,12 +1453,19 @@ async function send(): Promise<void> {
             class="min-h-0 flex-1"
             @seat="seat"
             @open="openOrder"
+            @seat-booking="seatBooking"
+          />
+
+          <ReservationsPane
+            v-else-if="pane === 'reservations'"
+            class="min-h-0 flex-1"
+            @seat="(booking) => seatBooking(booking.name, booking.table_number)"
           />
 
           <NewOrderPane
             v-else
             class="min-h-0 flex-1"
-            :seating="pendingTable?.table_number ?? null"
+            :seating="pendingTable?.table_number ?? pendingReservation?.tableNumber ?? null"
             @open="startAnother"
           />
 

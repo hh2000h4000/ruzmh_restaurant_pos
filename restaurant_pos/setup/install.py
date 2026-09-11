@@ -209,6 +209,39 @@ CUSTOM_FIELDS = {
 			"label": "Branch Address",
 			"insert_after": "rpos_address_section",
 		},
+		# D-191 — two numbers, and the reserved colour on the floor is worked out
+		# from them each time it is drawn rather than stored on the table.
+		{
+			"fieldname": "rpos_reservations_section",
+			"fieldtype": "Section Break",
+			"label": "Reservations",
+			"insert_after": "branch_address",
+		},
+		{
+			"fieldname": "reservation_turn_minutes",
+			"fieldtype": "Int",
+			"default": "90",
+			"label": "Expected Table Time (minutes)",
+			"description": (
+				"How long a party usually stays. A booked table is held this long before the "
+				"booking, a walk-in seated inside that window is warned, and a second booking on "
+				"the same table closer than this is refused. Toast and SevenRooms plan on the "
+				"same figure — about an hour and a half for a couple."
+			),
+			"insert_after": "rpos_reservations_section",
+		},
+		{
+			"fieldname": "reservation_grace_minutes",
+			"fieldtype": "Int",
+			"default": "15",
+			"label": "Grace for Late Guests (minutes)",
+			"description": (
+				"How long a booked table waits after the booking time before it goes back to the "
+				"floor. Fifteen minutes is the common practice. The booking stays expected until "
+				"the day is closed, which records it as a no-show."
+			),
+			"insert_after": "reservation_turn_minutes",
+		},
 	],
 	"Item": [
 		{

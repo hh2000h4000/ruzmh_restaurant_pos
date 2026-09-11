@@ -10,6 +10,14 @@ from frappe.utils import cint
 class RestaurantReservation(Document):
 	def validate(self):
 		self.validate_party_size()
+
+		# D-191 — the timing rules live beside the floor that reads them, and
+		# run here so a booking made in the desk obeys them too: no second
+		# booking on a table within one turn, none after its own time.
+		from restaurant_pos.utils import reservation
+
+		reservation.validate(self)
+
 		self.validate_table_section()
 		self.validate_cancellation()
 

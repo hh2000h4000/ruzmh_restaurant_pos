@@ -3,6 +3,7 @@ import { computed, onMounted, ref, watch } from "vue";
 
 import { getFloorPlan, type FloorTable } from "@/api/table";
 import AppIcon from "@/components/AppIcon.vue";
+import BaseDialog from "@/components/BaseDialog.vue";
 import BillPicker from "@/components/order/BillPicker.vue";
 import { pick, t, timeOnly, tn } from "@/i18n";
 import { useSessionStore } from "@/stores/session";
@@ -26,7 +27,32 @@ const emit = defineEmits<{
   seat: [table: FloorTable];
   /** A table that already has an order; open that order instead. */
   open: [orderName: string];
+  /** The party that booked this table has arrived (`FR-14.3`). */
+  seatBooking: [reservation: string, tableNumber: string];
 }>();
+
+/**
+ * A held table the cashier tapped, waiting for them to say who is sitting at it
+ * (`D-191`).
+ *
+ * **A question, not a wall.** The server does not refuse a walk-in here — the
+ * party may have cancelled by phone, or the host may know the walk-in is only
+ * having a coffee — so neither does the screen. What it must not do is let the
+ * cashier seat a stranger on a table held for eight o'clock without being told.
+ */
+const booking = ref<FloorTable | null>(null);
+
+function seatTheBooking(): void {
+  const table = booking.value;
+  booking.value = null;
+  if (table?.reservation) emit("seatBooking", table.reservation.name, table.table_number);
+}
+
+function seatSomebodyElse(): void {
+  const table = booking.value;
+  booking.value = null;
+  if (table) emit("seat", table);
+}
 
 const session = useSessionStore();
 
@@ -99,6 +125,12 @@ function onTable(table: FloorTable): void {
   }
 
   if (table.status !== "available" && table.status !== "reserved") return;
+
+  if (table.reservation?.held) {
+    booking.value = table;
+    return;
+  }
+
   emit("seat", table);
 }
 
@@ -205,6 +237,20 @@ defineExpose({ reload: load });
           >
             {{ tn("count.seats", table.capacity) }}
           </span>
+
+          <!-- The day's next booking, held or not (`D-191`). On an occupied
+               table it is the host's warning that the table is due back. -->
+          <span
+            v-if="table.reservation"
+            data-booking
+            class="rpos-numeric flex items-center gap-1 text-xs font-semibold text-status-reserved"
+          >
+            <AppIcon
+              name="calendar"
+              :size="12"
+            />
+            {{ t("table.booking", { time: table.reservation.time, count: table.reservation.party_size }) }}
+          </span>
         </button>
       </div>
 
@@ -220,5 +266,42 @@ defineExpose({ reload: load });
       @pick="openBill"
       @close="picking = null"
     />
+
+    <BaseDialog
+      :open="booking !== null"
+      :title="booking ? t('reservations.heldTitle', { number: booking.table_number }) : ''"
+      @close="booking = null"
+    >
+      <p
+        v-if="booking?.reservation"
+        class="mb-4 text-sm text-muted"
+      >
+        {{
+          t("reservations.heldBody", {
+            name: booking.reservation.guest,
+            time: booking.reservation.time,
+            count: booking.reservation.party_size,
+          })
+        }}
+      </p>
+      <div class="flex flex-col gap-2">
+        <button
+          type="button"
+          data-seat-booking
+          class="min-h-tap rounded-rpos bg-primary px-4 font-semibold text-primary-contrast"
+          @click="seatTheBooking"
+        >
+          {{ t("reservations.seatBooking") }}
+        </button>
+        <button
+          type="button"
+          data-seat-other
+          class="min-h-tap rounded-rpos border border-line px-4 font-medium"
+          @click="seatSomebodyElse"
+        >
+          {{ t("reservations.seatOther") }}
+        </button>
+      </div>
+    </BaseDialog>
   </section>
 </template>

@@ -13,6 +13,23 @@ export interface FloorTable {
    * of them and is kept for the desk; read this.
    */
   orders: TableBill[];
+  /**
+   * The day's next expected booking on this table, or `null` (`D-191`).
+   *
+   * `held` means the table is being kept for it right now — from one turn
+   * before the booking to the end of the grace period — and an empty table then
+   * reads `reserved`. Before that it is a note: the table still takes walk-ins.
+   */
+  reservation?: TableReservation | null;
+}
+
+export interface TableReservation {
+  name: string;
+  guest: string;
+  party_size: number;
+  /** `HH:MM`. */
+  time: string;
+  held: boolean;
 }
 
 export interface TableBill {

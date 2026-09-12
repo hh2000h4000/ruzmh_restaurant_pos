@@ -44,15 +44,15 @@ Loyalty Points Balance,رصيد نقاط الولاء
 Restaurant POS Settings,إعدادات نقاط البيع
 RPOS Theme,ثيم نقاط البيع
 Default Theme,الثيم الافتراضي
-On Primary,على اللون الأساسي
-On Secondary,على اللون الثانوي
+Text on Primary,النص على اللون الأساسي
+Text on Secondary,النص على اللون الثانوي
 Surface,البطاقات
 Brand Logo,شعار المطعم
 Brand,الهوية
 Colours,الألوان
 Appearance,المظهر
 Theme,الثيم
-{0} on {1} is {2}:1. A cashier needs {3}:1 to read it under restaurant lighting.,{0} على {1} تباينها {2}:1. الكاشير يحتاج {3}:1 ليقرأها تحت إضاءة المطعم.
+"{0} against {1} is only {2}:1, and a cashier needs {3}:1 to read it under restaurant lighting. Choose a darker or a lighter colour.","«{0}» على «{1}» تباينهما {2}:1 فقط، والكاشير يحتاج {3}:1 ليقرأه تحت إضاءة المطعم. اختر لوناً أغمق أو أفتح."
 {0} is not a colour.,{0} ليس لوناً.
 Menu pictures,صور القائمة
 "Left empty, the till draws its own icon.",إن تُركت فارغة يرسم الكاشير أيقونته.

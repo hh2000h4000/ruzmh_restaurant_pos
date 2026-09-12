@@ -35,12 +35,16 @@ class RPOSTheme(Document):
 			ratio = theme_service.contrast(self.get(back), self.get(fore))
 			if ratio < theme_service.MINIMUM_CONTRAST:
 				frappe.throw(
+					# Two decimals, because one rounds 4.48 up to the very minimum it
+					# is being refused for — "4.5:1, and you need 4.5:1", which the
+					# user was handed and could do nothing with.
 					_(
-						"{0} on {1} is {2}:1. A cashier needs {3}:1 to read it under restaurant lighting."
+						"{0} against {1} is only {2}:1, and a cashier needs {3}:1 to read it under "
+						"restaurant lighting. Choose a darker or a lighter colour."
 					).format(
 						_(self.meta.get_label(fore)),
 						_(self.meta.get_label(back)),
-						f"{ratio:.1f}",
+						f"{ratio:.2f}",
 						f"{theme_service.MINIMUM_CONTRAST:g}",
 					)
 				)

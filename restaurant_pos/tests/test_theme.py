@@ -162,6 +162,23 @@ class TestWhatAThemeIsAllowedToLookLike(OrderTestBase):
 		self.assertEqual(frappe.db.get_value("RPOS Theme", first.name, "is_default"), 0)
 		self.assertEqual(frappe.db.get_value("RPOS Theme", second.name, "is_default"), 1)
 
+	def test_the_refusal_says_the_real_ratio_and_names_both_colours(self):
+		"""The message the user was handed, and could do nothing with.
+
+		`#777777` on white is 4.478:1. Rounded to one place it read "is 4.5:1,
+		needs 4.5:1" — a refusal that looks like a pass. And the two labels read
+		"On Primary on Primary", which names nothing.
+		"""
+		with self.assertRaises(frappe.ValidationError) as refusal:
+			self._save(background_color="#FFFFFF", text_color="#777777")
+		self.assertIn("4.48", str(refusal.exception))
+
+		with self.assertRaises(frappe.ValidationError) as pair:
+			self._save(primary_color="#FFFFFF", primary_contrast="#F6F4F0")
+		message = str(pair.exception)
+		self.assertIn("Text on Primary", message)
+		self.assertNotIn("On Primary on Primary", message)
+
 	def test_a_private_logo_is_refused(self):
 		"""A cashier may not fetch it, so every terminal would show a broken logo."""
 		with self.assertRaises(frappe.ValidationError):

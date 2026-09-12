@@ -90,7 +90,7 @@
    "description": "Text and icons on primary.",
    "fieldname": "primary_contrast",
    "fieldtype": "Color",
-   "label": "On Primary",
+   "label": "Text on Primary",
    "reqd": 1
   },
   {
@@ -106,7 +106,7 @@
    "description": "Text and icons on secondary.",
    "fieldname": "secondary_contrast",
    "fieldtype": "Color",
-   "label": "On Secondary",
+   "label": "Text on Secondary",
    "reqd": 1
   },
   {
@@ -153,7 +153,7 @@
  "index_web_pages_for_search": 1,
  "istable": 0,
  "links": [],
- "modified": "2026-09-12 00:00:00.000000",
+ "modified": "2026-09-12 02:00:00.000000",
  "modified_by": "Administrator",
  "module": "Restaurant POS",
  "name": "RPOS Theme",

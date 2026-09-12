@@ -242,6 +242,23 @@ CUSTOM_FIELDS = {
 			),
 			"insert_after": "reservation_turn_minutes",
 		},
+		{
+			"fieldname": "rpos_appearance_section",
+			"fieldtype": "Section Break",
+			"label": "Appearance",
+			"insert_after": "reservation_grace_minutes",
+		},
+		{
+			"fieldname": "rpos_theme",
+			"fieldtype": "Link",
+			"options": "RPOS Theme",
+			"label": "Theme",
+			"description": (
+				"The brand colours every terminal in this branch renders with, unless the terminal "
+				"names its own. Empty falls through to the default theme (FR-15.2)."
+			),
+			"insert_after": "rpos_appearance_section",
+		},
 	],
 	"Item": [
 		{
@@ -442,10 +459,18 @@ CUSTOM_FIELDS = {
 			"insert_after": "default_printer",
 		},
 		{
+			"fieldname": "rpos_theme",
+			"fieldtype": "Link",
+			"options": "RPOS Theme",
+			"label": "Theme",
+			"description": "This terminal's brand colours. Empty falls through to the branch's theme, then the default (FR-15.2).",
+			"insert_after": "restaurant_shift",
+		},
+		{
 			"fieldname": "rpos_order_types_section",
 			"fieldtype": "Section Break",
 			"label": "Allowed Order Types",
-			"insert_after": "restaurant_shift",
+			"insert_after": "rpos_theme",
 		},
 		{
 			"fieldname": "allowed_order_types",

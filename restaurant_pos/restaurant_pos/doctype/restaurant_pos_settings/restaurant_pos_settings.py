@@ -1,9 +1,9 @@
 # Copyright (c) 2026, RPOS and contributors
 # For license information, please see license.txt
 
-import frappe
-from frappe import _
 from frappe.model.document import Document
+
+from restaurant_pos.utils.files import assert_public
 
 #: Pictures the till shows to a cashier, so they must be files anyone signed in may fetch.
 PICTURES = ("default_group_image", "default_item_image")
@@ -21,12 +21,4 @@ class RestaurantPOSSettings(Document):
 	"""
 
 	def validate(self):
-		# A private file is served only to someone allowed to read this page, and
-		# a cashier is not: the tile would draw a broken picture on every till.
-		for field in PICTURES:
-			if (self.get(field) or "").startswith("/private/"):
-				frappe.throw(
-					_(
-						"{0} is a private file, and the till cannot show it to a cashier. Upload it as public."
-					).format(_(self.meta.get_label(field)))
-				)
+		assert_public(self, PICTURES)

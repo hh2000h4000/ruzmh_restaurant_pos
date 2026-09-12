@@ -1,0 +1,214 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "naming_series:",
+ "creation": "2026-09-12 00:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "identity_section",
+  "naming_series",
+  "title",
+  "title_ar",
+  "identity_cb",
+  "is_default",
+  "is_active",
+  "colours_section",
+  "primary_color",
+  "primary_contrast",
+  "secondary_color",
+  "secondary_contrast",
+  "colours_cb",
+  "surface_color",
+  "background_color",
+  "text_color",
+  "brand_section",
+  "brand_logo"
+ ],
+ "fields": [
+  {
+   "fieldname": "identity_section",
+   "fieldtype": "Section Break",
+   "label": "Identity"
+  },
+  {
+   "default": "THM-.###.",
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "hidden": 1,
+   "label": "Series",
+   "options": "THM-.###."
+  },
+  {
+   "fieldname": "title",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Title",
+   "reqd": 1
+  },
+  {
+   "fieldname": "title_ar",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Title (Arabic)",
+   "reqd": 1
+  },
+  {
+   "fieldname": "identity_cb",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "The theme a terminal falls back to when neither it nor its branch names one. Marking this one takes the mark off the others.",
+   "fieldname": "is_default",
+   "fieldtype": "Check",
+   "label": "Default Theme"
+  },
+  {
+   "default": "1",
+   "description": "Switched off, terminals naming it fall through to the branch's theme, then to the default.",
+   "fieldname": "is_active",
+   "fieldtype": "Check",
+   "label": "Is Active"
+  },
+  {
+   "description": "Every pair below must reach 4.5:1 contrast, which a cashier needs to read the screen under restaurant lighting. Status colours are not themeable.",
+   "fieldname": "colours_section",
+   "fieldtype": "Section Break",
+   "label": "Colours"
+  },
+  {
+   "default": "#1F4B43",
+   "description": "Primary actions and active states.",
+   "fieldname": "primary_color",
+   "fieldtype": "Color",
+   "label": "Primary",
+   "reqd": 1
+  },
+  {
+   "default": "#F6F4F0",
+   "description": "Text and icons on primary.",
+   "fieldname": "primary_contrast",
+   "fieldtype": "Color",
+   "label": "On Primary",
+   "reqd": 1
+  },
+  {
+   "default": "#2F6D61",
+   "description": "Secondary actions and accents.",
+   "fieldname": "secondary_color",
+   "fieldtype": "Color",
+   "label": "Secondary",
+   "reqd": 1
+  },
+  {
+   "default": "#F6F4F0",
+   "description": "Text and icons on secondary.",
+   "fieldname": "secondary_contrast",
+   "fieldtype": "Color",
+   "label": "On Secondary",
+   "reqd": 1
+  },
+  {
+   "fieldname": "colours_cb",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "#FFFFFF",
+   "description": "Cards and panels.",
+   "fieldname": "surface_color",
+   "fieldtype": "Color",
+   "label": "Surface",
+   "reqd": 1
+  },
+  {
+   "default": "#F3F1ED",
+   "description": "The screen behind the cards.",
+   "fieldname": "background_color",
+   "fieldtype": "Color",
+   "label": "Background",
+   "reqd": 1
+  },
+  {
+   "default": "#14171A",
+   "description": "Body text, read against the background.",
+   "fieldname": "text_color",
+   "fieldtype": "Color",
+   "label": "Text",
+   "reqd": 1
+  },
+  {
+   "fieldname": "brand_section",
+   "fieldtype": "Section Break",
+   "label": "Brand"
+  },
+  {
+   "description": "Receipts and the customer display. Uploads public, because the till shows it to a cashier and a guest.",
+   "fieldname": "brand_logo",
+   "fieldtype": "Attach Image",
+   "label": "Brand Logo",
+   "make_attachment_public": 1
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "istable": 0,
+ "links": [],
+ "modified": "2026-09-12 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Restaurant POS",
+ "name": "RPOS Theme",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Restaurant Admin",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 0,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Restaurant Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "POS Manager",
+   "share": 1
+  }
+ ],
+ "search_fields": "title,title_ar",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "title",
+ "track_changes": 1
+}

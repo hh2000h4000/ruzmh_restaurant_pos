@@ -42,6 +42,18 @@ Loyalty points cannot be used on this bill.,لا يمكن استخدام نقا�
 Loyalty points,نقاط الولاء
 Loyalty Points Balance,رصيد نقاط الولاء
 Restaurant POS Settings,إعدادات نقاط البيع
+RPOS Theme,ثيم نقاط البيع
+Default Theme,الثيم الافتراضي
+On Primary,على اللون الأساسي
+On Secondary,على اللون الثانوي
+Surface,البطاقات
+Brand Logo,شعار المطعم
+Brand,الهوية
+Colours,الألوان
+Appearance,المظهر
+Theme,الثيم
+{0} on {1} is {2}:1. A cashier needs {3}:1 to read it under restaurant lighting.,{0} على {1} تباينها {2}:1. الكاشير يحتاج {3}:1 ليقرأها تحت إضاءة المطعم.
+{0} is not a colour.,{0} ليس لوناً.
 Menu pictures,صور القائمة
 "Left empty, the till draws its own icon.",إن تُركت فارغة يرسم الكاشير أيقونته.
 Default group picture,الصورة الافتراضية للمجموعات

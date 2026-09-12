@@ -19,7 +19,7 @@
 
 :root {
   /*
-   * Brand — themeable. These must match `api/session.py:DEFAULT_THEME`, which
+   * Brand — themeable. These must match `utils/theme.py:HOUSE`, which
    * the theme store writes over them once the session loads; a disagreement
    * shows as a colour that changes a second after the terminal starts.
    */

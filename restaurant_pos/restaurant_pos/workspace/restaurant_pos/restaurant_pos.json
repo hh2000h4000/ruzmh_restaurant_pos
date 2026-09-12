@@ -336,7 +336,7 @@
    "hidden": 0,
    "is_query_report": 0,
    "label": "Settings",
-   "link_count": 1,
+   "link_count": 2,
    "onboard": 0,
    "type": "Card Break"
   },
@@ -347,6 +347,17 @@
    "label": "Restaurant POS Settings",
    "link_count": 0,
    "link_to": "Restaurant POS Settings",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "RPOS Theme",
+   "link_count": 0,
+   "link_to": "RPOS Theme",
    "link_type": "DocType",
    "onboard": 0,
    "type": "Link"

@@ -25,27 +25,14 @@ import frappe.sessions
 from frappe import _
 from frappe.utils import flt, now_datetime
 
+from restaurant_pos.utils import theme as theme_service
 from restaurant_pos.utils import totals as totals_service
 from restaurant_pos.utils.order import is_order_type_allowed
 from restaurant_pos.utils.permissions import get_pos_permission_set, validate_branch_access
 
-#: The Phase 2 design tokens (FR-15.4). Hardcoded defaults for now; Phase 4
-#: replaces them with the resolved ``RPOS Theme`` record (FR-15.2, D-014).
-#: The Vue app reads its colours from here from day one, so no component ever
-#: needs a hardcoded brand colour.
-#: The house look, applied by `stores/theme.ts` over the CSS fallbacks in
-#: `tokens.css` — so **both** carry these values or the terminal shows one for a
-#: moment and then the other.
-DEFAULT_THEME = {
-	"primary": "#1F4B43",
-	"primary_contrast": "#F6F4F0",
-	"secondary": "#2F6D61",
-	"secondary_contrast": "#F6F4F0",
-	"surface": "#FFFFFF",
-	"background": "#F3F1ED",
-	"text": "#14171A",
-	"brand_logo": None,
-}
+#: The design tokens the Vue app renders with (FR-15.4), resolved per terminal
+#: from its `RPOS Theme` (`utils/theme.py`, D-198). The house look is the
+#: fallback, and lives there beside the resolution that reaches for it.
 
 
 @frappe.whitelist()
@@ -214,7 +201,7 @@ def load_pos_session(pos_profile: str) -> dict:
 		# a cashier does, and these are the notes a kitchen hears every day.
 		"quick_notes": _quick_notes(),
 		"permissions": get_pos_permission_set(),
-		"theme": DEFAULT_THEME,
+		"theme": theme_service.tokens(profile),
 		"lang": _lang(),
 		# The header names the cashier on duty, and the home screen tells their
 		# own orders from the rest of the floor.
@@ -290,6 +277,8 @@ def _profile(pos_profile: str) -> frappe._dict:
 			"screen_layout",
 			"default_printer",
 			"restaurant_shift",
+			# The terminal's own theme, first in the resolution order (`FR-15.2`).
+			"rpos_theme",
 		],
 		as_dict=True,
 	)

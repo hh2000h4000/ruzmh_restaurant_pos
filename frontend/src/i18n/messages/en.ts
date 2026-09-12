@@ -30,6 +30,8 @@ export const messages = {
   /** Derived so the guest's column adds up under inclusive VAT (D-091). */
   "display.beforeTax": "Before VAT",
   "display.open": "Customer display",
+  /** Shown only before the till has ever answered — see `useCustomerDisplay`. */
+  "display.waiting": "Waiting for the till. Open this screen from the till's own menu, in the same browser.",
   /** The language this button switches **to**, written in that language. */
   "lang.other": "العربية",
 

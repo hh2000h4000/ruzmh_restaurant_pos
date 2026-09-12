@@ -25,7 +25,7 @@ import { formatNumber, t, timeOnly } from "@/i18n";
  * somebody who is not looking for it — the opposite of the till, where the
  * caption rule of `D-159` applies.
  */
-const { state } = useCustomerDisplayReceiver();
+const { state, linked } = useCustomerDisplayReceiver();
 
 const clock = ref(timeOnly(new Date().toISOString()));
 let ticking: number | undefined;
@@ -95,6 +95,18 @@ const money = (value: number) => formatNumber(value, 2);
         </p>
         <p class="mt-6 text-[20px] text-subtle">
           {{ t("display.welcome") }}
+        </p>
+
+        <!-- Nothing has ever arrived from the till, which on this screen looks
+             identical to waiting for the next guest. It is not: the two windows
+             are in different browsers or on different hostnames, and the channel
+             does not cross either. Said quietly, because the room can read it. -->
+        <p
+          v-if="!linked"
+          data-display-unlinked
+          class="mt-8 text-[15px] text-muted"
+        >
+          {{ t("display.waiting") }}
         </p>
 
         <!-- What the manager wrote, in their own words. Kept below the fold of

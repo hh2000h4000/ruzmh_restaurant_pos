@@ -17,16 +17,19 @@ import { IDLE, type DisplayState } from "@/composables/useCustomerDisplay";
 import CustomerDisplayView from "@/views/CustomerDisplayView.vue";
 
 let showing: DisplayState = { ...IDLE };
+/** Whether the till has ever answered this screen. */
+let linked = true;
 
 // The real receiver needs `BroadcastChannel`, which jsdom does not have; the
 // channel itself is covered in `useCustomerDisplay.test.ts`.
 vi.mock("@/composables/useCustomerDisplay", async (importActual) => ({
   ...(await importActual<typeof import("@/composables/useCustomerDisplay")>()),
-  useCustomerDisplayReceiver: () => ({ state: ref(showing) }),
+  useCustomerDisplayReceiver: () => ({ state: ref(showing), linked: ref(linked) }),
 }));
 
-function screen(state: Partial<DisplayState> = {}) {
+function screen(state: Partial<DisplayState> = {}, heard = true) {
   showing = { ...IDLE, ...state };
+  linked = heard;
   return mount(CustomerDisplayView);
 }
 
@@ -57,6 +60,27 @@ describe("the screen while it waits", () => {
     const wrapper = screen({ mode: "order", message: "وجبة الغداء ٤٩ ريالاً", lines: [] });
 
     expect(wrapper.find("[data-display-message]").exists()).toBe(false);
+  });
+});
+
+/**
+ * The failure this window can actually have, made visible.
+ *
+ * The channel does not cross browsers or hostnames, and a screen that has heard
+ * nothing looks exactly like one waiting for the next guest — which is what the
+ * user was reading while the till beside it held an open bill.
+ */
+describe("a screen the till has never answered", () => {
+  it("says so, rather than looking like an empty shop", () => {
+    const wrapper = screen({}, false);
+
+    expect(wrapper.get("[data-display-unlinked]").text()).toBeTruthy();
+  });
+
+  it("says nothing of the sort once the till has answered", () => {
+    const wrapper = screen({ house: "مطعم الزيتون" }, true);
+
+    expect(wrapper.find("[data-display-unlinked]").exists()).toBe(false);
   });
 });
 

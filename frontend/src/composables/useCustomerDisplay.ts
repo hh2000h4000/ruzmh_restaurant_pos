@@ -222,16 +222,29 @@ export function received(state: Partial<DisplayState> | null | undefined): Displ
 /** The customer screen's end: whatever the till last said. */
 export function useCustomerDisplayReceiver() {
   const state = ref<DisplayState>(IDLE);
+  /**
+   * Whether the till has ever answered.
+   *
+   * **A screen that has heard nothing looks exactly like a screen waiting for
+   * the next guest** — a quiet welcome and a clock, which is what the user was
+   * looking at while the till beside it held an open bill. The channel does not
+   * cross browsers or origins (`localhost` is not `rpos.localhost`), so this is
+   * the one failure this window can have, and it was invisible.
+   */
+  const linked = ref(false);
   const bus = channel();
 
   if (bus) {
     bus.onmessage = (event: MessageEvent<Message>) => {
-      if (event.data?.type === "state") state.value = received(event.data.state);
+      if (event.data?.type !== "state") return;
+
+      state.value = received(event.data.state);
+      linked.value = true;
     };
     bus.postMessage({ type: "hello" });
   }
 
   onUnmounted(() => bus?.close());
 
-  return { state };
+  return { state, linked };
 }

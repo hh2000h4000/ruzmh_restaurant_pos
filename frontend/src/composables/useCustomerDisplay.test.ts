@@ -9,10 +9,17 @@
  * than by what the template happens to render: a field never sent cannot be
  * leaked by a later edit to the view.
  */
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { OrderDetail, OrderLine } from "@/api/order";
-import { IDLE, NO_BRAND, received, toDisplayState } from "@/composables/useCustomerDisplay";
+import {
+  HELLO_EVERY_MS,
+  IDLE,
+  linkUp,
+  NO_BRAND,
+  received,
+  toDisplayState,
+} from "@/composables/useCustomerDisplay";
 
 function line(extra: Partial<OrderLine> = {}): OrderLine {
   return {
@@ -93,6 +100,59 @@ describe("what the guest's screen is given", () => {
 
   it("survives a message carrying no state at all", () => {
     expect(received(undefined)).toEqual(IDLE);
+  });
+});
+
+/**
+ * The handshake, which is where the guest's screen actually failed.
+ *
+ * It asked the till once, when it opened. A till reloading at that moment — or
+ * a window the browser had frozen because nobody was looking at it — never
+ * heard the question, and sends nothing again until the bill changes. The guest
+ * reads a welcome screen while their order is being rung up.
+ */
+describe("asking the till what is on the bill", () => {
+  function fakeBus() {
+    const sent: unknown[] = [];
+    const bus = {
+      sent,
+      postMessage: (message: unknown) => sent.push(message),
+      onmessage: null as ((event: MessageEvent) => void) | null,
+    };
+    return bus;
+  }
+
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  it("asks again until an answer comes, then stops asking", () => {
+    const bus = fakeBus();
+    const answers: unknown[] = [];
+
+    linkUp(bus, (state) => answers.push(state));
+    expect(bus.sent).toHaveLength(1);
+
+    vi.advanceTimersByTime(HELLO_EVERY_MS * 2);
+    expect(bus.sent.length).toBeGreaterThan(1);
+
+    const asked = bus.sent.length;
+    bus.onmessage?.({ data: { type: "state", state: { ...IDLE, house: "فرع الزيتون" } } } as MessageEvent);
+    vi.advanceTimersByTime(HELLO_EVERY_MS * 3);
+
+    expect(answers).toHaveLength(1);
+    expect(bus.sent).toHaveLength(asked);
+  });
+
+  it("ignores anything that is not a state, and keeps asking", () => {
+    const bus = fakeBus();
+    const answers: unknown[] = [];
+
+    linkUp(bus, (state) => answers.push(state));
+    bus.onmessage?.({ data: { type: "hello" } } as MessageEvent);
+    vi.advanceTimersByTime(HELLO_EVERY_MS);
+
+    expect(answers).toHaveLength(0);
+    expect(bus.sent.length).toBeGreaterThan(1);
   });
 
   /**

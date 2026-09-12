@@ -219,6 +219,41 @@ export function received(state: Partial<DisplayState> | null | undefined): Displ
   return { ...IDLE, ...(state ?? {}) };
 }
 
+/** How often the screen asks again, until the till has answered once. */
+export const HELLO_EVERY_MS = 2000;
+
+/**
+ * Ask the till what is on the bill, and keep asking until it answers.
+ *
+ * **One `hello` was not enough.** The screen asked once, when it opened; if the
+ * till was reloading at that moment — or its window was frozen in the
+ * background, as a browser does to a tab nobody is looking at — the question
+ * was lost, and the till sends nothing else until the bill changes. A guest
+ * then watched a welcome screen while the cashier rang up their order.
+ *
+ * Asking again costs one tiny message every two seconds, and stops the moment
+ * an answer arrives.
+ */
+export function linkUp(
+  bus: Pick<BroadcastChannel, "postMessage"> & { onmessage: ((event: MessageEvent<Message>) => void) | null },
+  apply: (state: DisplayState) => void,
+  every: number = HELLO_EVERY_MS,
+): () => void {
+  const asking = window.setInterval(() => bus.postMessage({ type: "hello" }), every);
+  const stop = () => window.clearInterval(asking);
+
+  bus.onmessage = (event: MessageEvent<Message>) => {
+    if (event.data?.type !== "state") return;
+
+    apply(received(event.data.state));
+    stop();
+  };
+
+  bus.postMessage({ type: "hello" });
+
+  return stop;
+}
+
 /** The customer screen's end: whatever the till last said. */
 export function useCustomerDisplayReceiver() {
   const state = ref<DisplayState>(IDLE);
@@ -233,18 +268,19 @@ export function useCustomerDisplayReceiver() {
    */
   const linked = ref(false);
   const bus = channel();
+  let stopAsking: (() => void) | undefined;
 
   if (bus) {
-    bus.onmessage = (event: MessageEvent<Message>) => {
-      if (event.data?.type !== "state") return;
-
-      state.value = received(event.data.state);
+    stopAsking = linkUp(bus, (answer) => {
+      state.value = answer;
       linked.value = true;
-    };
-    bus.postMessage({ type: "hello" });
+    });
   }
 
-  onUnmounted(() => bus?.close());
+  onUnmounted(() => {
+    stopAsking?.();
+    bus?.close();
+  });
 
   return { state, linked };
 }

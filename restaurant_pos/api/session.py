@@ -202,6 +202,9 @@ def load_pos_session(pos_profile: str) -> dict:
 		"quick_notes": _quick_notes(),
 		"permissions": get_pos_permission_set(),
 		"theme": theme_service.tokens(profile),
+		# `FR-13.1` — what the screen facing the room shows while it waits. The
+		# logo travels in `theme`; this is the restaurant's own sentence (`D-202`).
+		"customer_display": {"message": _setting("idle_message")},
 		"lang": _lang(),
 		# The header names the cashier on duty, and the home screen tells their
 		# own orders from the rest of the floor.
@@ -522,7 +525,7 @@ def _catalog(profile, order_types: list[dict]) -> tuple[list[dict], list[dict]]:
 			by_list[row.price_list][row.item_code] = flt(row.price_list_rate)
 
 	prices = by_list.get(profile.selling_price_list, {})
-	picture = _default_picture("default_item_image")
+	picture = _setting("default_item_image")
 
 	modifiers: dict[str, list[str]] = {}
 	for row in frappe.get_all(
@@ -560,14 +563,17 @@ def _item_groups() -> list[dict]:
 		fields=["name", "item_group_name", "parent_item_group", "default_production_center", "image"],
 		order_by="name asc",
 	)
-	picture = _default_picture("default_group_image")
+	picture = _setting("default_group_image")
 	for row in groups:
 		row.image = row.image or picture
 	return groups
 
 
-def _default_picture(field: str) -> str | None:
-	"""The picture a dish or a group shows when it has none of its own (`D-197`).
+def _setting(field: str) -> str | None:
+	"""One value from the settings page, empty read as nothing (`D-197`, `D-202`).
+
+	The default pictures a dish or a group shows when it has none of its own, and
+	the message the customer's screen carries while it waits.
 
 	Filled in here, where every picture on the till passes, not in each tile that
 	draws one: the menu's four grids, the screen layout's buttons and a line's

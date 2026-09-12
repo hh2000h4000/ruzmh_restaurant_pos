@@ -54,16 +54,26 @@ export interface DisplayLine {
   options: string[];
 }
 
-export interface DisplayState {
-  mode: DisplayMode;
-  /**
-   * The restaurant's name, sent rather than looked up.
-   *
-   * The display window loads no session — it asks the server for nothing, by
-   * design — so its own stores are empty and reading the branch there showed a
-   * blank header. The till has the name; the till sends it.
-   */
+/**
+ * What the restaurant looks like to the room, sent rather than looked up.
+ *
+ * The display window loads no session — it asks the server for nothing, by
+ * design — so its own stores are empty and reading the branch there showed a
+ * blank header. The till has all three; the till sends them (`D-202`).
+ */
+export interface Brand {
+  /** The restaurant's name. */
   house: string;
+  /** `RPOS Theme.brand_logo`, or `null` when the restaurant has not set one. */
+  logo: string | null;
+  /** The sentence a manager wrote for the waiting screen (`FR-13.1`). */
+  message: string;
+}
+
+export const NO_BRAND: Brand = { house: "", logo: null, message: "" };
+
+export interface DisplayState extends Brand {
+  mode: DisplayMode;
   lines: DisplayLine[];
   /** What the goods come to once the tax is taken out of them. */
   beforeTax: number;
@@ -95,7 +105,7 @@ export interface DisplayState {
 
 export const IDLE: DisplayState = {
   mode: "idle",
-  house: "",
+  ...NO_BRAND,
   lines: [],
   beforeTax: 0,
   promotion: null,
@@ -134,13 +144,13 @@ function toLine(line: OrderLine): DisplayLine {
 export function toDisplayState(
   order: OrderDetail | null,
   lines: OrderLine[],
-  house = "",
+  brand: Brand = NO_BRAND,
 ): DisplayState {
-  if (!order) return { ...IDLE, house };
+  if (!order) return { ...IDLE, ...brand };
 
   return {
     mode: "order",
-    house,
+    ...brand,
     lines: lines.filter((line) => line.status !== "void").map(toLine),
     // **Before tax, not "subtotal"** — and the difference is the whole point.
     //

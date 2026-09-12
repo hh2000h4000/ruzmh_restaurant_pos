@@ -12,7 +12,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { OrderDetail, OrderLine } from "@/api/order";
-import { IDLE, toDisplayState } from "@/composables/useCustomerDisplay";
+import { IDLE, NO_BRAND, toDisplayState } from "@/composables/useCustomerDisplay";
 
 function line(extra: Partial<OrderLine> = {}): OrderLine {
   return {
@@ -51,6 +51,23 @@ function bill(extra: Partial<OrderDetail> = {}): OrderDetail {
 
 describe("what the guest's screen is given", () => {
   /**
+   * `D-202`. The display window asks the server for nothing, so everything it
+   * shows has to arrive over the channel — the name did already, the logo and
+   * the manager's message now do.
+   */
+  it("carries the logo and the manager's message, on a bill and while waiting", () => {
+    const brand = { ...NO_BRAND, logo: "/files/logo.png", message: "وجبة الغداء ٤٩" };
+    const shown = { logo: "/files/logo.png", message: "وجبة الغداء ٤٩" };
+
+    expect(toDisplayState(bill(), [line()], brand)).toMatchObject(shown);
+    expect(toDisplayState(null, [], brand)).toMatchObject({ mode: "idle", ...shown });
+  });
+
+  it("says nothing about a brand the till did not send", () => {
+    expect(IDLE).toMatchObject({ house: "", logo: null, message: "" });
+  });
+
+  /**
    * `D-163`. An offer the guest came in for is the thing they are checking this
    * screen for, and a bare "discount" line does not tell them it was honoured.
    */
@@ -69,7 +86,10 @@ describe("what the guest's screen is given", () => {
   });
 
   it("shows nothing but the house name when there is no bill", () => {
-    expect(toDisplayState(null, [], "فرع الرياض")).toEqual({ ...IDLE, house: "فرع الرياض" });
+    expect(toDisplayState(null, [], { ...NO_BRAND, house: "فرع الرياض" })).toEqual({
+      ...IDLE,
+      house: "فرع الرياض",
+    });
   });
 
   /**
@@ -78,7 +98,9 @@ describe("what the guest's screen is given", () => {
    * blank. Found on the first real screen; the name travels with the bill.
    */
   it("carries the restaurant's name, because the other window cannot look it up", () => {
-    expect(toDisplayState(bill(), [line()], "فرع الرياض").house).toBe("فرع الرياض");
+    expect(toDisplayState(bill(), [line()], { ...NO_BRAND, house: "فرع الرياض" }).house).toBe(
+      "فرع الرياض",
+    );
   });
 
   /**

@@ -37,6 +37,7 @@ import {
   IDLE,
   toDisplayState,
   useCustomerDisplayPublisher,
+  type Brand,
 } from "@/composables/useCustomerDisplay";
 import { useDismiss } from "@/composables/useDismiss";
 import { useOpenOrders } from "@/composables/useOpenOrders";
@@ -105,8 +106,14 @@ const customerDisplay = useCustomerDisplayPublisher();
  * The display window asks the server for nothing, so its stores are empty — the
  * till is the only one of the two that knows what the place is called.
  */
-function house(): string {
-  return session.data?.branch?.branch ?? session.profile?.name ?? "";
+function house(): Brand {
+  return {
+    house: session.data?.branch?.branch ?? session.profile?.name ?? "",
+    // Both come from the server with everything else, so the screen keeps them
+    // through an outage like it keeps the menu (`D-202`).
+    logo: session.data?.theme?.brand_logo ?? null,
+    message: session.data?.customer_display?.message ?? "",
+  };
 }
 
 /**
@@ -125,7 +132,7 @@ watch(
   [() => orders.order, () => orders.lines],
   () => {
     if (!orders.order) {
-      customerDisplay.publish({ ...IDLE, house: house() });
+      customerDisplay.publish({ ...IDLE, ...house() });
       return;
     }
 

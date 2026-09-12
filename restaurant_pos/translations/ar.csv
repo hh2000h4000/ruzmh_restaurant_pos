@@ -88,6 +88,10 @@ Choose for me,اختر لي
 Too close to read. It needs {0}:1.,اللونان متقاربان ولا يُقرآن. المطلوب {0}:1.
 {0} is not a colour.,{0} ليس لوناً.
 Menu pictures,صور القائمة
+Customer display,شاشة العميل
+Message while waiting,الرسالة أثناء الانتظار
+"Your own words, in your own language — an offer, the wifi password, opening hours. Left empty, the screen shows the name, the clock and a welcome.","بكلماتك ولغتك — عرضٌ، أو كلمة شبكة الواي فاي، أو أوقات العمل. إن تُركت فارغة تعرض الشاشة الاسم والساعة وترحيباً."
+"Shown on the customer's screen while no order is on it, under the restaurant's name and the clock.",تظهر على شاشة العميل حين لا يكون عليها طلب، تحت اسم المطعم والساعة.
 "Left empty, the till draws its own icon.",إن تُركت فارغة يرسم الكاشير أيقونته.
 Default group picture,الصورة الافتراضية للمجموعات
 Default dish picture,الصورة الافتراضية للأصناف

@@ -239,6 +239,18 @@ class TestLoadPosSession(OrderTestBase):
 		for token in ("primary", "primary_contrast", "surface", "background", "text"):
 			self.assertTrue(theme[token].startswith("#"), token)
 
+	def test_the_waiting_screens_message_travels_with_the_menu(self):
+		"""`FR-13.1`, `D-202` — that window loads no session, so the till sends it."""
+		self._default("idle_message", "وجبة الغداء ٤٩ ريالاً")
+
+		self.assertEqual(self._load()["customer_display"]["message"], "وجبة الغداء ٤٩ ريالاً")
+
+	def test_with_nothing_written_the_screen_is_told_nothing(self):
+		"""`null`, not `""` — the screen draws a rule above the message it has."""
+		self._default("idle_message", "")
+
+		self.assertIsNone(self._load()["customer_display"]["message"])
+
 	def test_the_open_shift_is_reported(self):
 		payload = self._load()
 		self.assertIsNotNone(payload["active_shift"])

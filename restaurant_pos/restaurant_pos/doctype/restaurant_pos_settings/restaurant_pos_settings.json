@@ -7,7 +7,9 @@
   "menu_pictures_section",
   "default_group_image",
   "menu_pictures_cb",
-  "default_item_image"
+  "default_item_image",
+  "display_section",
+  "idle_message"
  ],
  "fields": [
   {
@@ -33,12 +35,24 @@
    "fieldtype": "Attach Image",
    "label": "Default dish picture",
    "make_attachment_public": 1
+  },
+  {
+   "description": "Shown on the customer's screen while no order is on it, under the restaurant's name and the clock.",
+   "fieldname": "display_section",
+   "fieldtype": "Section Break",
+   "label": "Customer display"
+  },
+  {
+   "description": "Your own words, in your own language — an offer, the wifi password, opening hours. Left empty, the screen shows the name, the clock and a welcome.",
+   "fieldname": "idle_message",
+   "fieldtype": "Small Text",
+   "label": "Message while waiting"
   }
  ],
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2026-09-12 00:00:00.000000",
+ "modified": "2026-09-12 04:00:00.000000",
  "modified_by": "Administrator",
  "module": "Restaurant POS",
  "name": "Restaurant POS Settings",

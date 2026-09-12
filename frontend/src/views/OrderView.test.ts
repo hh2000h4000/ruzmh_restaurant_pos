@@ -18,6 +18,7 @@ import { createPinia, setActivePinia } from "pinia";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import * as orderApi from "@/api/order";
+import type { DisplayState } from "@/composables/useCustomerDisplay";
 import { useSessionStore } from "@/stores/session";
 import type { CatalogItem, OrderType, PosSession } from "@/types/session";
 import OrderView from "@/views/OrderView.vue";
@@ -32,6 +33,18 @@ vi.mock("vue-router", () => ({
 }));
 
 vi.mock("@/api/activity", () => ({ recordView: vi.fn(), listActivity: vi.fn() }));
+
+/** Whatever the till pushed to the customer's screen, newest last (`D-202`). */
+const published: DisplayState[] = [];
+
+// `BroadcastChannel` is absent in jsdom, so the real publisher would swallow
+// everything and prove nothing about what the till decided to send.
+vi.mock("@/composables/useCustomerDisplay", async (importActual) => ({
+  ...(await importActual<typeof import("@/composables/useCustomerDisplay")>()),
+  useCustomerDisplayPublisher: () => ({
+    publish: (state: DisplayState) => published.push(state),
+  }),
+}));
 
 // The calls that reach the server are stubbed; everything else in the module
 // stays real. `reductionsOn` is pure arithmetic on a payload (`D-163`) and a
@@ -196,6 +209,42 @@ describe("a dish tapped before there is a bill", () => {
 
     expect(orderApi.createOrder).toHaveBeenCalledOnce();
     expect(orderApi.addItem).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * `D-202` — the screen facing the room loads no session of its own, so whatever
+ * it shows the till has to send. This is the seam where that happens.
+ */
+describe("what the till tells the customer's screen", () => {
+  it("sends the logo and the message it was given with the menu", async () => {
+    till();
+    const session = useSessionStore();
+    session.data = {
+      ...session.data,
+      branch: { branch: "فرع الزيتون" },
+      theme: { brand_logo: "/files/logo.png" },
+      customer_display: { message: "وجبة الغداء ٤٩ ريالاً" },
+    } as never;
+    published.length = 0;
+
+    await open();
+
+    expect(published.at(-1)).toMatchObject({
+      mode: "idle",
+      house: "فرع الزيتون",
+      logo: "/files/logo.png",
+      message: "وجبة الغداء ٤٩ ريالاً",
+    });
+  });
+
+  it("sends nothing where the restaurant set nothing", async () => {
+    till();
+    published.length = 0;
+
+    await open();
+
+    expect(published.at(-1)).toMatchObject({ logo: null, message: "" });
   });
 });
 

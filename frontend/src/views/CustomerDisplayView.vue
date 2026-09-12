@@ -44,9 +44,11 @@ onUnmounted(() => window.clearInterval(ticking));
  * server for nothing, by design — so its own stores are empty and the header
  * came out blank on the first real screen. The name travels with the bill.
  *
- * `FR-13.1` also asks for a logo and a promotional message. Neither has a field
- * anywhere to come from, and inventing two would be settings nobody has been
- * asked about; they are noted as not built rather than faked (`D-162`).
+ * `FR-13.1` also asks for a logo and a message, and both now have somewhere to
+ * come from: the logo is the theme's (`RPOS Theme.brand_logo`), the message is
+ * the one line a manager writes on the settings page (`D-202`). Like the name,
+ * they are **sent** — this window asks the server for nothing — so they survive
+ * an outage exactly as the bill does.
  */
 const house = computed(() => state.value.house);
 
@@ -63,6 +65,15 @@ const money = (value: number) => formatNumber(value, 2);
       class="grid place-items-center p-10 text-center"
     >
       <div>
+        <!-- The restaurant's own logo, when it has set one. `alt` is the name,
+             so a picture that fails to load leaves the name rather than a
+             broken icon in front of the room. -->
+        <img
+          v-if="state.logo"
+          :src="state.logo"
+          :alt="house"
+          class="mx-auto mb-8 max-h-[180px] max-w-[70%] object-contain"
+        >
         <p class="text-[42px] font-medium text-primary">
           {{ house }}
         </p>
@@ -71,6 +82,17 @@ const money = (value: number) => formatNumber(value, 2);
         </p>
         <p class="mt-6 text-[20px] text-subtle">
           {{ t("display.welcome") }}
+        </p>
+
+        <!-- What the manager wrote, in their own words. Kept below the fold of
+             the name and the clock, and drawn only when there is one: an empty
+             rule across the screen says the restaurant forgot something. -->
+        <p
+          v-if="state.message"
+          data-display-message
+          class="mx-auto mt-10 max-w-[26ch] whitespace-pre-line border-t border-line pt-8 text-[26px] leading-relaxed text-content"
+        >
+          {{ state.message }}
         </p>
       </div>
     </section>

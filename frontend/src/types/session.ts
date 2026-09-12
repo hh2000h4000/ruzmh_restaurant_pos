@@ -259,6 +259,13 @@ export interface PosSession {
   quick_notes: QuickNote[];
   permissions: PosPermissions;
   theme: ThemeTokens;
+  /**
+   * What the screen facing the room shows while it waits (`FR-13.1`, `D-202`).
+   *
+   * Shipped with everything else because that window loads no session of its
+   * own: the till reads it here and sends it across (`useCustomerDisplay`).
+   */
+  customer_display: { message: string | null };
   /** The signed-in user's ERPNext language, narrowed to what the app ships. */
   lang: "ar" | "en";
   /** Who is on this till: the login, and the name to show. */

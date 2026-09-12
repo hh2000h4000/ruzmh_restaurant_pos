@@ -12,7 +12,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { OrderDetail, OrderLine } from "@/api/order";
-import { IDLE, NO_BRAND, toDisplayState } from "@/composables/useCustomerDisplay";
+import { IDLE, NO_BRAND, received, toDisplayState } from "@/composables/useCustomerDisplay";
 
 function line(extra: Partial<OrderLine> = {}): OrderLine {
   return {
@@ -64,7 +64,35 @@ describe("what the guest's screen is given", () => {
   });
 
   it("says nothing about a brand the till did not send", () => {
-    expect(IDLE).toMatchObject({ house: "", logo: null, message: "" });
+    expect(IDLE).toMatchObject({ house: "", logo: null, message: "", banners: [] });
+  });
+
+  /**
+   * The two windows are refreshed at different moments, so the newer screen
+   * will read an older till's message. It did, and `state.banners.length`
+   * threw: **the render failed and the guest's bill vanished with it** — found
+   * by the user on a till not yet refreshed after `D-203`.
+   */
+  it("fills out a message from a till that has not been refreshed yet", () => {
+    const yesterday = {
+      mode: "order" as const,
+      house: "فرع الزيتون",
+      lines: [{ name: "برغر", qty: 1, amount: 25, options: [] }],
+      total: 25,
+    };
+
+    const state = received(yesterday);
+
+    expect(state.banners).toEqual([]);
+    expect(state.seconds).toBe(IDLE.seconds);
+    expect(state.logo).toBeNull();
+    // And nothing it did send is lost on the way through.
+    expect(state.lines).toEqual(yesterday.lines);
+    expect(state.total).toBe(25);
+  });
+
+  it("survives a message carrying no state at all", () => {
+    expect(received(undefined)).toEqual(IDLE);
   });
 
   /**

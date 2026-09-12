@@ -203,6 +203,22 @@ export function useCustomerDisplayPublisher() {
   return { publish };
 }
 
+/**
+ * What arrived, filled out to a whole state.
+ *
+ * **The two windows are not updated at the same instant.** A till still running
+ * yesterday's code sends yesterday's shape, and the screen reading it reached
+ * for a field that was not there — `state.banners.length` threw, the render
+ * failed, and **the guest's bill disappeared with it** (found by the user, on a
+ * till not yet refreshed after `D-203`).
+ *
+ * So the channel's edge is where the shape is settled: anything missing takes
+ * its idle value, and the screen downstream can trust every field.
+ */
+export function received(state: Partial<DisplayState> | null | undefined): DisplayState {
+  return { ...IDLE, ...(state ?? {}) };
+}
+
 /** The customer screen's end: whatever the till last said. */
 export function useCustomerDisplayReceiver() {
   const state = ref<DisplayState>(IDLE);
@@ -210,7 +226,7 @@ export function useCustomerDisplayReceiver() {
 
   if (bus) {
     bus.onmessage = (event: MessageEvent<Message>) => {
-      if (event.data?.type === "state") state.value = event.data.state;
+      if (event.data?.type === "state") state.value = received(event.data.state);
     };
     bus.postMessage({ type: "hello" });
   }

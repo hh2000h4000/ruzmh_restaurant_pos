@@ -162,6 +162,28 @@ class TestWhatAThemeIsAllowedToLookLike(OrderTestBase):
 		self.assertEqual(frappe.db.get_value("RPOS Theme", first.name, "is_default"), 0)
 		self.assertEqual(frappe.db.get_value("RPOS Theme", second.name, "is_default"), 1)
 
+	def test_the_text_colour_is_chosen_when_it_is_left_empty(self):
+		"""`D-199` — a restaurant knows its brand colour, not its contrast ratio."""
+		theme = self._save(primary_contrast=None, secondary_contrast=None, text_color=None)
+
+		# White on the house green, black on the near-white ground.
+		self.assertEqual(theme.primary_contrast, theme_service.PAPER)
+		self.assertEqual(theme.text_color, theme_service.INK)
+
+	def test_a_pale_brand_colour_is_given_black_text(self):
+		theme = self._save(primary_color="#F4C542", primary_contrast=None)
+
+		self.assertEqual(theme.primary_contrast, theme_service.INK)
+
+	def test_the_colour_it_chooses_can_never_be_refused(self):
+		"""Including the hardest colour there is: a mid-tone, where both are close."""
+		for colour in ("#767676", "#808080", "#7A7A7A", "#1F4B43", "#F4C542", "#000000", "#FFFFFF"):
+			with self.subTest(colour=colour):
+				chosen = theme_service.readable_on(colour)
+				self.assertGreaterEqual(
+					theme_service.contrast(colour, chosen), theme_service.MINIMUM_CONTRAST
+				)
+
 	def test_the_refusal_says_the_real_ratio_and_names_both_colours(self):
 		"""The message the user was handed, and could do nothing with.
 

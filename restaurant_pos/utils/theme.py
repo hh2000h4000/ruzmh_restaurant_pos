@@ -95,6 +95,24 @@ def _usable(name: str | None) -> bool:
 	return bool(name) and bool(frappe.db.get_value("RPOS Theme", name, "is_active"))
 
 
+#: The two colours text is ever set in here. One of them always clears the
+#: minimum against any colour on earth: the hardest case is a mid-tone at 0.179
+#: luminance, where both land on 4.58:1 — above the 4.5 the screen needs.
+INK = "#000000"
+PAPER = "#FFFFFF"
+
+
+def readable_on(colour: str | None) -> str:
+	"""Black or white on `colour`, whichever a cashier reads more easily.
+
+	**A restaurant knows its brand colour; it does not know its contrast ratio**
+	(`D-199`). So the colour that has to be *read* on a brand colour is
+	arithmetic, not a question — asked of every "text on" field left empty, and
+	it can never produce a refusal.
+	"""
+	return INK if contrast(colour, INK) >= contrast(colour, PAPER) else PAPER
+
+
 def contrast(first: str | None, second: str | None) -> float:
 	"""The WCAG 2.1 contrast ratio between two hex colours, 1.0 to 21.0."""
 	light, dark = sorted((_luminance(first), _luminance(second)), reverse=True)

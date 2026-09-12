@@ -27,7 +27,21 @@ class RPOSTheme(Document):
 
 	def validate(self):
 		assert_public(self, ("brand_logo",))
+		self._choose_text_colours()
 		self._readable()
+
+	def _choose_text_colours(self) -> None:
+		"""Fill in the colour to be read on each brand colour, where none was set.
+
+		A restaurant knows its brand colour and not its contrast ratio, and the
+		first person to meet this form picked one and was refused with a number
+		(`D-199`). Black or white, whichever reads — and it always clears the
+		minimum, so the refusal below is left for a colour somebody insists on.
+		"""
+		for background, foreground in theme_service.PAIRS:
+			field = theme_service.FIELDS[foreground]
+			if not self.get(field):
+				self.set(field, theme_service.readable_on(self.get(theme_service.FIELDS[background])))
 
 	def _readable(self) -> None:
 		for background, foreground in theme_service.PAIRS:

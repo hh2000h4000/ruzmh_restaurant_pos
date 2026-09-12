@@ -46,6 +46,12 @@ RPOS Theme,ثيم نقاط البيع
 Default Theme,الثيم الافتراضي
 Text on Primary,النص على اللون الأساسي
 Text on Secondary,النص على اللون الثانوي
+Text colours (chosen for you),ألوان النص (تُختار لك)
+Preview,معاينة
+chosen for you,اختاره النظام
+yours,اخترته أنت
+Your restaurant's colours. The colour of the text on them is chosen for you.,ألوان مطعمك. ولون النص عليها يُختار لك.
+"Left empty, black or white is chosen for each — whichever a cashier reads on the colour beside it. Set one only if your brand insists, and it must still reach 4.5:1.","إن تُركت فارغة يُختار لكلٍّ أسود أو أبيض — أيّهما يقرؤه الكاشير على اللون المجاور. لا تضع لوناً إلا إذا كانت هويتك تفرضه، وعليه أن يبلغ ٤٫٥:١."
 Surface,البطاقات
 Brand Logo,شعار المطعم
 Brand,الهوية

@@ -16,12 +16,15 @@
   "is_active",
   "colours_section",
   "primary_color",
-  "primary_contrast",
   "secondary_color",
-  "secondary_contrast",
   "colours_cb",
-  "surface_color",
   "background_color",
+  "surface_color",
+  "preview_section",
+  "theme_preview",
+  "text_section",
+  "primary_contrast",
+  "secondary_contrast",
   "text_color",
   "brand_section",
   "brand_logo"
@@ -72,7 +75,7 @@
    "label": "Is Active"
   },
   {
-   "description": "Every pair below must reach 4.5:1 contrast, which a cashier needs to read the screen under restaurant lighting. Status colours are not themeable.",
+   "description": "Your restaurant's colours. The colour of the text on them is chosen for you.",
    "fieldname": "colours_section",
    "fieldtype": "Section Break",
    "label": "Colours"
@@ -86,14 +89,6 @@
    "reqd": 1
   },
   {
-   "default": "#F6F4F0",
-   "description": "Text and icons on primary.",
-   "fieldname": "primary_contrast",
-   "fieldtype": "Color",
-   "label": "Text on Primary",
-   "reqd": 1
-  },
-  {
    "default": "#2F6D61",
    "description": "Secondary actions and accents.",
    "fieldname": "secondary_color",
@@ -102,24 +97,8 @@
    "reqd": 1
   },
   {
-   "default": "#F6F4F0",
-   "description": "Text and icons on secondary.",
-   "fieldname": "secondary_contrast",
-   "fieldtype": "Color",
-   "label": "Text on Secondary",
-   "reqd": 1
-  },
-  {
    "fieldname": "colours_cb",
    "fieldtype": "Column Break"
-  },
-  {
-   "default": "#FFFFFF",
-   "description": "Cards and panels.",
-   "fieldname": "surface_color",
-   "fieldtype": "Color",
-   "label": "Surface",
-   "reqd": 1
   },
   {
    "default": "#F3F1ED",
@@ -130,12 +109,47 @@
    "reqd": 1
   },
   {
-   "default": "#14171A",
+   "default": "#FFFFFF",
+   "description": "Cards and panels.",
+   "fieldname": "surface_color",
+   "fieldtype": "Color",
+   "label": "Surface",
+   "reqd": 1
+  },
+  {
+   "fieldname": "preview_section",
+   "fieldtype": "Section Break",
+   "label": "Preview"
+  },
+  {
+   "fieldname": "theme_preview",
+   "fieldtype": "HTML",
+   "label": "Preview"
+  },
+  {
+   "collapsible": 1,
+   "description": "Left empty, black or white is chosen for each — whichever a cashier reads on the colour beside it. Set one only if your brand insists, and it must still reach 4.5:1.",
+   "fieldname": "text_section",
+   "fieldtype": "Section Break",
+   "label": "Text colours (chosen for you)"
+  },
+  {
+   "description": "Text and icons on primary.",
+   "fieldname": "primary_contrast",
+   "fieldtype": "Color",
+   "label": "Text on Primary"
+  },
+  {
+   "description": "Text and icons on secondary.",
+   "fieldname": "secondary_contrast",
+   "fieldtype": "Color",
+   "label": "Text on Secondary"
+  },
+  {
    "description": "Body text, read against the background.",
    "fieldname": "text_color",
    "fieldtype": "Color",
-   "label": "Text",
-   "reqd": 1
+   "label": "Text"
   },
   {
    "fieldname": "brand_section",
@@ -153,7 +167,7 @@
  "index_web_pages_for_search": 1,
  "istable": 0,
  "links": [],
- "modified": "2026-09-12 02:00:00.000000",
+ "modified": "2026-09-12 03:00:00.000000",
  "modified_by": "Administrator",
  "module": "Restaurant POS",
  "name": "RPOS Theme",

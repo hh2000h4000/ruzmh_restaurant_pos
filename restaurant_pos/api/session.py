@@ -23,12 +23,17 @@ Refs: 07 §2, 09 §3, FR-1.3, FR-3.5, FR-15.4, 04 §8
 import frappe
 import frappe.sessions
 from frappe import _
-from frappe.utils import flt, now_datetime
+from frappe.utils import cint, flt, now_datetime
 
 from restaurant_pos.utils import theme as theme_service
 from restaurant_pos.utils import totals as totals_service
 from restaurant_pos.utils.order import is_order_type_allowed
 from restaurant_pos.utils.permissions import get_pos_permission_set, validate_branch_access
+
+#: How long each banner holds the customer's screen when nobody has said
+#: otherwise (`D-203`): long enough to read a line, short enough that a queue
+#: does not see the same picture the whole time it waits.
+DEFAULT_BANNER_SECONDS = 8
 
 #: The design tokens the Vue app renders with (FR-15.4), resolved per terminal
 #: from its `RPOS Theme` (`utils/theme.py`, D-198). The house look is the
@@ -202,9 +207,10 @@ def load_pos_session(pos_profile: str) -> dict:
 		"quick_notes": _quick_notes(),
 		"permissions": get_pos_permission_set(),
 		"theme": theme_service.tokens(profile),
-		# `FR-13.1` — what the screen facing the room shows while it waits. The
-		# logo travels in `theme`; this is the restaurant's own sentence (`D-202`).
-		"customer_display": {"message": _setting("idle_message")},
+		# `FR-13.1` — what the screen facing the room shows. The logo travels in
+		# `theme`; the sentence and the banners are the restaurant's own
+		# (`D-202`, `D-203`).
+		"customer_display": _customer_display(),
 		"lang": _lang(),
 		# The header names the cashier on duty, and the home screen tells their
 		# own orders from the rest of the floor.
@@ -567,6 +573,25 @@ def _item_groups() -> list[dict]:
 	for row in groups:
 		row.image = row.image or picture
 	return groups
+
+
+def _customer_display() -> dict:
+	"""What the screen facing the room shows (`FR-13.1`, `D-203`).
+
+	Shipped with the menu because that window loads no session of its own — the
+	till reads this and hands it across (`D-162`, `D-202`). So the banners keep
+	turning through an outage, as long as the pictures themselves are in the
+	browser's cache.
+
+	A banner switched off stays in the list a manager reads and out of the one
+	the guest sees: a seasonal offer comes back, and deleting it loses the file.
+	"""
+	settings = frappe.get_cached_doc("Restaurant POS Settings")
+	return {
+		"message": settings.idle_message or None,
+		"seconds": cint(settings.banner_seconds) or DEFAULT_BANNER_SECONDS,
+		"banners": [row.image for row in settings.banners if row.is_active and row.image],
+	}
 
 
 def _setting(field: str) -> str | None:

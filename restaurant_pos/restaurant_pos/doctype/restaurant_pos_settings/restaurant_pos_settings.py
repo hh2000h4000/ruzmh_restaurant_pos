@@ -16,9 +16,14 @@ class RestaurantPOSSettings(Document):
 	menu, the floor and the terminals there (`FR-16.2`), and so do Foodics,
 	Square and Toast — a back office behind the till, not settings on it.
 
-	It starts with the pictures a group or a dish shows when it has none of its
-	own; the till reads them in `api/session.py`.
+	It holds the pictures a group or a dish shows when it has none of its own,
+	and what the screen facing the room shows: a sentence and the banners
+	(`D-202`, `D-203`). The till reads all of it in `api/session.py`.
 	"""
 
 	def validate(self):
 		assert_public(self, PICTURES)
+		# A banner is shown to a guest, so a private file would leave the room
+		# looking at a broken picture — the same rule, on every row.
+		for banner in self.banners:
+			assert_public(banner, ("image",))

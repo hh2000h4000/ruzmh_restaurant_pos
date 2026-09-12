@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from "vue";
 
+import DisplayBanner from "@/components/display/DisplayBanner.vue";
 import { useCustomerDisplayReceiver } from "@/composables/useCustomerDisplay";
 import { formatNumber, t, timeOnly } from "@/i18n";
 
@@ -62,9 +63,21 @@ const money = (value: number) => formatNumber(value, 2);
          guest is ordering at it, so it is quiet on purpose. -->
     <section
       v-if="state.mode === 'idle'"
-      class="grid place-items-center p-10 text-center"
+      class="grid min-h-0 grid-rows-[minmax(0,1fr)_auto]"
     >
-      <div>
+      <!-- What a restaurant's marketing actually looks like: a designed banner,
+           and usually more than one (`D-203`). When there are none, the quiet
+           block below is the whole screen. -->
+      <DisplayBanner
+        v-if="state.banners.length"
+        :banners="state.banners"
+        :seconds="state.seconds"
+      />
+
+      <div
+        v-else
+        class="grid place-items-center p-10 text-center"
+      >
         <!-- The restaurant's own logo, when it has set one. `alt` is the name,
              so a picture that fails to load leaves the name rather than a
              broken icon in front of the room. -->
@@ -95,6 +108,27 @@ const money = (value: number) => formatNumber(value, 2);
           {{ state.message }}
         </p>
       </div>
+
+      <!-- With banners filling the screen, the name, the sentence and the clock
+           step out of their way onto a strip rather than competing with them. -->
+      <div
+        v-if="state.banners.length"
+        class="flex items-baseline justify-between gap-8 border-t border-line px-10 py-6"
+      >
+        <p class="shrink-0 text-[28px] font-medium text-primary">
+          {{ house }}
+        </p>
+        <p
+          v-if="state.message"
+          data-display-message
+          class="truncate text-[22px] text-subtle"
+        >
+          {{ state.message }}
+        </p>
+        <p class="rpos-numeric shrink-0 text-[28px] text-subtle">
+          {{ clock }}
+        </p>
+      </div>
     </section>
 
     <!-- Paid. The research and `FR-2.10` agree on what a guest wants next: the
@@ -121,105 +155,120 @@ const money = (value: number) => formatNumber(value, 2);
       </div>
     </section>
 
-    <!-- The bill being built. -->
+    <!-- The bill being built, and the banner beside it (`D-203`).
+         **The banner comes first so the direction places it**: in Arabic the
+         start is the right, which puts the two-thirds there and the bill on the
+         left, as asked. In English it mirrors, which is the same intent.
+         **And on a screen too small for both, the bill has it alone** — the
+         guest's own money outranks the marketing. -->
     <section
       v-else
-      class="grid min-h-0 grid-rows-[auto_minmax(0,1fr)_auto] gap-6 p-8"
+      class="grid min-h-0 lg:grid-cols-[2fr_minmax(0,1fr)]"
     >
-      <header class="flex items-baseline justify-between">
-        <p class="text-[28px] font-medium text-primary">
-          {{ house }}
-        </p>
-        <p class="rpos-numeric text-[22px] text-subtle">
-          {{ clock }}
-        </p>
-      </header>
+      <DisplayBanner
+        v-if="state.banners.length"
+        data-banner-pane
+        class="border-e border-line max-lg:hidden"
+        :banners="state.banners"
+        :seconds="state.seconds"
+      />
 
-      <!-- `D-074` — a bill with nothing on it yet says so rather than showing a
+      <div class="grid min-h-0 grid-rows-[auto_minmax(0,1fr)_auto] gap-6 p-8">
+        <header class="flex items-baseline justify-between">
+          <p class="text-[28px] font-medium text-primary">
+            {{ house }}
+          </p>
+          <p class="rpos-numeric text-[22px] text-subtle">
+            {{ clock }}
+          </p>
+        </header>
+
+        <!-- `D-074` — a bill with nothing on it yet says so rather than showing a
            blank panel the guest reads as a broken screen. -->
-      <p
-        v-if="!lines.length"
-        class="grid place-items-center text-[24px] text-subtle"
-      >
-        {{ t("display.empty") }}
-      </p>
-
-      <ul
-        v-else
-        class="min-h-0 space-y-3 overflow-y-auto"
-      >
-        <li
-          v-for="(line, index) in lines"
-          :key="index"
-          class="flex items-start justify-between gap-6 border-b border-line pb-3"
+        <p
+          v-if="!lines.length"
+          class="grid place-items-center text-[24px] text-subtle"
         >
-          <div class="flex min-w-0 items-baseline gap-4">
-            <span class="rpos-numeric shrink-0 text-[26px] font-medium text-primary">
-              {{ formatNumber(line.qty) }}×
-            </span>
-            <div class="min-w-0">
-              <p class="text-[26px]">
-                {{ line.name }}
-              </p>
-              <!-- Option by option: the research is explicit that this is where
+          {{ t("display.empty") }}
+        </p>
+
+        <ul
+          v-else
+          class="min-h-0 space-y-3 overflow-y-auto"
+        >
+          <li
+            v-for="(line, index) in lines"
+            :key="index"
+            class="flex items-start justify-between gap-6 border-b border-line pb-3"
+          >
+            <div class="flex min-w-0 items-baseline gap-4">
+              <span class="rpos-numeric shrink-0 text-[26px] font-medium text-primary">
+                {{ formatNumber(line.qty) }}×
+              </span>
+              <div class="min-w-0">
+                <p class="text-[26px]">
+                  {{ line.name }}
+                </p>
+                <!-- Option by option: the research is explicit that this is where
                    a guest catches "I said no onion". -->
-              <p
-                v-if="line.options.length"
-                class="mt-1 text-[18px] text-subtle"
-              >
-                {{ line.options.join(t("common.listSeparator")) }}
-              </p>
+                <p
+                  v-if="line.options.length"
+                  class="mt-1 text-[18px] text-subtle"
+                >
+                  {{ line.options.join(t("common.listSeparator")) }}
+                </p>
+              </div>
             </div>
-          </div>
 
-          <span class="rpos-numeric shrink-0 text-[26px]">{{ money(line.amount) }}</span>
-        </li>
-      </ul>
+            <span class="rpos-numeric shrink-0 text-[26px]">{{ money(line.amount) }}</span>
+          </li>
+        </ul>
 
-      <!-- **Three figures that add up.** The till's own panel shows the
+        <!-- **Three figures that add up.** The till's own panel shows the
            inclusive subtotal, which is right for somebody who knows the system;
            a guest reading `60.00 + 7.83 = 60.00` reads a mistake. The amount
            before tax is derived instead, so the column sums on the screen
            whichever way the branch charges tax (`D-091`, `D-162`). -->
-      <footer class="space-y-2 border-t-2 border-primary/30 pt-4 text-[22px]">
-        <!-- The offer is named. A guest who came in for it is looking for it
+        <footer class="space-y-2 border-t-2 border-primary/30 pt-4 text-[22px]">
+          <!-- The offer is named. A guest who came in for it is looking for it
              here, and "discount" does not tell them it was honoured (`D-163`). -->
-        <div
-          v-if="state.promotion"
-          class="flex justify-between gap-4 text-status-available"
-        >
-          <span class="truncate">{{ state.promotion.title }}</span>
-          <span class="rpos-numeric shrink-0">−{{ money(state.promotion.amount) }}</span>
-        </div>
-        <!-- Their own points, named as theirs — the one line on this screen
+          <div
+            v-if="state.promotion"
+            class="flex justify-between gap-4 text-status-available"
+          >
+            <span class="truncate">{{ state.promotion.title }}</span>
+            <span class="rpos-numeric shrink-0">−{{ money(state.promotion.amount) }}</span>
+          </div>
+          <!-- Their own points, named as theirs — the one line on this screen
              the guest paid for with something other than money (`D-189`). -->
-        <div
-          v-if="state.loyalty"
-          class="flex justify-between gap-4 text-status-available"
-        >
-          <span>{{ t("totals.loyalty") }}</span>
-          <span class="rpos-numeric shrink-0">−{{ money(state.loyalty.amount) }}</span>
-        </div>
-        <div
-          v-if="state.discount"
-          class="flex justify-between text-subtle"
-        >
-          <span>{{ t("totals.discount") }}</span>
-          <span class="rpos-numeric">−{{ money(state.discount) }}</span>
-        </div>
-        <div class="flex justify-between text-subtle">
-          <span>{{ t("display.beforeTax") }}</span>
-          <span class="rpos-numeric">{{ money(state.beforeTax) }}</span>
-        </div>
-        <div class="flex justify-between text-subtle">
-          <span>{{ t("totals.tax") }}</span>
-          <span class="rpos-numeric">{{ money(state.tax) }}</span>
-        </div>
-        <div class="flex justify-between pt-2 text-[38px] font-medium text-primary">
-          <span>{{ t("totals.total") }}</span>
-          <span class="rpos-numeric">{{ money(state.total) }}</span>
-        </div>
-      </footer>
+          <div
+            v-if="state.loyalty"
+            class="flex justify-between gap-4 text-status-available"
+          >
+            <span>{{ t("totals.loyalty") }}</span>
+            <span class="rpos-numeric shrink-0">−{{ money(state.loyalty.amount) }}</span>
+          </div>
+          <div
+            v-if="state.discount"
+            class="flex justify-between text-subtle"
+          >
+            <span>{{ t("totals.discount") }}</span>
+            <span class="rpos-numeric">−{{ money(state.discount) }}</span>
+          </div>
+          <div class="flex justify-between text-subtle">
+            <span>{{ t("display.beforeTax") }}</span>
+            <span class="rpos-numeric">{{ money(state.beforeTax) }}</span>
+          </div>
+          <div class="flex justify-between text-subtle">
+            <span>{{ t("totals.tax") }}</span>
+            <span class="rpos-numeric">{{ money(state.tax) }}</span>
+          </div>
+          <div class="flex justify-between pt-2 text-[38px] font-medium text-primary">
+            <span>{{ t("totals.total") }}</span>
+            <span class="rpos-numeric">{{ money(state.total) }}</span>
+          </div>
+        </footer>
+      </div>
     </section>
   </main>
 </template>

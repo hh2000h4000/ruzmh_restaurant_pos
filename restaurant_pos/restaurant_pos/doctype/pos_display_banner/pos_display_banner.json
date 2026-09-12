@@ -1,0 +1,52 @@
+{
+ "actions": [],
+ "creation": "2026-09-12 05:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "image",
+  "title",
+  "is_active"
+ ],
+ "fields": [
+  {
+   "columns": 6,
+   "description": "A designed banner: the offer, its picture and its words, as one image. Uploads public, because the screen facing the room shows it to a guest.",
+   "fieldname": "image",
+   "fieldtype": "Attach Image",
+   "in_list_view": 1,
+   "label": "Banner",
+   "make_attachment_public": 1,
+   "reqd": 1
+  },
+  {
+   "columns": 3,
+   "description": "For you, not for the guest: which banner this row is.",
+   "fieldname": "title",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Name"
+  },
+  {
+   "default": "1",
+   "fieldname": "is_active",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Is Active"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "istable": 1,
+ "links": [],
+ "modified": "2026-09-12 05:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Restaurant POS",
+ "name": "POS Display Banner",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

@@ -251,6 +251,42 @@ class TestLoadPosSession(OrderTestBase):
 
 		self.assertIsNone(self._load()["customer_display"]["message"])
 
+	def _banners(self, *rows: tuple[str, int]) -> None:
+		"""Put these banners on the settings page, and take them off afterwards."""
+		settings = frappe.get_single("Restaurant POS Settings")
+		settings.banners = []
+		for image, active in rows:
+			settings.append("banners", {"image": image, "is_active": active})
+		settings.save(ignore_permissions=True)
+
+		def clear() -> None:
+			doc = frappe.get_single("Restaurant POS Settings")
+			doc.banners = []
+			doc.save(ignore_permissions=True)
+
+		self.addCleanup(clear)
+
+	def test_the_banners_travel_in_the_managers_order(self):
+		"""`D-203` — a marketing banner is a designed image, and usually several."""
+		self._banners(("/files/offer-1.png", 1), ("/files/offer-2.png", 1))
+
+		self.assertEqual(
+			self._load()["customer_display"]["banners"],
+			["/files/offer-1.png", "/files/offer-2.png"],
+		)
+
+	def test_a_banner_switched_off_stays_off_the_guests_screen(self):
+		"""And stays on the page: a seasonal offer comes back, and deleting loses the file."""
+		self._banners(("/files/offer-1.png", 0), ("/files/offer-2.png", 1))
+
+		self.assertEqual(self._load()["customer_display"]["banners"], ["/files/offer-2.png"])
+
+	def test_the_seconds_fall_back_to_the_house_figure(self):
+		"""Zero from the desk is "not set", not "change every instant"."""
+		self._default("banner_seconds", 0)
+
+		self.assertEqual(self._load()["customer_display"]["seconds"], session.DEFAULT_BANNER_SECONDS)
+
 	def test_the_open_shift_is_reported(self):
 		payload = self._load()
 		self.assertIsNotNone(payload["active_shift"])
@@ -355,6 +391,14 @@ class TestTheSettingsPage(FrappeTestCase):
 		"""A cashier may not fetch a private file; the tile would draw a broken picture."""
 		settings = frappe.get_single("Restaurant POS Settings")
 		settings.default_item_image = "/private/files/rpos-test-dish.png"
+
+		with self.assertRaises(frappe.ValidationError):
+			settings.save(ignore_permissions=True)
+
+	def test_a_private_banner_is_refused_too(self):
+		"""The guest sees it, so the same rule applies on every row (`D-203`)."""
+		settings = frappe.get_single("Restaurant POS Settings")
+		settings.append("banners", {"image": "/private/files/rpos-offer.png"})
 
 		with self.assertRaises(frappe.ValidationError):
 			settings.save(ignore_permissions=True)

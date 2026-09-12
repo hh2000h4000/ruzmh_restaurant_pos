@@ -68,9 +68,13 @@ export interface Brand {
   logo: string | null;
   /** The sentence a manager wrote for the waiting screen (`FR-13.1`). */
   message: string;
+  /** Designed banners, turning (`D-203`). Empty when the restaurant has none. */
+  banners: string[];
+  /** How long each banner holds the screen, in seconds. */
+  seconds: number;
 }
 
-export const NO_BRAND: Brand = { house: "", logo: null, message: "" };
+export const NO_BRAND: Brand = { house: "", logo: null, message: "", banners: [], seconds: 8 };
 
 export interface DisplayState extends Brand {
   mode: DisplayMode;

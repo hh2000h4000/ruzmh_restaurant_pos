@@ -9,7 +9,9 @@
   "menu_pictures_cb",
   "default_item_image",
   "display_section",
-  "idle_message"
+  "idle_message",
+  "banner_seconds",
+  "banners"
  ],
  "fields": [
   {
@@ -47,12 +49,26 @@
    "fieldname": "idle_message",
    "fieldtype": "Small Text",
    "label": "Message while waiting"
+  },
+  {
+   "default": "8",
+   "description": "How long each banner stays before the next one. Eight seconds is long enough to read a line and short enough to hold a queue's attention.",
+   "fieldname": "banner_seconds",
+   "fieldtype": "Int",
+   "label": "Seconds per banner"
+  },
+  {
+   "description": "Designed images, shown in this order and then round again. While an order is on the screen they take the larger side of it, and on a small screen the order has it alone.",
+   "fieldname": "banners",
+   "fieldtype": "Table",
+   "label": "Banners",
+   "options": "POS Display Banner"
   }
  ],
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2026-09-12 04:00:00.000000",
+ "modified": "2026-09-12 05:00:00.000000",
  "modified_by": "Administrator",
  "module": "Restaurant POS",
  "name": "Restaurant POS Settings",

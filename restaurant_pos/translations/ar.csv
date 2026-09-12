@@ -90,6 +90,13 @@ Too close to read. It needs {0}:1.,اللونان متقاربان ولا يُق
 Menu pictures,صور القائمة
 Customer display,شاشة العميل
 Message while waiting,الرسالة أثناء الانتظار
+Banners,البنرات الإعلانية
+Banner,بنر
+Seconds per banner,ثواني كل بنر
+"How long each banner stays before the next one. Eight seconds is long enough to read a line and short enough to hold a queue's attention.",كم يبقى كل بنر قبل الذي يليه. ثماني ثوانٍ تكفي لقراءة سطر ولا تُملّ المنتظرين.
+"Designed images, shown in this order and then round again. While an order is on the screen they take the larger side of it, and on a small screen the order has it alone.",صورٌ مصمَّمة تُعرض بهذا الترتيب ثم تعود من أوّلها. وأثناء الطلب تأخذ الجزء الأكبر من الشاشة، وعلى الشاشة الصغيرة يبقى الطلب وحده.
+"A designed banner: the offer, its picture and its words, as one image. Uploads public, because the screen facing the room shows it to a guest.",بنر مصمَّم: العرض وصورته وكلماته في صورة واحدة. يُرفع عاماً لأن الشاشة تعرضه للضيوف.
+"For you, not for the guest: which banner this row is.",لك أنت لا للضيف: ما هذا البنر.
 "Your own words, in your own language — an offer, the wifi password, opening hours. Left empty, the screen shows the name, the clock and a welcome.","بكلماتك ولغتك — عرضٌ، أو كلمة شبكة الواي فاي، أو أوقات العمل. إن تُركت فارغة تعرض الشاشة الاسم والساعة وترحيباً."
 "Shown on the customer's screen while no order is on it, under the restaurant's name and the clock.",تظهر على شاشة العميل حين لا يكون عليها طلب، تحت اسم المطعم والساعة.
 "Left empty, the till draws its own icon.",إن تُركت فارغة يرسم الكاشير أيقونته.

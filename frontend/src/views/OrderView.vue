@@ -35,6 +35,7 @@ import OrderBottomNav, { type NavEntry } from "@/components/order/OrderBottomNav
 import OpenOrdersPanel from "@/components/pos/OpenOrdersPanel.vue";
 import {
   IDLE,
+  NO_BRAND,
   toDisplayState,
   useCustomerDisplayPublisher,
   type Brand,
@@ -113,6 +114,8 @@ function house(): Brand {
     // through an outage like it keeps the menu (`D-202`).
     logo: session.data?.theme?.brand_logo ?? null,
     message: session.data?.customer_display?.message ?? "",
+    banners: session.data?.customer_display?.banners ?? [],
+    seconds: session.data?.customer_display?.seconds ?? NO_BRAND.seconds,
   };
 }
 

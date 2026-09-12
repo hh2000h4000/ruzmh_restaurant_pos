@@ -265,7 +265,13 @@ export interface PosSession {
    * Shipped with everything else because that window loads no session of its
    * own: the till reads it here and sends it across (`useCustomerDisplay`).
    */
-  customer_display: { message: string | null };
+  customer_display: {
+    message: string | null;
+    /** Designed images, in the manager's order; the inactive ones are gone. */
+    banners: string[];
+    /** How long each banner holds the screen. */
+    seconds: number;
+  };
   /** The signed-in user's ERPNext language, narrowed to what the app ships. */
   lang: "ar" | "en";
   /** Who is on this till: the login, and the name to show. */

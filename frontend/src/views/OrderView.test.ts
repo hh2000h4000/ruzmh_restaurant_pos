@@ -224,7 +224,11 @@ describe("what the till tells the customer's screen", () => {
       ...session.data,
       branch: { branch: "فرع الزيتون" },
       theme: { brand_logo: "/files/logo.png" },
-      customer_display: { message: "وجبة الغداء ٤٩ ريالاً" },
+      customer_display: {
+        message: "وجبة الغداء ٤٩ ريالاً",
+        banners: ["/files/offer-1.png"],
+        seconds: 12,
+      },
     } as never;
     published.length = 0;
 
@@ -235,6 +239,8 @@ describe("what the till tells the customer's screen", () => {
       house: "فرع الزيتون",
       logo: "/files/logo.png",
       message: "وجبة الغداء ٤٩ ريالاً",
+      banners: ["/files/offer-1.png"],
+      seconds: 12,
     });
   });
 
@@ -244,7 +250,7 @@ describe("what the till tells the customer's screen", () => {
 
     await open();
 
-    expect(published.at(-1)).toMatchObject({ logo: null, message: "" });
+    expect(published.at(-1)).toMatchObject({ logo: null, message: "", banners: [] });
   });
 });
 

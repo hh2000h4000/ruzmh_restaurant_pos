@@ -12,12 +12,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { OrderDetail, OrderLine } from "@/api/order";
+import { isReactive, reactive } from "vue";
+
 import {
   HELLO_EVERY_MS,
   IDLE,
   linkUp,
   NO_BRAND,
   received,
+  sendable,
   toDisplayState,
 } from "@/composables/useCustomerDisplay";
 
@@ -100,6 +103,35 @@ describe("what the guest's screen is given", () => {
 
   it("survives a message carrying no state at all", () => {
     expect(received(undefined)).toEqual(IDLE);
+  });
+});
+
+/**
+ * **The browser will not clone a `Proxy`**, and anything from a store is one.
+ *
+ * The bill's fields were built fresh every time and crossed fine, until the
+ * banners began travelling straight out of the session store: from then on
+ * every `postMessage` threw and the guest's screen received *nothing* — no
+ * banners, no bill, not even the restaurant's name. The user found it; a state
+ * posted by hand on the same channel arrived, which is what proved the channel
+ * innocent.
+ */
+describe("what is safe to hand to another window", () => {
+  it("sends a plain copy of a state held in a store", () => {
+    const live = reactive({ ...IDLE, house: "فرع الزيتون", banners: ["/files/a.png"] });
+
+    const copy = sendable(live);
+
+    expect(isReactive(copy)).toBe(false);
+    expect(isReactive(copy.banners)).toBe(false);
+    expect(copy).toEqual({ ...IDLE, house: "فرع الزيتون", banners: ["/files/a.png"] });
+  });
+
+  it("hands over everything a structured clone would carry", () => {
+    const state = toDisplayState(bill(), [line()], { ...NO_BRAND, banners: ["/files/a.png"] });
+
+    expect(() => structuredClone(sendable(state))).not.toThrow();
+    expect(sendable(state)).toEqual(state);
   });
 });
 

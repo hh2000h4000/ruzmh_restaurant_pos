@@ -179,6 +179,25 @@ export function toDisplayState(
   };
 }
 
+/**
+ * A plain copy of the state, safe to hand to another window.
+ *
+ * **The browser refuses to clone a `Proxy`**, and everything held in a store is
+ * one. The bill's own fields were built fresh each time and cloned fine — until
+ * `banners` began travelling straight out of the session store (`D-203`), and
+ * from that moment **every** `postMessage` threw: the guest's screen received
+ * nothing at all, not the banners, not the bill, not even the restaurant's
+ * name. Found with the user, by posting a plain state by hand on the same
+ * channel and watching it arrive.
+ *
+ * Done here, at the one place everything leaves by, rather than asking each
+ * caller to remember what a reactive value is (`CLAUDE.md` §5.5). The payload
+ * is one bill, so the copy costs nothing worth measuring.
+ */
+export function sendable(state: DisplayState): DisplayState {
+  return JSON.parse(JSON.stringify(state)) as DisplayState;
+}
+
 /** The till's end: push what the customer should be seeing. */
 export function useCustomerDisplayPublisher() {
   const bus = channel();
@@ -194,8 +213,8 @@ export function useCustomerDisplayPublisher() {
   }
 
   function publish(state: DisplayState): void {
-    latest = state;
-    bus?.postMessage({ type: "state", state });
+    latest = sendable(state);
+    bus?.postMessage({ type: "state", state: latest });
   }
 
   onUnmounted(() => bus?.close());

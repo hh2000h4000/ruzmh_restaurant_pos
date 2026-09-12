@@ -13,6 +13,7 @@
 
 const INK = "#000000";
 const PAPER = "#FFFFFF";
+const MINIMUM = 4.5;
 
 function channels(colour) {
 	let value = String(colour || "").trim().replace(/^#/, "");
@@ -44,15 +45,28 @@ function readableOn(colour) {
 	return contrast(colour, INK) >= contrast(colour, PAPER) ? INK : PAPER;
 }
 
-function block(base, text, label, chosen) {
+function block(base, text, label, chosen, field) {
 	const ratio = contrast(base, text);
 	const note = chosen ? __("chosen for you") : __("yours");
+
+	// A pair that fails says so here, and carries the button that fixes it:
+	// clearing the field hands the choice back to the arithmetic (`D-200`).
+	const fix = ratio >= MINIMUM
+		? ""
+		: `<div style="margin-top:10px">
+				<div style="font-size:13px">${__("Too close to read. It needs {0}:1.", [MINIMUM])}</div>
+				<button class="btn btn-xs btn-default" style="margin-top:6px" data-choose="${field}">
+					${__("Choose for me")}
+				</button>
+			</div>`;
+
 	return `
-		<div style="flex:1 1 200px;min-width:200px;border-radius:12px;padding:16px;background:${base};color:${text}">
+		<div style="flex:1 1 220px;min-width:220px;border-radius:12px;padding:16px;background:${base};color:${text}">
 			<div style="font-size:15px;font-weight:600">${frappe.utils.escape_html(label)}</div>
 			<div style="font-size:13px;opacity:0.85;margin-top:6px">
 				${ratio.toFixed(2)}:1 &middot; ${text} &middot; ${note}
 			</div>
+			${fix}
 		</div>`;
 }
 
@@ -70,15 +84,22 @@ function preview(frm) {
 
 			const chosen = !frm.doc[textField];
 			const text = chosen ? readableOn(base) : frm.doc[textField];
-			return block(base, text, __(frm.fields_dict[textField].df.label), chosen);
+			return block(base, text, __(frm.fields_dict[textField].df.label), chosen, textField);
 		})
 		.join("");
 
 	const surface = channels(frm.doc.surface_color) ? frm.doc.surface_color : PAPER;
-	frm.get_field("theme_preview").$wrapper.html(`
+	const wrapper = frm.get_field("theme_preview").$wrapper;
+	wrapper.html(`
 		<div style="display:flex;flex-wrap:wrap;gap:12px;padding:16px;border-radius:16px;background:${surface}">
 			${blocks}
 		</div>`);
+
+	// Emptying the field is what makes the server choose, so that is what the
+	// button does — no second rule in the browser about which colour wins.
+	wrapper.find("[data-choose]").on("click", (event) => {
+		frm.set_value($(event.currentTarget).attr("data-choose"), null);
+	});
 }
 
 frappe.ui.form.on("RPOS Theme", {

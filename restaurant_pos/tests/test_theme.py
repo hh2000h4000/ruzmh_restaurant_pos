@@ -201,6 +201,20 @@ class TestWhatAThemeIsAllowedToLookLike(OrderTestBase):
 		self.assertIn("Text on Primary", message)
 		self.assertNotIn("On Primary on Primary", message)
 
+	def test_the_refusal_hands_over_the_colour_that_works(self):
+		"""`D-200` — "choose a darker or a lighter colour" left the user guessing.
+
+		The colour that reads is already known here, so the refusal names it and
+		says how to get it: empty the field.
+		"""
+		with self.assertRaises(frappe.ValidationError) as refusal:
+			self._save(primary_color="#4463F0", primary_contrast="#000000")
+
+		message = str(refusal.exception)
+		self.assertIn("4.29", message)  # what the user had
+		self.assertIn(theme_service.PAPER, message)  # what works on that blue
+		self.assertIn("4.90", message)  # and what it scores
+
 	def test_a_private_logo_is_refused(self):
 		"""A cashier may not fetch it, so every terminal would show a broken logo."""
 		with self.assertRaises(frappe.ValidationError):

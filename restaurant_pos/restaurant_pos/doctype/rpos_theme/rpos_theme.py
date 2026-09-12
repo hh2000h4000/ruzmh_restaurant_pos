@@ -48,18 +48,24 @@ class RPOSTheme(Document):
 			back, fore = theme_service.FIELDS[background], theme_service.FIELDS[foreground]
 			ratio = theme_service.contrast(self.get(back), self.get(fore))
 			if ratio < theme_service.MINIMUM_CONTRAST:
+				# **The refusal carries the way out.** "Choose a darker or a lighter
+				# colour" left the user picking again by guesswork; the colour that
+				# works is already known here, so the message hands it over (`D-200`).
+				works = theme_service.readable_on(self.get(back))
 				frappe.throw(
 					# Two decimals, because one rounds 4.48 up to the very minimum it
 					# is being refused for — "4.5:1, and you need 4.5:1", which the
 					# user was handed and could do nothing with.
 					_(
 						"{0} against {1} is only {2}:1, and a cashier needs {3}:1 to read it under "
-						"restaurant lighting. Choose a darker or a lighter colour."
+						"restaurant lighting. Clear the field and {4} is chosen for you ({5}:1)."
 					).format(
 						_(self.meta.get_label(fore)),
 						_(self.meta.get_label(back)),
 						f"{ratio:.2f}",
 						f"{theme_service.MINIMUM_CONTRAST:g}",
+						works,
+						f"{theme_service.contrast(self.get(back), works):.2f}",
 					)
 				)
 

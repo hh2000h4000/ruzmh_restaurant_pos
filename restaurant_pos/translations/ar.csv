@@ -58,7 +58,9 @@ Brand,الهوية
 Colours,الألوان
 Appearance,المظهر
 Theme,الثيم
-"{0} against {1} is only {2}:1, and a cashier needs {3}:1 to read it under restaurant lighting. Choose a darker or a lighter colour.","«{0}» على «{1}» تباينهما {2}:1 فقط، والكاشير يحتاج {3}:1 ليقرأه تحت إضاءة المطعم. اختر لوناً أغمق أو أفتح."
+"{0} against {1} is only {2}:1, and a cashier needs {3}:1 to read it under restaurant lighting. Clear the field and {4} is chosen for you ({5}:1).","«{0}» على «{1}» تباينهما {2}:1 فقط، والكاشير يحتاج {3}:1 ليقرأه تحت إضاءة المطعم. فرّغ الحقل ليُختار لك {4} ({5}:1)."
+Choose for me,اختر لي
+Too close to read. It needs {0}:1.,اللونان متقاربان ولا يُقرآن. المطلوب {0}:1.
 {0} is not a colour.,{0} ليس لوناً.
 Menu pictures,صور القائمة
 "Left empty, the till draws its own icon.",إن تُركت فارغة يرسم الكاشير أيقونته.

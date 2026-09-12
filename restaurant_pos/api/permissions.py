@@ -136,114 +136,12 @@ def validate_manager_override(
 	}
 
 
-@frappe.whitelist()
-def list_permission_sets() -> list[dict]:
-	"""Every role's permission set, for the management screen (FR-12.4)."""
-	perms.assert_permission("can_access_reports")
-
-	booleans, ceilings = perms.permission_fields()
-	rows = []
-	for role in perms.ROLE_RANK:
-		if not frappe.db.exists("POS Permission Set", role):
-			continue
-
-		values = frappe.db.get_value("POS Permission Set", role, booleans + ceilings, as_dict=True)
-		rows.append(
-			{
-				"role": role,
-				"rank": perms.ROLE_RANK[role],
-				"editable": perms.ROLE_RANK[role] < perms.user_rank(),
-				"permissions": values,
-			}
-		)
-
-	return rows
-
-
-@frappe.whitelist()
-def update_permission_set(role: str, values: dict | str, branch: str, pos_profile: str) -> dict:
-	"""Apply an edit to a role's permission set (FR-12.4, FR-12.6, FR-12.7)."""
-	values = frappe.parse_json(values) if isinstance(values, str) else values
-	perms.validate_branch_access(branch)
-
-	changes = perms.assert_may_edit_permission_set(role, values)
-	if not changes:
-		return {"changed": {}}
-
-	doc = frappe.get_doc("POS Permission Set", role)
-	for field, delta in changes.items():
-		doc.set(field, delta["after"])
-	doc.save(ignore_permissions=True)
-
-	log_permission_change(target=role, changes=changes, branch=branch, pos_profile=pos_profile)
-
-	return {"changed": changes}
-
-
-@frappe.whitelist()
-def list_pin_holders() -> list[dict]:
-	"""Users who can approve overrides, and whether each has a PIN (FR-12.8).
-
-	Reports only *whether* a PIN exists. The value itself is never readable.
-	"""
-	perms.assert_permission("can_access_reports")
-
-	holders = set(pins.pin_holders())
-	rows = []
-	for user in frappe.get_all("User", filters={"enabled": 1}, pluck="name"):
-		roles = perms.user_rpos_roles(user)
-		if not roles:
-			continue
-
-		rows.append(
-			{
-				"user": user,
-				"roles": roles,
-				"has_pin": user in holders,
-				"editable": perms.user_rank(user) < perms.user_rank() or user == frappe.session.user,
-			}
-		)
-
-	return rows
-
-
-@frappe.whitelist()
-def set_manager_pin(user: str, pin: str, branch: str, pos_profile: str) -> dict:
-	"""Set or replace a user's manager PIN (FR-12.8). Write-only.
-
-	The PIN is never returned, never rendered, never logged — the audit entry
-	records only that it changed, and for whom.
-	"""
-	perms.validate_branch_access(branch)
-	perms.assert_may_manage_pin_of(user)
-
-	pins.set_pin(user, pin)
-
-	log_permission_change(
-		target=user,
-		changes={"pos_manager_pin": {"before": "***", "after": "***"}},
-		branch=branch,
-		pos_profile=pos_profile,
-		reason="PIN changed",
-	)
-
-	return {"success": True}
-
-
-@frappe.whitelist()
-def clear_manager_pin(user: str, branch: str, pos_profile: str) -> dict:
-	"""Remove a user's PIN, revoking their ability to approve overrides."""
-	perms.validate_branch_access(branch)
-	perms.assert_may_manage_pin_of(user)
-
-	pins.clear_pin(user)
-
-	log_permission_change(
-		target=user,
-		changes={"pos_manager_pin": {"before": "***", "after": None}},
-		branch=branch,
-		pos_profile=pos_profile,
-		reason="PIN cleared",
-	)
-
-	return {"success": True}
+# `D-201` — five endpoints stood here for a management screen that was never
+# built: `list_permission_sets`, `update_permission_set`, `list_pin_holders`,
+# `set_manager_pin`, `clear_manager_pin`. Nothing called them and no test
+# covered them, and each was whitelisted — a door onto the most sensitive record
+# in the system, standing open for a room nobody entered.
+#
+# Permissions are edited on the desk form and the PIN on the User form, where
+# the guard now runs (`doctype/pos_permission_set`, `utils/permissions`). The
+# code is in the history if a screen is ever built.

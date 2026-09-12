@@ -127,11 +127,20 @@ def log_permission_change(
 	*,
 	target: str,
 	changes: dict,
-	branch: str,
-	pos_profile: str,
+	branch: str | None = None,
+	pos_profile: str | None = None,
 	reason: str | None = None,
+	action_type: str = "permission_changed",
 ) -> str:
 	"""Record a permission or role change with its before/after values (FR-12.7).
+
+	**Its own action type, not `manager_override`** (`D-201`): an auditor reading
+	the log for approvals was reading permission edits among them, and the most
+	sensitive write in the system was filed under the name of a different one.
+
+	**And no terminal** — a permission is edited in the back office, where there
+	is neither a till nor a branch. Both are optional here and on the log itself;
+	every row a till writes still carries them.
 
 	:param target: the role or user whose rights changed
 	:param changes: ``{fieldname: {"before": x, "after": y}}``
@@ -140,7 +149,7 @@ def log_permission_change(
 		frappe.throw(_("A permission change must record what changed."))
 
 	return log_audit(
-		"manager_override",
+		action_type,
 		branch=branch,
 		pos_profile=pos_profile,
 		reason=reason,

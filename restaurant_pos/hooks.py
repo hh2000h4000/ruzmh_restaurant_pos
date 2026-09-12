@@ -34,9 +34,17 @@ after_migrate = "restaurant_pos.setup.install.after_migrate"
 # reversibly and check_password() would never see it, so it is intercepted and
 # stored as a one-way hash instead (DECISIONS.md D-015, D-016).
 doc_events = {
+	# D-201 — and an RPOS role is granted on this form, so the escalation guard
+	# (FR-12.6) runs here rather than only inside an API nothing called.
 	"User": {
-		"validate": "restaurant_pos.utils.manager_pin.hold_pin_aside",
-		"on_update": "restaurant_pos.utils.manager_pin.store_pin_hashed",
+		"validate": [
+			"restaurant_pos.utils.manager_pin.hold_pin_aside",
+			"restaurant_pos.utils.permissions.guard_user_changes",
+		],
+		"on_update": [
+			"restaurant_pos.utils.manager_pin.store_pin_hashed",
+			"restaurant_pos.utils.permissions.log_user_changes",
+		],
 	},
 	# D-063 — a point-of-sale sale is reversed by a return, never by cancelling
 	# the invoice. Cancelling from the desk left the ledger reversed and the

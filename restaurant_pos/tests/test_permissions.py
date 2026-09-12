@@ -32,9 +32,15 @@ def _make_user(email: str, role: str) -> str:
 	else:
 		user = frappe.get_doc("User", email)
 
-	existing = {r.role for r in user.roles}
-	if role not in existing:
-		user.append("roles", {"role": role})
+	# **Exactly this RPOS role, not "at least".** These users are the ranks the
+	# guard tests reason about, and a stray role makes a cashier outrank a
+	# manager — which is what a guard that let one grant through once did to
+	# every later test in the suite, in this run and the next (`D-201`).
+	wanted = [row for row in user.roles if row.role not in perms.ROLE_RANK or row.role == role]
+	if {r.role for r in wanted} != {r.role for r in user.roles} or role not in {r.role for r in wanted}:
+		user.roles = wanted
+		if role not in {r.role for r in user.roles}:
+			user.append("roles", {"role": role})
 		user.save(ignore_permissions=True)
 
 	return email
@@ -186,6 +192,172 @@ class TestPrivilegeEscalationGuard(FrappeTestCase):
 		frappe.set_user(MANAGER)
 		with self.assertRaises(frappe.PermissionError):
 			perms.assert_may_assign_role("Restaurant Admin", CASHIER)
+
+
+class TestTheGuardOnTheDeskForm(FrappeTestCase):
+	"""`D-201` — the same rules, on the door a manager is actually sent to.
+
+	`D-197` sends configuration to the desk form. Until now that form went
+	through no guard and wrote nothing to the audit log: the rules lived in one
+	API endpoint that nothing ever called, and the tests above proved the
+	function rather than the path. These drive `doc.save()`.
+	"""
+
+	@classmethod
+	def setUpClass(cls):
+		super().setUpClass()
+		create_default_data()
+		_make_user(CASHIER, "POS Cashier")
+		_make_user(SENIOR, "POS Senior Cashier")
+		_make_user(MANAGER, "POS Manager")
+		frappe.db.commit()
+
+	def setUp(self):
+		frappe.local.rpos_permission_cache = {}
+
+	def tearDown(self):
+		frappe.set_user("Administrator")
+		frappe.local.rpos_permission_cache = {}
+		_reset_to_shipped_defaults("POS Cashier")
+		frappe.db.commit()
+
+	def _save_as(self, user: str, role: str, **values):
+		frappe.set_user(user)
+		doc = frappe.get_doc("POS Permission Set", role)
+		doc.update(values)
+		# `ignore_permissions` so the claim is about *our* guard and not about
+		# Frappe's DocType rights, which refuse the save earlier for some roles.
+		return doc.save(ignore_permissions=True)
+
+	def _last_entry(self, action_type: str):
+		frappe.set_user("Administrator")
+		entry = frappe.get_last_doc("POS Audit Log", filters={"action_type": action_type})
+		return entry, frappe.parse_json(entry.details)
+
+	def test_the_form_cannot_grant_what_the_editor_lacks(self):
+		"""Rule 1, through the save a manager actually performs."""
+		with self.assertRaises(frappe.PermissionError):
+			self._save_as(SENIOR, "POS Cashier", can_void_order=1)
+
+	def test_the_form_cannot_reach_the_editors_own_rank(self):
+		"""Rule 3 — the shift manager who grants themselves the shop."""
+		with self.assertRaises(frappe.PermissionError):
+			self._save_as(MANAGER, "POS Manager", can_void_item=1)
+
+	def test_the_form_cannot_raise_a_ceiling_above_the_editors_own(self):
+		with self.assertRaises(frappe.PermissionError):
+			self._save_as(MANAGER, "POS Cashier", max_item_discount_pct=90)
+
+	def test_a_permitted_edit_saves_and_is_written_down(self):
+		"""`FR-12.7` — the most sensitive write in the system leaves a trail."""
+		self._save_as(SENIOR, "POS Cashier", can_create_return=1)
+
+		entry, details = self._last_entry("permission_changed")
+		self.assertEqual(frappe.db.get_value("POS Permission Set", "POS Cashier", "can_create_return"), 1)
+		self.assertEqual(details["target"], "POS Cashier")
+		self.assertEqual(details["changes"]["can_create_return"], {"before": 0, "after": 1})
+		self.assertEqual(entry.cashier, SENIOR)
+
+	def test_the_trail_carries_no_terminal_because_there_is_none(self):
+		"""A permission is edited in the back office, on no till and in no branch."""
+		self._save_as(SENIOR, "POS Cashier", can_reprint_receipt=1)
+
+		entry, _details = self._last_entry("permission_changed")
+		self.assertIsNone(entry.branch)
+		self.assertIsNone(entry.pos_profile)
+
+	def test_a_permission_change_is_not_filed_as_a_manager_override(self):
+		"""It had been, and an auditor reading approvals was reading edits."""
+		self._save_as(SENIOR, "POS Cashier", can_create_return=1)
+
+		entry, _details = self._last_entry("permission_changed")
+		self.assertEqual(entry.action_type, "permission_changed")
+
+	def test_the_administrator_is_not_locked_out_of_their_own_setup(self):
+		"""Somebody has to write the shipped defaults, and nobody outranks them."""
+		frappe.set_user("Administrator")
+		doc = frappe.get_doc("POS Permission Set", "Restaurant Admin")
+		doc.can_void_order = 1
+
+		self.assertTrue(doc.save(ignore_permissions=True).name)
+
+	def _holds(self, email: str, role: str) -> bool:
+		return role in {row.role for row in frappe.get_doc("User", email).roles}
+
+	def test_a_role_cannot_be_granted_from_the_user_form_beyond_your_rank(self):
+		"""Rule 4's other half: `assert_may_assign_role` had no caller at all.
+
+		The precondition is asserted, not assumed. A grant that slipped through
+		once left the role behind, and this test then asked for a role the target
+		already held — no change, no guard, and a green light on a broken door.
+		"""
+		self.assertFalse(self._holds(CASHIER, "Restaurant Admin"), "precondition: the cashier is a cashier")
+
+		frappe.set_user(MANAGER)
+		user = frappe.get_doc("User", CASHIER)
+		user.append("roles", {"role": "Restaurant Admin"})
+
+		with self.assertRaises(frappe.PermissionError):
+			user.save(ignore_permissions=True)
+
+		frappe.set_user("Administrator")
+		self.assertFalse(self._holds(CASHIER, "Restaurant Admin"), "and nothing was written")
+
+	def test_you_cannot_grant_yourself_a_role_from_the_user_form(self):
+		self.assertFalse(self._holds(MANAGER, "POS Cashier"), "precondition: the manager is not a cashier")
+
+		frappe.set_user(MANAGER)
+		me = frappe.get_doc("User", MANAGER)
+		me.append("roles", {"role": "POS Cashier"})
+
+		with self.assertRaises(frappe.PermissionError):
+			me.save(ignore_permissions=True)
+
+		frappe.set_user("Administrator")
+		self.assertFalse(self._holds(MANAGER, "POS Cashier"), "and nothing was written")
+
+	def test_a_role_cannot_be_stripped_from_somebody_above_you(self):
+		"""Taking a right away is the same act as granting one, and is guarded as one."""
+		frappe.set_user("Administrator")
+		admin_user = _make_user("rpos_test_admin@example.com", "Restaurant Admin")
+		self.addCleanup(frappe.delete_doc, "User", admin_user, force=True, ignore_permissions=True)
+
+		frappe.set_user(MANAGER)
+		doc = frappe.get_doc("User", admin_user)
+		doc.roles = [row for row in doc.roles if row.role != "Restaurant Admin"]
+
+		with self.assertRaises(frappe.PermissionError):
+			doc.save(ignore_permissions=True)
+
+	def test_a_cashier_cannot_set_a_managers_pin_from_the_user_form(self):
+		"""The PIN approves overrides, so handing yourself one is an escalation."""
+		frappe.set_user(CASHIER)
+		manager = frappe.get_doc("User", MANAGER)
+		manager.pos_manager_pin = "97531"
+
+		with self.assertRaises(frappe.PermissionError):
+			manager.save(ignore_permissions=True)
+
+	def test_a_permitted_role_grant_is_written_down(self):
+		email = "rpos_test_newhire@example.com"
+		if frappe.db.exists("User", email):
+			frappe.delete_doc("User", email, force=True, ignore_permissions=True)
+		self.addCleanup(frappe.delete_doc, "User", email, force=True, ignore_permissions=True)
+
+		frappe.set_user(MANAGER)
+		frappe.get_doc(
+			{
+				"doctype": "User",
+				"email": email,
+				"first_name": "RPOS new hire",
+				"send_welcome_email": 0,
+				"roles": [{"role": "POS Cashier"}],
+			}
+		).insert(ignore_permissions=True)
+
+		_entry, details = self._last_entry("role_changed")
+		self.assertEqual(details["target"], email)
+		self.assertEqual(details["changes"]["POS Cashier"], {"before": 0, "after": 1})
 
 
 class TestManagerPin(FrappeTestCase):

@@ -268,6 +268,52 @@ def assert_may_assign_role(role: str, target_user: str, user: str | None = None)
 # and DECISIONS.md D-016.
 
 
+def guard_user_changes(doc, method=None) -> None:
+	"""``User.validate`` — the four escalation rules, on the door people use (`D-201`).
+
+	`assert_may_assign_role` had no caller outside its tests: the rules were
+	written, proven, and reachable only through an API that nothing called. The
+	desk form is where a role is actually granted, so the guard belongs on it.
+
+	Superusers pass: a System Manager setting the restaurant up is the one who
+	hands out the first roles, and locking them out locks out everyone.
+	"""
+	if is_superuser():
+		return
+
+	before = doc.get_doc_before_save()
+	held = {row.role for row in (before.get("roles") or [])} if before else set()
+	wanted = {row.role for row in (doc.get("roles") or [])}
+
+	changes = {}
+	for role in sorted((held ^ wanted) & set(ROLE_RANK)):
+		assert_may_assign_role(role, doc.name)
+		changes[role] = {"before": 1 if role in held else 0, "after": 1 if role in wanted else 0}
+
+	# The PIN identifies a person and approves overrides, so setting somebody
+	# else's is the same class of act as granting them a role.
+	#
+	# Read from `_new_manager_pin`, not the field: `hold_pin_aside` runs first in
+	# this same hook and empties the column deliberately (`D-136`), so the field
+	# is always blank by the time this sees it.
+	if getattr(doc, "_new_manager_pin", None) and doc.name != frappe.session.user:
+		assert_may_manage_pin_of(doc.name)
+
+	doc._rpos_role_changes = changes
+
+
+def log_user_changes(doc, method=None) -> None:
+	"""``User.on_update`` — write the role change down once it has actually happened."""
+	changes = getattr(doc, "_rpos_role_changes", None)
+	if not changes:
+		return
+
+	from restaurant_pos.utils.audit import log_permission_change
+
+	log_permission_change(target=doc.name, changes=changes, action_type="role_changed")
+	doc._rpos_role_changes = {}
+
+
 def assert_may_manage_pin_of(target_user: str, user: str | None = None) -> None:
 	"""Raise unless ``user`` may set or clear ``target_user``'s PIN.
 

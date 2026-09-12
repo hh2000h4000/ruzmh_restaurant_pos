@@ -249,7 +249,7 @@
    "role": "Restaurant Manager",
    "share": 1,
    "submit": 0,
-   "write": 0
+   "write": 1
   }
  ],
  "sort_field": "modified",

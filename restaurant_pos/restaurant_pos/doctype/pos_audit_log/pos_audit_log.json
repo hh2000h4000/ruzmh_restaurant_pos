@@ -46,7 +46,7 @@
    "in_list_view": 1,
    "in_standard_filter": 1,
    "label": "Action Type",
-   "options": "void_item\nvoid_order\ncancel_order\ndiscount_applied\ndiscount_override\npromotion_applied\nprice_change\nmanager_override\npayment_method_override\nreturn_created\norder_reopened\nreprint_receipt\nshift_opened\nshift_closed\norder_type_changed\ntable_changed\nclock_in\nclock_out\npin_sign_in_failed\nbill_split\nbill_merged\ntables_merged\nloyalty_redeemed",
+   "options": "void_item\nvoid_order\ncancel_order\ndiscount_applied\ndiscount_override\npromotion_applied\nprice_change\nmanager_override\npayment_method_override\nreturn_created\norder_reopened\nreprint_receipt\nshift_opened\nshift_closed\norder_type_changed\ntable_changed\nclock_in\nclock_out\npin_sign_in_failed\nbill_split\nbill_merged\ntables_merged\nloyalty_redeemed\npermission_changed\nrole_changed",
    "reqd": 1
   },
   {
@@ -96,12 +96,12 @@
    "label": "Context"
   },
   {
+   "description": "Empty for an action taken in the back office, which happens on no terminal — a permission or role change (D-201).",
    "fieldname": "branch",
    "fieldtype": "Link",
    "in_standard_filter": 1,
    "label": "Branch",
-   "options": "Branch",
-   "reqd": 1
+   "options": "Branch"
   },
   {
    "fieldname": "context_cb",
@@ -111,8 +111,7 @@
    "fieldname": "pos_profile",
    "fieldtype": "Link",
    "label": "POS Profile",
-   "options": "POS Profile",
-   "reqd": 1
+   "options": "POS Profile"
   },
   {
    "fieldname": "details_section",

@@ -42,6 +42,31 @@ Loyalty points cannot be used on this bill.,لا يمكن استخدام نقا�
 Loyalty points,نقاط الولاء
 Loyalty Points Balance,رصيد نقاط الولاء
 Restaurant POS Settings,إعدادات نقاط البيع
+void_item,إبطال صنف,POS Audit Log
+void_order,إبطال طلب,POS Audit Log
+cancel_order,إلغاء طلب,POS Audit Log
+discount_applied,خصم مطبَّق,POS Audit Log
+discount_override,تفويض خصم,POS Audit Log
+promotion_applied,عرض مطبَّق,POS Audit Log
+price_change,تغيير سعر,POS Audit Log
+manager_override,تفويض مدير,POS Audit Log
+payment_method_override,تغيير طريقة الدفع,POS Audit Log
+return_created,إنشاء مرتجع,POS Audit Log
+order_reopened,إعادة فتح طلب,POS Audit Log
+reprint_receipt,إعادة طباعة إيصال,POS Audit Log
+shift_opened,فتح مناوبة,POS Audit Log
+shift_closed,إغلاق مناوبة,POS Audit Log
+order_type_changed,تغيير نوع الطلب,POS Audit Log
+table_changed,تغيير الطاولة,POS Audit Log
+clock_in,تسجيل حضور,POS Audit Log
+clock_out,تسجيل انصراف,POS Audit Log
+pin_sign_in_failed,فشل دخول برقم سري,POS Audit Log
+bill_split,تقسيم فاتورة,POS Audit Log
+bill_merged,دمج فواتير,POS Audit Log
+tables_merged,دمج طاولات,POS Audit Log
+loyalty_redeemed,صرف نقاط ولاء,POS Audit Log
+permission_changed,تغيير صلاحية,POS Audit Log
+role_changed,تغيير دور,POS Audit Log
 RPOS Theme,ثيم نقاط البيع
 Default Theme,الثيم الافتراضي
 Text on Primary,النص على اللون الأساسي

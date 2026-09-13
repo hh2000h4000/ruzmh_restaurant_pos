@@ -171,13 +171,6 @@ def validate_branch_access(branch: str, user: str | None = None) -> None:
 	question, and a single-branch restaurant restricts nobody — so every
 	endpoint that stopped here was open to any signed-in account. Desk forms do
 	not come through here: they are guarded by their own DocType permission.
-	"""
-	assert_pos_user(user)
-	assert_branch_allowed(branch, user)
-
-
-def assert_branch_allowed(branch: str, user: str | None = None) -> None:
-	"""The branch half alone — for a desk form that names a branch but no document.
 
 	Branch scoping is a ``User Permission`` question, not a DocType-permission
 	one: "which branches is this cashier restricted to", not "may this cashier
@@ -189,6 +182,8 @@ def assert_branch_allowed(branch: str, user: str | None = None) -> None:
 	directly: no User Permission rows means unrestricted, which is the right
 	default for a single-branch restaurant.
 	"""
+	assert_pos_user(user)
+
 	allowed = allowed_branches(user)
 	if allowed is None or branch in allowed:
 		return

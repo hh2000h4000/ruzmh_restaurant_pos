@@ -379,51 +379,9 @@ def _sample_context(template_type: str) -> dict | None:
 	return {"doc": frappe.get_doc("POS Closing Entry", name), "_sample": name}
 
 
-@frappe.whitelist()
-def jobs_for(reference_doctype: str, reference_name: str) -> list[dict]:
-	"""Every print job raised for one document, newest first.
-
-	Keyed by the document rather than by a job id because the job is created
-	after the request that caused it returns — rendering happens off the request
-	(`printing.enqueue_print`). The till knows the invoice it just settled; it
-	cannot know a job that did not exist yet.
-
-	An empty list is itself an answer, and the screen should say so: it means
-	nothing was ever asked to print, which is a different problem from a printer
-	that refused.
-	"""
-	jobs = frappe.get_all(
-		"POS Print Job",
-		filters={"reference_doctype": reference_doctype, "reference_name": reference_name},
-		fields=["name", "status", "printer", "job_type", "error", "printed_at", "branch"],
-		order_by="creation desc",
-	)
-	if jobs:
-		validate_branch_access(jobs[0].branch)
-
-	return jobs
-
-
-@frappe.whitelist()
-def retry(job: str) -> dict:
-	"""Send a failed job again, to the same printer.
-
-	The bytes are the ones already rendered, so what comes out is what should
-	have come out the first time — the paper jam is fixed, not the receipt
-	rewritten.
-	"""
-	doc = frappe.get_doc("POS Print Job", job)
-	validate_branch_access(doc.branch)
-
-	if doc.status not in ("failed", "printed"):
-		frappe.throw(_("{0} has not finished yet.").format(job))
-
-	doc.db_set(
-		{"status": "queued", "error": None, "claimed_at": None, "printed_at": None},
-		update_modified=False,
-	)
-
-	return {"job": doc.name, "status": "queued"}
+# `D-209` — `jobs_for` and `retry` stood here for a print-status screen that was
+# never built: no caller and no test, each whitelisted. The code is in the
+# history if that screen is ever made.
 
 
 #: Deliberately not a POS Print Template.

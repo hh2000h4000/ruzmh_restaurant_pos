@@ -29,7 +29,6 @@ from frappe import _
 # **Guarded by the Production Center form's own permission** (`D-208`), not the
 # till's role check: these serve that desk form, so whoever may read or write it
 # may use them, and changing its permission in the desk moves them with it.
-from restaurant_pos.utils.permissions import assert_branch_allowed
 
 #: A rule this screen is allowed to own: an item group, going to a station, with
 #: nothing else narrowing it.
@@ -144,26 +143,7 @@ def _assigned_elsewhere(branch: str, production_center: str) -> dict:
 	return {row.item_group: titles[row.production_center] for row in rows if row.item_group}
 
 
-@frappe.whitelist()
-def unrouted_groups(branch: str) -> list[str]:
-	"""Item groups no station prints — the gap that reaches nobody.
-
-	`BR-070` level 7 sends these to the cashier's printer, which is a safety net
-	and not a plan: the cook never sees them.
-	"""
-	frappe.has_permission("Production Center", "read", throw=True)
-	assert_branch_allowed(branch)
-
-	routed = set(
-		frappe.get_all(
-			"POS Printer Routing Rule",
-			filters=SIMPLE | {"branch": branch, "is_active": 1},
-			pluck="item_group",
-		)
-	)
-
-	sells = set(
-		frappe.get_all("Item", filters={"is_sales_item": 1, "disabled": 0}, pluck="item_group", distinct=True)
-	)
-
-	return sorted(group for group in sells - routed if group)
+# `D-209` — `unrouted_groups` stood here, called by nothing but its own test.
+# The gap it named is real (`BR-070` level 7 sends an unrouted group to the
+# cashier's printer, and the cook never sees it); a screen that shows it is
+# welcome, and the query is in the history.

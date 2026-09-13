@@ -143,17 +143,3 @@ class TestItLeavesTheScopedRulesAlone(RoutingEditorTestBase):
 		self._scoped(order_type=order_type, production_center=self.grill)
 
 		self.assertNotIn(self.group, api.station_groups(self.grill)["assigned"])
-
-
-class TestTheGapsAreVisible(RoutingEditorTestBase):
-	def test_a_group_no_station_prints_is_named(self):
-		"""Level 7 sends it to the cashier's printer — a net, not a plan."""
-		sold = frappe.db.get_value("Item", {"is_sales_item": 1, "disabled": 0}, "item_group")
-		if not sold:
-			self.skipTest("no sales items on this site")
-
-		self.assertIn(sold, api.unrouted_groups(BRANCH))
-
-		api.set_station_groups(self.grill, [sold])
-
-		self.assertNotIn(sold, api.unrouted_groups(BRANCH))

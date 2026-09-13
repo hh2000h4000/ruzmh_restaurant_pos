@@ -32,12 +32,21 @@ import unittest
 #: `assert_mutable` is here because it is a gate in its own right (`D-058`): it
 #: refuses when no shift is open on the terminal, and everything that changes an
 #: order goes through it.
+#:
+#: **`validate_branch_access` counted here while it asked only the branch
+#: question** — and a single-branch restaurant restricts nobody, so this file
+#: passed an API open to every signed-in account (`D-208`). It now calls
+#: `assert_pos_user` first, which is also a guard on its own for the endpoints
+#: that name no branch. `has_permission` is the desk forms' guard: an endpoint
+#: serving a form follows that form's own DocType permission.
 GUARDS = frozenset(
 	{
 		"validate_branch_access",
+		"assert_pos_user",
 		"assert_permission",
 		"assert_mutable",
 		"require_manager",
+		"has_permission",
 	}
 )
 
@@ -53,7 +62,10 @@ MAX_DEPTH = 6
 #: one does. It means there is no *branch* to scope the call to.
 UNSCOPED = {
 	# The caller has no session yet, or is acting on the session they have.
-	"api.auth.sign_in": "no session yet — rate limited, and every failure is audited without the PIN",
+	"api.auth.sign_in": (
+		"no session yet — wrong PINs lock the device (D-204), a till role is required (D-208), "
+		"and every failure is audited without the PIN"
+	),
 	"api.auth.sign_out": "ends the caller's own session",
 	"api.auth.me": "reports the caller's own session",
 	"api.auth.clock_in": "the caller's own attendance",
@@ -61,14 +73,10 @@ UNSCOPED = {
 	"api.session.csrf_token": "issues a token for the caller's own session",
 	"api.session.ping": "answers whether the server is reachable",
 	"api.session.list_pos_profiles": "lists only the terminals the caller may use; the filter is the check",
-	# A customer belongs to the company, not to a branch.
-	"api.customer.search": "customers are not branch-scoped; refuses Guest explicitly",
-	"api.customer.get": "customers are not branch-scoped",
-	"api.customer.create": "customers are not branch-scoped",
-	"api.customer.add_address": "customers are not branch-scoped",
-	# The menu is the company's, and a terminal that may not use it cannot
-	# reach a POS Profile in the first place.
-	"api.session.get_modifier_groups": "the menu is company-wide, not branch-scoped",
+	# `customer.*` and `session.get_modifier_groups` stood here as "not
+	# branch-scoped" — true, and it left every customer's phone number readable
+	# by any signed-in account. They name no branch, so they call
+	# `assert_pos_user` themselves and need no exemption (`D-208`).
 	# The print agent authenticates with its own key pair, and is answered only
 	# about the jobs belonging to that agent.
 	"api.printing.claim": "authenticated by the agent's api key; scoped to that agent's own jobs",

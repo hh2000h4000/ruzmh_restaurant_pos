@@ -26,7 +26,10 @@ from __future__ import annotations
 import frappe
 from frappe import _
 
-from restaurant_pos.utils.permissions import validate_branch_access
+# **Guarded by the Production Center form's own permission** (`D-208`), not the
+# till's role check: these serve that desk form, so whoever may read or write it
+# may use them, and changing its permission in the desk moves them with it.
+from restaurant_pos.utils.permissions import assert_branch_allowed
 
 #: A rule this screen is allowed to own: an item group, going to a station, with
 #: nothing else narrowing it.
@@ -37,7 +40,7 @@ SIMPLE = {"item": ("is", "not set"), "order_type": ("is", "not set"), "pos_profi
 def station_groups(production_center: str) -> dict:
 	"""What this station prints today, and everything it could print."""
 	center = frappe.get_doc("Production Center", production_center)
-	validate_branch_access(center.branch)
+	frappe.has_permission("Production Center", "read", doc=center, throw=True)
 
 	assigned = frappe.get_all(
 		"POS Printer Routing Rule",
@@ -72,7 +75,7 @@ def set_station_groups(production_center: str, item_groups: list | str) -> dict:
 	no way to find out why.
 	"""
 	center = frappe.get_doc("Production Center", production_center)
-	validate_branch_access(center.branch)
+	frappe.has_permission("Production Center", "write", doc=center, throw=True)
 
 	wanted = set(frappe.parse_json(item_groups) if isinstance(item_groups, str) else item_groups)
 
@@ -148,7 +151,8 @@ def unrouted_groups(branch: str) -> list[str]:
 	`BR-070` level 7 sends these to the cashier's printer, which is a safety net
 	and not a plan: the cook never sees them.
 	"""
-	validate_branch_access(branch)
+	frappe.has_permission("Production Center", "read", throw=True)
+	assert_branch_allowed(branch)
 
 	routed = set(
 		frappe.get_all(

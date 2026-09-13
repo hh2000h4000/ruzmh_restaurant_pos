@@ -140,8 +140,44 @@ def assert_within_discount_limit(ceiling_field: str, percentage: float, user: st
 		)
 
 
+def is_pos_user(user: str | None = None) -> bool:
+	"""Whether ``user`` may use the till at all (`D-208`).
+
+	**A till role, and nothing else.** `Administrator` is the one exception —
+	the site's own account. A System Manager is not: the accountant is one, and
+	"may configure the books" is not "may sell and read every customer's phone
+	number". An owner who works the till is given a till role like anybody else.
+	"""
+	user = user or frappe.session.user
+	return user == "Administrator" or bool(get_pos_permission_set(user).roles)
+
+
+def assert_pos_user(user: str | None = None) -> None:
+	"""Raise unless ``user`` may use the till — `CLAUDE.md` §4: login, branch, permission set.
+
+	`validate_branch_access` calls it, so every till endpoint that names a branch
+	passes here; the few that name none (customers, modifier groups) call it
+	themselves. The sign-in and the reservations each carried a copy of this
+	check, and the rest of the till had none.
+	"""
+	if not is_pos_user(user):
+		frappe.throw(_("You do not have permission to perform this action."), frappe.PermissionError)
+
+
 def validate_branch_access(branch: str, user: str | None = None) -> None:
-	"""Raise unless ``user`` may act in ``branch``.
+	"""Raise unless ``user`` may use the till, and may act in ``branch``.
+
+	**The till check first** (`D-208`). This used to ask only the branch
+	question, and a single-branch restaurant restricts nobody — so every
+	endpoint that stopped here was open to any signed-in account. Desk forms do
+	not come through here: they are guarded by their own DocType permission.
+	"""
+	assert_pos_user(user)
+	assert_branch_allowed(branch, user)
+
+
+def assert_branch_allowed(branch: str, user: str | None = None) -> None:
+	"""The branch half alone — for a desk form that names a branch but no document.
 
 	Branch scoping is a ``User Permission`` question, not a DocType-permission
 	one: "which branches is this cashier restricted to", not "may this cashier

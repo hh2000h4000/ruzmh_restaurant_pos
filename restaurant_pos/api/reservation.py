@@ -22,14 +22,9 @@ from frappe import _
 from restaurant_pos.utils import idempotency
 from restaurant_pos.utils import reservation as service
 from restaurant_pos.utils.order import branch_of_profile
-from restaurant_pos.utils.permissions import get_pos_permission_set, validate_branch_access
+from restaurant_pos.utils.permissions import validate_branch_access
 
 DOCTYPE = "Restaurant Reservation"
-
-
-def _assert_till_role() -> None:
-	if not get_pos_permission_set().roles:
-		frappe.throw(_("You do not have permission to perform this action."), frappe.PermissionError)
 
 
 def _branch_of_terminal(pos_profile: str) -> str:
@@ -37,8 +32,8 @@ def _branch_of_terminal(pos_profile: str) -> str:
 	if not branch:
 		frappe.throw(_("POS Profile {0} has no Restaurant Section configured.").format(pos_profile))
 
+	# The till role is checked in there too (`D-208`) — this file carried its own copy.
 	validate_branch_access(branch)
-	_assert_till_role()
 	return branch
 
 
@@ -48,7 +43,6 @@ def _authorise(name: str) -> None:
 		frappe.throw(_("Reservation {0} does not exist.").format(name))
 
 	validate_branch_access(branch)
-	_assert_till_role()
 
 
 @frappe.whitelist()

@@ -28,7 +28,11 @@ from frappe.utils import cint, flt, now_datetime
 from restaurant_pos.utils import theme as theme_service
 from restaurant_pos.utils import totals as totals_service
 from restaurant_pos.utils.order import is_order_type_allowed
-from restaurant_pos.utils.permissions import get_pos_permission_set, validate_branch_access
+from restaurant_pos.utils.permissions import (
+	assert_pos_user,
+	get_pos_permission_set,
+	validate_branch_access,
+)
 
 #: How long each banner holds the customer's screen when nobody has said
 #: otherwise (`D-203`): long enough to read a line, short enough that a queue
@@ -653,6 +657,8 @@ def _modifier_groups_for(items: list[dict]) -> list[dict]:
 @frappe.whitelist()
 def get_modifier_groups(groups: list | str | None = None) -> list[dict]:
 	"""Modifier groups with their options, for the item popup (FR-4.4)."""
+	# Names no branch, so it asks for a till role itself (`D-208`).
+	assert_pos_user()
 	if isinstance(groups, str):
 		groups = frappe.parse_json(groups)
 

@@ -6,8 +6,11 @@
 Two audiences, and they authorise differently. The **agent** endpoints are
 called by a program inside the restaurant signed in as its own user, and are
 scoped by `pos_print_agent.for_session()` — the agent may only ever see work
-addressed to it. The **till and desk** endpoints are called by a person, and go
-through `validate_branch_access` like everything else.
+addressed to it. The **till** endpoints are called by a person at the till, and
+go through `validate_branch_access` like everything else. The **desk** endpoints
+— the test page and the template preview — serve a form, and are guarded by that
+form's own permission (`D-208`), so a System Manager with no till role can still
+test a printer they are configuring.
 
 Refs: 07_API_Design.md, FR-6.4, FR-7.3, BR-072, D-084
 """
@@ -271,7 +274,7 @@ def test_print(printer: str) -> dict:
 	template bug: **is the paper the width we think it is?** (`D-111`)
 	"""
 	doc = frappe.get_doc("POS Printer", printer)
-	validate_branch_access(doc.branch)
+	frappe.has_permission("POS Printer", "write", doc=doc, throw=True)
 
 	width = service.PAPER_DOTS[doc.paper_width]
 	rendered = service.png_to_escpos(
@@ -314,8 +317,7 @@ def preview_template(template: str) -> dict:
 	exactly the thing that flattered every one of those defects.
 	"""
 	doc = frappe.get_doc("POS Print Template", template)
-	if doc.branch:
-		validate_branch_access(doc.branch)
+	frappe.has_permission("POS Print Template", "read", doc=doc, throw=True)
 
 	context = _sample_context(doc.template_type)
 	if not context:

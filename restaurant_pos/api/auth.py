@@ -23,6 +23,7 @@ from frappe import _
 
 from restaurant_pos.utils import attendance, manager_pin
 from restaurant_pos.utils.audit import log_audit
+from restaurant_pos.utils.permissions import is_pos_user
 
 
 @frappe.whitelist(allow_guest=True)
@@ -42,7 +43,10 @@ def sign_in(pin: str, pos_profile: str | None = None) -> dict:
 		refusal = "no_such_pin"
 	elif not frappe.db.get_value("User", user, "enabled"):
 		refusal = "account_disabled"
-	elif not _may_use_the_till(user):
+	# A PIN is not a master key: without a till role, the print agent's service
+	# user or any back-office login could sign in, and arrive at a till that then
+	# refused them everything — which reads as a broken terminal (`D-208`).
+	elif not is_pos_user(user):
 		refusal = "no_pos_role"
 
 	if refusal:
@@ -107,22 +111,6 @@ def clock_in(pos_profile: str | None = None) -> dict:
 @frappe.whitelist()
 def clock_out(pos_profile: str | None = None) -> dict:
 	return _punch(attendance.OUT, pos_profile)
-
-
-def _may_use_the_till(user: str) -> bool:
-	"""Whether this login has any business at a point of sale.
-
-	A PIN is not a master key — the same rule `find_approver_for_pin` follows
-	for overrides. Without this, **any** enabled account with a PIN could sign
-	in: the print agent's own service user has one available to it, and so does
-	every back-office login. They would arrive at a till that then refused them
-	everything, which reads as a broken terminal rather than as a refusal.
-
-	An RPOS role is the test, because that is what the permission sets hang off.
-	"""
-	from restaurant_pos.utils.permissions import get_pos_permission_set
-
-	return bool(get_pos_permission_set(user).get("roles"))
 
 
 def _branch_of(pos_profile: str | None) -> str | None:

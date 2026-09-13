@@ -231,20 +231,19 @@ class TestWhyAPinWasRefused(FrappeTestCase):
 	"""
 
 	def test_a_pin_with_no_pos_role_is_refused_and_the_reason_recorded(self):
-		from restaurant_pos.api import auth
-
 		user = _user("rpos_pin_noroles@example.com")
 		doc = frappe.get_doc("User", user)
 		doc.set("roles", [])
 		doc.save(ignore_permissions=True)
 		pins.set_pin(user, "58888")
+		frappe.local.rpos_permission_cache = {}
 
-		self.assertFalse(auth._may_use_the_till(user))
+		# The same check the whole till now passes through (`D-208`).
+		self.assertFalse(perms.is_pos_user(user))
 
 	def test_somebody_with_a_role_may_use_the_till(self):
-		from restaurant_pos.api import auth
-
-		self.assertTrue(auth._may_use_the_till(_user(STAFF)))
+		frappe.local.rpos_permission_cache = {}
+		self.assertTrue(perms.is_pos_user(_user(STAFF)))
 
 
 class TestClockingInAndOut(FrappeTestCase):

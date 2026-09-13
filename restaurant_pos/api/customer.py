@@ -13,20 +13,25 @@ import frappe
 
 from restaurant_pos.utils import customer as service
 from restaurant_pos.utils import idempotency
+from restaurant_pos.utils.permissions import assert_pos_user
+
+# Every endpoint here names no branch, so none passes `validate_branch_access`
+# and each asks for a till role itself (`D-208`). Before, any signed-in account
+# could read every customer's phone number and address. Asked **before** the
+# replay check: a stored result is still a customer's details.
 
 
 @frappe.whitelist()
 def search(phone: str | None = None, name: str | None = None) -> list[dict]:
 	"""Who this could be — by mobile first, by name only as a fallback."""
-	if frappe.session.user == "Guest":
-		frappe.throw(frappe._("Sign in first."), frappe.PermissionError)
-
+	assert_pos_user()
 	return service.search(phone=phone, name=name)
 
 
 @frappe.whitelist()
 def get(customer: str) -> dict:
 	"""One customer and their addresses."""
+	assert_pos_user()
 	return service.details(customer)
 
 
@@ -40,6 +45,7 @@ def create(
 	queue_id: str | None = None,
 ) -> dict:
 	"""Make a customer, with the number where ERPNext keeps it (D-050)."""
+	assert_pos_user()
 	replay = idempotency.previous_result(queue_id)
 	if replay is not None:
 		return replay
@@ -61,6 +67,7 @@ def create(
 @frappe.whitelist()
 def add_address(customer: str, address: dict | str, queue_id: str | None = None) -> dict:
 	"""Another address for a customer who has one already."""
+	assert_pos_user()
 	replay = idempotency.previous_result(queue_id)
 	if replay is not None:
 		return replay

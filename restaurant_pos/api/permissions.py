@@ -14,7 +14,7 @@ from frappe import _
 
 from restaurant_pos.utils import manager_pin as pins
 from restaurant_pos.utils import permissions as perms
-from restaurant_pos.utils.audit import log_audit, log_permission_change
+from restaurant_pos.utils.audit import log_audit, log_permission_change, log_refusal
 
 
 @frappe.whitelist()
@@ -57,7 +57,7 @@ def validate_discount_override(
 	approver = perms.find_approver_for_discount(ceiling, percentage, pin)
 
 	if not approver:
-		log_audit(
+		log_refusal(
 			"discount_override",
 			branch=branch,
 			pos_profile=pos_profile,
@@ -109,7 +109,7 @@ def validate_manager_override(
 
 	if not approver:
 		# Logged without the attempted PIN (CLAUDE.md §5.4).
-		log_audit(
+		log_refusal(
 			"manager_override",
 			branch=branch,
 			pos_profile=pos_profile,

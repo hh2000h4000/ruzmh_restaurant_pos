@@ -7,6 +7,7 @@ Refs: BR-031, FR-10.4, FR-12.2
 """
 
 import frappe
+from frappe.tests.utils import FrappeTestCase
 from frappe.utils import flt
 
 from restaurant_pos.api import payment as payment_api
@@ -128,26 +129,6 @@ class TestDiscountOverride(PaymentTestBase):
 		with self.assertRaises(frappe.PermissionError):
 			perms.consume_override_token(token, perms.discount_override_action("max_order_discount_pct", 90))
 
-	def test_a_wrong_pin_is_refused_and_logged(self):
-		order = self._payable_order()
-
-		with self.assertRaises(frappe.PermissionError):
-			permissions_api.validate_discount_override(
-				pin="00000",
-				percentage=40,
-				reason="Regular customer",
-				branch=order.branch,
-				pos_profile=order.pos_profile,
-				order_name=order.name,
-			)
-
-		self.assertTrue(
-			frappe.get_all(
-				"POS Audit Log",
-				filters={"restaurant_order": order.name, "action_type": "discount_override"},
-			)
-		)
-
 	def test_an_approved_override_lets_the_discount_through_and_names_the_approver(self):
 		order = self._payable_order(qty=4)
 
@@ -179,3 +160,63 @@ class TestDiscountOverride(PaymentTestBase):
 		self.assertEqual(order.status, "closed")
 		self.assertEqual(order.discount_approved_by, self.manager)
 		# FR-12.7 — the approval is attributable to a person, not a role.
+
+
+class TestARefusedOverrideStaysOnRecord(FrappeTestCase):
+	"""`D-205` — the refusal is the audit row that matters most, and it vanished.
+
+	Both overrides wrote it and then raised, and Frappe rolls back every POST
+	that raises (`frappe/app.py:154`). The test that stood here read the row
+	inside the same transaction, before any rollback, so it passed on a log
+	that production never kept. Every test below rolls back the way a request
+	does before it looks.
+
+	Only committed fixtures are used: the refusal rolls back whatever is
+	pending, and an order made inside the test would go with it.
+	"""
+
+	MARK = "rpos-test refused override"
+
+	@classmethod
+	def setUpClass(cls):
+		super().setUpClass()
+		cls.profile = frappe.db.get_value("POS Profile", {"restaurant_section": ("is", "set")}, "name")
+		section = frappe.db.get_value("POS Profile", cls.profile, "restaurant_section")
+		cls.branch = frappe.db.get_value("Restaurant Section", section, "branch")
+
+	def tearDown(self):
+		# The refusal is committed by design, so it is removed by hand — rolled
+		# back first, then deleted, then committed (`06` §A test never commits).
+		frappe.db.rollback()
+		frappe.db.delete("POS Audit Log", {"reason": self.MARK})
+		frappe.db.delete("ToDo", {"description": self.MARK})
+		frappe.db.commit()
+		super().tearDown()
+
+	def _refuse(self, endpoint, **kwargs) -> list[str]:
+		with self.assertRaises(frappe.PermissionError):
+			endpoint(pin="00000", reason=self.MARK, branch=self.branch, pos_profile=self.profile, **kwargs)
+
+		# What Frappe does to a request that raised.
+		frappe.db.rollback()
+
+		return frappe.get_all("POS Audit Log", filters={"reason": self.MARK}, pluck="action_type")
+
+	def test_a_refused_manager_override_survives_the_rollback(self):
+		kept = self._refuse(permissions_api.validate_manager_override, action_type="can_void_item")
+
+		self.assertEqual(kept, ["manager_override"])
+
+	def test_a_refused_discount_override_survives_the_rollback(self):
+		kept = self._refuse(permissions_api.validate_discount_override, percentage=40)
+
+		self.assertEqual(kept, ["discount_override"])
+
+	def test_keeping_the_refusal_keeps_nothing_else(self):
+		"""Committing the request as it stood would save what it wrote before
+		failing — the rollback it was about to get exists to discard that."""
+		frappe.get_doc({"doctype": "ToDo", "description": self.MARK}).insert(ignore_permissions=True)
+
+		self._refuse(permissions_api.validate_manager_override, action_type="can_void_item")
+
+		self.assertFalse(frappe.db.exists("ToDo", {"description": self.MARK}))

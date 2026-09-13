@@ -80,6 +80,23 @@ def log_audit(
 	return entry.name
 
 
+def log_refusal(action_type: str, **kwargs) -> str:
+	"""Record a refused action so the record outlives the refusal (`D-205`).
+
+	A refusal is written and then raised, and Frappe rolls back every request
+	that raises (`frappe/app.py:154`) — so a row from `log_audit` alone vanished
+	with the error it described, and a wrong manager PIN left no trace at all.
+
+	**Rolled back first, then written, then committed.** Committing the request
+	as it stood would also save whatever it wrote before failing, which is
+	exactly what that rollback exists to discard.
+	"""
+	frappe.db.rollback()
+	name = log_audit(action_type, **kwargs)
+	frappe.db.commit()
+	return name
+
+
 #: Audit actions that belong in a bill's timeline, and what they are called
 #: there. Anything absent is about a shift, a terminal or a person rather than
 #: about one bill, and has no place on its story.

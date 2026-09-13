@@ -71,6 +71,9 @@ scheduler_events = {
 		# D-106 — a dozen rows per bill is millions a year. The order is kept for
 		# ever; a year-old "quantity changed from 1 to 2" answers nothing.
 		"restaurant_pos.utils.activity.prune_default",
+		# D-206 — a row per write, online or not. Kept thirty days: well past any
+		# replay that can still land (`idempotency.KEEP_DAYS` says why).
+		"restaurant_pos.utils.idempotency.prune",
 	],
 }
 

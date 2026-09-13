@@ -21,6 +21,28 @@ Refs: 09 §8, CLAUDE.md §5.3
 """
 
 import frappe
+from frappe.utils import add_days, now_datetime
+
+#: How long a replay is remembered (`D-206`).
+#:
+#: **Not the 72 hours `D-019` first named.** `09` §12 puts no ceiling on an
+#: outage — past 72 hours it only warns — and the device keeps a pending entry
+#: until the server answers, so forgetting at exactly the warning line would turn
+#: a long outage into duplicates. Thirty days is past any replay that can still
+#: land: an offline sale is also keyed on `Restaurant Order.offline_queue_id`,
+#: which is never pruned, and every other write to an order passes
+#: `order.assert_mutable`, which refuses it once the order or the shift is closed.
+KEEP_DAYS = 30
+
+
+def prune() -> None:
+	"""Daily: forget replays older than `KEEP_DAYS` (`D-019`, `D-206`).
+
+	Every write carries a `queue_id`, online or not, so this table gains a row
+	per keystroke that changes a bill — the fastest-growing table in the app, and
+	nothing read it after the first minute.
+	"""
+	frappe.db.delete("POS Sync Entry", {"creation": ("<", add_days(now_datetime(), -KEEP_DAYS))})
 
 
 def previous_result(queue_id: str | None) -> dict | None:

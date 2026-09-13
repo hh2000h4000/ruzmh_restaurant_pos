@@ -160,12 +160,18 @@ async function punch(): Promise<void> {
           />
         </div>
 
+        <!-- **The server's words, not a fixed "wrong PIN"** (`D-207`). The
+             server already says one thing for every refusal (`D-099`), so a
+             fixed line hid nothing — except the two answers that are not a
+             wrong PIN: a device made to wait after five wrong ones (`D-204`),
+             and a till with no connection. Both read as "try again", which is
+             the one thing that does not help. -->
         <p
           v-if="auth.error"
           class="text-center text-sm text-danger"
           role="alert"
         >
-          {{ t("auth.pinRefused") }}
+          {{ auth.error }}
         </p>
 
         <DigitPad

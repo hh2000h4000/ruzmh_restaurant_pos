@@ -51,7 +51,6 @@ export const messages = {
 
   // D-094 — signing in at the till. A cashier never sees the ERPNext login form.
   "auth.enterPin": "Enter your PIN",
-  "auth.pinRefused": "That PIN was not recognised.",
   "auth.welcome": "Welcome, {name}",
   "auth.clockedInAt": "Clocked in at {at}",
   "auth.clockIn": "Clock in",

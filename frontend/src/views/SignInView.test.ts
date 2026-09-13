@@ -29,6 +29,7 @@ const api = vi.hoisted(() => ({
   clockIn: vi.fn(),
   clockOut: vi.fn(),
   signOut: vi.fn(),
+  signIn: vi.fn(),
 }));
 
 vi.mock("vue-router", () => ({ useRouter: () => ({ push: api.push }) }));
@@ -37,7 +38,7 @@ vi.mock("@/api/auth", () => ({
   clockOut: api.clockOut,
   signOut: api.signOut,
   me: vi.fn(),
-  signIn: vi.fn(),
+  signIn: api.signIn,
 }));
 
 function identity(over: {
@@ -82,6 +83,43 @@ beforeEach(() => {
   api.clockIn.mockReset();
   api.clockOut.mockReset();
   api.signOut.mockReset();
+  api.signIn.mockReset();
+});
+
+/**
+ * `D-207` — the pad drew a fixed "wrong PIN" whatever the server answered.
+ *
+ * The user typed six wrong PINs: the device was locked (`D-204`), and the screen
+ * went on saying the PIN was wrong, so the one person who could wait five minutes
+ * kept typing instead.
+ */
+describe("the PIN pad", () => {
+  async function typeAPin(message: string) {
+    api.signIn.mockRejectedValue(new Error(message));
+    const auth = useAuthStore();
+    auth.known = true;
+    auth.identity = null;
+
+    const screen = mount(SignInView, {
+      global: { stubs: { DigitPad: true, LocaleToggle: true } },
+    });
+    screen.findComponent({ name: "DigitPad" }).vm.$emit("update", "9".repeat(auth.pinLength));
+    await flushPromises();
+
+    return screen;
+  }
+
+  it("says the device has to wait when the server says so", async () => {
+    const lock = "Too many wrong PINs on this device. Try again in 5 minutes.";
+
+    expect((await typeAPin(lock)).text()).toContain(lock);
+  });
+
+  it("says a wrong PIN in the server's own words", async () => {
+    const wrong = "That PIN was not recognised.";
+
+    expect((await typeAPin(wrong)).text()).toContain(wrong);
+  });
 });
 
 describe("the welcome screen's attendance button", () => {

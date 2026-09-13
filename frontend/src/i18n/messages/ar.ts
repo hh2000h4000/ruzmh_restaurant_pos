@@ -43,7 +43,6 @@ const messages: Catalogue["messages"] = {
   "offline.screenMissing": "هذه الشاشة غير محفوظة على الجهاز بعد. أعد الاتصال مرة واحدة لتُحفظ.",
 
   "auth.enterPin": "أدخل رقمك السري",
-  "auth.pinRefused": "الرقم السري غير صحيح.",
   "auth.welcome": "أهلاً، {name}",
   "auth.clockedInAt": "سجّلت حضورك {at}",
   "auth.clockIn": "تسجيل حضور",

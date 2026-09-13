@@ -345,9 +345,9 @@ def find_approver_for_discount(ceiling_field: str, percentage: float, pin: str) 
 	approving a 90% discount would make the cap meaningless — the point of a
 	ceiling is that nobody can exceed their own.
 	"""
-	from restaurant_pos.utils.manager_pin import find_user_by_pin
+	from restaurant_pos.utils.manager_pin import identify
 
-	user = find_user_by_pin(pin)
+	user = identify(pin)
 	if not user or not frappe.db.get_value("User", user, "enabled"):
 		return None
 

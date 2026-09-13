@@ -20,32 +20,22 @@ from __future__ import annotations
 import frappe
 import frappe.sessions
 from frappe import _
-from frappe.rate_limiter import rate_limit
 
 from restaurant_pos.utils import attendance, manager_pin
 from restaurant_pos.utils.audit import log_audit
 
-#: Attempts per minute from one address before it is refused.
-#:
-#: Five digits is 100,000 combinations, and this endpoint has to be reachable
-#: without a session — a locked till has nobody signed in to authorise the
-#: unlocking. The limit is what makes the arithmetic hopeless: at this rate a
-#: full sweep takes years, and the audit log fills up long before.
-ATTEMPTS_PER_MINUTE = 10
-
 
 @frappe.whitelist(allow_guest=True)
-@rate_limit(key="pin", limit=ATTEMPTS_PER_MINUTE, seconds=60)
 def sign_in(pin: str, pos_profile: str | None = None) -> dict:
 	"""Sign in with a PIN. Returns who it is and whether they are clocked in.
 
 	`allow_guest` because a locked terminal has no session: whoever just walked
-	up is exactly who this has to identify. That is why the rate limit above is
-	not optional.
+	up is exactly who this has to identify. That is why `identify` counts wrong
+	PINs per device and makes it wait (`D-204`) — five digits are only 100,000.
 	"""
 	pin = (pin or "").strip()
 
-	user = manager_pin.find_user_by_pin(pin) if pin.isdigit() else None
+	user = manager_pin.identify(pin)
 
 	refusal = None
 	if not user:

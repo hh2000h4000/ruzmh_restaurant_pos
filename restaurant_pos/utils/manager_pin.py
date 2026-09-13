@@ -26,6 +26,7 @@ import hmac
 
 import frappe
 from frappe import _
+from frappe.auth import LoginAttemptTracker
 from frappe.utils.password import check_password, update_password
 
 FIELDNAME = "pos_manager_pin"
@@ -209,7 +210,7 @@ def lookup_of(pin: str) -> str:
 	100,000 guesses, and anyone holding both the database and the site key
 	breaks this in a moment — as they would the slow hash in an afternoon. A
 	till PIN is a convenience credential, and the defence that matters is the
-	lockout in `sign_in`, not the digest.
+	lockout in `identify`, not the digest.
 	"""
 	key = (frappe.local.conf.get("encryption_key") or frappe.local.site).encode()
 	return hmac.new(key, pin.encode(), hashlib.sha256).hexdigest()
@@ -256,6 +257,55 @@ def _find_and_index_legacy(pin: str) -> str | None:
 	return None
 
 
+#: Wrong PINs one device may type before it has to wait (`D-204`).
+#:
+#: Counted per address across sign-in and both overrides, and **not** cleared by
+#: a right PIN: a cashier who knows their own would otherwise sign in between
+#: guesses and never be stopped. Five every five minutes makes a sweep of all
+#: 100,000 PINs about ten weeks, with every guess in the audit log.
+WRONG_PINS_ALLOWED = 5
+LOCK_SECONDS = 5 * 60
+
+
+def attempts_from(ip: str) -> LoginAttemptTracker:
+	"""Frappe's own failed-login counter, kept per device rather than per account."""
+	# Frappe locks when the count *exceeds* its maximum, hence the minus one.
+	return LoginAttemptTracker(
+		f"rpos_pin:{ip}",
+		max_consecutive_login_attempts=WRONG_PINS_ALLOWED - 1,
+		lock_interval=LOCK_SECONDS,
+	)
+
+
+def identify(pin: str) -> str | None:
+	"""`find_user_by_pin` for a person at a pad — the door every guess comes through.
+
+	Sign-in and both manager overrides pass here, so the count lives in one place
+	(`CLAUDE.md` §5.5). `assert_pin_is_unique` does not: a new PIN matching
+	nobody is the answer it hopes for, not a wrong guess.
+
+	The limit before this was Frappe's `rate_limit(key="pin")` on `sign_in`,
+	which keys on the address **and the value typed** — so every new guess
+	started a fresh count and nothing was ever limited. The overrides had no
+	limit at all.
+
+	Only a real request is counted: a console or a background job types no
+	guess, and a test suite sharing one count would lock itself out.
+	"""
+	ip = frappe.local.request_ip
+	tracker = attempts_from(ip) if ip else None
+	if tracker and not tracker.is_user_allowed():
+		frappe.throw(
+			_("Too many wrong PINs on this device. Try again in {0} minutes.").format(LOCK_SECONDS // 60),
+			frappe.RateLimitExceededError,
+		)
+
+	user = find_user_by_pin(pin) if (pin or "").isdigit() else None
+	if tracker and not user:
+		tracker.add_failure_attempt()
+	return user
+
+
 def find_approver_for_pin(action: str, pin: str) -> str | None:
 	"""Return the user whose PIN matches **and** who holds ``action``.
 
@@ -264,7 +314,7 @@ def find_approver_for_pin(action: str, pin: str) -> str | None:
 	"""
 	from restaurant_pos.utils.permissions import get_pos_permission_set
 
-	user = find_user_by_pin(pin)
+	user = identify(pin)
 	if not user:
 		return None
 

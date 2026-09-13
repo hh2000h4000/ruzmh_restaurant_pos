@@ -189,6 +189,7 @@ Table {0} still has an open order.,الطاولة {0} عليها طلب مفتو
 Terminals,الطرفيات
 That PIN is already in use. Choose a different one.,هذا الرقم مستخدم. اختر رقماً آخر.
 That PIN was not recognised.,الرقم السري غير صحيح.
+Too many wrong PINs on this device. Try again in {0} minutes.,محاولات خاطئة كثيرة من هذا الجهاز. حاول بعد {0} دقائق.
 That time has already passed.,هذا الوقت فات.
 The PIN must be exactly {0} digits.,الرقم السري يجب أن يكون {0} أرقام بالضبط.
 The amount received is less than the amount being paid.,المبلغ المستلم أقل من المبلغ المدفوع.

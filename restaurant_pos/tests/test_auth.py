@@ -14,9 +14,11 @@ import frappe
 from frappe.tests.utils import FrappeTestCase
 from frappe.utils import add_to_date, now_datetime
 
+from restaurant_pos.api import auth as auth_api
 from restaurant_pos.tests.test_order import OrderTestBase
 from restaurant_pos.utils import attendance
 from restaurant_pos.utils import manager_pin as pins
+from restaurant_pos.utils import permissions as perms
 
 STAFF = "rpos_pin_staff@example.com"
 OTHER = "rpos_pin_other@example.com"
@@ -785,3 +787,97 @@ class TestTheRosterAlwaysAnswers(FrappeTestCase):
 		self.assertIsInstance(roster["people"], list)
 		self.assertIsInstance(roster["on_duty"], list)
 		self.assertEqual(roster["available"], attendance.is_available())
+
+
+class TestWrongPinsMakeTheDeviceWait(FrappeTestCase):
+	"""`D-204` — a PIN is five digits, so guessing has to be slow.
+
+	The limit this replaced counted per PIN *value*, so each new guess started
+	from zero, and the two manager overrides had no limit at all: a signed-in
+	cashier could try every manager PIN from the discount dialog.
+	"""
+
+	DEVICE = "203.0.113.7"
+	OTHER_DEVICE = "203.0.113.8"
+
+	@classmethod
+	def setUpClass(cls):
+		super().setUpClass()
+		_user(STAFF)
+		frappe.db.commit()
+
+	def setUp(self):
+		super().setUp()
+		pins.set_pin(STAFF, "51234")
+		self._forget()
+		frappe.local.request_ip = self.DEVICE
+
+	def tearDown(self):
+		frappe.local.request_ip = None
+		self._forget()
+		frappe.set_user("Administrator")
+		super().tearDown()
+
+	def _forget(self):
+		for ip in (self.DEVICE, self.OTHER_DEVICE):
+			pins.attempts_from(ip).add_success_attempt()
+
+	def _guess_wrong(self, times: int):
+		for _ in range(times):
+			self.assertIsNone(pins.identify("99999"))
+
+	def test_after_five_wrong_pins_even_the_right_one_waits(self):
+		self._guess_wrong(pins.WRONG_PINS_ALLOWED)
+
+		with self.assertRaises(frappe.RateLimitExceededError):
+			pins.identify("51234")
+
+	def test_one_short_of_the_limit_the_right_pin_still_works(self):
+		"""The other side of the line — a lock one guess early is a till that
+		refuses a cashier who only mistyped."""
+		self._guess_wrong(pins.WRONG_PINS_ALLOWED - 1)
+
+		self.assertEqual(pins.identify("51234"), STAFF)
+
+	def test_a_right_pin_does_not_clear_the_count(self):
+		"""Or a cashier signs in with their own PIN between guesses, forever."""
+		self._guess_wrong(pins.WRONG_PINS_ALLOWED - 1)
+		self.assertEqual(pins.identify("51234"), STAFF)
+		self._guess_wrong(1)
+
+		with self.assertRaises(frappe.RateLimitExceededError):
+			pins.identify("51234")
+
+	def test_the_overrides_and_the_sign_in_share_one_count(self):
+		"""Three doors, one count — or each door gives five more guesses."""
+		for _ in range(3):
+			self.assertIsNone(perms.find_approver_for_discount("max_order_discount_pct", 5, "99999"))
+		for _ in range(2):
+			self.assertIsNone(pins.find_approver_for_pin("can_void_item", "99999"))
+
+		frappe.set_user("Guest")
+		with self.assertRaises(frappe.RateLimitExceededError):
+			auth_api.sign_in("51234")
+
+	def test_another_device_is_not_made_to_wait(self):
+		self._guess_wrong(pins.WRONG_PINS_ALLOWED)
+
+		frappe.local.request_ip = self.OTHER_DEVICE
+		self.assertEqual(pins.identify("51234"), STAFF)
+
+	def test_the_wait_ends(self):
+		self._guess_wrong(pins.WRONG_PINS_ALLOWED)
+
+		pins.attempts_from(self.DEVICE).login_failed_time = add_to_date(
+			now_datetime(), seconds=-(pins.LOCK_SECONDS + 1)
+		)
+
+		self.assertEqual(pins.identify("51234"), STAFF)
+
+	def test_nothing_is_counted_outside_a_request(self):
+		"""A console types no guess — and a suite sharing one count would lock
+		itself out halfway through."""
+		frappe.local.request_ip = None
+		self._guess_wrong(pins.WRONG_PINS_ALLOWED * 2)
+
+		self.assertEqual(pins.identify("51234"), STAFF)

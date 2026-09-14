@@ -30,6 +30,9 @@ import operator
 from functools import reduce
 
 import frappe
+from frappe.model.naming import NamingSeries
+from frappe.query_builder.functions import Max
+from frappe.utils import cint
 
 from restaurant_pos.utils.order import release_table
 
@@ -41,6 +44,19 @@ ERPNEXT_REPLAYED = ("Sales Invoice", "POS Opening Entry", "POS Closing Entry")
 #: Floor states a trial leaves behind. `inactive` is not one: a table taken out
 #: of service is setup, and stays out.
 LEFT_BY_SERVICE = ("occupied", "cleaning", "reserved")
+
+#: The till's documents named from a `naming_series` field. ERPNext's button
+#: restarts a counter only when the pattern is the doctype's own `autoname`, so it
+#: skips these — which is how `RO-2026-09-00067` followed a deletion that left no
+#: orders at all (the user's first try of `D-210`).
+NUMBERED = (
+	"Restaurant Order",
+	"Kitchen Order Ticket",
+	"Restaurant Shift",
+	"Restaurant Reservation",
+	"POS Order Activity",
+	"POS Print Job",
+)
 
 
 def on_submit(doc, method=None):
@@ -123,6 +139,7 @@ def delete_pos_transactions(company: str) -> dict[str, int]:
 	):
 		_delete(doctype, names, gone)
 
+	_restart_numbering()
 	_hand_the_floor_back(branches)
 
 	for profile in frappe.get_all(
@@ -162,3 +179,26 @@ def _hand_the_floor_back(branches: list[str]) -> None:
 	)
 	for table in held:
 		release_table(table)
+
+
+def _restart_numbering() -> None:
+	"""Put each series back at the highest number still standing — zero if none.
+
+	**Never simply zero.** The counter is shared by the whole site, and another
+	company's orders may still carry numbers from it; setting it below them
+	hands the next bill a name that already exists. Only the current period's
+	prefix is restarted: that is the one the next document is named from.
+	"""
+	for doctype in NUMBERED:
+		options = frappe.get_meta(doctype).get_field("naming_series").options or ""
+		for option in filter(None, (line.strip() for line in options.split("\n"))):
+			series = NamingSeries(option)
+			prefix = series.get_prefix()
+			table = frappe.qb.DocType(doctype)
+			last = (
+				frappe.qb.from_(table)
+				.select(Max(table.name))
+				.where(table.name.like(f"{prefix}%"))
+				.run()[0][0]
+			)
+			series.update_counter(cint(last[len(prefix) :]) if last else 0)

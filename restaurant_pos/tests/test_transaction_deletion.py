@@ -12,6 +12,7 @@ Refs: D-061, D-210
 """
 
 import frappe
+from frappe.model.naming import NamingSeries
 
 from restaurant_pos.tests.test_order import BRANCH, OrderTestBase, _ensure_shift
 from restaurant_pos.tests.test_permissions import _make_user
@@ -57,6 +58,45 @@ class TestDeleteTransactionsClearsTheTill(OrderTestBase):
 		# ERPNext refuses a second record while one is queued for the company, and
 		# nothing here runs ERPNext's half to finish it — so it does not stay.
 		frappe.db.delete("Transaction Deletion Record", {"name": record.name})
+
+	def _order_series(self) -> NamingSeries:
+		return NamingSeries(
+			frappe.get_meta("Restaurant Order").get_field("naming_series").options.split("\n")[0]
+		)
+
+	def test_the_long_number_starts_again_when_no_order_is_left(self):
+		"""The user's report on the first real try: `RO-2026-09-00067` after a
+		deletion that had left no orders — ERPNext restarts only the counters of
+		doctypes named by their own `autoname`, and ours name from a field."""
+		self._order()
+		series = self._order_series()
+		self.assertGreater(series.get_current_value(), 0)
+
+		self._delete_transactions()
+
+		# Stated rather than assumed: the claim is about a site with nothing left.
+		self.assertEqual(
+			frappe.db.count("Restaurant Order", {"name": ("like", f"{series.get_prefix()}%")}), 0
+		)
+		self.assertEqual(series.get_current_value(), 0)
+		# The deletion took the day with it; a new bill needs one.
+		_ensure_shift(self.profile)
+		self.assertTrue(self._order().name.endswith("-00001"))
+
+	def test_a_number_still_standing_is_never_handed_out_again(self):
+		"""The counter is shared by the site. An order the deletion did not reach —
+		another company's — keeps its number, and the next bill goes after it."""
+		kept = self._order()
+		frappe.db.set_value("Restaurant Order", kept.name, "branch", "_RPOS Another Branch")
+		# The class rolls back once, at the end: left standing, this order breaks
+		# the "nothing left" claim of every test after it.
+		self.addCleanup(frappe.db.delete, "Restaurant Order", {"name": kept.name})
+
+		self._delete_transactions()
+
+		self.assertEqual(self._order_series().get_current_value(), int(kept.name.rsplit("-", 1)[1]))
+		_ensure_shift(self.profile)
+		self.assertNotEqual(self._order().name, kept.name)
 
 	def test_the_till_goes_with_the_books_and_the_setup_stays(self):
 		order = self._order()

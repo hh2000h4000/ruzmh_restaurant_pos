@@ -9,12 +9,26 @@ from frappe import _
 from frappe.model.document import Document
 from frappe.utils import cint
 
+#: Narrower than any 58mm head and wider than a 104mm one: outside this, the
+#: number is a typo rather than a printer.
+MIN_PRINT_DOTS = 200
+MAX_PRINT_DOTS = 832
+
 
 class POSPrinter(Document):
 	def validate(self):
 		self.validate_connection()
+		self.validate_print_width()
 		self.validate_fallback_printer()
 		self.validate_agent_branch()
+
+	def validate_print_width(self):
+		"""A typo here draws every receipt ten times too wide, or a sliver (`D-215`)."""
+		width = cint(self.print_width_dots)
+		if width and not MIN_PRINT_DOTS <= width <= MAX_PRINT_DOTS:
+			frappe.throw(
+				_("Print Width must be between {0} and {1} dots.").format(MIN_PRINT_DOTS, MAX_PRINT_DOTS)
+			)
 
 	def validate_connection(self):
 		"""Each connection type keeps its own address and clears the others'.

@@ -278,7 +278,7 @@ def test_print(printer: str) -> dict:
 	doc = frappe.get_doc("POS Printer", printer)
 	frappe.has_permission("POS Printer", "write", doc=doc, throw=True)
 
-	width = service.PAPER_DOTS[doc.paper_width]
+	width = service.print_dots(doc)
 	rendered = service.png_to_escpos(
 		service.html_to_png(
 			frappe.render_template(
@@ -288,8 +288,12 @@ def test_print(printer: str) -> dict:
 					"now": frappe.utils.format_datetime(now_datetime()),
 					"agent": doc.print_agent,
 					"width": width,
+					# The paper widths, and 512 between 76mm and 80mm: a 180 dpi head
+					# on 80mm paper, whose number goes in Print Width (`D-215`).
 					"marks": sorted(
-						(dots, name) for name, dots in service.PAPER_DOTS.items() if dots <= width
+						(dots, name)
+						for name, dots in (service.PAPER_DOTS | {"512": service.HEAD_DOTS_180_DPI}).items()
+						if dots <= width
 					),
 				},
 			),
@@ -401,7 +405,7 @@ TEST_PAGE = """
 	<hr>
 	<div style="font-size: 14px; text-align: left;">
 		<div>{{ printer.title }}</div>
-		<div>{{ printer.name }} &middot; {{ printer.paper_width }}</div>
+		<div>{{ printer.name }} &middot; {{ printer.paper_width }}{% if printer.print_width_dots %} &middot; {{ printer.print_width_dots }} dots{% endif %}</div>
 		<div>{{ printer.connection_type }}
 			{% if printer.ip_address %}{{ printer.ip_address }}:{{ printer.port }}{% endif %}</div>
 		<div>{{ agent or "-" }}</div>
@@ -424,6 +428,7 @@ TEST_PAGE = """
 	     thing to fall off. -->
 	<div style="font-size: 12px; direction: rtl; text-align: left; margin-top: 12px;">
 		آخر مقاس يظهر أسفله هو عرض الطابعة الحقيقي.
+		وإن كان 512 فاكتبه في Print Width.
 	</div>
 	<div style="position: relative; width: {{ width }}px; height: 58px; margin: 6px -8px 0;">
 		<div style="position: absolute; left: 0; top: 0; width: {{ width }}px;

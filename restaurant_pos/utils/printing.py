@@ -39,6 +39,18 @@ PAPER_DOTS = {
 	"80mm": 576,
 }
 
+#: What a 180 dpi head reaches on 80mm paper — Epson's TM-T70 among them. Not
+#: every printer is 203 dpi, and one that is not drops the right of a receipt
+#: drawn at 576 (`D-215`).
+HEAD_DOTS_180_DPI = 512
+
+
+def print_dots(printer_doc) -> int:
+	"""How wide to draw for this printer: what its head reaches when that was
+	measured and set (`D-215`), otherwise what its paper implies."""
+	return cint(printer_doc.get("print_width_dots")) or PAPER_DOTS[printer_doc.paper_width]
+
+
 #: How many dot rows go in one raster command.
 #:
 #: `GS v 0` accepts far more, but a cheap printer's input buffer does not, and
@@ -355,7 +367,7 @@ def print_document(
 	)
 
 	html = render_html(template_name, context)
-	png = html_to_png(html, width_dots=PAPER_DOTS[printer_doc.paper_width])
+	png = html_to_png(html, width_dots=print_dots(printer_doc))
 	rendered = png_to_escpos(png, cut=bool(printer_doc.cut_after_print))
 
 	return queue(

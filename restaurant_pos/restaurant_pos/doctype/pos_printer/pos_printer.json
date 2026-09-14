@@ -26,6 +26,7 @@
   "hardware_section",
   "printer_model",
   "paper_width",
+  "print_width_dots",
   "hardware_cb",
   "print_mode",
   "cut_after_print",
@@ -169,6 +170,13 @@
    "reqd": 1
   },
   {
+   "description": "Leave empty for most printers. Set it when the printer reaches less than its paper: a 180 dpi printer draws 512 dots on 80mm paper, not 576, and the right of every receipt falls off. The test page's ruler shows the width that fits (D-215).",
+   "fieldname": "print_width_dots",
+   "fieldtype": "Int",
+   "label": "Print Width (dots)",
+   "non_negative": 1
+  },
+  {
    "fieldname": "hardware_cb",
    "fieldtype": "Column Break"
   },
@@ -199,7 +207,7 @@
  "index_web_pages_for_search": 1,
  "istable": 0,
  "links": [],
- "modified": "2026-09-14 14:30:00.000000",
+ "modified": "2026-09-14 18:00:00.000000",
  "modified_by": "Administrator",
  "module": "Restaurant POS",
  "name": "POS Printer",

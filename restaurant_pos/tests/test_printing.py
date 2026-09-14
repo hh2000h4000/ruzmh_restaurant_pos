@@ -225,6 +225,14 @@ class TestTheConnection(FrappeTestCase):
 		with self.assertRaisesRegex(frappe.ValidationError, "USB Vendor ID"):
 			printer.validate_connection()
 
+	def test_a_print_width_that_is_a_typo_is_refused(self):
+		"""`D-215` — 5120 for 512 would draw every receipt ten times too wide."""
+		with self.assertRaisesRegex(frappe.ValidationError, "Print Width"):
+			self._printer(print_width_dots=5120).validate_print_width()
+
+		self._printer(print_width_dots=512).validate_print_width()
+		self._printer(print_width_dots=0).validate_print_width()
+
 	def test_a_network_printer_forgets_a_windows_name(self):
 		printer = self._printer(
 			connection_type="network", ip_address="192.168.8.192", windows_printer_name="EPSON"
@@ -465,6 +473,33 @@ class TestTheAgentSeam(PrintingTestBase):
 
 		self.assertEqual(row["printer"]["connection_type"], "windows")
 		self.assertEqual(row["printer"]["windows_printer_name"], "POS-X Thermal Printer")
+
+	def _measured_width(self, dots):
+		frappe.db.set_value("POS Printer", self.printer, "print_width_dots", dots)
+		frappe.clear_document_cache("POS Printer", self.printer)
+		self.addCleanup(frappe.clear_document_cache, "POS Printer", self.printer)
+		self.addCleanup(frappe.db.set_value, "POS Printer", self.printer, "print_width_dots", 0)
+
+	def test_a_ticket_is_drawn_as_wide_as_the_printer_reaches_not_as_its_paper(self):
+		"""`D-215` — a 180 dpi head on 80mm paper reaches 512 dots; drawn at 576,
+		the right of every Arabic line fell off the user's receipt."""
+		self._measured_width(512)
+		kot = self._sent_kot()
+
+		with patch.object(service, "html_to_png", wraps=service.html_to_png) as render:
+			service.print_kot(kot.name)
+
+		self.assertEqual(render.call_args.kwargs["width_dots"], 512)
+
+	def test_the_test_page_ruler_marks_512_for_a_180_dpi_printer(self):
+		"""Where somebody finds the number to type in the first place."""
+		frappe.db.set_value("POS Printer", self.printer, "paper_width", "80mm")
+		frappe.clear_document_cache("POS Printer", self.printer)
+
+		with patch.object(service, "html_to_png", wraps=service.html_to_png) as render:
+			api.test_print(self.printer)
+
+		self.assertIn(">512<", render.call_args.args[0])
 
 	def test_a_claimed_job_is_not_handed_out_twice(self):
 		"""Two tickets in the kitchen become two plates of food."""

@@ -776,51 +776,40 @@ class TestTheCustomerReceipt(PaymentTestBase):
 
 		self.assertIsNone(service.print_receipt(result["sales_invoice"], order_name=result["order_name"]))
 
-	def _use_print_format(self, html: str) -> None:
-		"""Set an ERPNext Print Format on the terminal, as a restaurant does in the desk."""
-		name = "RPOS Test Receipt Format"
-		if frappe.db.exists("Print Format", name):
-			frappe.delete_doc("Print Format", name, force=True, ignore_permissions=True)
-		frappe.get_doc(
-			{
-				"doctype": "Print Format",
-				"name": name,
-				"doc_type": "Sales Invoice",
-				"module": "Restaurant POS",
-				"standard": "No",
-				"custom_format": 1,
-				"print_format_type": "Jinja",
-				"html": html,
-			}
-		).insert(ignore_permissions=True)
+	def _printed_template(self, receipt_template: str | None) -> str:
 		frappe.db.set_value(
-			"POS Profile", self.profile, {"default_printer": self.printer, "print_format": name}
+			"POS Profile",
+			self.profile,
+			{"default_printer": self.printer, "receipt_template": receipt_template},
 		)
-		self.addCleanup(frappe.db.set_value, "POS Profile", self.profile, "print_format", None)
+		self.addCleanup(frappe.db.set_value, "POS Profile", self.profile, "receipt_template", None)
+		result = self._pay(self._payable_order())
 
-	def _printed_html(self, result) -> str:
-		with patch.object(service, "html_to_png", wraps=service.html_to_png) as render:
+		with patch.object(service, "render_html", wraps=service.render_html) as render:
 			job = service.print_receipt(result["sales_invoice"], order_name=result["order_name"])
 
 		self.assertIsNotNone(job)
 		return render.call_args.args[0]
 
-	def test_the_terminal_s_print_format_is_what_the_customer_is_handed(self):
-		"""D-213 — the receipt the restaurant designed in ERPNext, chosen on its POS Profile."""
-		self._use_print_format("<p>RPOS-PF {{ doc.name }}</p>")
-		result = self._pay(self._payable_order())
+	def test_the_template_chosen_on_the_terminal_is_what_prints(self):
+		"""D-214 — and sent as it is: a design for other paper is the restaurant's
+		to judge on the roll, not something refused here."""
+		paper = frappe.db.get_value("POS Printer", self.printer, "paper_width")
+		other_paper = frappe.db.get_value(
+			"POS Print Template",
+			{"template_type": "customer_receipt", "paper_width": ["!=", paper]},
+			"name",
+		)
 
-		self.assertIn(f"RPOS-PF {result['sales_invoice']}", self._printed_html(result))
+		self.assertEqual(self._printed_template(other_paper), other_paper)
 
-	def test_a_print_format_that_breaks_still_prints_the_rpos_receipt(self):
-		"""A broken design must not cost the customer a receipt."""
-		self._use_print_format("<p>RPOS-PF {{ frappe.throw('broken') }}</p>")
-		result = self._pay(self._payable_order())
+	def test_a_terminal_that_chose_nothing_prints_the_resolved_receipt(self):
+		paper = frappe.db.get_value("POS Printer", self.printer, "paper_width")
 
-		html = self._printed_html(result)
-
-		self.assertNotIn("RPOS-PF", html)
-		self.assertIn(result["sales_invoice"], html)
+		self.assertEqual(
+			self._printed_template(None),
+			service.resolve_template("customer_receipt", paper_width=paper, branch=BRANCH),
+		)
 
 
 class TestTheQueueDoesNotGrowForever(PrintingTestBase):

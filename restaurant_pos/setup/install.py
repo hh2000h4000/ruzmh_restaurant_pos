@@ -451,12 +451,21 @@ CUSTOM_FIELDS = {
 			"insert_after": "rpos_section_cb",
 		},
 		{
+			"fieldname": "receipt_template",
+			"fieldtype": "Link",
+			"options": "POS Print Template",
+			"label": "Receipt Template",
+			"description": "The customer receipt this terminal prints, as chosen — Preview it on the template. Empty uses the branch's template, then the default (D-214).",
+			"link_filters": '[["POS Print Template","template_type","=","customer_receipt"]]',
+			"insert_after": "default_printer",
+		},
+		{
 			"fieldname": "restaurant_shift",
 			"fieldtype": "Link",
 			"options": "Restaurant Shift",
 			"label": "Current Restaurant Shift",
 			"no_copy": 1,
-			"insert_after": "default_printer",
+			"insert_after": "receipt_template",
 		},
 		{
 			"fieldname": "rpos_theme",

@@ -52,28 +52,44 @@ function show(frm, result) {
 
 function explain_which_one_is_used(frm) {
 	// The commonest confusion: a template edited carefully that nothing prints,
-	// because another one wins the resolution (D-085).
-	const scope = frm.doc.branch ? __("branch {0}", [frm.doc.branch]) : __("every branch");
-
-	if (frm.doc.branch) {
-		frm.dashboard.set_headline(
-			__("Used for {0} on {1} paper at {2}, ahead of any default.", [
-				__(frm.doc.template_type),
-				frm.doc.paper_width,
-				scope,
-			]),
-		);
+	// because another one wins the resolution (D-085) — or one that does print,
+	// because a terminal chose it on its POS Profile (D-214).
+	if (frm.doc.template_type !== "customer_receipt") {
+		frm.dashboard.set_headline(by_resolution(frm));
 		return;
 	}
 
-	frm.dashboard.set_headline(
-		frm.doc.is_default
-			? __("The default for {0} on {1} paper. A template naming a branch beats it there.", [
-					__(frm.doc.template_type),
-					frm.doc.paper_width,
-				])
-			: __(
-					"Nothing prints this: it names no branch and is not the default. Tick Is Default, or set a Branch.",
-				),
-	);
+	frappe.db
+		.get_list("POS Profile", { filters: { receipt_template: frm.doc.name }, fields: ["name"] })
+		.then((rows) => {
+			if (!rows.length) {
+				frm.dashboard.set_headline(by_resolution(frm));
+				return;
+			}
+
+			const chosen = __("Printed by {0}, chosen on the POS Profile.", [
+				rows.map((row) => row.name).join(", "),
+			]);
+			const resolved = frm.doc.branch || frm.doc.is_default ? ` ${by_resolution(frm)}` : "";
+			frm.dashboard.set_headline(chosen + resolved);
+		});
+}
+
+function by_resolution(frm) {
+	if (frm.doc.branch) {
+		return __("Used for {0} on {1} paper at {2}, ahead of any default.", [
+			__(frm.doc.template_type),
+			frm.doc.paper_width,
+			__("branch {0}", [frm.doc.branch]),
+		]);
+	}
+
+	return frm.doc.is_default
+		? __("The default for {0} on {1} paper. A template naming a branch beats it there.", [
+				__(frm.doc.template_type),
+				frm.doc.paper_width,
+			])
+		: __(
+				"Nothing prints this: it names no branch and is not the default. Tick Is Default, or set a Branch.",
+			);
 }

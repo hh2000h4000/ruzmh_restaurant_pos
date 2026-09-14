@@ -60,6 +60,11 @@ doc_events = {
 	# D-189 — a program RPOS cannot honour is refused when it is saved: tiers
 	# (ERPNext's pick the wrong one) and an empty expiry (points die tonight).
 	"Loyalty Program": {"validate": "restaurant_pos.utils.loyalty.validate_program"},
+	# D-210 — Company → Delete Transactions clears the till too, in the same
+	# transaction. Without it the books emptied and every order stayed (D-061).
+	"Transaction Deletion Record": {
+		"on_submit": "restaurant_pos.utils.transaction_deletion.on_submit",
+	},
 }
 
 # D-085 — a print job carries the bitmap it printed, about 15 KB of base64 each.

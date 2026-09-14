@@ -17,13 +17,29 @@ class POSPrinter(Document):
 		self.validate_agent_branch()
 
 	def validate_connection(self):
-		if self.connection_type == "network":
+		"""Each connection type keeps its own address and clears the others'.
+
+		`windows` (`D-212`) was added beside `network` and `usb` and fell into
+		the USB branch, so a printer installed in Windows could not be saved
+		without a vendor id it does not have — found by the user saving the
+		first one.
+		"""
+		if self.connection_type != "network":
+			self.ip_address = None
+		if self.connection_type != "usb":
 			self.usb_vendor_id = None
 			self.usb_product_id = None
+		if self.connection_type != "windows":
+			self.windows_printer_name = None
+
+		if self.connection_type == "network":
 			self.validate_ip_address()
 			self.validate_port()
+		elif self.connection_type == "windows":
+			self.windows_printer_name = (self.windows_printer_name or "").strip()
+			if not self.windows_printer_name:
+				frappe.throw(_("Windows Printer Name is required for a printer installed in Windows."))
 		else:
-			self.ip_address = None
 			self.validate_usb_ids()
 
 	def validate_ip_address(self):

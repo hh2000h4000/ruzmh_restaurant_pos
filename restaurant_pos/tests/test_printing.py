@@ -186,6 +186,55 @@ class TestTheBytes(FrappeTestCase):
 		self.assertFalse(service.png_to_escpos(png, cut=False).payload.endswith(service.FEED_AND_CUT))
 
 
+class TestTheConnection(FrappeTestCase):
+	"""What a printer may be saved with, by connection type.
+
+	Validated without saving: the rules are the controller's, and a saved
+	printer would need a branch and an agent that say nothing about them.
+	"""
+
+	def _printer(self, **fields):
+		return frappe.get_doc(
+			{"doctype": "POS Printer", "title": "RPOS Connection Test", "branch": BRANCH, **fields}
+		)
+
+	def test_a_windows_printer_is_saved_by_its_name_alone(self):
+		"""`D-212` — found by the user: it was refused for want of a USB vendor id."""
+		printer = self._printer(
+			connection_type="windows",
+			windows_printer_name="  EPSON TM-T70 Receipt ",
+			ip_address="192.168.8.192",
+			usb_vendor_id="04b8",
+		)
+
+		printer.validate_connection()
+
+		self.assertEqual(printer.windows_printer_name, "EPSON TM-T70 Receipt")
+		self.assertIsNone(printer.ip_address)
+		self.assertIsNone(printer.usb_vendor_id)
+
+	def test_a_windows_printer_needs_its_name(self):
+		printer = self._printer(connection_type="windows", windows_printer_name="  ")
+
+		with self.assertRaisesRegex(frappe.ValidationError, "Windows Printer Name"):
+			printer.validate_connection()
+
+	def test_a_usb_printer_still_needs_its_ids(self):
+		printer = self._printer(connection_type="usb", windows_printer_name="EPSON TM-T70 Receipt")
+
+		with self.assertRaisesRegex(frappe.ValidationError, "USB Vendor ID"):
+			printer.validate_connection()
+
+	def test_a_network_printer_forgets_a_windows_name(self):
+		printer = self._printer(
+			connection_type="network", ip_address="192.168.8.192", windows_printer_name="EPSON"
+		)
+
+		printer.validate_connection()
+
+		self.assertIsNone(printer.windows_printer_name)
+
+
 class TestTheRightToLeftMark(FrappeTestCase):
 	"""Both halves of the condition, because both were measured (D-090)."""
 

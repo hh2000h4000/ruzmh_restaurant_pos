@@ -5,6 +5,8 @@ frappe.ui.form.on("POS Print Agent", {
 	refresh(frm) {
 		if (frm.is_new()) return;
 
+		// D-212 — the everyday way: a short code typed into the installer.
+		frm.add_custom_button(__("Pair a Device"), () => pair_device(frm));
 		frm.add_custom_button(__("Generate Keys"), () => generate_keys(frm));
 
 		if (!frm.doc.last_seen) {
@@ -29,6 +31,45 @@ frappe.ui.form.on("POS Print Agent", {
 		}
 	},
 });
+
+function pair_device(frm) {
+	frappe.call({
+		method: "restaurant_pos.restaurant_pos.doctype.pos_print_agent.pos_print_agent.issue_pairing_code",
+		args: { agent: frm.doc.name },
+		freeze: true,
+		callback: ({ message }) => {
+			if (!message) return;
+			show_pairing_code(message);
+			frm.reload_doc();
+		},
+	});
+}
+
+function show_pairing_code({ code, minutes, url }) {
+	// Large and plain: it is read off this screen and typed on another one.
+	const dialog = new frappe.ui.Dialog({
+		title: __("Pair a Device"),
+		fields: [
+			{
+				fieldtype: "HTML",
+				options: `
+					<p>${__("On the restaurant's computer, run the print agent installer and enter:")}</p>
+					<p class="text-muted" style="margin-bottom:4px">${__("Site address")}</p>
+					<p style="font-size:16px;font-family:monospace;direction:ltr">${frappe.utils.escape_html(url)}</p>
+					<p class="text-muted" style="margin-bottom:4px">${__("Pairing code")}</p>
+					<p style="font-size:32px;font-weight:600;letter-spacing:4px;font-family:monospace;direction:ltr">${frappe.utils.escape_html(code)}</p>
+					<p class="text-muted">${__("It works once, for {0} minutes. Asking for a new code cancels this one.", [minutes])}</p>
+				`,
+			},
+		],
+		primary_action_label: __("Done"),
+		primary_action() {
+			dialog.hide();
+		},
+	});
+
+	dialog.show();
+}
 
 function generate_keys(frm) {
 	frappe.confirm(

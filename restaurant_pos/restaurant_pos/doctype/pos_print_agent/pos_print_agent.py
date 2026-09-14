@@ -1,10 +1,21 @@
 # Copyright (c) 2026, RPOS and contributors
 # For license information, please see license.txt
 
+import secrets
+
 import frappe
 from frappe import _
 from frappe.model.document import Document
-from frappe.utils import now_datetime
+from frappe.utils import add_to_date, get_url, now_datetime
+
+#: How long a pairing code works (`D-212`). Long enough to walk from the desk to
+#: the restaurant's computer and run the installer; short enough that a code on
+#: a photographed screen is dead by the time anybody could use it.
+PAIRING_MINUTES = 10
+
+#: Eight digits: a hundred million codes, against five wrong guesses per device
+#: every five minutes, inside a ten-minute window.
+PAIRING_DIGITS = 8
 
 #: The role the agent's user carries, and the only one it carries.
 #:
@@ -91,6 +102,17 @@ def generate_keys(agent: str) -> str:
 	doc = frappe.get_doc("POS Print Agent", agent)
 	doc.check_permission("write")
 
+	api_key, api_secret = _issue_keys(doc)
+	return f"{api_key}:{api_secret}"
+
+
+def _issue_keys(doc) -> tuple[str, str]:
+	"""A new secret for the agent's user — the one place keys are made.
+
+	Both doors come through here: an administrator pressing Generate Keys, and a
+	machine exchanging a pairing code (`D-212`). A new secret revokes the old,
+	so an agent still holding it stops printing.
+	"""
 	if not doc.user:
 		frappe.throw(_("This agent has no user yet. Save it first."))
 
@@ -101,7 +123,107 @@ def generate_keys(agent: str) -> str:
 	user.api_secret = api_secret
 	user.save(ignore_permissions=True)
 
-	return f"{user.api_key}:{api_secret}"
+	return user.api_key, api_secret
+
+
+@frappe.whitelist()
+def issue_pairing_code(agent: str) -> dict:
+	"""A short code to type into the agent installer, instead of a key and a secret (`D-212`).
+
+	The technician at the restaurant's computer should not be copying two
+	fifteen-character strings between screens. Issuing a new code replaces any
+	code outstanding. Only its keyed digest is stored — the code is on the
+	screen that asked for it and nowhere else.
+	"""
+	doc = frappe.get_doc("POS Print Agent", agent)
+	doc.check_permission("write")
+
+	if not doc.user:
+		frappe.throw(_("This agent has no user yet. Save it first."))
+
+	code = f"{secrets.randbelow(10**PAIRING_DIGITS):0{PAIRING_DIGITS}d}"
+	doc.db_set(
+		{
+			"pairing_code_hash": _digest(code),
+			"pairing_expires_at": add_to_date(now_datetime(), minutes=PAIRING_MINUTES),
+		},
+		update_modified=False,
+	)
+
+	return {"code": f"{code[:4]}-{code[4:]}", "minutes": PAIRING_MINUTES, "url": get_url()}
+
+
+@frappe.whitelist(allow_guest=True)
+def pair(code: str, host: str | None = None) -> dict:
+	"""Exchange a pairing code for this agent's key and secret — once (`D-212`).
+
+	`allow_guest` because the machine asking has nothing to sign in with yet:
+	that is the whole point of the code. So guessing is held to the same
+	per-device lockout the till's PIN pad uses (`D-204`), counted apart from it,
+	and the code dies on first use or after ten minutes, whichever is sooner.
+	"""
+	from restaurant_pos.utils.manager_pin import LOCK_SECONDS, attempts_from
+
+	ip = frappe.local.request_ip
+	tracker = attempts_from(ip, scope="pair") if ip else None
+	if tracker and not tracker.is_user_allowed():
+		frappe.throw(
+			_("Too many wrong pairing codes from this device. Try again in {0} minutes.").format(
+				LOCK_SECONDS // 60
+			),
+			frappe.RateLimitExceededError,
+		)
+
+	# Typed with or without its hyphen, and with whatever a paste carried along.
+	digits = "".join(character for character in (code or "") if character.isdigit())
+	name = (
+		frappe.db.get_value(
+			"POS Print Agent",
+			{
+				"pairing_code_hash": _digest(digits),
+				"pairing_expires_at": (">", now_datetime()),
+				"is_active": 1,
+			},
+		)
+		if len(digits) == PAIRING_DIGITS
+		else None
+	)
+	if not name:
+		if tracker:
+			tracker.add_failure_attempt()
+		frappe.throw(
+			_("That pairing code is not valid, or it has expired. Ask for a new one."),
+			frappe.AuthenticationError,
+		)
+
+	doc = frappe.get_doc("POS Print Agent", name)
+	# Spent before anything else happens, so a second request racing this one
+	# finds nothing to match.
+	doc.db_set({"pairing_code_hash": None, "pairing_expires_at": None}, update_modified=False)
+
+	# The request has no session, and saving a User — or leaving a comment on the
+	# agent — is not Guest's to do. The code is the authorisation; these rights
+	# are borrowed for the two writes it authorises and handed straight back.
+	user = frappe.session.user
+	frappe.set_user("Administrator")
+	try:
+		api_key, api_secret = _issue_keys(doc)
+		doc.add_comment("Info", _("Paired from {0}.").format(host or ip or _("an unknown machine")))
+	finally:
+		frappe.set_user(user)
+
+	return {"agent": doc.name, "title": doc.title, "api_key": api_key, "api_secret": api_secret}
+
+
+def _digest(code: str) -> str:
+	"""A keyed digest, so a stolen database alone does not hand over a live code.
+
+	The same construction as the PIN lookup (`manager_pin.lookup_of`), for the
+	same reason.
+	"""
+	from restaurant_pos.utils.manager_pin import lookup_of
+
+	return lookup_of(code)
 
 
 def for_session() -> str:

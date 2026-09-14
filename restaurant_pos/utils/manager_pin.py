@@ -267,11 +267,15 @@ WRONG_PINS_ALLOWED = 5
 LOCK_SECONDS = 5 * 60
 
 
-def attempts_from(ip: str) -> LoginAttemptTracker:
-	"""Frappe's own failed-login counter, kept per device rather than per account."""
+def attempts_from(ip: str, scope: str = "pin") -> LoginAttemptTracker:
+	"""Frappe's own failed-login counter, kept per device rather than per account.
+
+	``scope`` keeps one kind of guess from spending another's allowance: a print
+	agent's pairing code (`D-212`) counts apart from the till's PINs.
+	"""
 	# Frappe locks when the count *exceeds* its maximum, hence the minus one.
 	return LoginAttemptTracker(
-		f"rpos_pin:{ip}",
+		f"rpos_{scope}:{ip}",
 		max_consecutive_login_attempts=WRONG_PINS_ALLOWED - 1,
 		lock_interval=LOCK_SECONDS,
 	)

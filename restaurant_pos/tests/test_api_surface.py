@@ -86,10 +86,22 @@ UNSCOPED = {
 	"restaurant_pos.doctype.pos_print_agent.pos_print_agent.generate_keys": (
 		"desk action on the DocType, behind ERPNext document permissions"
 	),
+	"restaurant_pos.doctype.pos_print_agent.pos_print_agent.issue_pairing_code": (
+		"desk action on the DocType, behind ERPNext document permissions (D-212)"
+	),
+	"restaurant_pos.doctype.pos_print_agent.pos_print_agent.pair": (
+		"a machine with no credentials yet exchanges a one-time, ten-minute code for its "
+		"agent's keys; guesses are locked out per device like the PIN pad (D-204, D-212)"
+	),
 }
 
-#: The only endpoint a signed-out browser may call.
-GUEST_ENDPOINTS = {"api.auth.sign_in"}
+#: The only endpoints a signed-out caller may use. **Each one is a conversation**:
+#: the PIN pad, because a locked till has nobody signed in, and pairing, because a
+#: print agent being installed has no key yet (`D-212`).
+GUEST_ENDPOINTS = {
+	"api.auth.sign_in",
+	"restaurant_pos.doctype.pos_print_agent.pos_print_agent.pair",
+}
 
 PACKAGE = pathlib.Path(__file__).resolve().parent.parent
 

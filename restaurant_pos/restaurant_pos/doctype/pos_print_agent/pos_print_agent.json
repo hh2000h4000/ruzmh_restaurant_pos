@@ -17,6 +17,8 @@
   "credentials_section",
   "user",
   "credentials_help",
+  "pairing_expires_at",
+  "pairing_code_hash",
   "health_section",
   "last_seen",
   "agent_version",
@@ -86,7 +88,23 @@
    "fieldname": "credentials_help",
    "fieldtype": "HTML",
    "label": "Credentials Help",
-   "options": "<p class=\"text-muted\">Use <b>Generate Keys</b> to issue the agent's API secret. It is shown once and never again — copy it into the agent's configuration before closing the dialog.</p>"
+   "options": "<p class=\"text-muted\">Use <b>Pair a Device</b> and type the short code into the agent installer on the restaurant's computer — it works once, for ten minutes. <b>Generate Keys</b> is the manual way: the secret is shown once, to copy into the agent's configuration by hand.</p>"
+  },
+  {
+   "description": "While a pairing code is outstanding. Empty once it is used or replaced.",
+   "fieldname": "pairing_expires_at",
+   "fieldtype": "Datetime",
+   "label": "Pairing Code Expires",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "pairing_code_hash",
+   "fieldtype": "Data",
+   "hidden": 1,
+   "label": "Pairing Code Hash",
+   "no_copy": 1,
+   "read_only": 1
   },
   {
    "fieldname": "health_section",
@@ -133,7 +151,7 @@
    "link_fieldname": "agent"
   }
  ],
- "modified": "2026-08-31 00:00:00.000000",
+ "modified": "2026-09-14 13:00:00.000000",
  "modified_by": "Administrator",
  "module": "Restaurant POS",
  "name": "POS Print Agent",

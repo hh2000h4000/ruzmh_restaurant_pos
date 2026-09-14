@@ -190,6 +190,16 @@ Terminals,الطرفيات
 That PIN is already in use. Choose a different one.,هذا الرقم مستخدم. اختر رقماً آخر.
 That PIN was not recognised.,الرقم السري غير صحيح.
 Too many wrong PINs on this device. Try again in {0} minutes.,محاولات خاطئة كثيرة من هذا الجهاز. حاول بعد {0} دقائق.
+Too many wrong pairing codes from this device. Try again in {0} minutes.,رموز ربط خاطئة كثيرة من هذا الجهاز. حاول بعد {0} دقائق.
+"That pairing code is not valid, or it has expired. Ask for a new one.","رمز الربط غير صحيح أو انتهت صلاحيته. اطلب رمزاً جديداً."
+Paired from {0}.,تم الربط من {0}.
+an unknown machine,جهاز غير معروف
+Pair a Device,ربط جهاز
+"On the restaurant's computer, run the print agent installer and enter:","على كمبيوتر المطعم، شغّل برنامج تثبيت وكيل الطباعة وأدخل:"
+Site address,عنوان الموقع
+Pairing code,رمز الربط
+"It works once, for {0} minutes. Asking for a new code cancels this one.","يعمل مرة واحدة، لمدة {0} دقائق. طلب رمز جديد يُلغي هذا الرمز."
+Done,تم
 That time has already passed.,هذا الوقت فات.
 The PIN must be exactly {0} digits.,الرقم السري يجب أن يكون {0} أرقام بالضبط.
 The amount received is less than the amount being paid.,المبلغ المستلم أقل من المبلغ المدفوع.

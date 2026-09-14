@@ -105,8 +105,10 @@ def resolve_template(
 ) -> str:
 	"""The template to render, most specific first.
 
-	An explicit choice on the POS Profile or the Production Center wins; failing
-	that a template for this branch; failing that the shipped default. The
+	An explicit template wins when a caller names one — no screen sets one; the
+	receipt's choice on the POS Profile is an ERPNext Print Format instead
+	(`D-213`). Failing that a template for this branch; failing that the shipped
+	default. The
 	shipped default exists so that a restaurant prints correctly before anybody
 	has opened this screen.
 	"""
@@ -337,23 +339,29 @@ def print_document(
 	printer: str,
 	context: dict,
 	template: str | None = None,
+	html: str | None = None,
 	copies: int = 1,
 	reference_doctype: str | None = None,
 	reference_name: str | None = None,
 ) -> str:
-	"""Render a document and queue it for its printer. Returns the job name."""
+	"""Render a document and queue it for its printer. Returns the job name.
+
+	`html` is a page already rendered elsewhere — an ERPNext Print Format
+	(`D-213`) — and skips the template entirely.
+	"""
 	printer_doc = frappe.get_cached_doc("POS Printer", printer)
 	if not printer_doc.is_active:
 		frappe.throw(_("{0} is switched off.").format(printer_doc.title))
 
-	template_name = resolve_template(
-		job_type,
-		paper_width=printer_doc.paper_width,
-		branch=printer_doc.branch,
-		explicit=template,
-	)
+	if html is None:
+		template_name = resolve_template(
+			job_type,
+			paper_width=printer_doc.paper_width,
+			branch=printer_doc.branch,
+			explicit=template,
+		)
+		html = render_html(template_name, context)
 
-	html = render_html(template_name, context)
 	png = html_to_png(html, width_dots=PAPER_DOTS[printer_doc.paper_width])
 	rendered = png_to_escpos(png, cut=bool(printer_doc.cut_after_print))
 
@@ -538,12 +546,60 @@ def print_receipt(invoice_name: str, *, order_name: str | None = None) -> str | 
 			job_type="customer_receipt",
 			printer=printer,
 			context=receipt_context(invoice, order),
+			html=_terminal_print_format_html(invoice),
 			reference_doctype="Sales Invoice",
 			reference_name=invoice.name,
 		)
 	except Exception:
 		frappe.log_error(f"Receipt for {invoice_name} could not be queued", "RPOS printing")
 		return None
+
+
+def _terminal_print_format_html(invoice) -> str | None:
+	"""The receipt as the terminal's own ERPNext Print Format draws it (`D-213`).
+
+	`POS Profile.print_format` is ERPNext's field, and it is where a restaurant
+	already put the receipt it designed — so that is what prints. Sent as it is,
+	at the printer's width: whether the design fits the paper is the
+	restaurant's to see and change, not something to second-guess here.
+
+	`None` — our own template — when the field is empty, **or when the format
+	fails to render**: a broken design must not cost the customer a receipt.
+	The failure is logged with the format's name.
+	"""
+	print_format = frappe.db.get_value("POS Profile", invoice.pos_profile, "print_format")
+	if not print_format:
+		return None
+
+	try:
+		return print_format_html(invoice, print_format)
+	except Exception:
+		frappe.log_error(
+			f"Print Format {print_format} could not render {invoice.name}; the RPOS receipt printed instead",
+			"RPOS printing",
+		)
+		return None
+
+
+def print_format_html(doc, print_format: str) -> str:
+	"""An ERPNext Print Format rendered for a document, with Frappe's print style.
+
+	Through Frappe's own renderer, so a format prints here as it does from the
+	desk. Print permission is waived: this runs in a worker on behalf of a
+	cashier who may hold no print right on `Sales Invoice`, for a receipt the
+	sale itself asked for.
+	"""
+	from frappe.www.printview import get_print_format_doc, get_print_style, get_rendered_template
+
+	format_doc = get_print_format_doc(print_format, meta=doc.meta)
+	waived = frappe.flags.ignore_print_permissions
+	frappe.flags.ignore_print_permissions = True
+	try:
+		html = get_rendered_template(doc=doc, print_format=format_doc, meta=doc.meta, no_letterhead=1)
+	finally:
+		frappe.flags.ignore_print_permissions = waived
+
+	return f"<style>{get_print_style(print_format=format_doc)}</style>{html}"
 
 
 def receipt_printer(pos_profile: str | None, order_name: str | None = None) -> str | None:

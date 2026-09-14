@@ -776,6 +776,52 @@ class TestTheCustomerReceipt(PaymentTestBase):
 
 		self.assertIsNone(service.print_receipt(result["sales_invoice"], order_name=result["order_name"]))
 
+	def _use_print_format(self, html: str) -> None:
+		"""Set an ERPNext Print Format on the terminal, as a restaurant does in the desk."""
+		name = "RPOS Test Receipt Format"
+		if frappe.db.exists("Print Format", name):
+			frappe.delete_doc("Print Format", name, force=True, ignore_permissions=True)
+		frappe.get_doc(
+			{
+				"doctype": "Print Format",
+				"name": name,
+				"doc_type": "Sales Invoice",
+				"module": "Restaurant POS",
+				"standard": "No",
+				"custom_format": 1,
+				"print_format_type": "Jinja",
+				"html": html,
+			}
+		).insert(ignore_permissions=True)
+		frappe.db.set_value(
+			"POS Profile", self.profile, {"default_printer": self.printer, "print_format": name}
+		)
+		self.addCleanup(frappe.db.set_value, "POS Profile", self.profile, "print_format", None)
+
+	def _printed_html(self, result) -> str:
+		with patch.object(service, "html_to_png", wraps=service.html_to_png) as render:
+			job = service.print_receipt(result["sales_invoice"], order_name=result["order_name"])
+
+		self.assertIsNotNone(job)
+		return render.call_args.args[0]
+
+	def test_the_terminal_s_print_format_is_what_the_customer_is_handed(self):
+		"""D-213 — the receipt the restaurant designed in ERPNext, chosen on its POS Profile."""
+		self._use_print_format("<p>RPOS-PF {{ doc.name }}</p>")
+		result = self._pay(self._payable_order())
+
+		self.assertIn(f"RPOS-PF {result['sales_invoice']}", self._printed_html(result))
+
+	def test_a_print_format_that_breaks_still_prints_the_rpos_receipt(self):
+		"""A broken design must not cost the customer a receipt."""
+		self._use_print_format("<p>RPOS-PF {{ frappe.throw('broken') }}</p>")
+		result = self._pay(self._payable_order())
+
+		html = self._printed_html(result)
+
+		self.assertNotIn("RPOS-PF", html)
+		self.assertIn(result["sales_invoice"], html)
+
 
 class TestTheQueueDoesNotGrowForever(PrintingTestBase):
 	def test_an_old_finished_job_loses_its_bytes_but_keeps_its_row(self):

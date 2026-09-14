@@ -22,6 +22,7 @@
   "connection_cb",
   "usb_vendor_id",
   "usb_product_id",
+  "windows_printer_name",
   "hardware_section",
   "printer_model",
   "paper_width",
@@ -96,11 +97,12 @@
   },
   {
    "default": "network",
+   "description": "network: by IP address. windows: a printer installed in Windows on the agent's machine — the usual way for a USB printer on a Windows PC (D-212). usb: direct USB by vendor and product id, for an agent on Linux or a Raspberry Pi.",
    "fieldname": "connection_type",
    "fieldtype": "Select",
    "in_list_view": 1,
    "label": "Connection Type",
-   "options": "network\nusb",
+   "options": "network\nwindows\nusb",
    "reqd": 1
   },
   {
@@ -136,6 +138,14 @@
    "fieldtype": "Data",
    "label": "USB Product ID",
    "mandatory_depends_on": "eval:doc.connection_type=='usb'"
+  },
+  {
+   "depends_on": "eval:doc.connection_type=='windows'",
+   "description": "Exactly as Windows lists it under Printers & scanners, e.g. POS-X Thermal Printer. The agent sends the ticket's bytes to it unchanged, so the printer stays usable by every other program.",
+   "fieldname": "windows_printer_name",
+   "fieldtype": "Data",
+   "label": "Windows Printer Name",
+   "mandatory_depends_on": "eval:doc.connection_type=='windows'"
   },
   {
    "fieldname": "hardware_section",
@@ -189,7 +199,7 @@
  "index_web_pages_for_search": 1,
  "istable": 0,
  "links": [],
- "modified": "2026-08-09 00:00:00.000000",
+ "modified": "2026-09-14 14:30:00.000000",
  "modified_by": "Administrator",
  "module": "Restaurant POS",
  "name": "POS Printer",

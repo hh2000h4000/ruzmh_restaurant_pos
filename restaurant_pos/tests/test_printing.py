@@ -399,6 +399,24 @@ class TestTheAgentSeam(PrintingTestBase):
 		self.assertEqual(row["printer"]["port"], 9100)
 		self.assertTrue(base64.b64decode(row["payload"]).startswith(service.INIT))
 
+	def test_a_windows_printer_is_named_to_the_agent_as_windows_lists_it(self):
+		"""`D-212` — a USB printer on a Windows PC is reached through its spooler,
+		and the name is the whole address."""
+		frappe.db.set_value(
+			"POS Printer",
+			self.printer,
+			{"connection_type": "windows", "windows_printer_name": "POS-X Thermal Printer"},
+		)
+		frappe.clear_document_cache("POS Printer", self.printer)
+		kot = self._sent_kot()
+		service.print_kot(kot.name)
+		self._as_agent()
+
+		row = api.claim()[0]
+
+		self.assertEqual(row["printer"]["connection_type"], "windows")
+		self.assertEqual(row["printer"]["windows_printer_name"], "POS-X Thermal Printer")
+
 	def test_a_claimed_job_is_not_handed_out_twice(self):
 		"""Two tickets in the kitchen become two plates of food."""
 		kot = self._sent_kot()

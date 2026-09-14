@@ -180,6 +180,8 @@ def _connection(printer: str) -> dict:
 		"port": doc.port,
 		"usb_vendor_id": doc.usb_vendor_id,
 		"usb_product_id": doc.usb_product_id,
+		# D-212 — a printer installed in Windows, reached through its spooler.
+		"windows_printer_name": doc.get("windows_printer_name"),
 	}
 
 

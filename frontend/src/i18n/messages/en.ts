@@ -228,6 +228,10 @@ export const messages = {
   "order.busy": "The till was still finishing the last thing. Nothing was changed — try again.",
   "order.notRouted": "Not routed to a kitchen: {items} — printing on the cashier printer.",
   "order.sendToKitchen": "Send to kitchen",
+  // D-211 — a kitchen ticket whose paper never came, said on the order.
+  "order.ticketNotPrinted": "The {station} ticket did not print.",
+  "order.reprintTicket": "Print again",
+  "order.askForReprint": "Ask a manager to print it again.",
   "order.pay": "Pay",
   "order.bill": "Bill",
   "order.hideBill": "Hide the bill",

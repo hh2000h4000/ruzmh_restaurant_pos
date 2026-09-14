@@ -202,6 +202,13 @@ export interface OrderLine {
   production_center: string | null;
 }
 
+/** A kitchen ticket whose paper never came, its station in both languages (`D-211`). */
+export interface UnprintedTicket {
+  kot_name: string;
+  station: string;
+  station_ar: string;
+}
+
 export interface OrderDetail extends OrderSummary {
   /** The short number the customer is told; `order_name` is the record id. */
   daily_number: number;
@@ -232,6 +239,13 @@ export interface OrderDetail extends OrderSummary {
   notes: string | null;
   opened_at: string;
   items: OrderLine[];
+  /**
+   * Kitchen tickets whose paper never came (`D-211`). Absent on a bill composed
+   * on this device, which has sent nothing to any printer.
+   */
+  unprinted_tickets?: UnprintedTicket[];
+  /** Tickets still on their way to a printer — the screen checks back while this is above zero. */
+  tickets_printing?: number;
 }
 
 export type OpenOrderStatus =

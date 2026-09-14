@@ -780,8 +780,12 @@ def prune_jobs() -> None:
 	)
 
 
-def settle(job_name: str, *, printed: bool, error: str | None = None) -> None:
-	"""Record what the agent reported, and try the fallback if it failed."""
+def settle(job_name: str, *, printed: bool, error: str | None = None, try_fallback: bool = True) -> None:
+	"""Record what the agent reported, and try the fallback if it failed.
+
+	``try_fallback`` is off for a job that expired unprinted (`D-108`): a ticket
+	too late for its own printer is too late for the backup as well.
+	"""
 	job = frappe.get_doc("POS Print Job", job_name)
 	job.db_set(
 		{
@@ -792,10 +796,17 @@ def settle(job_name: str, *, printed: bool, error: str | None = None) -> None:
 		update_modified=False,
 	)
 
+	retry = fall_back(job_name) if not printed and try_fallback else None
+
 	# A kitchen ticket says whether it reached the kitchen; the job says whether
 	# bytes went down a wire. Two questions, but **one answer** — the ticket
 	# reflects its job rather than keeping a second opinion that could disagree
 	# with it (CLAUDE.md §5.5).
+	#
+	# **Still `pending` while the backup has it** (`D-211`). The order screen
+	# warns on `failed`, and a warning now would send the cashier to reprint a
+	# ticket that is about to come out of the backup printer — two tickets, two
+	# plates.
 	if job.reference_doctype == "Kitchen Order Ticket" and frappe.db.exists(
 		"Kitchen Order Ticket", job.reference_name
 	):
@@ -803,12 +814,9 @@ def settle(job_name: str, *, printed: bool, error: str | None = None) -> None:
 			"Kitchen Order Ticket",
 			job.reference_name,
 			{
-				"print_status": "printed" if printed else "failed",
+				"print_status": "printed" if printed else ("pending" if retry else "failed"),
 				"printed_at": job.printed_at,
 				"printer_used": job.printer,
 			},
 			update_modified=False,
 		)
-
-	if not printed:
-		fall_back(job_name)

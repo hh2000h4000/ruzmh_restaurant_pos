@@ -479,6 +479,16 @@ export const useOrderStore = defineStore("order", () => {
     return true;
   }
 
+  /**
+   * How often, and how many times, the screen checks back on tickets still on
+   * their way to a printer (`D-211`). Thirty seconds covers an agent's poll and
+   * a printer's three tries of five seconds.
+   */
+  const PRINT_CHECK_MS = 5000;
+  const PRINT_CHECKS = 6;
+  /** Bumped by each new watch, so an older one stops rather than racing it. */
+  let printWatch = 0;
+
   async function sendToKitchen(): Promise<boolean> {
     if (!order.value) return false;
 
@@ -493,9 +503,59 @@ export const useOrderStore = defineStore("order", () => {
       return true;
     }
 
+    const name = order.value.order_name;
     unrouted.value = result.unrouted_items;
-    await open(order.value.order_name);
+    await open(name);
+    void followPrinting(name);
     return true;
+  }
+
+  /** Put a kitchen ticket that did not print on paper again (FR-6.4, `D-211`). */
+  async function reprintTicket(kotName: string): Promise<boolean> {
+    if (!order.value) return false;
+
+    const name = order.value.order_name;
+    const result = await run(() => kitchenApi.reprintKot(kotName));
+    if (!result) return false;
+
+    await open(name);
+    void followPrinting(name);
+    return true;
+  }
+
+  /**
+   * Check back while tickets are on their way to a printer (`D-211`).
+   *
+   * The answer is not in the send's reply: the agent reports seconds later, and
+   * a printer that is off takes three tries of five seconds to give up. So the
+   * screen asks again a few times and stops as soon as nothing is still printing
+   * — after that, whatever the cashier does next reloads the order anyway.
+   *
+   * **Not through `run`.** A timer is exactly the programmatic caller `run`
+   * turns away with "still busy" (`D-128`). And it only reads: it copies the two
+   * print fields and nothing else, so a line the cashier is editing is never
+   * overwritten by an older copy of the bill.
+   */
+  async function followPrinting(orderName: string): Promise<void> {
+    const watch = ++printWatch;
+
+    for (let check = 0; check < PRINT_CHECKS; check += 1) {
+      if (!order.value?.tickets_printing) return;
+
+      await new Promise((resolve) => setTimeout(resolve, PRINT_CHECK_MS));
+      if (watch !== printWatch || order.value?.order_name !== orderName) return;
+
+      try {
+        const fresh = await orderApi.getOrder(orderName);
+        if (watch !== printWatch || order.value?.order_name !== orderName) return;
+        order.value.unprinted_tickets = fresh.unprinted_tickets;
+        order.value.tickets_printing = fresh.tickets_printing;
+      } catch {
+        // The next action reloads the order; a missed check is not worth a
+        // message on the screen.
+        return;
+      }
+    }
   }
 
   /**
@@ -580,6 +640,7 @@ export const useOrderStore = defineStore("order", () => {
     voidLine,
     cancel,
     sendToKitchen,
+    reprintTicket,
     clear,
   };
 });

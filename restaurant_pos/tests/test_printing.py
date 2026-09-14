@@ -18,6 +18,7 @@ import frappe
 from frappe.tests.utils import FrappeTestCase
 from frappe.utils import add_to_date, now_datetime
 
+from restaurant_pos.api import order as order_api
 from restaurant_pos.api import printing as api
 from restaurant_pos.restaurant_pos.doctype.pos_print_agent import pos_print_agent
 from restaurant_pos.setup import print_templates
@@ -468,6 +469,29 @@ class TestTheAgentSeam(PrintingTestBase):
 		self.assertTrue(frappe.db.exists("POS Print Job", job))
 		self.assertTrue(frappe.db.get_value("POS Print Job", job, "error"))
 
+	def test_an_expired_ticket_says_so_on_the_ticket_too(self):
+		"""`D-211` — the job was marked failed while its ticket kept saying
+		`pending`, so the order screen could never warn about the one failure
+		that lasts longest: a printer off all afternoon."""
+		kot = self._sent_kot()
+		job = service.print_kot(kot.name)
+		frappe.db.set_value(
+			"POS Print Job",
+			job,
+			"creation",
+			add_to_date(now_datetime(), minutes=-(api.STALE_AFTER_MINUTES + 1)),
+			update_modified=False,
+		)
+
+		self._as_agent()
+		api.claim()
+
+		self.assertEqual(frappe.db.get_value("Kitchen Order Ticket", kot.name, "print_status"), "failed")
+		self.assertFalse(
+			frappe.db.exists("POS Print Job", {"retry_of": job}),
+			"too late for its printer, too late for the backup",
+		)
+
 	def test_a_fresh_ticket_is_untouched_by_that(self):
 		kot = self._sent_kot()
 		job = service.print_kot(kot.name)
@@ -530,6 +554,8 @@ class TestWhatTheAgentReports(PrintingTestBase):
 		self.assertFalse(frappe.db.exists("POS Print Job", {"retry_of": retry}))
 
 	def test_a_failure_says_what_went_wrong(self):
+		# No backup: with one, the ticket is still on its way (`D-211`, below).
+		frappe.db.set_value("POS Printer", self.printer, "fallback_printer", None)
 		kot = self._sent_kot()
 		job = service.print_kot(kot.name)
 
@@ -537,6 +563,61 @@ class TestWhatTheAgentReports(PrintingTestBase):
 
 		self.assertEqual(frappe.db.get_value("POS Print Job", job, "error"), "Out of paper")
 		self.assertEqual(frappe.db.get_value("Kitchen Order Ticket", kot.name, "print_status"), "failed")
+
+	def test_a_ticket_the_backup_may_still_print_is_not_yet_failed(self):
+		"""`D-211` — a warning now would send the cashier to reprint a ticket about
+		to come out of the backup printer: two tickets, two plates."""
+		kot = self._sent_kot()
+		job = service.print_kot(kot.name)
+
+		service.settle(job, printed=False, error="Connection refused")
+
+		self.assertEqual(frappe.db.get_value("Kitchen Order Ticket", kot.name, "print_status"), "pending")
+
+	def test_when_the_backup_fails_too_the_ticket_is_failed(self):
+		kot = self._sent_kot()
+		job = service.print_kot(kot.name)
+		service.settle(job, printed=False, error="first")
+		retry = frappe.db.get_value("POS Print Job", {"retry_of": job}, "name")
+
+		service.settle(retry, printed=False, error="second")
+
+		self.assertEqual(frappe.db.get_value("Kitchen Order Ticket", kot.name, "print_status"), "failed")
+
+
+class TheOrderScreenIsToldWhatDidNotPrint(PrintingTestBase):
+	"""`D-211` — a printer that is off used to fail in silence: the ticket said
+	`failed` on a desk form, and the cook simply got nothing."""
+
+	def test_a_ticket_that_did_not_print_is_named_with_its_station(self):
+		frappe.db.set_value("POS Printer", self.printer, "fallback_printer", None)
+		kot = self._sent_kot()
+		service.settle(service.print_kot(kot.name), printed=False, error="Out of paper")
+
+		state = order_api.get_order(kot.restaurant_order)
+
+		self.assertEqual([row["kot_name"] for row in state["unprinted_tickets"]], [kot.name])
+		title, title_ar = frappe.db.get_value("Production Center", self.grill, ["title", "title_ar"])
+		self.assertEqual(state["unprinted_tickets"][0]["station"], title)
+		self.assertEqual(state["unprinted_tickets"][0]["station_ar"], title_ar or title)
+		self.assertEqual(state["tickets_printing"], 0)
+
+	def test_a_ticket_on_its_way_is_counted_not_warned_about(self):
+		kot = self._sent_kot()
+		service.print_kot(kot.name)
+
+		state = order_api.get_order(kot.restaurant_order)
+
+		self.assertEqual(state["unprinted_tickets"], [])
+		self.assertEqual(state["tickets_printing"], 1)
+
+	def test_a_printed_ticket_is_neither(self):
+		kot = self._sent_kot()
+		service.settle(service.print_kot(kot.name), printed=True)
+
+		state = order_api.get_order(kot.restaurant_order)
+
+		self.assertEqual((state["unprinted_tickets"], state["tickets_printing"]), ([], 0))
 
 
 class TestTheShippedTemplates(FrappeTestCase):

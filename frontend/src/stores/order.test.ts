@@ -15,6 +15,7 @@
 import { createPinia, setActivePinia } from "pinia";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import * as kitchenApi from "@/api/kitchen";
 import type { OrderDetail } from "@/api/order";
 import * as orderApi from "@/api/order";
 import { t } from "@/i18n";
@@ -28,6 +29,11 @@ vi.mock("@/api/order", () => ({
   setCallName: vi.fn(),
 }));
 
+vi.mock("@/api/kitchen", () => ({
+  reprintKot: vi.fn(),
+  sendToKitchen: vi.fn(),
+}));
+
 function bill(): OrderDetail {
   return { order_name: ORDER, items: [] } as unknown as OrderDetail;
 }
@@ -35,6 +41,67 @@ function bill(): OrderDetail {
 beforeEach(() => {
   setActivePinia(createPinia());
   vi.clearAllMocks();
+});
+
+/**
+ * `D-211` — the agent reports seconds after the send, so the store checks back.
+ * What it must not do: stop before the answer lands, keep asking after it, or
+ * paint one bill's failure onto another the cashier has opened since.
+ */
+describe("a kitchen ticket that did not print", () => {
+  const TICKET = { kot_name: "KOT-2026-09-00001", station: "Grill", station_ar: "الشواية" };
+
+  function printing(over: Partial<OrderDetail>): OrderDetail {
+    return { ...bill(), unprinted_tickets: [], tickets_printing: 0, ...over } as OrderDetail;
+  }
+
+  it("keeps asking while a ticket is on its way, shows the failure, then stops", async () => {
+    vi.useFakeTimers();
+    try {
+      const orders = useOrderStore();
+      orders.order = printing({ tickets_printing: 1 });
+      vi.mocked(kitchenApi.reprintKot).mockResolvedValue({ kot_name: TICKET.kot_name, print_status: "pending" });
+      vi.mocked(orderApi.getOrder)
+        .mockResolvedValueOnce(printing({ tickets_printing: 1 })) // the reload after asking
+        .mockResolvedValueOnce(printing({ tickets_printing: 1 })) // first check: still on its way
+        .mockResolvedValueOnce(printing({ unprinted_tickets: [TICKET] })); // second: it gave up
+
+      await orders.reprintTicket(TICKET.kot_name);
+
+      await vi.advanceTimersByTimeAsync(5000);
+      expect(orders.order?.unprinted_tickets).toEqual([]);
+
+      await vi.advanceTimersByTimeAsync(5000);
+      expect(orders.order?.unprinted_tickets).toEqual([TICKET]);
+
+      await vi.advanceTimersByTimeAsync(60000);
+      expect(orderApi.getOrder).toHaveBeenCalledTimes(3);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("does not paint one bill's ticket onto another opened since", async () => {
+    vi.useFakeTimers();
+    try {
+      const orders = useOrderStore();
+      orders.order = printing({ tickets_printing: 1 });
+      vi.mocked(kitchenApi.reprintKot).mockResolvedValue({ kot_name: TICKET.kot_name, print_status: "pending" });
+      vi.mocked(orderApi.getOrder)
+        .mockResolvedValueOnce(printing({ tickets_printing: 1 }))
+        .mockResolvedValue(printing({ unprinted_tickets: [TICKET] }));
+
+      await orders.reprintTicket(TICKET.kot_name);
+      orders.order = { ...printing({}), order_name: "RO-2026-09-00002" };
+
+      await vi.advanceTimersByTimeAsync(5000);
+
+      expect(orders.order?.unprinted_tickets).toEqual([]);
+      expect(orderApi.getOrder).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });
 
 describe("one action at a time", () => {

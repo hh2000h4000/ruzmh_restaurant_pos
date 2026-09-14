@@ -21,6 +21,7 @@ import ActivityDialog from "@/components/order/ActivityDialog.vue";
 import JoinBillDialog from "@/components/order/JoinBillDialog.vue";
 import JoinTablesDialog from "@/components/order/JoinTablesDialog.vue";
 import SplitBillDialog from "@/components/order/SplitBillDialog.vue";
+import UnprintedTickets from "@/components/order/UnprintedTickets.vue";
 import ReturnDialog from "@/components/order/ReturnDialog.vue";
 import CloseDayDialog from "@/components/shift/CloseDayDialog.vue";
 import CloseTillDialog from "@/components/shift/CloseTillDialog.vue";
@@ -1367,6 +1368,16 @@ async function send(): Promise<void> {
             >
               {{ orders.error }}
             </p>
+
+            <!-- D-211 — a kitchen ticket whose paper never came, said on the
+                 order instead of on a desk form nobody opens during service. -->
+            <UnprintedTickets
+              v-if="orders.order?.unprinted_tickets?.length"
+              :tickets="orders.order?.unprinted_tickets ?? []"
+              :may-reprint="session.can('can_reprint_receipt')"
+              :busy="orders.busy"
+              @reprint="orders.reprintTicket"
+            />
 
             <!-- 09 §5, D-073 — a bill that lives on this device says so. It is
                  sellable and priced correctly, but nobody else can see it and a

@@ -154,15 +154,15 @@ def _expire_old(agent_name: str) -> None:
 		pluck="name",
 	)
 
+	# Through `settle`, not a status written here: that wrote the job and left its
+	# kitchen ticket saying `pending` for ever, so the order screen could never
+	# warn about the failure that lasts longest (`D-211`).
 	for name in stale:
-		frappe.db.set_value(
-			"POS Print Job",
+		service.settle(
 			name,
-			{
-				"status": "failed",
-				"error": f"Not printed within {STALE_AFTER_MINUTES} minutes; too late to be useful.",
-			},
-			update_modified=False,
+			printed=False,
+			error=f"Not printed within {STALE_AFTER_MINUTES} minutes; too late to be useful.",
+			try_fallback=False,
 		)
 
 	if stale:

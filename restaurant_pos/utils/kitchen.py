@@ -36,6 +36,41 @@ SENT = "sent"
 VOID = "void"
 
 
+def print_state(order_name: str) -> dict:
+	"""Whether an order's kitchen tickets reached paper — for the order screen (`D-211`).
+
+	A station whose printer was off failed in silence: the ticket said `failed`
+	on a desk form nobody opens during service, the cook got nothing, and the
+	first anyone heard was a customer asking where the food was.
+
+	- ``unprinted_tickets`` — `failed` only, with the station as a cashier names
+	  it. `pending` is not a failure: it is on its way, or its station asked for
+	  no paper at all.
+	- ``tickets_printing`` — still on the way to a printer that was asked for
+	  paper, so the screen knows to check back, and when to stop.
+	"""
+	unprinted, printing = [], 0
+	for ticket in frappe.get_all(
+		"Kitchen Order Ticket",
+		filters={"restaurant_order": order_name, "print_status": ("in", ["failed", PENDING])},
+		fields=["name", "production_center", "print_status"],
+		order_by="sent_at asc",
+	):
+		center = frappe.get_cached_doc("Production Center", ticket.production_center)
+		if ticket.print_status == "failed":
+			unprinted.append(
+				{
+					"kot_name": ticket.name,
+					"station": center.title,
+					"station_ar": center.title_ar or center.title,
+				}
+			)
+		elif center.auto_print_on_send:
+			printing += 1
+
+	return {"unprinted_tickets": unprinted, "tickets_printing": printing}
+
+
 def send_to_kitchen(order, *, kot_type: str | None = None) -> dict:
 	"""Raise a KOT per production center for everything not yet sent.
 

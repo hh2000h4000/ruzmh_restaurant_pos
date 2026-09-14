@@ -15,7 +15,7 @@ from frappe import _
 from frappe.utils import add_days, cint, flt, get_datetime, now_datetime, nowdate, time_diff_in_seconds
 
 from restaurant_pos.utils import customer as customer_service
-from restaurant_pos.utils import idempotency, promotions
+from restaurant_pos.utils import idempotency, kitchen, promotions
 from restaurant_pos.utils import order as service
 from restaurant_pos.utils.permissions import get_pos_permission_set, validate_branch_access
 
@@ -1137,4 +1137,7 @@ def get_order(order_name: str) -> dict:
 			}
 			for row in order.items
 		],
+		# A ticket whose paper never came is said on the order itself (`D-211`),
+		# not left on a desk form nobody opens during service.
+		**kitchen.print_state(order.name),
 	}

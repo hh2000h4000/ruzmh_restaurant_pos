@@ -154,10 +154,19 @@ const FLOW_COLUMNS = [
  * what the card has, and `minmax` refuses to go under a finger. Past that many
  * buttons it scrolls — the honest end, because tiles below a touch target are
  * not a menu, they are a picture of one.
+ *
+ * **The count is the most across, not the fewest.** A phone cannot hold five
+ * tiles: thirteen buttons on a 360 screen made five columns 46 points wide, and
+ * "Desserts" showed as "Des". So a column goes only while each tile keeps
+ * `FLOW_MIN_TILE` — the tablet the steps were measured on still gets all of
+ * them, and the phone gets fewer, taller rows and a scroll.
  */
+const FLOW_MIN_TILE = "6rem";
+
 const layoutStyle = computed<Record<string, string>>(() => {
   if (layout.value?.layout_mode === "grid") {
     return {
+      "--columns": String(layout.value.grid_columns),
       gridTemplateColumns: `repeat(${layout.value.grid_columns}, minmax(0, 1fr))`,
       gridAutoRows: "minmax(4.5rem, auto)",
     };
@@ -166,8 +175,12 @@ const layoutStyle = computed<Record<string, string>>(() => {
   const count = layout.value?.buttons.length ?? 0;
   const columns = FLOW_COLUMNS.find((step) => count <= step.upTo)!.columns;
 
+  // A track is a 1/columns share of the row after its gaps (gap-3.5), or
+  // FLOW_MIN_TILE when that share is smaller — and auto-fill fits as many of
+  // those as the width holds, which is never more than `columns`.
   return {
-    gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
+    "--columns": String(columns),
+    gridTemplateColumns: `repeat(auto-fill, minmax(max(${FLOW_MIN_TILE}, calc((100% - ${columns - 1} * 0.875rem) / ${columns})), 1fr))`,
     gridAutoRows: "minmax(var(--rpos-tap-target), 1fr)",
   };
 });
@@ -270,11 +283,13 @@ function priceOf(item: CatalogItem): number | null {
           >
         </div>
 
-        <!-- Set the quantity, then tap the item. -->
+        <!-- Set the quantity, then tap the item. On a phone the word goes to the
+             screen reader only: beside the stepper it left a 360 search field
+             room for one letter, and the − 1 + already says what it is. -->
         <div
           class="flex h-14 shrink-0 items-center gap-1 rounded-rpos border border-line-strong bg-background px-2"
         >
-          <span class="px-2 text-sm text-muted">{{ t("picker.qty") }}</span>
+          <span class="px-2 text-sm text-muted max-sm:sr-only">{{ t("picker.qty") }}</span>
           <button
             type="button"
             class="grid h-11 w-11 place-items-center rounded-rpos text-content transition duration-200 ease-rpos hover:bg-surface disabled:opacity-40"

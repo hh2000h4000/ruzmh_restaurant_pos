@@ -55,13 +55,15 @@ function withTiles(count: number, mode: "flow" | "grid" = "flow") {
   return mount(ItemPicker, { props: { orderType: null } });
 }
 
-/** How many tracks the layout grid was given. */
-function columnsOf(wrapper: ReturnType<typeof withTiles>): number {
-  const grid = wrapper.findAll("div").find((el) => el.attributes("style")?.includes("grid-template-columns"));
-  const declared = grid?.attributes("style")?.match(/repeat\((\d+),/);
+function layoutGrid(wrapper: ReturnType<typeof withTiles>) {
+  const grid = wrapper.findAll("div").find((el) => el.attributes("style")?.includes("--columns"));
+  if (!grid) throw new Error("the layout grid declared no columns");
+  return grid;
+}
 
-  if (!declared) throw new Error("the layout grid declared no columns");
-  return Number(declared[1]);
+/** How many tracks the layout grid was given, at most. */
+function columnsOf(wrapper: ReturnType<typeof withTiles>): number {
+  return Number((layoutGrid(wrapper).element as HTMLElement).style.getPropertyValue("--columns"));
 }
 
 beforeEach(() => setActivePinia(createPinia()));
@@ -89,6 +91,15 @@ describe("fitting the groups on one screen", () => {
 
   it("leaves a drawn grid at the width it was drawn", () => {
     expect(columnsOf(withTiles(50, "grid"))).toBe(4);
+  });
+
+  it("gives up a column on a phone rather than shrink a tile past its name", () => {
+    // Thirteen groups on a 360 phone were five columns 46 points wide, and
+    // "Desserts" read "Des". jsdom has no layout, so the rule is read off the
+    // declaration: a track never narrower than the minimum, as many as fit.
+    const style = layoutGrid(withTiles(13)).attributes("style") ?? "";
+
+    expect(style).toContain("repeat(auto-fill, minmax(max(6rem, calc((100% - 4 * 0.875rem) / 5)), 1fr))");
   });
 });
 

@@ -214,6 +214,75 @@ class TestTheDrawerFollows(ReturnTestBase):
 		self.assertEqual(shift_service.summarise_till(entry)["sales"], sales)
 
 
+#: Before any till was opened — outside every period a test can be in.
+LONG_AGO = "2000-01-01 12:00:00"
+
+#: A business day that is not the one open now.
+OLDER_DAY = "RPOS-TEST-OLDER-DAY"
+
+
+class TestMoneyCountsWhereItMoved(ReturnTestBase):
+	"""`D-217` — a bill and a refund count in the period they happened in.
+
+	The user's rule: *the day a bill is closed is the day that counts for the
+	money.* The day's report and the drawer both chose orders by the day that
+	**opened** them, so a bill carried from an earlier day and paid now was in
+	no report and no drawer, and a refund on an older sale went into the older
+	day's report — already closed — while the cash left today's drawer.
+	"""
+
+	def _day(self) -> str:
+		return frappe.db.get_value("POS Profile", self.profile, "restaurant_shift")
+
+	def _move(self, order, **fields) -> None:
+		frappe.db.set_value("Restaurant Order", order.name, fields, update_modified=False)
+
+	def test_a_bill_from_an_earlier_day_paid_now_counts_in_todays_report(self):
+		order = self._paid()
+		before = shift_service.summarise(self._day())["sales"]
+
+		self._move(order, restaurant_shift=OLDER_DAY)
+
+		self.assertEqual(shift_service.summarise(self._day())["sales"], before)
+
+	def test_and_in_the_drawer_that_took_the_money(self):
+		order = self._paid()
+		entry = shift_service.selling_till(self.profile).name
+		before = shift_service.summarise_till(entry)["till_expected"]
+
+		self._move(order, restaurant_shift=OLDER_DAY)
+
+		self.assertEqual(shift_service.summarise_till(entry)["till_expected"], before)
+
+	def _refund_older_sale(self, report):
+		"""Refund a sale, then move the sale out of today — as if it were last week's.
+
+		Returns the sale's amount, the refund's, and the report read after the sale
+		and before the refund — so each test measures the refund itself, rather
+		than two totals that would agree if it counted nowhere.
+		"""
+		order = self._paid(qty=2)
+		before = report()
+		refund = service.create_return(order, items=[{"row": self._row(order), "qty": 1}], reason_code=REASON)
+		self._move(order, restaurant_shift=OLDER_DAY, closed_at=LONG_AGO)
+		return flt(order.total_amount), refund["refund_amount"], before, report()
+
+	def test_a_refund_today_on_an_older_sale_is_in_todays_returns(self):
+		sale, refund, before, after = self._refund_older_sale(lambda: shift_service.summarise(self._day()))
+
+		self.assertAlmostEqual(after["returns"] - before["returns"], refund, places=2)
+		# The sale left today; the refund stayed.
+		self.assertAlmostEqual(before["sales"] - after["sales"], sale, places=2)
+
+	def test_and_it_leaves_the_drawer_it_was_paid_out_of(self):
+		entry = shift_service.selling_till(self.profile).name
+		sale, refund, before, after = self._refund_older_sale(lambda: shift_service.summarise_till(entry))
+
+		self.assertAlmostEqual(after["returns"] - before["returns"], refund, places=2)
+		# The sale's cash left with the sale, and the refund's cash left the drawer.
+		self.assertAlmostEqual(before["till_expected"] - after["till_expected"], sale + refund, places=2)
+
+
 class TestTheTillCanSeeIt(ReturnTestBase):
 	"""D-070 — a refund the cashier cannot find is a refund they will make twice.
 

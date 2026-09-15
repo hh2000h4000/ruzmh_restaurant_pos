@@ -360,6 +360,19 @@ def branch_of_profile(pos_profile: str | None) -> str | None:
 	return table_section_branch(section)
 
 
+def profiles_in(branch: str) -> list[str]:
+	"""The terminals of one branch, through the sections they serve.
+
+	`POS Profile` has no branch column — `branch_of_profile` walks the same two
+	links the other way.
+	"""
+	sections = frappe.get_all("Restaurant Section", filters={"branch": branch}, pluck="name")
+	if not sections:
+		return []
+
+	return frappe.get_all("POS Profile", filters={"restaurant_section": ("in", sections)}, pluck="name")
+
+
 def section_of_table(table: str | None, profile) -> str | None:
 	"""Which hall an order belongs to.
 

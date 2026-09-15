@@ -919,7 +919,7 @@ def _refunds_this_day(scope: dict, *, mine_only: bool) -> list[dict]:
 			"is_return": 1,
 			"docstatus": 1,
 			"creation": (">=", _day_began(scope)),
-			**({"pos_profile": ("in", _profiles_in(scope["branch"]))} if scope.get("branch") else {}),
+			**({"pos_profile": ("in", service.profiles_in(scope["branch"]))} if scope.get("branch") else {}),
 		},
 		fields=[
 			"name",
@@ -948,19 +948,6 @@ def _refunds_this_day(scope: dict, *, mine_only: bool) -> list[dict]:
 	_annotate_open_orders(sales)
 
 	return _returns_of(credits, {row.sales_invoice: row for row in sales})
-
-
-def _profiles_in(branch: str) -> list[str]:
-	"""The terminals of one branch, through the sections they serve.
-
-	`POS Profile` has no branch column — `branch_of_profile` walks the same two
-	links the other way.
-	"""
-	sections = frappe.get_all("Restaurant Section", filters={"branch": branch}, pluck="name")
-	if not sections:
-		return []
-
-	return frappe.get_all("POS Profile", filters={"restaurant_section": ("in", sections)}, pluck="name")
 
 
 def _returns_of(credits: list, by_invoice: dict) -> list[dict]:

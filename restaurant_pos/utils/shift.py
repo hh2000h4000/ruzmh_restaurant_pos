@@ -38,7 +38,7 @@ from frappe import _
 from frappe.utils import cint, flt, now_datetime, nowdate, nowtime
 
 from restaurant_pos.utils import printing
-from restaurant_pos.utils.order import table_section_branch
+from restaurant_pos.utils.order import profiles_in, table_section_branch
 from restaurant_pos.utils.payment import is_credit_method
 from restaurant_pos.utils.permissions import (
 	assert_permission,
@@ -49,6 +49,12 @@ from restaurant_pos.utils.totals import money
 
 #: An order still on the floor. Closing over one strands a bill nobody can pay.
 OPEN_ORDER_STATUSES = ("draft", "active", "in_kitchen", "pending_payment")
+
+#: An order that has ended — paid or cancelled — and so counts where it ended.
+ENDED_ORDER_STATUSES = ("closed", "cancelled")
+
+#: What a report reads from each order.
+REPORT_FIELDS = ("name", "order_type", "status", "total_amount", "discount_amount", "sales_invoice")
 
 
 # --------------------------------------------------------------------------- #
@@ -427,12 +433,21 @@ def summarise(shift_name: str) -> dict:
 	day = frappe.get_doc("Restaurant Shift", shift_name)
 	validate_branch_access(day.branch)
 
-	orders = frappe.get_all(
+	# **Money counts in the day it moved** (`D-217`). A bill counts where it was
+	# paid or cancelled and a refund where it was made — not in the day that
+	# opened the bill. Chosen by that day, a bill carried from yesterday and paid
+	# today was in no report at all, and a refund on an old sale landed in a day
+	# already closed while the cash left today's drawer.
+	#
+	# **The open ones stay the day's own**: they are what may hold its close.
+	window = [day.opened_at, day.closed_at or now_datetime()]
+	orders = _ended_in(window, branch=day.branch) + frappe.get_all(
 		"Restaurant Order",
-		filters={"restaurant_shift": shift_name},
-		fields=["name", "order_type", "status", "total_amount", "discount_amount", "sales_invoice"],
+		filters={"restaurant_shift": shift_name, "status": ("in", OPEN_ORDER_STATUSES)},
+		fields=list(REPORT_FIELDS),
 	)
-	report = _report(day, orders, opening={})
+	refunds = _refunds_in(window, pos_profile=("in", profiles_in(day.branch)))
+	report = _report(day, orders, opening={}, refunds=refunds)
 
 	# What an open bill means here, so the screen can say the right thing about
 	# it (`D-156`). A till that offers a way past a rule this branch does not
@@ -494,32 +509,60 @@ def summarise_till(opening_entry: str) -> dict:
 	# and closed hours before the money arrived.
 	#
 	# `cashier` is now whoever took the money, so the pair finally agree.
-	filters = {
-		"pos_profile": entry.pos_profile,
-		"cashier": entry.user,
-		"closed_at": (">=", entry.period_start_date),
-	}
-	if day:
-		filters["restaurant_shift"] = day.name
-
-	orders = frappe.get_all(
-		"Restaurant Order",
-		filters=filters,
-		fields=["name", "order_type", "status", "total_amount", "discount_amount", "sales_invoice"],
-	)
+	#
+	# **And whichever day opened the bill** (`D-217`). This also filtered on the
+	# drawer's own day, so a bill carried from yesterday and paid into this drawer
+	# was in no drawer's figures — the notes were in it, and the count came up
+	# short by exactly that bill. Refunds likewise: the ones this cashier paid out
+	# at this terminal while the drawer stood, against a sale of any age.
+	period = [entry.period_start_date, _period_end(entry)]
+	orders = _ended_in(period, pos_profile=entry.pos_profile, cashier=entry.user)
+	refunds = _refunds_in(period, pos_profile=entry.pos_profile, owner=entry.user)
 
 	opening = {row.mode_of_payment: flt(row.opening_amount) for row in entry.balance_details}
-	report = _report(day or frappe._dict(name=None, branch=None, status=None), orders, opening)
+	report = _report(
+		day or frappe._dict(name=None, branch=None, status=None), orders, opening, refunds=refunds
+	)
 	report["entry"] = entry.name
 	report["user"] = entry.user
 	report["opened_at"] = entry.period_start_date
 	return report
 
 
-def _report(day, orders: list, opening: dict) -> dict:
+def _period_end(entry) -> object:
+	"""When a drawer stopped taking money: its closing, or now while it stands.
+
+	Bounded, because the window now reaches refunds as well as bills: a drawer
+	counted this morning and read again tonight must not take in the refunds
+	its cashier made this afternoon at a drawer of their next session.
+	"""
+	closing = entry.get("pos_closing_entry")
+	end = frappe.db.get_value("POS Closing Entry", closing, "period_end_date") if closing else None
+	return end or now_datetime()
+
+
+def _ended_in(window: list, **filters) -> list:
+	"""Bills that ended — paid or cancelled — inside the window, whichever day opened them (`D-217`)."""
+	return frappe.get_all(
+		"Restaurant Order",
+		filters={**filters, "status": ("in", ENDED_ORDER_STATUSES), "closed_at": ("between", window)},
+		fields=list(REPORT_FIELDS),
+	)
+
+
+def _refunds_in(window: list, **filters) -> list[str]:
+	"""Credit notes made inside the window, against a sale of any age (`D-217`, `BR-055`)."""
+	return frappe.get_all(
+		"Sales Invoice",
+		filters={**filters, "is_return": 1, "docstatus": 1, "creation": ("between", window)},
+		pluck="name",
+	)
+
+
+def _report(day, orders: list, opening: dict, *, refunds: list[str]) -> dict:
 	closed = [row for row in orders if row.status == "closed"]
 	sold = [row.sales_invoice for row in closed if row.sales_invoice]
-	methods = _by_method(sold, opening)
+	methods = _by_method(sold, refunds, opening)
 
 	return {
 		"shift": day.name,
@@ -537,7 +580,7 @@ def _report(day, orders: list, opening: dict) -> dict:
 		"sales": money(sum(flt(row.total_amount) for row in closed)),
 		# FR-8.3 — its own line, not netted off the takings: a shift that sold
 		# 1000 and refunded 200 is a different day from one that sold 800.
-		"returns": money(_returned_total(sold)),
+		"returns": money(_returned_total(refunds)),
 		"discounts": money(sum(flt(row.discount_amount) for row in closed)),
 		# D-029 — what the drawer should hold, credit deliberately absent.
 		"till_expected": money(sum(row["expected"] for row in methods if row["kind"] == "till")),
@@ -545,21 +588,8 @@ def _report(day, orders: list, opening: dict) -> dict:
 	}
 
 
-def _credit_notes(invoices: list[str]) -> list[str]:
-	"""Submitted returns raised against these invoices (FR-9, D-064)."""
-	if not invoices:
-		return []
-
-	return frappe.get_all(
-		"Sales Invoice",
-		filters={"return_against": ("in", invoices), "docstatus": 1},
-		pluck="name",
-	)
-
-
-def _returned_total(invoices: list[str]) -> float:
+def _returned_total(notes: list[str]) -> float:
 	"""What went back to customers, as a positive figure (FR-8.3)."""
-	notes = _credit_notes(invoices)
 	if not notes:
 		return 0.0
 
@@ -588,7 +618,7 @@ def _by_order_type(closed: list) -> list[dict]:
 	return sorted(tally.values(), key=lambda entry: -entry["sales"])
 
 
-def _by_method(invoices: list[str], opening: dict) -> list[dict]:
+def _by_method(invoices: list[str], refunds: list[str], opening: dict) -> list[dict]:
 	"""FR-8.3 — takings per payment method, and what each one means.
 
 	Read from the **Sales Invoice**, which is where a payment is recorded: the
@@ -611,11 +641,13 @@ def _by_method(invoices: list[str], opening: dict) -> list[dict]:
 		else []
 	)
 
-	# FR-9 — and the credit notes raised against them (D-064). A refund carries
-	# negative payment rows, so counting them alongside the sales is what takes
-	# the money back out of the expected drawer. Without this the till would
-	# still be asked for cash the cashier handed to a customer.
-	live += _credit_notes(live)
+	# FR-9 — and the refunds made in the same period (D-064), **against a sale of
+	# any age** (`D-217`) — they were the credit notes against *these* sales, so a
+	# refund on last week's bill came out of no drawer. A refund carries negative
+	# payment rows, so counting them alongside the sales is what takes the money
+	# back out of the expected drawer. Without this the till would still be asked
+	# for cash the cashier handed to a customer.
+	live += refunds
 
 	rows = (
 		frappe.get_all(

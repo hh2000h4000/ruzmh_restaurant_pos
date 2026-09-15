@@ -87,6 +87,7 @@ def me(pos_profile: str | None = None) -> dict:
 	"""Who is signed in, and their attendance — what the welcome screen shows."""
 	user = frappe.session.user
 	full_name = frappe.db.get_value("User", user, "full_name") or user
+	held = attendance.holds_a_drawer(user)
 
 	return {
 		"user": user,
@@ -97,7 +98,10 @@ def me(pos_profile: str | None = None) -> dict:
 		# decides which attendance button to draw from it, and `punch` refuses on
 		# the same fact — the screen is only saying in advance what the server
 		# would answer (`CLAUDE.md` §5.4).
-		"holding_till": attendance.holds_a_drawer(user),
+		"holding_till": bool(held),
+		# **And which one** (`D-218`) — the terminal and since when, so the screen
+		# can send somebody to the drawer that is actually keeping them.
+		"held_till": {"pos_profile": held.pos_profile, "opened_at": held.period_start_date} if held else None,
 		"pin_length": manager_pin.PIN_LENGTH,
 	}
 

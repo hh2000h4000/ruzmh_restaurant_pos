@@ -16,8 +16,10 @@ drawer; a business day is the branch. Closing one is not closing the other.
 Refs: FR-8.1..8.3, BR-040..BR-045, D-029, D-046, D-047
 """
 
+from unittest.mock import patch
+
 import frappe
-from frappe.utils import flt
+from frappe.utils import flt, now_datetime
 
 from restaurant_pos.tests.test_order import BRANCH, ITEM, OrderTestBase
 from restaurant_pos.tests.test_payment import CASH, _ensure_fiscal_year
@@ -190,6 +192,31 @@ class TestASharedDrawerCountsEveryone(ShiftTestBase):
 		after = service.summarise_till(entry)
 
 		self.assertAlmostEqual(after["returns"] - before["returns"], refund["refund_amount"], places=2)
+
+	def test_the_report_says_what_each_of_them_took(self):
+		"""FR-8.3 — counted once for everybody, and still traced to a name, as Vitec's report does."""
+		entry = self._opened("single")
+		order = self._sold_by(SECOND_CASHIER)
+
+		row = next(
+			row for row in service.summarise_till(entry)["by_cashier"] if row["user"] == SECOND_CASHIER
+		)
+
+		self.assertEqual(row["count"], 1)
+		self.assertAlmostEqual(row["sales"], flt(order.total_amount), places=2)
+
+	def test_a_second_personal_drawer_is_refused_and_the_first_is_named(self):
+		"""`D-218` — the user opened a drawer at one branch while theirs stood open at another."""
+		frappe.db.set_value("Branch", BRANCH, "shift_type", "multi")
+		elsewhere = frappe._dict(
+			name="POS-OPE-ELSEWHERE", pos_profile="RPOS Far Terminal", period_start_date=now_datetime()
+		)
+
+		with (
+			patch.object(service, "held_till", return_value=elsewhere),
+			self.assertRaisesRegex(frappe.ValidationError, "RPOS Far Terminal"),
+		):
+			service.open_till(pos_profile=self.profile)
 
 	def test_a_personal_drawer_still_counts_only_its_own_cashier(self):
 		"""`multi` — each cashier's drawer is theirs, and somebody else's sale is not in it."""

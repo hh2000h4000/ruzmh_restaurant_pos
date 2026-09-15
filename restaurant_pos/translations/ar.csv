@@ -26,7 +26,8 @@ Choose a table for this reservation first.,اختر طاولة لهذا الحج
 Choose at least one item to return.,اختر صنفاً واحداً على الأقل للإرجاع.
 Choose how to refund this.,اختر طريقة الإرجاع.
 Choose why this is being returned.,اختر سبب الإرجاع.
-Close your till before clocking out.,أغلق العهدة قبل تسجيل الانصراف.
+Your till on {0} has been open since {1}. Close it before clocking out.,عهدتك مفتوحة على {0} منذ {1}، أغلقها قبل تسجيل الانصراف.
+Your till on {0} has been open since {1}. Close it before opening another.,عهدتك مفتوحة على {0} منذ {1}، أغلقها قبل فتح عهدة أخرى.
 Customer {0} does not exist.,العميل {0} غير موجود.
 Day {0} is already closed.,اليوم {0} مغلق أصلاً.
 Discount of {0}% exceeds your limit of {1}%.,خصم {0}% يتجاوز حدّك {1}%.

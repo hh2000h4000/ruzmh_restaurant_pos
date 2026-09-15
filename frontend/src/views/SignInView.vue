@@ -34,6 +34,18 @@ const clockedInAt = computed(() => {
   return since ? sinceWhen(since) : null;
 });
 
+/**
+ * Why no clock-out, naming the drawer (`D-218`) — it may be open at another
+ * terminal, even another branch, while this one's is closed. An identity cached
+ * from before the server said which falls back to the plain sentence.
+ */
+const heldTillText = computed(() => {
+  const held = auth.identity?.held_till;
+  return held
+    ? t("auth.closeTillOn", { terminal: held.pos_profile, since: sinceWhen(held.opened_at) })
+    : t("auth.closeTillFirst");
+});
+
 onMounted(() => {
   if (!auth.known) void auth.probe(posProfile.value);
 });
@@ -238,7 +250,7 @@ async function punch(): Promise<void> {
           v-else-if="auth.heldByTill"
           class="rounded-rpos bg-background px-4 py-3 text-center text-sm text-muted"
         >
-          {{ t("auth.closeTillFirst") }}
+          {{ heldTillText }}
         </p>
 
         <!-- **Not offered while an arrival is owed** (`D-186`). It used to sit

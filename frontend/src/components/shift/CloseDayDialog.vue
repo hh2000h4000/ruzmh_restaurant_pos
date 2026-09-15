@@ -4,6 +4,7 @@ import { computed, ref, watch } from "vue";
 import type { ShiftReport } from "@/api/shift";
 import AppIcon from "@/components/AppIcon.vue";
 import BaseDialog from "@/components/BaseDialog.vue";
+import CashierTakings from "@/components/shift/CashierTakings.vue";
 import { formatNumber, pick, t } from "@/i18n";
 import { useSessionStore } from "@/stores/session";
 import { useShiftStore } from "@/stores/shift";
@@ -165,6 +166,8 @@ function money(value: number): string {
           </span>
         </div>
       </div>
+
+      <CashierTakings :rows="report.by_cashier" />
 
       <!-- The override, for whoever may actually use it. -->
       <label

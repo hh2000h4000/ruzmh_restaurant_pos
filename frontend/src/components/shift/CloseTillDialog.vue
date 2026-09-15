@@ -4,6 +4,7 @@ import { computed, ref, watch } from "vue";
 import type { ShiftReport } from "@/api/shift";
 import AppIcon from "@/components/AppIcon.vue";
 import BaseDialog from "@/components/BaseDialog.vue";
+import CashierTakings from "@/components/shift/CashierTakings.vue";
 import TillCount, { type CountRow } from "@/components/shift/TillCount.vue";
 import { formatNumber, t } from "@/i18n";
 import { useShiftStore } from "@/stores/shift";
@@ -137,6 +138,8 @@ function money(value: number): string {
           {{ money(report.sales) }}
         </dd>
       </dl>
+
+      <CashierTakings :rows="report.by_cashier" />
 
       <TillCount
         class="mb-4"

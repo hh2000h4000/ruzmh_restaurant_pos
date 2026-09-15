@@ -20,7 +20,7 @@ import { createPinia, setActivePinia } from "pinia";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Identity } from "@/api/auth";
-import { t } from "@/i18n";
+import { sinceWhen, t } from "@/i18n";
 import { useAuthStore } from "@/stores/auth";
 import SignInView from "@/views/SignInView.vue";
 
@@ -56,6 +56,7 @@ function identity(over: {
       since: over.clocked_in ? "2026-09-10 07:00:00" : null,
     },
     holding_till: over.holding_till ?? false,
+    held_till: over.holding_till ? { pos_profile: "Riyadh Main Terminal", opened_at: "2026-09-14 10:57:00" } : null,
     pin_length: 5,
   } as Identity;
 }
@@ -138,7 +139,15 @@ describe("the welcome screen's attendance button", () => {
     const screen = welcome({ clocked_in: true, holding_till: true });
 
     expect(screen.text()).not.toContain(t("auth.clockOut"));
-    expect(screen.text()).toContain(t("auth.closeTillFirst"));
+    // Naming the drawer (`D-218`): the user stood at a terminal whose drawer was
+    // closed, theirs was open at another branch, and "close your till" sent them
+    // nowhere.
+    expect(screen.text()).toContain(
+      t("auth.closeTillOn", {
+        terminal: "Riyadh Main Terminal",
+        since: sinceWhen("2026-09-14 10:57:00"),
+      }),
+    );
   });
 
   it("still lets them into the till while the drawer is open", () => {

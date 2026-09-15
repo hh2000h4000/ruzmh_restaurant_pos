@@ -19,6 +19,12 @@ export interface Identity {
    * that answers it says why (`utils/attendance.holds_a_drawer`).
    */
   holding_till: boolean;
+  /**
+   * **Which** drawer (`D-218`): the terminal it is open on, and since when. The
+   * one keeping somebody at work may be at another branch, and "close your
+   * till" at a terminal whose drawer is closed sends them nowhere.
+   */
+  held_till: { pos_profile: string; opened_at: string } | null;
   /** From the server, so the boxes on the pad match what it will accept. */
   pin_length: number;
 }

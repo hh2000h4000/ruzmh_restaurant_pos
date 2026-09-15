@@ -35,7 +35,7 @@ Refs: FR-8.1, FR-8.2, FR-8.3, BR-040..BR-045, D-029, D-046, D-047
 
 import frappe
 from frappe import _
-from frappe.utils import cint, flt, now_datetime, nowdate, nowtime
+from frappe.utils import cint, flt, format_datetime, now_datetime, nowdate, nowtime
 
 from restaurant_pos.utils import printing
 from restaurant_pos.utils.order import profiles_in, table_section_branch
@@ -54,7 +54,15 @@ OPEN_ORDER_STATUSES = ("draft", "active", "in_kitchen", "pending_payment")
 ENDED_ORDER_STATUSES = ("closed", "cancelled")
 
 #: What a report reads from each order.
-REPORT_FIELDS = ("name", "order_type", "status", "total_amount", "discount_amount", "sales_invoice")
+REPORT_FIELDS = (
+	"name",
+	"order_type",
+	"status",
+	"total_amount",
+	"discount_amount",
+	"sales_invoice",
+	"cashier",
+)
 
 
 # --------------------------------------------------------------------------- #
@@ -289,6 +297,19 @@ def open_till(*, pos_profile: str, opening_floats: dict | None = None) -> dict:
 		frappe.throw(
 			_("{0} still has the till open. Close it before taking over.").format(
 				frappe.db.get_value("User", existing.user, "full_name") or existing.user
+			)
+		)
+
+	# **One personal drawer at a time** (`D-218`), as Odoo holds one session per
+	# user. A cashier answerable for a drawer at the far end of the counter — or
+	# at another branch, as the user found — cannot also answer for this one, and
+	# the first stays open with nobody standing at it. Said by name, because the
+	# drawer on this terminal is not the one in the way.
+	held = held_till(frappe.session.user)
+	if held and held.pos_profile != pos_profile:
+		frappe.throw(
+			_("Your till on {0} has been open since {1}. Close it before opening another.").format(
+				held.pos_profile, till_opened_at(held)
 			)
 		)
 
@@ -569,6 +590,11 @@ def _report(day, orders: list, opening: dict, *, refunds: list[str]) -> dict:
 	closed = [row for row in orders if row.status == "closed"]
 	sold = [row.sales_invoice for row in closed if row.sales_invoice]
 	methods = _by_method(sold, refunds, opening)
+	refund_rows = (
+		frappe.get_all("Sales Invoice", filters={"name": ("in", refunds)}, fields=["owner", "grand_total"])
+		if refunds
+		else []
+	)
 
 	return {
 		"shift": day.name,
@@ -586,7 +612,8 @@ def _report(day, orders: list, opening: dict, *, refunds: list[str]) -> dict:
 		"sales": money(sum(flt(row.total_amount) for row in closed)),
 		# FR-8.3 — its own line, not netted off the takings: a shift that sold
 		# 1000 and refunded 200 is a different day from one that sold 800.
-		"returns": money(_returned_total(refunds)),
+		"returns": money(abs(sum(flt(row.grand_total) for row in refund_rows))),
+		"by_cashier": _by_cashier(closed, refund_rows),
 		"discounts": money(sum(flt(row.discount_amount) for row in closed)),
 		# D-029 — what the drawer should hold, credit deliberately absent.
 		"till_expected": money(sum(row["expected"] for row in methods if row["kind"] == "till")),
@@ -594,19 +621,33 @@ def _report(day, orders: list, opening: dict, *, refunds: list[str]) -> dict:
 	}
 
 
-def _returned_total(notes: list[str]) -> float:
-	"""What went back to customers, as a positive figure (FR-8.3)."""
-	if not notes:
-		return 0.0
+def _by_cashier(closed: list, refund_rows: list) -> list[dict]:
+	"""What each person took and gave back (FR-8.3, `D-218`).
 
-	return abs(
-		sum(
-			flt(row.grand_total)
-			for row in frappe.get_all(
-				"Sales Invoice", filters={"name": ("in", notes)}, fields=["grand_total"]
-			)
-		)
-	)
+	A shared drawer is counted once for everybody on it (`BR-041`), which is what
+	makes a difference hard to pin on anyone — so this is where the money is still
+	traced to a name, as Vitec's shift report does. Takings by whoever was paid
+	(`D-188`), refunds by whoever paid them out.
+	"""
+	tally: dict[str, dict] = {}
+
+	def person(user: str | None) -> dict:
+		return tally.setdefault(user or "", {"user": user or "", "count": 0, "sales": 0.0, "returns": 0.0})
+
+	for row in closed:
+		entry = person(row.cashier)
+		entry["count"] += 1
+		entry["sales"] += flt(row.total_amount)
+
+	for row in refund_rows:
+		person(row.owner)["returns"] += abs(flt(row.grand_total))
+
+	for entry in tally.values():
+		entry["name"] = frappe.db.get_value("User", entry["user"], "full_name") or entry["user"]
+		entry["sales"] = money(entry["sales"])
+		entry["returns"] = money(entry["returns"])
+
+	return sorted(tally.values(), key=lambda entry: -entry["sales"])
 
 
 def _by_order_type(closed: list) -> list[dict]:
@@ -873,6 +914,11 @@ def _any_till(profile) -> frappe._dict | None:
 		TILL_FIELDS,
 		as_dict=True,
 	)
+
+
+def till_opened_at(entry) -> str:
+	"""When a drawer was opened, as a refusal that names it says it (`D-218`)."""
+	return format_datetime(entry.period_start_date, "dd/MM/yyyy HH:mm")
 
 
 def _open_till(profile) -> frappe._dict | None:

@@ -462,6 +462,17 @@ class TestGoingHomeOverAnOpenDrawer(OrderTestBase):
 		"""The fixture's drawer belongs to whoever opened it, and only them."""
 		self.assertFalse(attendance.holds_a_drawer(STAFF))
 
+	def test_the_refusal_names_the_terminal_the_drawer_is_open_on(self):
+		"""`D-218` — the user stood at a terminal whose drawer was closed; theirs was
+		open at another branch, and "close your till" sent them nowhere."""
+		attendance.punch(STAFF, log_type=attendance.IN)
+		self._hand_over_the_drawer()
+
+		with self.assertRaises(frappe.ValidationError) as refused:
+			attendance.punch(STAFF, log_type=attendance.OUT)
+
+		self.assertIn(self.profile, str(refused.exception))
+
 	def test_clocking_out_over_an_open_drawer_is_refused(self):
 		attendance.punch(STAFF, log_type=attendance.IN)
 		self._hand_over_the_drawer()
@@ -503,7 +514,10 @@ class TestGoingHomeOverAnOpenDrawer(OrderTestBase):
 		signed_in = frappe.session.user
 		frappe.set_user(STAFF)
 		try:
-			self.assertTrue(auth.me()["holding_till"])
+			identity = auth.me()
+			self.assertTrue(identity["holding_till"])
+			# And which drawer (`D-218`), so the screen can name it.
+			self.assertEqual(identity["held_till"]["pos_profile"], self.profile)
 		finally:
 			frappe.set_user(signed_in)
 

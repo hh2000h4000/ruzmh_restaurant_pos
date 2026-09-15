@@ -33,6 +33,7 @@ function report(extra: Partial<ShiftReport> = {}): ShiftReport {
     status: "open",
     orders: { total: 9, closed: 6, cancelled: 0, still_open: OPEN_BILLS },
     by_order_type: [],
+    by_cashier: [],
     by_method: [],
     voids: 0,
     sales: 0,

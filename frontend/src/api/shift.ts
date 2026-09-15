@@ -61,6 +61,11 @@ export interface ShiftReport {
    */
   on_duty?: number;
   by_order_type: { order_type: string; title_ar: string; count: number; sales: number }[];
+  /**
+   * What each person took and refunded (FR-8.3, `D-218`) — a shared drawer is
+   * counted once for everybody on it, and this is where it is traced to a name.
+   */
+  by_cashier: { user: string; name: string; count: number; sales: number; returns: number }[];
   by_method: MethodLine[];
   voids: number;
   sales: number;

@@ -293,8 +293,12 @@ def _close_the_punch(employee, punch, at, pos_profile: str | None) -> dict:
 	return {"employee": employee.name, "employee_name": employee.employee_name, "at": when}
 
 
-def holds_a_drawer(user: str) -> bool:
-	"""Whether this person still has a till open somewhere (`D-177`).
+def holds_a_drawer(user: str):
+	"""The till this person still has open somewhere, or ``None`` (`D-177`).
+
+	**The till itself, not a yes** (`D-218`): the refusal has to say *which* one.
+	"Close your till" to somebody standing at a terminal whose drawer is closed —
+	theirs is open at another branch — is a true sentence that sends them nowhere.
 
 	**The one place hours and drawers touch**, and the docstring at the top of
 	this module says why they otherwise do not. A cash drawer is money somebody
@@ -316,7 +320,7 @@ def holds_a_drawer(user: str) -> bool:
 	"""
 	from restaurant_pos.utils.shift import held_till
 
-	return bool(held_till(user))
+	return held_till(user)
 
 
 def punch(user: str, *, log_type: str, pos_profile: str | None = None) -> dict:
@@ -341,8 +345,15 @@ def punch(user: str, *, log_type: str, pos_profile: str | None = None) -> dict:
 		frappe.throw(_("You are already clocked in."))
 	if log_type == OUT and not current["clocked_in"]:
 		frappe.throw(_("You are not clocked in."))
-	if log_type == OUT and holds_a_drawer(user):
-		frappe.throw(_("Close your till before clocking out."))
+	held = holds_a_drawer(user) if log_type == OUT else None
+	if held:
+		from restaurant_pos.utils.shift import till_opened_at
+
+		frappe.throw(
+			_("Your till on {0} has been open since {1}. Close it before clocking out.").format(
+				held.pos_profile, till_opened_at(held)
+			)
+		)
 
 	checkin = frappe.get_doc(
 		{

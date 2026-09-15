@@ -32,9 +32,10 @@ from restaurant_pos.api import returns as returns_api
 from restaurant_pos.api import shift as shift_api
 from restaurant_pos.tests.test_order import BRANCH, ITEM
 from restaurant_pos.tests.test_payment import CASH, PaymentTestBase
-from restaurant_pos.tests.test_permissions import SENIOR, _make_user
+from restaurant_pos.tests.test_permissions import CASHIER, SENIOR, _make_user
 from restaurant_pos.tests.test_returns import REASON
 from restaurant_pos.tests.test_shift import ShiftTestBase
+from restaurant_pos.utils import shift as shift_service
 
 #: The cash the drawer starts the day with.
 FLOAT = 200
@@ -51,6 +52,8 @@ class TestADayAtTheTill(ShiftTestBase, PaymentTestBase):
 		# A senior cashier: the shortest real login that may refund on its own.
 		# A plain cashier needs a manager's PIN for that, which is its own rule.
 		cls.cashier = _make_user(SENIOR, "POS Senior Cashier")
+		# And a colleague who covers the till while the first steps away (`D-218`).
+		cls.covering = _make_user(CASHIER, "POS Cashier")
 		cls.grill = frappe.db.get_value(
 			"Production Center", {"title": "RPOS Test Grill", "branch": BRANCH}, "name"
 		)
@@ -170,3 +173,93 @@ class TestADayAtTheTill(ShiftTestBase, PaymentTestBase):
 
 		with self.subTest("every borrowed right was handed back"):
 			self.assertEqual(frappe.session.user, self.cashier)
+
+	def _as(self, user: str) -> None:
+		frappe.set_user(user)
+		frappe.local.rpos_permission_cache = {}
+
+	def _sold(self, qty: int) -> float:
+		"""A takeaway rung up and paid in cash through the real endpoints; its total."""
+		order = order_api.create_order(order_type=self.order_type, pos_profile=self.profile)["order_name"]
+		order_api.add_item(order_name=order, item=ITEM, qty=qty)
+		total = flt(frappe.db.get_value("Restaurant Order", order, "total_amount"))
+		payment_api.process_payment(order_name=order, payments=[{"method": CASH, "amount": total}])
+		return total
+
+	def test_a_shared_drawer_s_day_counts_both_cashiers_and_prints_its_reports(self):
+		"""`D-217`..`D-219` — the day as the user's customers run a shared till.
+
+		The cashier opens the drawer, sells, prints an X report before stepping
+		away; a colleague signs in and sells into **the same drawer**, as Vitec
+		does; the first comes back, counts and closes, and ends the day. Then the
+		documents must agree: the drawer holds both cashiers' takings, the reports
+		say who took what, and a Z came out at each close.
+
+		**The branch is made shared through the profile the till reads**, not by
+		writing it: closing a drawer commits, and a setting written before that
+		outlived its test once already (`D-219`).
+		"""
+		read_profile = shift_service._profile
+
+		def shared(pos_profile):
+			profile = read_profile(pos_profile)
+			profile.branch_shift_type = "single"
+			return profile
+
+		printed = []
+		with (
+			patch(
+				"restaurant_pos.utils.printing.enqueue_print",
+				side_effect=lambda method, **kwargs: printed.append((method, kwargs)),
+			),
+			patch.object(shift_service, "_profile", side_effect=shared),
+			# The terminal has a printer — said here rather than written onto the
+			# profile, for the same reason as the branch above.
+			patch("restaurant_pos.utils.printing.receipt_printer", return_value="RPOS Test Printer"),
+		):
+			till = shift_api.open_till(pos_profile=self.profile, opening_floats={CASH: FLOAT})
+			first = self._sold(3)
+			# Before stepping away: what is in the drawer now, on paper.
+			shift_api.print_till_report(till["entry"])
+
+			# A colleague covers, on their own login, into the same drawer.
+			self._as(self.covering)
+			joined = shift_api.open_till(pos_profile=self.profile)
+			second = self._sold(1)
+
+			# The first comes back, counts, closes, and ends the day.
+			self._as(self.cashier)
+			drawer = shift_api.get_till_summary(till["entry"])
+			closed = shift_api.close_till(
+				opening_entry=till["entry"], counted={CASH: drawer["till_expected"]}
+			)
+			shift_api.close_day(shift=till["shift"], pos_profile=self.profile)
+			day = shift_api.get_day_summary(till["shift"])
+
+		def takings(report):
+			return {row["user"]: row["sales"] for row in report["by_cashier"]}
+
+		with self.subTest("the colleague joined the open drawer rather than opening another"):
+			self.assertTrue(joined["joined"])
+			self.assertEqual(joined["entry"], till["entry"])
+
+		with self.subTest("the drawer holds the float and both cashiers' takings"):
+			self.assertAlmostEqual(drawer["till_expected"], FLOAT + first + second, places=2)
+			self.assertEqual(closed["settlement"]["variance"], 0)
+
+		with self.subTest("the drawer's report says who took what"):
+			self.assertEqual(takings(drawer), {self.cashier: first, self.covering: second})
+
+		with self.subTest("the day's report tells the same day, and lists the drawer it counted"):
+			self.assertAlmostEqual(day["sales"], first + second, places=2)
+			self.assertEqual(takings(day), {self.cashier: first, self.covering: second})
+			(counted,) = day["tills"]
+			self.assertAlmostEqual(counted["difference"], 0, places=2)
+			self.assertAlmostEqual(sum(row["gross"] for row in day["taxes"]), first + second, places=2)
+
+		with self.subTest("an X report before stepping away, a Z at each close"):
+			drawer_reports = [kw for method, kw in printed if kw.get("opening_entry") == till["entry"]]
+			self.assertEqual(len(drawer_reports), 2, "X on the button, Z at the close")
+			self.assertIn(
+				("print_shift_report", {"pos_profile": self.profile, "shift": till["shift"]}), printed
+			)

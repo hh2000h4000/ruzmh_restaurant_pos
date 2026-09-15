@@ -6,6 +6,7 @@ import { recordView } from "@/api/activity";
 import { whatOpens, type ModifierChoice, type OpenOrder, type OrderLine } from "@/api/order";
 import { reprintReceipt } from "@/api/printing";
 import AppIcon from "@/components/AppIcon.vue";
+import AppToast from "@/components/AppToast.vue";
 import BaseDialog from "@/components/BaseDialog.vue";
 import CustomerDialog from "@/components/order/CustomerDialog.vue";
 import ItemPicker from "@/components/order/ItemPicker.vue";
@@ -47,6 +48,7 @@ import { formatNumber, t, tn } from "@/i18n";
 import { useAuthStore } from "@/stores/auth";
 import { useOrderStore } from "@/stores/order";
 import { useSessionStore } from "@/stores/session";
+import { useNoticeStore } from "@/stores/notice";
 import { useShiftStore } from "@/stores/shift";
 import type { FloorTable } from "@/api/table";
 import type { CatalogItem, OrderType } from "@/types/session";
@@ -741,19 +743,21 @@ function openOrder(orderName: string): void {
  * them — so a silent success is indistinguishable from a dead printer, which is
  * the report this product refuses to give (`D-074`).
  */
-const printNotice = ref<string | null>(null);
+const notice = useNoticeStore();
+
+function said(cause: unknown): string {
+  return cause instanceof Error ? cause.message : String(cause);
+}
 
 async function reprint(order: OpenOrder): Promise<void> {
   const invoice = order.credit_note ?? order.sales_invoice;
   if (!invoice) return;
 
-  printNotice.value = null;
-  floorError.value = null;
   try {
     await reprintReceipt(invoice);
-    printNotice.value = t("print.receiptSent", { number: formatNumber(order.daily_number) });
+    notice.info(t("print.receiptSent", { number: formatNumber(order.daily_number) }));
   } catch (cause) {
-    floorError.value = cause instanceof Error ? cause.message : String(cause);
+    notice.error(said(cause));
   }
 }
 
@@ -767,29 +771,21 @@ async function reprint(order: OpenOrder): Promise<void> {
 async function reprintRefund(dailyNumber: number): Promise<void> {
   if (!refundOpen.value) return;
 
-  printNotice.value = null;
-  floorError.value = null;
   try {
     await reprintReceipt(refundOpen.value);
-    printNotice.value = t("print.receiptSent", { number: formatNumber(dailyNumber) });
+    notice.info(t("print.receiptSent", { number: formatNumber(dailyNumber) }));
   } catch (cause) {
-    floorError.value = cause instanceof Error ? cause.message : String(cause);
+    notice.error(said(cause));
   }
 }
 
 /**
- * The drawer's X report (`D-219`), said out loud like every print (`D-074`).
- *
- * The refusal gets its own line rather than the green notice: "no printer on
- * this terminal" read in the colour of success is a report nobody acts on.
+ * The drawer's X report (`D-219`), said out loud like every print (`D-074`) —
+ * and a refusal as an error, which stays until it is read (`D-220`).
  */
-const printProblem = ref<string | null>(null);
-
 async function printTillReport(): Promise<void> {
-  printNotice.value = null;
-  printProblem.value = null;
-  if (await shift.printTillReport()) printNotice.value = t("print.reportSent");
-  else printProblem.value = shift.error;
+  if (await shift.printTillReport()) notice.info(t("print.reportSent"));
+  else if (shift.error) notice.error(shift.error);
 }
 
 /** The screen never unmounts, so the address is what tells it to change. */
@@ -1199,7 +1195,7 @@ const joiningTables = ref(false);
  */
 async function onTablesJoined(joined: string[]): Promise<void> {
   joiningTables.value = false;
-  printNotice.value = t("tables.joined", { count: formatNumber(joined.length) });
+  notice.info(t("tables.joined", { count: formatNumber(joined.length) }));
   await reload();
   pane.value = "tables";
 }
@@ -1431,44 +1427,6 @@ async function send(): Promise<void> {
             >
               {{ t("order.notRouted", { items: orders.unrouted.join(t("common.listSeparator")) }) }}
             </p>
-
-            <!-- FR-7.5 — paper was asked for. Dismissible, because it is news
-                 about one action and not a state of the till. -->
-            <p
-              v-if="printNotice"
-              role="status"
-              class="flex items-center justify-between gap-2 rounded-rpos bg-status-available/10 p-3 text-sm text-status-available"
-            >
-              <span class="flex items-center gap-2">
-                <AppIcon
-                  name="receipt"
-                  :size="18"
-                />
-                {{ printNotice }}
-              </span>
-              <button
-                type="button"
-                class="shrink-0 font-semibold underline"
-                @click="printNotice = null"
-              >
-                {{ t("action.dismiss") }}
-              </button>
-            </p>
-
-            <p
-              v-if="printProblem"
-              role="alert"
-              class="flex items-center justify-between gap-2 rounded-rpos bg-danger/10 p-3 text-sm text-danger"
-            >
-              <span>{{ printProblem }}</span>
-              <button
-                type="button"
-                class="shrink-0 font-semibold underline"
-                @click="printProblem = null"
-              >
-                {{ t("action.dismiss") }}
-              </button>
-            </p>
           </div>
 
           <div
@@ -1542,6 +1500,10 @@ async function send(): Promise<void> {
               :open="menuOpen"
               @select="onMenu"
             />
+
+            <!-- D-220 — news about an action floats just above the bar and moves
+                 nothing: it used to sit over the menu grid and push it down. -->
+            <AppToast />
 
             <OrderBottomNav
               :entries="navEntries"

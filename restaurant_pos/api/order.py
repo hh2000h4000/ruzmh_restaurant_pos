@@ -594,13 +594,15 @@ def list_orders(pos_profile: str, view: str = "open", include_carried: bool | in
 
 	Open orders come oldest first: the one that has been waiting longest is the
 	one that needs attention (06 §Screen 1 behaviour). History comes newest
-	first and only for today, because what a cashier wants from a closed order
-	is the one they just closed.
+	first and only for the open business day, because what a cashier wants from
+	a closed order is the one they just closed.
 
 	**Each tab is bounded by its own event** (`D-146`). "Closed today" means
-	closed today, and "returns" means refunded today — not *opened* today, which
-	is what all three history tabs used to measure and is a different day for
-	every bill that outlives midnight.
+	closed in the day, and "returns" means refunded in it — not *opened* in it,
+	which is what all three history tabs used to measure and is a different day
+	for every bill that outlives midnight. **And "the day" is the business day
+	from its opening, not the date** (`D-216`): one left open for three dates
+	lists all three, as its closing report does.
 	"""
 	if view not in VIEWS:
 		frappe.throw(_("Unknown order view {0}.").format(view))
@@ -633,7 +635,7 @@ def list_orders(pos_profile: str, view: str = "open", include_carried: bool | in
 	mine_only = not get_pos_permission_set().get("can_view_all_orders")
 
 	if view == "returned":
-		return _refunds_today(scope, mine_only=mine_only)
+		return _refunds_this_day(scope, mine_only=mine_only)
 
 	orders = []
 	if view in ("open", "all"):
@@ -641,7 +643,7 @@ def list_orders(pos_profile: str, view: str = "open", include_carried: bool | in
 	if view == "all" or (view == "open" and cint(include_carried)):
 		orders += _mark_carried(_carried(scope))
 	if view in ("closed", "all"):
-		orders += _closed_today(scope, mine_only=mine_only)
+		orders += _closed_this_day(scope, mine_only=mine_only)
 
 	if orders:
 		_annotate_refunds(orders)
@@ -652,7 +654,7 @@ def list_orders(pos_profile: str, view: str = "open", include_carried: bool | in
 	# went back out was in no list a cashier could reach from here — the one
 	# view named for holding all of them.
 	if view == "all":
-		orders += _refunds_today(scope, mine_only=mine_only)
+		orders += _refunds_this_day(scope, mine_only=mine_only)
 
 	# **Every row carries the field, not only the carried ones.** A key that is
 	# present on some rows and absent on others makes every reader guess, and the
@@ -759,8 +761,30 @@ def _as_number(query: str) -> float | None:
 
 
 def _since_midnight():
-	"""Where a till's day starts, for every tab that says "today"."""
+	"""Midnight today — where the search window is measured from."""
 	return get_datetime(f"{nowdate()} 00:00:00")
+
+
+def _day_began(scope: dict):
+	"""Where the history tabs start: when the open business day was opened (`D-216`).
+
+	**A day is the period between opening it and closing it in the till, not a
+	date.** One opened on the 15th and closed on the 18th is one day, and its
+	closing report counts every bill in it — so the tabs a cashier checks that
+	report against must hold them too. Measured from midnight, the 15th's closed
+	bills left the tab on the 16th while their day was still open.
+
+	With no day open — between closing one and opening the next — midnight.
+	"""
+	branch = scope.get("branch")
+	opened = frappe.get_all(
+		"Restaurant Shift",
+		filters={"status": "open", **({"branch": branch} if branch else {})},
+		fields=["opened_at"],
+		order_by="opened_at asc",
+		limit=1,
+	)
+	return opened[0].opened_at if opened else _since_midnight()
 
 
 def _floor(scope: dict) -> list:
@@ -854,15 +878,16 @@ def _open_days(scope: dict) -> list[str]:
 	return frappe.get_all("Restaurant Shift", filters=filters, pluck="name")
 
 
-def _closed_today(scope: dict, *, mine_only: bool) -> list:
-	"""Bills that **ended** today, newest first.
+def _closed_this_day(scope: dict, *, mine_only: bool) -> list:
+	"""Bills that **ended** in the open business day, newest first.
 
 	`closed_at`, not `opened_at`. A bill opened at eleven last night and paid at
 	one in the morning belongs to the shift that took the money, and reading the
 	opening time hid it from the tab the moment it was paid — the cashier closed
-	a bill and it left the till altogether (`D-146`).
+	a bill and it left the till altogether (`D-146`). And from when the **day**
+	opened, not from midnight, however many dates it spans (`D-216`).
 	"""
-	filters = {**scope, "status": ("in", HISTORY_STATUSES), "closed_at": (">=", _since_midnight())}
+	filters = {**scope, "status": ("in", HISTORY_STATUSES), "closed_at": (">=", _day_began(scope))}
 	if mine_only:
 		filters["cashier"] = frappe.session.user
 
@@ -875,8 +900,8 @@ def _closed_today(scope: dict, *, mine_only: bool) -> list:
 	)
 
 
-def _refunds_today(scope: dict, *, mine_only: bool) -> list[dict]:
-	"""Every refund made **today**, one row per credit note (`D-143`, `D-146`).
+def _refunds_this_day(scope: dict, *, mine_only: bool) -> list[dict]:
+	"""Every refund made in the open business day, one row per credit note (`D-143`, `D-146`, `D-216`).
 
 	**It starts from the credit notes, not from the sales.** The tab used to
 	list today's orders and then look for refunds against them, which asked the
@@ -886,14 +911,14 @@ def _refunds_today(scope: dict, *, mine_only: bool) -> list[dict]:
 	tomorrow would appear today with nothing on it.
 
 	What the till needs from this tab is the drawer's day: the money that went
-	back out since midnight, reconcilable line by line against a count.
+	back out since the day opened, reconcilable line by line against a count.
 	"""
 	credits = frappe.get_all(
 		"Sales Invoice",
 		filters={
 			"is_return": 1,
 			"docstatus": 1,
-			"creation": (">=", _since_midnight()),
+			"creation": (">=", _day_began(scope)),
 			**({"pos_profile": ("in", _profiles_in(scope["branch"]))} if scope.get("branch") else {}),
 		},
 		fields=[

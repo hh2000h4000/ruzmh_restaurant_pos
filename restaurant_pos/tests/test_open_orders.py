@@ -18,6 +18,17 @@ from restaurant_pos.utils import returns
 #: A bill from before midnight — the case every history tab used to lose.
 YESTERDAY = add_days(nowdate(), -1)
 
+#: A business day opened three dates ago and still open (`D-216`).
+THREE_DAYS_AGO = add_days(nowdate(), -3)
+
+
+def _day_opened(case, when: str) -> None:
+	"""Move when the open business day began — where every history tab starts (`D-216`)."""
+	day = frappe.db.get_value("POS Profile", case.profile, "restaurant_shift")
+	was = frappe.db.get_value("Restaurant Shift", day, "opened_at")
+	frappe.db.set_value("Restaurant Shift", day, "opened_at", when, update_modified=False)
+	case.addCleanup(frappe.db.set_value, "Restaurant Shift", day, "opened_at", was, update_modified=False)
+
 
 class TestOpenOrders(OrderTestBase):
 	def _names(self):
@@ -265,11 +276,34 @@ class TestEachTabIsBoundedByItsOwnEvent(ReturnTestBase):
 
 		self.assertIn(order.name, self._names("closed"))
 
-	def test_a_bill_that_closed_yesterday_is_not(self):
+	def test_a_bill_that_closed_before_the_day_opened_is_not(self):
 		"""The other half — or "today" would just mean "ever"."""
+		_day_opened(self, f"{nowdate()} 00:00:01")
 		order = self._paid()
 		_stamp(order.name, "closed_at", f"{YESTERDAY} 23:40:00")
 
+		self.assertNotIn(order.name, self._names("closed"))
+
+	def test_a_day_left_open_across_dates_lists_every_bill_it_closed(self):
+		"""`D-216` — the user's case: a day opened on the 15th and closed on the
+		18th is one day, and its closing report counts every bill in it. From
+		midnight, the 15th's bills left the tab on the 16th."""
+		_day_opened(self, f"{THREE_DAYS_AGO} 09:00:00")
+		order = self._paid()
+		_stamp(order.name, "closed_at", f"{add_days(nowdate(), -2)} 13:00:00")
+
+		self.assertIn(order.name, self._names("closed"))
+		self.assertIn(order.name, self._names("all"))
+
+	def test_with_no_day_open_the_tabs_fall_back_to_midnight(self):
+		"""Between closing one day and opening the next there is no day to measure from."""
+		order = self._paid()
+		day = frappe.db.get_value("POS Profile", self.profile, "restaurant_shift")
+		frappe.db.set_value("Restaurant Shift", day, "status", "closed")
+		self.addCleanup(frappe.db.set_value, "Restaurant Shift", day, "status", "open")
+
+		self.assertIn(order.name, self._names("closed"))
+		_stamp(order.name, "closed_at", f"{YESTERDAY} 23:40:00")
 		self.assertNotIn(order.name, self._names("closed"))
 
 	def test_a_bill_still_open_from_yesterday_is_always_on_the_floor(self):
@@ -283,6 +317,7 @@ class TestEachTabIsBoundedByItsOwnEvent(ReturnTestBase):
 
 	def test_the_mixed_view_is_bounded_too(self):
 		"""`all` had no limit and no date at all — the branch's whole history."""
+		_day_opened(self, f"{nowdate()} 00:00:01")
 		order = self._paid()
 		_stamp(order.name, "closed_at", f"{YESTERDAY} 23:40:00")
 
@@ -303,7 +338,8 @@ class TestEachTabIsBoundedByItsOwnEvent(ReturnTestBase):
 		rows = api.list_orders(self.profile, view="returned")
 		self.assertIn(refund["credit_note"], {row["credit_note"] for row in rows})
 
-	def test_a_refund_taken_yesterday_is_not_in_todays(self):
+	def test_a_refund_taken_before_the_day_opened_is_not_in_it(self):
+		_day_opened(self, f"{nowdate()} 00:00:01")
 		order = self._paid()
 		refund = returns.create_return(order, items=[{"row": self._row(order), "qty": 1}], reason_code=REASON)
 		frappe.db.set_value(
@@ -312,6 +348,22 @@ class TestEachTabIsBoundedByItsOwnEvent(ReturnTestBase):
 
 		rows = api.list_orders(self.profile, view="returned")
 		self.assertNotIn(refund["credit_note"], {row["credit_note"] for row in rows})
+
+	def test_a_refund_taken_on_an_earlier_date_of_the_open_day_is_listed(self):
+		"""`D-216` — the refunds tab spans the day as the closed one does."""
+		_day_opened(self, f"{THREE_DAYS_AGO} 09:00:00")
+		order = self._paid()
+		refund = returns.create_return(order, items=[{"row": self._row(order), "qty": 1}], reason_code=REASON)
+		frappe.db.set_value(
+			"Sales Invoice",
+			refund["credit_note"],
+			"creation",
+			f"{add_days(nowdate(), -2)} 20:00:00",
+			update_modified=False,
+		)
+
+		rows = api.list_orders(self.profile, view="returned")
+		self.assertIn(refund["credit_note"], {row["credit_note"] for row in rows})
 
 	def test_the_all_tab_holds_the_refunds_too(self):
 		"""`D-151` — the tab named for everything held everything but them."""
@@ -363,6 +415,7 @@ class TestFindingAnOlderBill(ReturnTestBase):
 		return {row["name"] for row in api.search_orders(self.profile, query)}
 
 	def test_a_bill_from_last_week_is_found_by_its_number(self):
+		_day_opened(self, f"{nowdate()} 00:00:01")
 		order = self._paid()
 		_stamp(order.name, "opened_at", f"{add_days(nowdate(), -7)} 20:00:00")
 		_stamp(order.name, "closed_at", f"{add_days(nowdate(), -7)} 20:30:00")

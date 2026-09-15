@@ -43,6 +43,10 @@ Loyalty points cannot be used on this bill.,لا يمكن استخدام نقا�
 Loyalty points,نقاط الولاء
 Loyalty Points Balance,رصيد نقاط الولاء
 Restaurant POS Settings,إعدادات نقاط البيع
+Drawer Type,نوع الدرج
+"Shared: one drawer open at a time on the terminal, and whoever signs in works on it. Close it at the change of shift and the next cashier opens a new one the same day. Per cashier: several drawers open at once, one for each cashier.",مشترك: درج واحد مفتوح على الجهاز، وأي موظف يسجّل دخوله يشتغل عليه. يُقفل عند تغيير المناوبة ويفتح الموظف التالي درجاً جديداً في نفس اليوم. لكل موظف: أكثر من درج مفتوح بنفس الوقت، درج لكل موظف.
+single,درج مشترك يُسلَّم بين الموظفين,Branch
+multi,لكل موظف درجه (أكثر من درج بنفس الوقت),Branch
 void_item,إبطال صنف,POS Audit Log
 void_order,إبطال طلب,POS Audit Log
 cancel_order,إلغاء طلب,POS Audit Log

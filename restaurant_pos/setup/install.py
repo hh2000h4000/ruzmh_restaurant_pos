@@ -122,7 +122,15 @@ CUSTOM_FIELDS = {
 			"fieldtype": "Select",
 			"options": "single\nmulti",
 			"default": "single",
-			"label": "Shift Type",
+			# D-218 — named for what it decides: who a drawer belongs to. "Shift
+			# Type" with "single" read as "one shift all day", and the user set a
+			# branch to "multi" wanting two shifts a day — which "single" does.
+			"label": "Drawer Type",
+			"description": (
+				"Shared: one drawer open at a time on the terminal, and whoever signs in works on it. "
+				"Close it at the change of shift and the next cashier opens a new one the same day. "
+				"Per cashier: several drawers open at once, one for each cashier."
+			),
 			"reqd": 1,
 			"insert_after": "default_cost_center",
 		},

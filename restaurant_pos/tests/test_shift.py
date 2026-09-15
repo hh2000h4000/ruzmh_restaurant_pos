@@ -82,6 +82,104 @@ class ShiftTestBase(OrderTestBase):
 		):
 			frappe.db.set_value("Restaurant Shift", name, "status", "closed")
 
+	def _sold_by(self, cashier: str):
+		"""A real sale, paid in cash, filed under ``cashier`` — the name the counts read."""
+		_ensure_fiscal_year()
+		order = self._order()
+		orders.add_item(order, item=ITEM, qty=1)
+		order.reload()
+		payment.process_payment(order, payments=[{"method": CASH, "amount": order.total_amount}])
+		frappe.db.set_value("Restaurant Order", order.name, "cashier", cashier, update_modified=False)
+		return frappe.get_doc("Restaurant Order", order.name)
+
+	def _opened(self, shift_type: str) -> str:
+		frappe.db.set_value("Branch", BRANCH, "shift_type", shift_type)
+		return service.open_till(pos_profile=self.profile, opening_floats={"Cash": 100})["entry"]
+
+	def _refund_one(self, order) -> dict:
+		row = frappe.db.get_value("Sales Invoice Item", {"parent": order.sales_invoice}, "name")
+		return returns.create_return(order, items=[{"row": row, "qty": 1}], reason_code="goods_returned")
+
+
+class TestTheFinancialReport(ShiftTestBase):
+	"""`D-219` — what the X and Z reports print, taken from the pro tills and Vitec's.
+
+	Each figure here is one the user's own Vitec report shows, or one Toast,
+	Foodics and Lightspeed put on theirs and Vitec's lacks.
+	"""
+
+	def test_a_method_says_what_it_took_and_what_it_gave_back(self):
+		"""The net alone cannot tell a quiet shift from a busy one with a refund in it."""
+		entry = self._opened("multi")
+		order = self._sold_by(frappe.session.user)
+		refund = self._refund_one(order)
+
+		cash = next(row for row in service.summarise_till(entry)["by_method"] if row["method"] == CASH)
+
+		self.assertAlmostEqual(cash["taken"], flt(order.total_amount), places=2)
+		self.assertAlmostEqual(cash["refunded"], refund["refund_amount"], places=2)
+		self.assertAlmostEqual(cash["sales"], cash["taken"] - cash["refunded"], places=2)
+
+	def test_the_tax_table_adds_up_to_what_was_charged(self):
+		entry = self._opened("multi")
+		order = self._sold_by(frappe.session.user)
+
+		taxes = service.summarise_till(entry)["taxes"]
+
+		self.assertTrue(taxes)
+		gross = sum(row["gross"] for row in taxes)
+		self.assertAlmostEqual(
+			gross, flt(frappe.db.get_value("Sales Invoice", order.sales_invoice, "grand_total")), places=2
+		)
+		self.assertAlmostEqual(sum(row["net"] + row["tax"] for row in taxes), gross, places=2)
+
+	def test_a_voided_line_is_counted_by_what_it_was_worth(self):
+		entry = self._opened("multi")
+		order = self._sold_by(frappe.session.user)
+		before = service.summarise_till(entry)
+		line = order.items[0]
+		frappe.db.set_value("Restaurant Order Item", line.name, "status", "void", update_modified=False)
+
+		after = service.summarise_till(entry)
+
+		self.assertEqual(after["voids"] - before["voids"], 1)
+		self.assertAlmostEqual(after["void_amount"] - before["void_amount"], flt(line.amount), places=2)
+
+	def test_an_open_bill_is_counted_by_its_amount_in_the_day(self):
+		outcome = service.open_till(pos_profile=self.profile)
+		before = service.summarise(outcome["shift"])["open_amount"]
+		order = self._order()
+		orders.add_item(order, item=ITEM, qty=1)
+		order.reload()
+
+		after = service.summarise(outcome["shift"])["open_amount"]
+
+		self.assertAlmostEqual(after - before, flt(order.total_amount), places=2)
+
+	def test_the_day_lists_each_drawer_it_counted_and_the_difference(self):
+		# **No write to the branch here.** Closing a drawer commits, so a setting
+		# written before it outlived the test: this test's first version left the
+		# test site's branch personal and counting, and the payment and refund
+		# suites run next found no drawer to sell into. The count is asked for
+		# through the profile the close reads instead.
+		entry = service.open_till(pos_profile=self.profile, opening_floats={CASH: 100})["entry"]
+		self._sold_by(frappe.session.user)
+		expected = service.summarise_till(entry)["till_expected"]
+		read_profile = service._profile
+
+		def counting(pos_profile):
+			profile = read_profile(pos_profile)
+			profile.settlement_required = 1
+			return profile
+
+		with patch.object(service, "_profile", side_effect=counting):
+			service.close_till(opening_entry=entry, counted={CASH: expected + 5}, variance_reason="RPOS test")
+		day = frappe.db.get_value("POS Opening Entry", entry, "rpos_restaurant_shift")
+
+		till = next(row for row in service.summarise(day)["tills"] if row["user"] == frappe.session.user)
+		self.assertAlmostEqual(till["difference"], 5, places=2)
+		self.assertAlmostEqual(till["counted"] - till["expected"], 5, places=2)
+
 
 class TestOpening(ShiftTestBase):
 	def test_a_terminal_with_nothing_open_says_so(self):
@@ -155,19 +253,6 @@ class TestASharedDrawerCountsEveryone(ShiftTestBase):
 	one covering took was in the drawer and missing from what it was expected to
 	hold: a shortage nobody could explain, on the branch set up to share.
 	"""
-
-	def _sold_by(self, cashier: str):
-		_ensure_fiscal_year()
-		order = self._order()
-		orders.add_item(order, item=ITEM, qty=1)
-		order.reload()
-		payment.process_payment(order, payments=[{"method": CASH, "amount": order.total_amount}])
-		frappe.db.set_value("Restaurant Order", order.name, "cashier", cashier, update_modified=False)
-		return frappe.get_doc("Restaurant Order", order.name)
-
-	def _opened(self, shift_type: str) -> str:
-		frappe.db.set_value("Branch", BRANCH, "shift_type", shift_type)
-		return service.open_till(pos_profile=self.profile, opening_floats={"Cash": 100})["entry"]
 
 	def test_a_sale_by_whoever_joined_counts_in_the_shared_drawer(self):
 		entry = self._opened("single")

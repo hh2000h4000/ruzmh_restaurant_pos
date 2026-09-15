@@ -489,6 +489,7 @@ def summarise(shift_name: str) -> dict:
 	from restaurant_pos.utils import attendance
 
 	report["on_duty"] = len(attendance.on_duty_in(day.branch))
+	report["tills"] = _counted_tills(shift_name)
 	return report
 
 
@@ -588,6 +589,7 @@ def _refunds_in(window: list, **filters) -> list[str]:
 
 def _report(day, orders: list, opening: dict, *, refunds: list[str]) -> dict:
 	closed = [row for row in orders if row.status == "closed"]
+	still_open = [row for row in orders if row.status in OPEN_ORDER_STATUSES]
 	sold = [row.sales_invoice for row in closed if row.sales_invoice]
 	methods = _by_method(sold, refunds, opening)
 	refund_rows = (
@@ -595,6 +597,9 @@ def _report(day, orders: list, opening: dict, *, refunds: list[str]) -> dict:
 		if refunds
 		else []
 	)
+	sales = sum(flt(row.total_amount) for row in closed)
+	discounts = sum(flt(row.discount_amount) for row in closed)
+	voids, void_amount = _voids([row.name for row in closed])
 
 	return {
 		"shift": day.name,
@@ -604,17 +609,25 @@ def _report(day, orders: list, opening: dict, *, refunds: list[str]) -> dict:
 			"total": len(orders),
 			"closed": len(closed),
 			"cancelled": len([row for row in orders if row.status == "cancelled"]),
-			"still_open": len([row for row in orders if row.status in OPEN_ORDER_STATUSES]),
+			"still_open": len(still_open),
 		},
 		"by_order_type": _by_order_type(closed),
 		"by_method": methods,
-		"voids": _void_count([row.name for row in closed]),
-		"sales": money(sum(flt(row.total_amount) for row in closed)),
+		"voids": voids,
+		# D-219 — by amount as well as count: one plate at two hundred is not five
+		# at ten, and a count alone reads them the same.
+		"void_amount": money(void_amount),
+		"sales": money(sales),
+		# D-219 — before the discounts came off, so the page shows how the takings
+		# were reached rather than only where they ended.
+		"gross_sales": money(sales + discounts),
 		# FR-8.3 — its own line, not netted off the takings: a shift that sold
 		# 1000 and refunded 200 is a different day from one that sold 800.
 		"returns": money(abs(sum(flt(row.grand_total) for row in refund_rows))),
 		"by_cashier": _by_cashier(closed, refund_rows),
-		"discounts": money(sum(flt(row.discount_amount) for row in closed)),
+		"taxes": _by_tax_rate(sold + refunds),
+		"open_amount": money(sum(flt(row.total_amount) for row in still_open)),
+		"discounts": money(discounts),
 		# D-029 — what the drawer should hold, credit deliberately absent.
 		"till_expected": money(sum(row["expected"] for row in methods if row["kind"] == "till")),
 		"credit_total": money(sum(row["sales"] for row in methods if row["kind"] == "credit")),
@@ -707,42 +720,139 @@ def _by_method(invoices: list[str], refunds: list[str], opening: dict) -> list[d
 	)
 
 	tally: dict[str, dict] = {}
-	for row in rows:
-		method = row.mode_of_payment
-		entry = tally.setdefault(
+
+	def line(method: str) -> dict:
+		return tally.setdefault(
 			method,
-			{"method": method, "kind": "credit" if is_credit_method(method) else "till", "sales": 0.0},
+			{
+				"method": method,
+				"kind": "credit" if is_credit_method(method) else "till",
+				"sales": 0.0,
+				"taken": 0.0,
+				"refunded": 0.0,
+				"opening": 0.0,
+			},
 		)
+
+	for row in rows:
+		entry = line(row.mode_of_payment)
 		entry["sales"] += flt(row.amount)
+		# **Taken and given back, apart** (`D-219`). `sales` is the two netted — what
+		# the drawer should hold — and a Z report that shows only that cannot tell a
+		# quiet evening from a busy one with a large refund in it.
+		entry["taken" if flt(row.amount) >= 0 else "refunded"] += abs(flt(row.amount))
 
 	# A float went into a drawer even if nothing was sold through that method.
 	for method, amount in opening.items():
-		entry = tally.setdefault(
-			method,
-			{"method": method, "kind": "credit" if is_credit_method(method) else "till", "sales": 0.0},
-		)
-		entry["opening"] = flt(amount)
+		line(method)["opening"] = flt(amount)
 
 	for entry in tally.values():
-		entry.setdefault("opening", 0.0)
-		entry["sales"] = money(entry["sales"])
-		entry["opening"] = money(entry["opening"])
+		for figure in ("sales", "taken", "refunded", "opening"):
+			entry[figure] = money(entry[figure])
 		# Nothing is expected in a drawer for credit: the money is not there.
 		entry["expected"] = 0.0 if entry["kind"] == "credit" else money(entry["opening"] + entry["sales"])
 
 	return sorted(tally.values(), key=lambda entry: (entry["kind"], -entry["sales"]))
 
 
-def _void_count(order_names: list[str]) -> int:
+def _voids(order_names: list[str]) -> tuple[int, float]:
+	"""Lines voided after the kitchen had them (`BR-013`): how many, and what they were worth."""
 	if not order_names:
-		return 0
+		return 0, 0.0
 
-	return len(
-		frappe.get_all(
-			"Restaurant Order Item",
-			filters={"parent": ("in", order_names), "parenttype": "Restaurant Order", "status": "void"},
-		)
+	rows = frappe.get_all(
+		"Restaurant Order Item",
+		filters={"parent": ("in", order_names), "parenttype": "Restaurant Order", "status": "void"},
+		fields=["amount"],
 	)
+	return len(rows), sum(flt(row.amount) for row in rows)
+
+
+def _by_tax_rate(invoices: list[str]) -> list[dict]:
+	"""Net, VAT and gross per rate (FR-8.3, `D-219`) — the table a Z report hands the accountant.
+
+	**Sales and the period's refunds together.** A credit note carries negative
+	figures, so the sum is the tax the period actually owes — the way a VAT return
+	reads it — rather than the tax on sales with the refunds' tax nowhere.
+
+	Read from the invoices, never recomputed: the rate is whatever ERPNext's tax
+	template charged (`CLAUDE.md` §5.1), and a figure worked out again here could
+	disagree with the books by a halala.
+	"""
+	docs = (
+		frappe.get_all(
+			"Sales Invoice",
+			filters={"name": ("in", invoices), "docstatus": 1},
+			fields=["name", "net_total", "total_taxes_and_charges", "grand_total"],
+		)
+		if invoices
+		else []
+	)
+	if not docs:
+		return []
+
+	rates: dict[str, float] = {}
+	for row in frappe.get_all(
+		"Sales Taxes and Charges",
+		filters={"parent": ("in", [doc.name for doc in docs]), "parenttype": "Sales Invoice"},
+		fields=["parent", "rate"],
+		order_by="idx asc",
+	):
+		rates.setdefault(row.parent, flt(row.rate))
+
+	tally: dict[float, dict] = {}
+	for doc in docs:
+		rate = rates.get(doc.name, 0.0)
+		entry = tally.setdefault(rate, {"rate": rate, "net": 0.0, "tax": 0.0, "gross": 0.0})
+		entry["net"] += flt(doc.net_total)
+		entry["tax"] += flt(doc.total_taxes_and_charges)
+		entry["gross"] += flt(doc.grand_total)
+
+	for entry in tally.values():
+		for figure in ("net", "tax", "gross"):
+			entry[figure] = money(entry[figure])
+
+	return sorted(tally.values(), key=lambda entry: -entry["rate"])
+
+
+def _counted_tills(shift_name: str) -> list[dict]:
+	"""Each drawer the day has closed, as it was counted (FR-8.3, `D-219`).
+
+	The day's own figures cannot say what was counted — a day has no drawer — so
+	this is where the manager reads, per cashier, what each drawer was expected to
+	hold, what was in it, and the difference, from the closing entries ERPNext
+	filed (`D-047`).
+	"""
+	closed = _tills_of(shift_name, status="Closed")
+	if not closed:
+		return []
+
+	tills = []
+	for closing in frappe.get_all(
+		"POS Closing Entry",
+		filters={"pos_opening_entry": ("in", closed), "docstatus": 1},
+		fields=["name", "user", "pos_profile", "period_start_date", "period_end_date"],
+		order_by="period_end_date asc",
+	):
+		rows = frappe.get_all(
+			"POS Closing Entry Detail",
+			filters={"parent": closing.name, "parenttype": "POS Closing Entry"},
+			fields=["opening_amount", "expected_amount", "closing_amount", "difference"],
+		)
+		tills.append(
+			{
+				"user": closing.user,
+				"name": frappe.db.get_value("User", closing.user, "full_name") or closing.user,
+				"pos_profile": closing.pos_profile,
+				"opened_at": closing.period_start_date,
+				"closed_at": closing.period_end_date,
+				"opening": money(sum(flt(row.opening_amount) for row in rows)),
+				"expected": money(sum(flt(row.expected_amount) for row in rows)),
+				"counted": money(sum(flt(row.closing_amount) for row in rows)),
+				"difference": money(sum(flt(row.difference) for row in rows)),
+			}
+		)
+	return tills
 
 
 def _reconcile(report: dict, counted: dict | None, *, wants_count: bool) -> dict:

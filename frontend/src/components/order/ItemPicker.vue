@@ -178,10 +178,14 @@ const layoutStyle = computed<Record<string, string>>(() => {
   // A track is a 1/columns share of the row after its gaps (gap-3.5), or
   // FLOW_MIN_TILE when that share is smaller — and auto-fill fits as many of
   // those as the width holds, which is never more than `columns`.
+  // A row never goes under the tile's name and price (`min-content` — the
+  // picture gives way first, `D-192`), which is always more than a finger. The
+  // tap target alone let a short phone, or a phone with an error showing, cut
+  // every price off at 48px; now that column scrolls instead.
   return {
     "--columns": String(columns),
     gridTemplateColumns: `repeat(auto-fill, minmax(max(${FLOW_MIN_TILE}, calc((100% - ${columns - 1} * 0.875rem) / ${columns})), 1fr))`,
-    gridAutoRows: "minmax(var(--rpos-tap-target), 1fr)",
+    gridAutoRows: "minmax(min-content, 1fr)",
   };
 });
 

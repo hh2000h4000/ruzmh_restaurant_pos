@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from "vue-router";
 
 import { t } from "@/i18n";
+import { arrived, isMissingScreen, shouldReload } from "@/router/missingScreen";
 import { useAuthStore } from "@/stores/auth";
 import { useSessionStore } from "@/stores/session";
 
@@ -100,16 +101,27 @@ const router = createRouter({
  *
  * The message names the cause, because the fix is a person's: reconnect once so
  * the terminal can store the app (`D-078`).
+ *
+ * **Online it is an update, and the fix is not a person's** (`D-221`). A build
+ * renames every file, so a till left open across an update asked for
+ * `PaymentView-<old>.js`: Pay did nothing, and the cashier read "Failed to fetch
+ * dynamically imported module" with a URL in it. The page is loaded afresh at
+ * the screen that was asked for — **once**: a second failure on the same path
+ * is not an update, and gets the message.
  */
-router.onError((error) => {
-  const message = String(error?.message ?? error);
-  if (!/dynamically imported module|Importing a module script failed|Loading chunk/i.test(message)) {
+router.onError((error, to) => {
+  if (!isMissingScreen(error)) return;
+
+  if (shouldReload(to.fullPath)) {
+    window.location.assign(router.resolve(to).href);
     return;
   }
 
   console.error("[rpos] a screen is not on this device:", error);
   window.alert(t("offline.screenMissing"));
 });
+
+router.afterEach(arrived);
 
 router.beforeEach(async (to) => {
   // Who before what (`D-094`). Every other screen assumes a person: the audit
@@ -143,7 +155,10 @@ router.beforeEach(async (to) => {
   // Every screen but setup needs the terminal configuration; without it there
   // is no branch, no menu and no permissions to render against.
   const session = useSessionStore();
-  return session.isLoaded ? true : { name: "setup" };
+  // It remembers where it was going, so a refresh or the reload after an update
+  // comes back to that screen rather than home (`D-221`).
+  if (session.isLoaded) return true;
+  return to.name === "home" ? { name: "setup" } : { name: "setup", query: { next: to.fullPath } };
 });
 
 export default router;

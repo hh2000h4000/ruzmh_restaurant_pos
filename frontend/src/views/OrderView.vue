@@ -45,6 +45,7 @@ import {
 import { useDismiss } from "@/composables/useDismiss";
 import { useOpenOrders } from "@/composables/useOpenOrders";
 import { formatNumber, t, tn } from "@/i18n";
+import { isMissingScreen } from "@/router/missingScreen";
 import { useAuthStore } from "@/stores/auth";
 import { useOrderStore } from "@/stores/order";
 import { useSessionStore } from "@/stores/session";
@@ -1292,6 +1293,9 @@ function goToPayment(): void {
   router
     .push({ name: "payment", params: { orderName: orders.order.order_name } })
     .catch((cause) => {
+      // The router answers a missing screen itself — it reloads, or says why
+      // (`D-221`). A file URL on the order is not something a cashier can use.
+      if (isMissingScreen(cause)) return;
       orders.error = cause instanceof Error ? cause.message : String(cause);
     });
 }
@@ -1309,8 +1313,11 @@ async function send(): Promise<void> {
     order's number, state, type and customer are on the bill; the way back is
     the button beside the tabs.
   -->
-  <main class="grid h-full grid-rows-[minmax(0,1fr)] bg-background">
-    <div class="grid min-h-0 grid-rows-[minmax(0,1fr)] p-[18px]">
+  <!-- `minmax(0, 1fr)` columns, not the implicit `auto`: an auto track grows to
+       its content's longest unbreakable line, so the action row made the whole
+       screen 383px on a 360 phone and «المزيد» sat past the edge (`D-221`). -->
+  <main class="grid h-full grid-cols-[minmax(0,1fr)] grid-rows-[minmax(0,1fr)] bg-background">
+    <div class="grid min-h-0 grid-cols-[minmax(0,1fr)] grid-rows-[minmax(0,1fr)] p-[18px]">
       <!--
         Two columns while a bill is in hand, one when there is not: the working
         column is the screen either way, and stretching it over the whole width
@@ -1339,7 +1346,7 @@ async function send(): Promise<void> {
         grow to 600px on one.
       -->
       <div
-        class="grid min-h-0 gap-[18px] max-lg:grid-rows-[minmax(0,1fr)_auto] lg:grid-cols-[minmax(0,1fr)_minmax(310px,380px)]"
+        class="grid min-h-0 gap-[18px] max-lg:grid-cols-[minmax(0,1fr)] max-lg:grid-rows-[minmax(0,1fr)_auto] lg:grid-cols-[minmax(0,1fr)_minmax(310px,380px)]"
       >
         <!--
           A column, not a row template. The notices below are `empty:hidden`, so

@@ -62,6 +62,19 @@
     transform: scale(0.98);
   }
 
+  /*
+   * A message the cashier has to read wraps, whatever is in it (`D-221`).
+   *
+   * A URL or a record id is one unbreakable word, and its whole length became
+   * the width of the column: one error naming a file pushed the order screen
+   * to 575px on a 360 phone, and the page scrolled sideways. `anywhere` rather
+   * than `break-word` because only it lets a flex or grid item shrink.
+   */
+  [role="alert"],
+  [role="status"] {
+    overflow-wrap: anywhere;
+  }
+
   :focus-visible {
     outline: 2px solid rgb(var(--rpos-primary));
     outline-offset: 2px;

@@ -68,7 +68,7 @@ const RISE = {
           </span>
           <button
             type="button"
-            class="shrink-0 rounded-rpos p-1.5 text-surface/60 hover:bg-surface/10 hover:text-surface"
+            class="grid w-12 shrink-0 place-items-center rounded-rpos text-surface/60 hover:bg-surface/10 hover:text-surface"
             :aria-label="t('action.dismiss')"
             @click="notice.dismiss()"
           >
@@ -102,7 +102,7 @@ const RISE = {
           </span>
           <button
             type="button"
-            class="shrink-0 rounded-rpos p-1.5 text-white/75 hover:bg-white/15 hover:text-white"
+            class="grid w-12 shrink-0 place-items-center rounded-rpos text-white/75 hover:bg-white/15 hover:text-white"
             :aria-label="t('action.dismiss')"
             @click="notice.dismiss()"
           >

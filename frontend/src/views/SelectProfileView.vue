@@ -74,7 +74,7 @@ async function start(posProfile: string): Promise<void> {
   try {
     await session.load(posProfile);
     localStorage.setItem(REMEMBERED, posProfile);
-    await router.push({ name: "home" });
+    await router.push(nextScreen());
   } catch (cause) {
     if (cause instanceof ApiError && cause.isPermissionDenied) {
       message.value = t("setup.signInFirst");
@@ -87,6 +87,22 @@ async function start(posProfile: string): Promise<void> {
   } finally {
     busy.value = false;
   }
+}
+
+/**
+ * Where the till was going before it stopped here to load the terminal (`D-221`).
+ *
+ * Every full page load passes through this screen — a refresh, and the reload
+ * after an update — and it used to end on home whatever was asked for: a cashier
+ * who refreshed on a bill, or pressed Pay on a till left open across an update,
+ * lost the screen they were on. Only a path inside the app is followed, never
+ * another site.
+ */
+function nextScreen(): string | { name: string } {
+  const next = router.currentRoute.value.query.next;
+  return typeof next === "string" && next.startsWith("/") && !next.startsWith("//")
+    ? next
+    : { name: "home" };
 }
 
 function subtitle(option: ProfileOption): string {

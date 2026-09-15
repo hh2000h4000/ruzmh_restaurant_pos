@@ -28,14 +28,23 @@ from frappe.utils import flt
 from restaurant_pos.api import kitchen as kitchen_api
 from restaurant_pos.api import order as order_api
 from restaurant_pos.api import payment as payment_api
+from restaurant_pos.api import permissions as permissions_api
 from restaurant_pos.api import returns as returns_api
 from restaurant_pos.api import shift as shift_api
-from restaurant_pos.tests.test_order import BRANCH, ITEM
+from restaurant_pos.setup.defaults import create_default_data
+from restaurant_pos.tests.test_discount_override import _user as _user_with_pin
+from restaurant_pos.tests.test_loyalty import LoyaltyTestBase
+from restaurant_pos.tests.test_order import BRANCH, ITEM, free_table
 from restaurant_pos.tests.test_payment import CASH, PaymentTestBase
 from restaurant_pos.tests.test_permissions import CASHIER, SENIOR, _make_user
 from restaurant_pos.tests.test_returns import REASON
 from restaurant_pos.tests.test_shift import ShiftTestBase
+from restaurant_pos.utils import loyalty, totals
 from restaurant_pos.utils import shift as shift_service
+
+#: The manager who approves the evening's discount, and the PIN they type.
+DINNER_MANAGER = "rpos_dinner_manager@example.com"
+DINNER_MANAGER_PIN = "58214"
 
 #: The cash the drawer starts the day with.
 FLOAT = 200
@@ -263,3 +272,125 @@ class TestADayAtTheTill(ShiftTestBase, PaymentTestBase):
 			self.assertIn(
 				("print_shift_report", {"pos_profile": self.profile, "shift": till["shift"]}), printed
 			)
+
+
+class TestADinnerService(ShiftTestBase, LoyaltyTestBase):
+	"""An evening where the money is hardest: a table, a manager's discount, points spent.
+
+	Each piece has tests of its own (`BR-031`, `D-189`); none walked them in one
+	day through the endpoints, as a cashier, and then asked whether the drawer,
+	the day's report and the guest's balance still agree. That is where money
+	logic goes wrong — two correct rules that do not add up.
+
+	`LoyaltyTestBase` brings the programme and the Saudi VAT on the terminal, so
+	the tax claims below are not `0 == 0`; `ShiftTestBase` the clean day.
+	"""
+
+	@classmethod
+	def setUpClass(cls):
+		super().setUpClass()
+		# The discount ceilings live in the shipped permission sets (08 §3): a
+		# senior cashier may give 10%, a manager 50%.
+		create_default_data()
+		cls.cashier = _make_user(SENIOR, "POS Senior Cashier")
+		cls.manager = _user_with_pin(DINNER_MANAGER, "POS Manager", DINNER_MANAGER_PIN)
+		frappe.db.commit()
+
+	def tearDown(self):
+		frappe.set_user("Administrator")
+		frappe.local.rpos_permission_cache = {}
+		super().tearDown()
+
+	def _as(self, user: str) -> None:
+		frappe.set_user(user)
+		frappe.local.rpos_permission_cache = {}
+
+	def test_a_dinner_service_s_money_agrees_with_itself(self):
+		# Set up at the desk, before the cashier arrives: a regular with points,
+		# and a free table.
+		guest = self._guest()
+		self._give(guest, 300)
+		table = frappe.db.get_value("Restaurant Table", {"section": self.section, "is_active": 1}, "name")
+		free_table(table)
+
+		self._as(self.cashier)
+		with patch("restaurant_pos.utils.printing.enqueue_print"):
+			till = shift_api.open_till(pos_profile=self.profile, opening_floats={CASH: FLOAT})
+
+			# A table of two, sent to the kitchen, and a discount beyond the
+			# cashier's own ceiling — approved by a manager's PIN (BR-031).
+			dinner = order_api.create_order(
+				order_type=self.dine_in, pos_profile=self.profile, table=table, cover_count=2
+			)["order_name"]
+			order_api.add_item(order_name=dinner, item=ITEM, qty=4)
+			kitchen_api.send_to_kitchen(order_name=dinner)
+			approval = permissions_api.validate_discount_override(
+				pin=DINNER_MANAGER_PIN,
+				percentage=40,
+				reason="RPOS test: a long wait",
+				branch=BRANCH,
+				pos_profile=self.profile,
+				order_name=dinner,
+			)
+			due = payment_api.preview_totals(dinner, "percentage", 40)["total_amount"]
+			half = totals.money(due / 2)
+			# Paid in two parts, as a table of two splits it.
+			payment_api.process_payment(
+				order_name=dinner,
+				payments=[
+					{"method": CASH, "amount": half},
+					{"method": CASH, "amount": totals.money(due - half)},
+				],
+				discount_type="percentage",
+				discount_value=40,
+				manager_override_token=approval["override_token"],
+			)
+
+			# A regular spends points on a takeaway (D-189).
+			regular = order_api.create_order(
+				order_type=self.order_type, pos_profile=self.profile, customer=guest
+			)["order_name"]
+			order_api.add_item(order_name=regular, item=ITEM, qty=4)
+			owed = payment_api.preview_totals(regular, loyalty_points=100)["total_amount"]
+			payment_api.process_payment(
+				order_name=regular, payments=[{"method": CASH, "amount": owed}], loyalty_points_redeemed=100
+			)
+
+			drawer = shift_api.get_till_summary(till["entry"])
+			closed = shift_api.close_till(
+				opening_entry=till["entry"], counted={CASH: drawer["till_expected"]}
+			)
+			shift_api.close_day(shift=till["shift"], pos_profile=self.profile)
+			day = shift_api.get_day_summary(till["shift"])
+
+		self._as("Administrator")
+		dinner_doc = frappe.get_doc("Restaurant Order", dinner)
+		regular_doc = frappe.get_doc("Restaurant Order", regular)
+
+		with self.subTest("the table's discount went through, named to the manager who approved it"):
+			self.assertEqual(dinner_doc.status, "closed")
+			self.assertEqual(dinner_doc.discount_approved_by, self.manager)
+			self.assertGreater(flt(dinner_doc.discount_amount), 0)
+			self.assertAlmostEqual(flt(dinner_doc.total_amount), due, places=2)
+
+		with self.subTest("the table's two payments are both on its invoice"):
+			invoice = frappe.get_doc("Sales Invoice", dinner_doc.sales_invoice)
+			self.assertEqual(len(invoice.payments), 2)
+			self.assertAlmostEqual(sum(flt(row.amount) for row in invoice.payments), due, places=2)
+
+		with self.subTest("the points came off the bill, and off the guest's balance"):
+			self.assertAlmostEqual(flt(regular_doc.total_amount), owed, places=2)
+			earned = int(regular_doc.loyalty_points_earned or 0)
+			self.assertEqual(loyalty.balance(guest, self.program), 300 - 100 + earned)
+
+		with self.subTest("the drawer holds the float and exactly what both bills came to"):
+			self.assertAlmostEqual(drawer["till_expected"], FLOAT + due + owed, places=2)
+			self.assertEqual(closed["settlement"]["variance"], 0)
+
+		with self.subTest("the day's report tells the same evening"):
+			self.assertAlmostEqual(day["sales"], due + owed, places=2)
+			self.assertGreaterEqual(day["discounts"], flt(dinner_doc.discount_amount))
+			self.assertAlmostEqual(day["gross_sales"], day["sales"] + day["discounts"], places=2)
+			# VAT is on: the tax table carries real tax, and adds up to the takings.
+			self.assertGreater(sum(row["tax"] for row in day["taxes"]), 0)
+			self.assertAlmostEqual(sum(row["gross"] for row in day["taxes"]), due + owed, places=2)

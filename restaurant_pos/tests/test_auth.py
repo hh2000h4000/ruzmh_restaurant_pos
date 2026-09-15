@@ -15,7 +15,7 @@ from frappe.tests.utils import FrappeTestCase
 from frappe.utils import add_to_date, now_datetime
 
 from restaurant_pos.api import auth as auth_api
-from restaurant_pos.tests.test_order import OrderTestBase
+from restaurant_pos.tests.test_order import BRANCH, OrderTestBase
 from restaurant_pos.utils import attendance
 from restaurant_pos.utils import manager_pin as pins
 from restaurant_pos.utils import permissions as perms
@@ -424,11 +424,17 @@ class TestGoingHomeOverAnOpenDrawer(OrderTestBase):
 
 		self.drawer_owner = frappe.db.get_value("POS Opening Entry", self.till, "user")
 
+		# A personal drawer is what holds a person at work (`D-218`); a shared one
+		# does not, and that case is asserted on its own below.
+		self.shift_type = frappe.db.get_value("Branch", BRANCH, "shift_type")
+		frappe.db.set_value("Branch", BRANCH, "shift_type", "multi")
+
 	def tearDown(self):
 		# Handed back. Every later test in the suite reads this drawer as the
 		# fixture's, and one left in somebody else's name stops the terminal
 		# selling (`BR-044`).
 		frappe.db.set_value("POS Opening Entry", self.till, {"user": self.drawer_owner, "status": "Open"})
+		frappe.db.set_value("Branch", BRANCH, "shift_type", self.shift_type or "single")
 		super().tearDown()
 
 	def _hand_over_the_drawer(self) -> None:
@@ -442,6 +448,13 @@ class TestGoingHomeOverAnOpenDrawer(OrderTestBase):
 	def test_a_counted_drawer_is_no_longer_held(self):
 		self._hand_over_the_drawer()
 		frappe.db.set_value("POS Opening Entry", self.till, "status", "Closed")
+
+		self.assertFalse(attendance.holds_a_drawer(STAFF))
+
+	def test_a_shared_drawer_does_not_keep_whoever_opened_it_here(self):
+		"""`D-218` — in a `single` branch the next cashier joins it; the opener may go home."""
+		self._hand_over_the_drawer()
+		frappe.db.set_value("Branch", BRANCH, "shift_type", "single")
 
 		self.assertFalse(attendance.holds_a_drawer(STAFF))
 

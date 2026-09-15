@@ -515,9 +515,15 @@ def summarise_till(opening_entry: str) -> dict:
 	# was in no drawer's figures — the notes were in it, and the count came up
 	# short by exactly that bill. Refunds likewise: the ones this cashier paid out
 	# at this terminal while the drawer stood, against a sale of any age.
+	#
+	# **Unless the drawer is shared** (`BR-041`, `D-218`). In a `single` branch the
+	# next cashier joins the drawer already open, so it holds what every one of
+	# them took — and counting only the opener's name left the rest of the notes
+	# in the drawer and out of what it was expected to hold.
 	period = [entry.period_start_date, _period_end(entry)]
-	orders = _ended_in(period, pos_profile=entry.pos_profile, cashier=entry.user)
-	refunds = _refunds_in(period, pos_profile=entry.pos_profile, owner=entry.user)
+	shared = _profile(entry.pos_profile).branch_shift_type == "single"
+	orders = _ended_in(period, pos_profile=entry.pos_profile, **({} if shared else {"cashier": entry.user}))
+	refunds = _refunds_in(period, pos_profile=entry.pos_profile, **({} if shared else {"owner": entry.user}))
 
 	opening = {row.mode_of_payment: flt(row.opening_amount) for row in entry.balance_details}
 	report = _report(
@@ -842,12 +848,22 @@ def held_till(user: str) -> str | None:
 	drawer left open on the till at the other end of the counter is still theirs
 	to count. Scoping it would let a cashier clock out by walking to a different
 	screen.
+
+	**A personal drawer only** (`D-218`). In a `single` branch the drawer belongs
+	to the terminal and the next cashier joins it (`BR-041`), so the one who
+	happened to open it may go home and leave it to them — it is counted by
+	whoever closes it. Holding them there would keep somebody at work for a
+	drawer three colleagues are still ringing into.
 	"""
-	return frappe.db.get_value(
+	for entry in frappe.get_all(
 		"POS Opening Entry",
-		{"user": user, "status": "Open", "docstatus": 1},
-		"name",
-	)
+		filters={"user": user, "status": "Open", "docstatus": 1},
+		fields=["name", "pos_profile", "period_start_date"],
+		order_by="period_start_date asc",
+	):
+		if _profile(entry.pos_profile).branch_shift_type != "single":
+			return entry
+	return None
 
 
 def _any_till(profile) -> frappe._dict | None:

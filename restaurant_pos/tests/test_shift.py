@@ -17,9 +17,17 @@ Refs: FR-8.1..8.3, BR-040..BR-045, D-029, D-046, D-047
 """
 
 import frappe
+from frappe.utils import flt
 
-from restaurant_pos.tests.test_order import BRANCH, OrderTestBase
+from restaurant_pos.tests.test_order import BRANCH, ITEM, OrderTestBase
+from restaurant_pos.tests.test_payment import CASH, _ensure_fiscal_year
+from restaurant_pos.utils import order as orders
+from restaurant_pos.utils import payment, returns
 from restaurant_pos.utils import shift as service
+
+#: Somebody other than whoever opened the drawer. Written onto the bill after it
+#: is paid — the one field the drawer's count reads to decide whose sale it was.
+SECOND_CASHIER = "rpos-second-cashier@example.com"
 
 
 class ShiftTestBase(OrderTestBase):
@@ -134,6 +142,63 @@ class TestOpening(ShiftTestBase):
 	def test_an_unknown_method_is_refused_loudly(self):
 		with self.assertRaises(frappe.ValidationError):
 			service._clean_floats({"Nonesuch": 100})
+
+
+class TestASharedDrawerCountsEveryone(ShiftTestBase):
+	"""`BR-041`, `D-218` — in a `single` branch the drawer is the terminal's, not a person's.
+
+	The next cashier joins the one already open — which is how Vitec works and
+	how the user's customers cover a cashier gone to the store for ten minutes.
+	The count read only the sales **under the opener's name**, so everything the
+	one covering took was in the drawer and missing from what it was expected to
+	hold: a shortage nobody could explain, on the branch set up to share.
+	"""
+
+	def _sold_by(self, cashier: str):
+		_ensure_fiscal_year()
+		order = self._order()
+		orders.add_item(order, item=ITEM, qty=1)
+		order.reload()
+		payment.process_payment(order, payments=[{"method": CASH, "amount": order.total_amount}])
+		frappe.db.set_value("Restaurant Order", order.name, "cashier", cashier, update_modified=False)
+		return frappe.get_doc("Restaurant Order", order.name)
+
+	def _opened(self, shift_type: str) -> str:
+		frappe.db.set_value("Branch", BRANCH, "shift_type", shift_type)
+		return service.open_till(pos_profile=self.profile, opening_floats={"Cash": 100})["entry"]
+
+	def test_a_sale_by_whoever_joined_counts_in_the_shared_drawer(self):
+		entry = self._opened("single")
+		before = service.summarise_till(entry)["till_expected"]
+
+		order = self._sold_by(SECOND_CASHIER)
+
+		self.assertAlmostEqual(
+			service.summarise_till(entry)["till_expected"] - before, flt(order.total_amount), places=2
+		)
+
+	def test_and_so_does_a_refund_they_paid_out_of_it(self):
+		entry = self._opened("single")
+		order = self._sold_by(SECOND_CASHIER)
+		row = frappe.db.get_value("Sales Invoice Item", {"parent": order.sales_invoice}, "name")
+		before = service.summarise_till(entry)
+
+		refund = returns.create_return(order, items=[{"row": row, "qty": 1}], reason_code="goods_returned")
+		frappe.db.set_value(
+			"Sales Invoice", refund["credit_note"], "owner", SECOND_CASHIER, update_modified=False
+		)
+		after = service.summarise_till(entry)
+
+		self.assertAlmostEqual(after["returns"] - before["returns"], refund["refund_amount"], places=2)
+
+	def test_a_personal_drawer_still_counts_only_its_own_cashier(self):
+		"""`multi` — each cashier's drawer is theirs, and somebody else's sale is not in it."""
+		entry = self._opened("multi")
+		before = service.summarise_till(entry)["till_expected"]
+
+		self._sold_by(SECOND_CASHIER)
+
+		self.assertAlmostEqual(service.summarise_till(entry)["till_expected"], before, places=2)
 
 
 class TestTheDrawer(ShiftTestBase):

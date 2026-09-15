@@ -113,6 +113,13 @@ const entries = computed<MenuEntry[]>(() => {
     rows.push({ key: "openTill", label: "shift.openTill", icon: "card" });
   }
 
+  // D-219 — the drawer's report, printed without closing it: a cashier stepping
+  // away prints it, and prints it again on coming back. Offered for a shared
+  // drawer held by someone else too, because that is the drawer it checks.
+  if (shift.tillOpen) {
+    rows.push({ key: "printReport", label: "shift.printReport", icon: "receipt" });
+  }
+
   rows.push(BOOKINGS);
 
   // Who is at work — for whoever may read a report. Above the destructive pair

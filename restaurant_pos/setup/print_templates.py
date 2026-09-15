@@ -407,31 +407,86 @@ KOT = """
 </body></html>
 """
 
+#: The financial report, X while open and Z once closed (`D-219`).
+#:
+#: Drawn from the report `utils/shift` computes for the screen — never from a
+#: closing entry, which is what this template used to read and what nothing ever
+#: printed. One set of figures for the screen and the paper, or the two disagree.
+#:
+#: Taken from the user's Vitec report and the professional tills: a table per
+#: section rather than Vitec's block repeated for every cashier, the counted
+#: figure and its difference (Vitec has neither), voids by amount as well as
+#: count, and credit marked as never having been in the drawer.
 SHIFT_REPORT = """
 <html><head><meta charset="utf-8"><style>{css}</style></head>
 <body class="rtl">
-	<div class="c big">تقرير المناوبة</div>
-	<div class="c muted">{{{{ doc.pos_profile }}}}</div>
+	{{% if logo %}}<div class="c"><img class="logo" src="{{{{ logo }}}}" alt=""></div>{{% endif %}}
+	<div class="c big">{{{{ (company.company_name or company.name) | rtl }}}}</div>
+	{{% if branch %}}<div class="c">{{{{ branch | rtl }}}}</div>{{% endif %}}
+	{{% if company.tax_id %}}<div class="c muted">الرقم الضريبي <span class="amt">{{{{ company.tax_id }}}}</span></div>{{% endif %}}
+	<div class="banner">{{{{ "تقرير مالي نهائي" if kind == "Z" else "تقرير مالي مؤقت" }}}} <span class="amt">{{{{ kind }}}}</span></div>
+	<div class="row meta"><span>من</span><span class="amt">{{{{ opened }}}}</span></div>
+	<div class="row meta"><span>إلى</span><span class="amt">{{{{ closed }}}}</span></div>
+	{{% if who %}}<div class="row meta"><span>الموظف</span><span>{{{{ who | rtl }}}}</span></div>{{% endif %}}
+
 	<hr>
-	<div class="row"><span>الفتح</span><span>{{{{ frappe.utils.format_datetime(doc.period_start_date) }}}}</span></div>
-	<div class="row"><span>الإغلاق</span><span>{{{{ frappe.utils.format_datetime(doc.period_end_date) }}}}</span></div>
-	<div class="row"><span>الكاشير</span><span>{{{{ doc.owner }}}}</span></div>
+	<div class="b">المبيعات</div>
+	<div class="row"><span>قبل الخصم</span><span class="amt">{{{{ "%.2f" | format(report.gross_sales) }}}}</span></div>
+	<div class="row"><span>الخصومات</span><span class="amt">{{{{ "%.2f" | format(report.discounts) }}}}</span></div>
+	<div class="row total"><span>الصافي</span><span class="amt">{{{{ "%.2f" | format(report.sales) }}}}</span></div>
+	<div class="row"><span>المرتجعات</span><span class="amt">{{{{ "%.2f" | format(report.returns) }}}}</span></div>
+
+	{{% if report.taxes %}}
 	<hr>
-	<div class="line head">
-		<span class="name">طريقة الدفع</span>
-		<span class="col">متوقّع</span><span class="col">معدود</span><span class="col">الفرق</span>
-	</div>
-	{{% for row in doc.payment_reconciliation %}}
-	<div class="line">
-		<span class="name">{{{{ row.mode_of_payment | rtl }}}}</span>
-		<span class="col">{{{{ "%.2f" | format(row.expected_amount) }}}}</span>
-		<span class="col">{{{{ "%.2f" | format(row.closing_amount) }}}}</span>
-		<span class="col">{{{{ "%.2f" | format(row.difference) }}}}</span>
-	</div>
+	<div class="line head"><span class="name">الضريبة</span><span class="col">الصافي</span><span class="col">الضريبة</span><span class="col">الإجمالي</span></div>
+	{{% for row in report.taxes %}}
+	<div class="line"><span class="name"><span class="amt">{{{{ "%g" | format(row.rate) }}}}%</span></span><span class="col">{{{{ "%.2f" | format(row.net) }}}}</span><span class="col">{{{{ "%.2f" | format(row.tax) }}}}</span><span class="col">{{{{ "%.2f" | format(row.gross) }}}}</span></div>
 	{{% endfor %}}
+	{{% endif %}}
+
+	{{% if report.by_method %}}
 	<hr>
-	<div class="row total"><span>صافي المبيعات</span><span class="amt">{{{{ "%.2f" | format(doc.grand_total) }}}}</span></div>
-	<div class="row"><span>عدد الفواتير</span><span class="amt">{{{{ doc.pos_transactions | length }}}}</span></div>
+	<div class="line head"><span class="name">طريقة الدفع</span><span class="col">مبيعات</span><span class="col">مرتجع</span><span class="col">صافي</span></div>
+	{{% for row in report.by_method %}}
+	<div class="line"><span class="name">{{{{ row.method | rtl }}}}{{% if row.kind == "credit" %}} *{{% endif %}}</span><span class="col">{{{{ "%.2f" | format(row.taken) }}}}</span><span class="col">{{{{ "%.2f" | format(row.refunded) }}}}</span><span class="col">{{{{ "%.2f" | format(row.sales) }}}}</span></div>
+	{{% endfor %}}
+	{{% if report.credit_total %}}<div class="muted">* على حساب طرف آخر، ليست في الدرج</div>{{% endif %}}
+	{{% endif %}}
+
+	{{% if drawers %}}
+	<hr>
+	<div class="line head"><span class="name">الدرج</span><span class="col">متوقّع</span><span class="col">معدود</span><span class="col">الفرق</span></div>
+	{{% for drawer in drawers %}}
+	<div class="line"><span class="name">{{{{ drawer.name | rtl }}}}</span><span class="col">{{{{ "%.2f" | format(drawer.expected) }}}}</span><span class="col">{{{{ "%.2f" | format(drawer.counted) if drawer.counted is not none else "-" }}}}</span><span class="col">{{{{ "%.2f" | format(drawer.difference) if drawer.difference is not none else "-" }}}}</span></div>
+	{{% if drawer.opening %}}<div class="row muted"><span>منها افتتاحي</span><span class="amt">{{{{ "%.2f" | format(drawer.opening) }}}}</span></div>{{% endif %}}
+	{{% endfor %}}
+	{{% endif %}}
+
+	{{% if report.by_cashier | length > 1 %}}
+	<hr>
+	<div class="line head"><span class="name">الموظف</span><span class="col">فواتير</span><span class="col">مبيعات</span><span class="col">مرتجع</span></div>
+	{{% for person in report.by_cashier %}}
+	<div class="line"><span class="name">{{{{ person.name | rtl }}}}</span><span class="col">{{{{ person.count }}}}</span><span class="col">{{{{ "%.2f" | format(person.sales) }}}}</span><span class="col">{{{{ "%.2f" | format(person.returns) }}}}</span></div>
+	{{% endfor %}}
+	{{% endif %}}
+
+	<hr>
+	<div class="b">الاستثناءات</div>
+	<div class="row"><span>فواتير مدفوعة</span><span class="amt">{{{{ report.orders.closed }}}}</span></div>
+	<div class="row"><span>إلغاء بعد المطبخ</span><span class="amt">{{{{ report.voids }}}} / {{{{ "%.2f" | format(report.void_amount) }}}}</span></div>
+	<div class="row"><span>طلبات ملغاة</span><span class="amt">{{{{ report.orders.cancelled }}}}</span></div>
+	{{% if report.orders.still_open %}}<div class="row"><span>فواتير مفتوحة</span><span class="amt">{{{{ report.orders.still_open }}}} / {{{{ "%.2f" | format(report.open_amount) }}}}</span></div>{{% endif %}}
+
+	{{% if report.by_order_type %}}
+	<hr>
+	<div class="b">حسب نوع الطلب</div>
+	{{% for row in report.by_order_type %}}
+	<div class="row"><span>{{{{ (row.title_ar or row.order_type) | rtl }}}}</span><span class="amt">{{{{ row.count }}}} / {{{{ "%.2f" | format(row.sales) }}}}</span></div>
+	{{% endfor %}}
+	{{% endif %}}
+
+	<hr>
+	<div class="c muted">طُبع <span class="amt">{{{{ printed_at }}}}</span></div>
 </body></html>
 """
 

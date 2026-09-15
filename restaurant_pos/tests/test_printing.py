@@ -847,6 +847,85 @@ class TestTheCustomerReceipt(PaymentTestBase):
 		)
 
 
+class TestTheFinancialReportOnPaper(PaymentTestBase):
+	"""`D-219` — the X and Z reports, on the terminal's printer.
+
+	Built on the payment base for a real sale in the drawer: a report printed
+	over a drawer that took nothing proves the template renders, and nothing
+	about the figures a manager reads off it.
+	"""
+
+	@classmethod
+	def setUpClass(cls):
+		super().setUpClass()
+		cls.agent = _agent("RPOS Test Agent")
+		cls.printer = _printer("RPOS Test Printer", agent=cls.agent)
+		frappe.db.commit()
+
+	def setUp(self):
+		super().setUp()
+		frappe.db.set_value("POS Printer", self.printer, {"print_agent": self.agent, "is_active": 1})
+		frappe.db.set_value("POS Profile", self.profile, "default_printer", self.printer)
+		frappe.db.delete("POS Print Job", {"agent": self.agent})
+
+	def _till(self) -> str:
+		from restaurant_pos.utils import shift as shift_service
+
+		return shift_service.selling_till(self.profile).name
+
+	def _printed(self, entry: str):
+		with (
+			patch.object(service, "render_html", wraps=service.render_html) as render,
+			patch.object(service, "html_to_png", wraps=service.html_to_png) as png,
+		):
+			job = service.print_shift_report(pos_profile=self.profile, opening_entry=entry)
+
+		self.assertIsNotNone(job)
+		self.assertEqual(frappe.db.get_value("POS Print Job", job, "job_type"), "shift_report")
+		return render.call_args.args[1], png.call_args.args[0]
+
+	def test_an_open_drawer_prints_an_x_report_of_what_it_took(self):
+		self._pay(self._payable_order())
+
+		context, html = self._printed(self._till())
+
+		self.assertEqual(context["kind"], "X")
+		self.assertIn(f"{context['report']['sales']:.2f}", html)
+		# Nobody has counted a drawer that is still open.
+		self.assertIsNone(context["drawers"][0]["counted"])
+
+	def test_a_closed_drawer_prints_z(self):
+		"""X or Z is read from the drawer, never passed — a final report over a
+		drawer still taking money is not final."""
+		entry = self._till()
+		frappe.db.set_value("POS Opening Entry", entry, "status", "Closed")
+		self.addCleanup(frappe.db.set_value, "POS Opening Entry", entry, "status", "Open")
+
+		context, _ = self._printed(entry)
+
+		self.assertEqual(context["kind"], "Z")
+
+	def test_the_button_is_refused_on_a_terminal_with_no_printer(self):
+		"""`D-148` — refused before promising: the paper comes out behind the cashier."""
+		from restaurant_pos.api import shift as shift_api
+
+		frappe.db.set_value("POS Profile", self.profile, "default_printer", None)
+
+		with patch.object(service, "enqueue_print") as queued, self.assertRaises(frappe.ValidationError):
+			shift_api.print_till_report(self._till())
+
+		queued.assert_not_called()
+
+	def test_the_button_queues_the_drawer_s_report(self):
+		from restaurant_pos.api import shift as shift_api
+
+		entry = self._till()
+		with patch.object(service, "enqueue_print") as queued:
+			shift_api.print_till_report(entry)
+
+		queued.assert_called_once_with("print_shift_report", pos_profile=self.profile, opening_entry=entry)
+
+
 class TestTheQueueDoesNotGrowForever(PrintingTestBase):
 	def test_an_old_finished_job_loses_its_bytes_but_keeps_its_row(self):
 		"""D-085 — history is worth keeping; a week-old bitmap is not."""

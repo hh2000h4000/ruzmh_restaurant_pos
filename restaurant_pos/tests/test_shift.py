@@ -181,6 +181,51 @@ class TestTheFinancialReport(ShiftTestBase):
 		self.assertAlmostEqual(till["counted"] - till["expected"], 5, places=2)
 
 
+class TestTheZReportPrintsItself(ShiftTestBase):
+	"""`D-219` — Z comes out of the printer when a drawer or a day is closed.
+
+	The user's customers print the report at the close; a close that left it to
+	somebody remembering a button is a close with no paper most nights.
+	"""
+
+	def _closed_with_a_count(self, entry: str, counted: float) -> None:
+		read_profile = service._profile
+
+		def counting(pos_profile):
+			profile = read_profile(pos_profile)
+			profile.settlement_required = 1
+			return profile
+
+		with patch.object(service, "_profile", side_effect=counting):
+			service.close_till(opening_entry=entry, counted={CASH: counted}, variance_reason="RPOS test")
+
+	def test_closing_a_drawer_queues_its_z(self):
+		entry = service.open_till(pos_profile=self.profile)["entry"]
+
+		with patch.object(service.printing, "enqueue_print") as queued:
+			service.close_till(opening_entry=entry)
+
+		queued.assert_called_once_with("print_shift_report", pos_profile=self.profile, opening_entry=entry)
+
+	def test_closing_the_day_queues_the_day_s_z_and_not_each_drawer_s(self):
+		"""The drawers the close sweeps up were counted by nobody — the day's page says so."""
+		outcome = service.open_till(pos_profile=self.profile)
+
+		with patch.object(service.printing, "enqueue_print") as queued:
+			service.close_day(shift_name=outcome["shift"], pos_profile=self.profile)
+
+		queued.assert_called_once_with("print_shift_report", pos_profile=self.profile, shift=outcome["shift"])
+
+	def test_a_closed_drawer_s_report_carries_its_count(self):
+		entry = service.open_till(pos_profile=self.profile, opening_floats={CASH: 100})["entry"]
+		expected = service.summarise_till(entry)["till_expected"]
+
+		self._closed_with_a_count(entry, expected + 5)
+
+		(till,) = service.summarise_till(entry)["tills"]
+		self.assertAlmostEqual(till["difference"], 5, places=2)
+
+
 class TestOpening(ShiftTestBase):
 	def test_a_terminal_with_nothing_open_says_so(self):
 		frappe.db.set_value("POS Profile", self.profile, "restaurant_shift", None)

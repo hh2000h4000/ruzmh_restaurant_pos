@@ -317,6 +317,7 @@ function onMenu(key: string): void {
   else if (key === "clock") void punchClock();
   else if (key === "roster") showingRoster.value = true;
   else if (key === "customerDisplay") openCustomerDisplay();
+  else if (key === "printReport") void printTillReport();
   // D-191 — a pane like the bar's own, reached from the menu because the bar
   // had no room for a sixth. Through `onNavigate`, so walking to it cancels a
   // table or a booking waiting for its order type, exactly as the bar does.
@@ -774,6 +775,21 @@ async function reprintRefund(dailyNumber: number): Promise<void> {
   } catch (cause) {
     floorError.value = cause instanceof Error ? cause.message : String(cause);
   }
+}
+
+/**
+ * The drawer's X report (`D-219`), said out loud like every print (`D-074`).
+ *
+ * The refusal gets its own line rather than the green notice: "no printer on
+ * this terminal" read in the colour of success is a report nobody acts on.
+ */
+const printProblem = ref<string | null>(null);
+
+async function printTillReport(): Promise<void> {
+  printNotice.value = null;
+  printProblem.value = null;
+  if (await shift.printTillReport()) printNotice.value = t("print.reportSent");
+  else printProblem.value = shift.error;
 }
 
 /** The screen never unmounts, so the address is what tells it to change. */
@@ -1434,6 +1450,21 @@ async function send(): Promise<void> {
                 type="button"
                 class="shrink-0 font-semibold underline"
                 @click="printNotice = null"
+              >
+                {{ t("action.dismiss") }}
+              </button>
+            </p>
+
+            <p
+              v-if="printProblem"
+              role="alert"
+              class="flex items-center justify-between gap-2 rounded-rpos bg-danger/10 p-3 text-sm text-danger"
+            >
+              <span>{{ printProblem }}</span>
+              <button
+                type="button"
+                class="shrink-0 font-semibold underline"
+                @click="printProblem = null"
               >
                 {{ t("action.dismiss") }}
               </button>

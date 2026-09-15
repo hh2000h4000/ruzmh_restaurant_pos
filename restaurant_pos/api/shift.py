@@ -10,6 +10,7 @@ Refs: 07_API_Design.md, FR-8.1..8.3, BR-040..BR-045, D-047
 """
 
 import frappe
+from frappe import _
 
 from restaurant_pos.utils import idempotency, printing
 from restaurant_pos.utils import shift as service
@@ -42,6 +43,42 @@ def get_till_summary(opening_entry: str) -> dict:
 	printing.open_drawer(pos_profile, reason="counting the till")
 
 	return summary
+
+
+@frappe.whitelist()
+def print_till_report(opening_entry: str, queue_id: str | None = None) -> dict:
+	"""The drawer's financial report on paper, now — X while it is open (FR-8.3, `D-219`).
+
+	The user's customers print it before a cashier steps away for five minutes
+	and again when they come back, and compare the two: the one check a shared
+	drawer has on it.
+
+	**Refuses before promising** (`D-148`). The print runs off the request, so
+	nothing downstream could tell the cashier that this terminal has no printer,
+	and the screen would say "sent" over a queue that produced nothing.
+	"""
+	replay = idempotency.previous_result(queue_id)
+	if replay is not None:
+		return replay
+
+	# Read first, which checks the branch as the summary endpoint does — the
+	# figures on the paper are the ones the screen may show this person.
+	service.summarise_till(opening_entry)
+	pos_profile = frappe.db.get_value("POS Opening Entry", opening_entry, "pos_profile")
+	if not printing.receipt_printer(pos_profile):
+		frappe.throw(_("No printer is linked to this terminal, so nothing can be printed."))
+
+	printing.enqueue_print("print_shift_report", pos_profile=pos_profile, opening_entry=opening_entry)
+
+	result = {"opening_entry": opening_entry, "queued": True}
+	idempotency.remember(
+		queue_id,
+		"print_till_report",
+		result,
+		reference_doctype="POS Opening Entry",
+		reference_name=opening_entry,
+	)
+	return result
 
 
 @frappe.whitelist()

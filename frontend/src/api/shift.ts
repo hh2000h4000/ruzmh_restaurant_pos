@@ -115,6 +115,16 @@ export function getTillSummary(openingEntry: string): Promise<ShiftReport> {
   return query<ShiftReport>("shift.get_till_summary", { opening_entry: openingEntry });
 }
 
+/**
+ * The drawer's financial report on paper, now — X while it is open (`D-219`).
+ *
+ * Refused by the server, before anything is queued, when the terminal has no
+ * printer: the paper comes out behind the cashier, so "sent" has to be true.
+ */
+export function printTillReport(openingEntry: string): Promise<{ opening_entry: string; queued: boolean }> {
+  return mutate("shift.print_till_report", { opening_entry: openingEntry });
+}
+
 export function getDaySummary(shift: string): Promise<ShiftReport> {
   return query<ShiftReport>("shift.get_day_summary", { shift });
 }

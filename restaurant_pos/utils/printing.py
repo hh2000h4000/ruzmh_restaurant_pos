@@ -562,6 +562,101 @@ def print_receipt(invoice_name: str, *, order_name: str | None = None) -> str | 
 		return None
 
 
+def print_shift_report(
+	*, pos_profile: str, opening_entry: str | None = None, shift: str | None = None
+) -> str | None:
+	"""The financial report on the terminal's printer — a drawer's or a day's (FR-8.3, `D-219`).
+
+	**X or Z is read, not passed.** Z is what a closed drawer or day prints, X
+	what an open one does; a caller that could say "Z" over a drawer still
+	taking money would print a final report that is not final.
+
+	Never raises, for the reason the receipt does not: Z is printed from a close,
+	and a close that has counted the money must not be undone by a printer.
+
+	Returns the job, or None when nothing was queued.
+	"""
+	try:
+		printer = _cashier_printer(pos_profile)
+		if not printer:
+			return None
+
+		return print_document(
+			job_type="shift_report",
+			printer=printer,
+			context=shift_report_context(pos_profile=pos_profile, opening_entry=opening_entry, shift=shift),
+			reference_doctype="POS Opening Entry" if opening_entry else "Restaurant Shift",
+			reference_name=opening_entry or shift,
+		)
+	except Exception:
+		frappe.log_error(f"Shift report for {opening_entry or shift} could not be queued", "RPOS printing")
+		return None
+
+
+def shift_report_context(
+	*, pos_profile: str, opening_entry: str | None = None, shift: str | None = None
+) -> dict:
+	"""Everything the financial report is drawn from, for a drawer or a day (`D-219`).
+
+	Named and public for the reason `receipt_context` is: a second way to put this
+	together is how the paper and the screen start to disagree.
+	"""
+	from restaurant_pos.utils import shift as shifts
+
+	if opening_entry:
+		report = shifts.summarise_till(opening_entry)
+		entry = frappe.db.get_value(
+			"POS Opening Entry", opening_entry, ["status", "user", "period_start_date"], as_dict=True
+		)
+		final = entry.status == "Closed"
+		who = frappe.db.get_value("User", entry.user, "full_name") or entry.user
+		opened = entry.period_start_date
+		ended = frappe.db.get_value(
+			"POS Closing Entry", {"pos_opening_entry": opening_entry, "docstatus": 1}, "period_end_date"
+		)
+		# A drawer still open has been counted by nobody: expected, and no count.
+		drawers = report.get("tills") or [
+			{
+				"name": who,
+				"opening": _opening(report),
+				"expected": report["till_expected"],
+				"counted": None,
+				"difference": None,
+			}
+		]
+	else:
+		report = shifts.summarise(shift)
+		day = frappe.db.get_value(
+			"Restaurant Shift", shift, ["status", "opened_at", "closed_at"], as_dict=True
+		)
+		final = day.status == "closed"
+		who = None
+		opened, ended = day.opened_at, day.closed_at
+		drawers = report.get("tills") or []
+
+	company = frappe.get_cached_doc("Company", frappe.db.get_value("POS Profile", pos_profile, "company"))
+	return {
+		"report": report,
+		"kind": "Z" if final else "X",
+		"company": company,
+		"branch": report.get("branch"),
+		"logo": logo_url(company),
+		"who": who,
+		"drawers": drawers,
+		"opened": _stamp(opened),
+		"closed": _stamp(ended or now_datetime()),
+		"printed_at": _stamp(now_datetime()),
+	}
+
+
+def _opening(report: dict) -> float:
+	return sum(flt(row["opening"]) for row in report["by_method"] if row["kind"] == "till")
+
+
+def _stamp(moment) -> str:
+	return frappe.utils.format_datetime(moment, "dd/MM/yyyy HH:mm") if moment else ""
+
+
 def receipt_printer(pos_profile: str | None, order_name: str | None = None) -> str | None:
 	"""Which printer a receipt for this bill would come out of, if any.
 

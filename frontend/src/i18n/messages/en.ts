@@ -312,6 +312,7 @@ export const messages = {
   // number the cashier reads on the row, not by `ACC-SINV-2026-00042`.
   "print.receiptAgain": "Print receipt again",
   "print.receiptSent": "Receipt {number} sent to the printer",
+  "print.reportSent": "Shift report sent to the printer",
   "ret.against": "Refund of bill {number}",
   "ret.action": "Return",
   "ret.title": "Send items back",
@@ -348,6 +349,7 @@ export const messages = {
   "shift.openTillBody": "How much cash is in the till right now? Leave it at zero if you keep no float.",
   "shift.openingTotal": "Opening total",
   "shift.closeTill": "Close the shift",
+  "shift.printReport": "Print shift report (X)",
   "shift.closeTillTitle": "Close the shift",
   "shift.closeDay": "End of day",
   "shift.closeDayTitle": "Close the day",

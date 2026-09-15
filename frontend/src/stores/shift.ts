@@ -129,6 +129,13 @@ export const useShiftStore = defineStore("shift", () => {
     return run(() => shiftApi.getTillSummary(entry));
   }
 
+  /** The drawer's X report on paper (`D-219`). The refusal, if any, is in `error`. */
+  async function printTillReport(): Promise<boolean> {
+    const entry = state.value?.till.entry;
+    if (!entry) return false;
+    return Boolean(await run(() => shiftApi.printTillReport(entry)));
+  }
+
   async function daySummary(): Promise<ShiftReport | null> {
     const shift = state.value?.day.shift;
     if (!shift) return null;
@@ -143,6 +150,7 @@ export const useShiftStore = defineStore("shift", () => {
     tillOpen,
     tillHeldByOther,
     refresh,
+    printTillReport,
     openTill,
     closeTill,
     closeDay,

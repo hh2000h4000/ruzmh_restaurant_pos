@@ -251,6 +251,13 @@ def close_day(*, shift_name: str, force: bool = False, pos_profile: str | None =
 
 	no_shows = reservation.close_out(day.branch, at=day.closed_at)
 
+	# **And its Z on paper** (`D-219`), from the terminal it was closed at. The
+	# drawers swept up above print none of their own: nobody counted them, and the
+	# day's page lists them with that said.
+	closing_terminal = pos_profile or (terminals[0] if terminals else None)
+	if closing_terminal:
+		printing.enqueue_print("print_shift_report", pos_profile=closing_terminal, shift=day.name)
+
 	return {
 		"shift": day.name,
 		"report": report,
@@ -432,6 +439,12 @@ def close_till(
 			update_modified=False,
 		)
 
+	# **Its Z on paper** (`D-219`) — the count and its difference, printed at the
+	# moment they were made. Not for a drawer the day's close sweeps up: nobody
+	# counted it, and the day prints its own page.
+	if not closing_the_day:
+		printing.enqueue_print("print_shift_report", pos_profile=entry.pos_profile, opening_entry=entry.name)
+
 	return {
 		"closing_entry": closing.name,
 		"opening_entry": entry.name,
@@ -489,7 +502,7 @@ def summarise(shift_name: str) -> dict:
 	from restaurant_pos.utils import attendance
 
 	report["on_duty"] = len(attendance.on_duty_in(day.branch))
-	report["tills"] = _counted_tills(shift_name)
+	report["tills"] = _counted_tills(_tills_of(shift_name, status="Closed"))
 	return report
 
 
@@ -554,6 +567,8 @@ def summarise_till(opening_entry: str) -> dict:
 	report["entry"] = entry.name
 	report["user"] = entry.user
 	report["opened_at"] = entry.period_start_date
+	# Its count, once there is one — what its Z report prints (`D-219`).
+	report["tills"] = _counted_tills([entry.name]) if entry.status == "Closed" else []
 	return report
 
 
@@ -815,15 +830,14 @@ def _by_tax_rate(invoices: list[str]) -> list[dict]:
 	return sorted(tally.values(), key=lambda entry: -entry["rate"])
 
 
-def _counted_tills(shift_name: str) -> list[dict]:
-	"""Each drawer the day has closed, as it was counted (FR-8.3, `D-219`).
+def _counted_tills(closed: list[str]) -> list[dict]:
+	"""Drawers as they were counted (FR-8.3, `D-219`).
 
-	The day's own figures cannot say what was counted — a day has no drawer — so
-	this is where the manager reads, per cashier, what each drawer was expected to
-	hold, what was in it, and the difference, from the closing entries ERPNext
-	filed (`D-047`).
+	A day's figures cannot say what was counted — a day has no drawer — so this
+	is where a manager reads, per cashier, what each drawer was expected to hold,
+	what was in it, and the difference, from the closing entries ERPNext filed
+	(`D-047`). The same answer for one drawer, which is what its Z report prints.
 	"""
-	closed = _tills_of(shift_name, status="Closed")
 	if not closed:
 		return []
 

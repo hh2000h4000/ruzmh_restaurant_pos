@@ -6,6 +6,8 @@
 Refs: 06 Screen 1, 07 §3, 04 §8
 """
 
+from unittest.mock import patch
+
 import frappe
 from frappe.utils import add_days, nowdate
 
@@ -292,8 +294,12 @@ class TestEachTabIsBoundedByItsOwnEvent(ReturnTestBase):
 		order = self._paid()
 		_stamp(order.name, "closed_at", f"{add_days(nowdate(), -2)} 13:00:00")
 
-		self.assertIn(order.name, self._names("closed"))
-		self.assertIn(order.name, self._names("all"))
+		# The window is what is asserted, not the cap: the suite's own site had
+		# two hundred bills closed since then, and the newest-first cap pushed
+		# this one off the list on a run that had nothing to do with it.
+		with patch.object(api, "CLOSED_LIMIT", 100_000):
+			self.assertIn(order.name, self._names("closed"))
+			self.assertIn(order.name, self._names("all"))
 
 	def test_with_no_day_open_the_tabs_fall_back_to_midnight(self):
 		"""Between closing one day and opening the next there is no day to measure from."""
@@ -362,7 +368,9 @@ class TestEachTabIsBoundedByItsOwnEvent(ReturnTestBase):
 			update_modified=False,
 		)
 
-		rows = api.list_orders(self.profile, view="returned")
+		# The window, not the cap — as above.
+		with patch.object(api, "CLOSED_LIMIT", 100_000):
+			rows = api.list_orders(self.profile, view="returned")
 		self.assertIn(refund["credit_note"], {row["credit_note"] for row in rows})
 
 	def test_the_all_tab_holds_the_refunds_too(self):

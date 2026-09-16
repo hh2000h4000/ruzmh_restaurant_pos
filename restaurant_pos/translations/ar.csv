@@ -48,6 +48,46 @@ Drawer Type,نوع الدرج
 single,درج مشترك يُسلَّم بين الموظفين,Branch
 multi,لكل موظف درجه (أكثر من درج بنفس الوقت),Branch
 Restaurant Settings,إعدادات المطعم
+Title (English),الاسم بالإنجليزي
+Title (Arabic),الاسم بالعربي
+Table Number,رقم الطاولة
+Section Type,نوع القسم
+Has Tables,فيه طاولات
+Identity,البيانات,Restaurant Section
+Title (English),الاسم بالإنجليزي,Restaurant Section
+Title (Arabic),الاسم بالعربي,Restaurant Section
+Section Type,نوع القسم,Restaurant Section
+Behaviour,الإعدادات,Restaurant Section
+Has Tables,فيه طاولات,Restaurant Section
+Sort Order,الترتيب,Restaurant Section
+Set automatically from Section Type when left untouched.,تتحدد تلقائياً من نوع القسم إذا ما غيّرتها.
+Display order on the POS home screen.,ترتيب ظهور القسم في شاشة الكاشير.
+dine_in,صالة (محلي),Restaurant Section
+counter,كاونتر,Restaurant Section
+takeaway,سفري,Restaurant Section
+delivery,توصيل,Restaurant Section
+bar,بار,Restaurant Section
+Identity,البيانات,Restaurant Table
+Table Number,رقم الطاولة,Restaurant Table
+Section,القسم,Restaurant Table
+Capacity,عدد الكراسي,Restaurant Table
+Shape,الشكل,Restaurant Table
+Current Order,الطلب الحالي,Restaurant Table
+Floor Plan Position,مكان الطاولة في المخطط,Restaurant Table
+X Position,الموقع الأفقي,Restaurant Table
+Y Position,الموقع الرأسي,Restaurant Table
+Width (px),العرض,Restaurant Table
+Height (px),الطول,Restaurant Table
+"Display number, e.g. ""5"" or ""A1"".",الرقم اللي يظهر على الطاولة، مثل 5 أو A1.
+Number of seats.,عدد الكراسي على الطاولة.
+square,مربعة,Restaurant Table
+round,دائرية,Restaurant Table
+rectangle,مستطيلة,Restaurant Table
+available,فاضية,Restaurant Table
+occupied,مشغولة,Restaurant Table
+reserved,محجوزة,Restaurant Table
+cleaning,تنظيف,Restaurant Table
+inactive,موقوفة,Restaurant Table
 "<b>The till itself is at /restaurant-pos</b> — this page is the office behind it: the menu, the floor, the shifts and the trail. A cashier never needs to come here, and nothing on this page is where an order is taken.","<b>شاشة الكاشير على الرابط /restaurant-pos</b>. هذي الصفحة للإدارة: القائمة، والصالة، والمناوبات، والسجل. الكاشير ما يحتاج يدخل هنا."
 "Printers are defined once per branch, here — not repeated on every till. An <b>agent</b> running inside the restaurant is what reaches them; the server only renders and queues.","هنا تضيف طابعات كل فرع مرة وحدة، وما تحتاج تضيفها على كل جهاز. <b>برنامج الطباعة</b> اللي على كمبيوتر داخل المطعم هو اللي يوصل للطابعات ويطبع."
 POS Opening Entry,فتح الدرج

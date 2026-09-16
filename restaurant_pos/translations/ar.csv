@@ -56,6 +56,48 @@ Kitchen routing priority level 6.,المكان اللي تنطبع فيه تذك
 POS Modifier Groups,الإضافات
 Modifier Groups,مجموعات الإضافات
 Modifier Group,مجموعة الإضافات
+Identity,البيانات,Restaurant Order Type
+Behaviour,طريقة العمل,Restaurant Order Type
+Sort Order,الترتيب,Restaurant Order Type
+Icon,الأيقونة,Restaurant Order Type
+Emoji or icon class.,الأيقونة اللي تطلع على زر نوع الطلب.
+Button Color,لون الزر
+Requires Table,يحتاج طاولة
+Requires Cover Count,يحتاج عدد الأشخاص
+Send to Kitchen On,متى يروح الطلب للمطبخ
+manual,لما يضغط الكاشير «إرسال للمطبخ»,Restaurant Order Type
+save,تلقائياً عند حفظ الطلب,Restaurant Order Type
+payment,عند الدفع,Restaurant Order Type
+Counterparty,مين يدفع
+walk_in,الزبون يدفع بنفسه,Restaurant Order Type
+account,حساب آجل على جهة (مثل تطبيقات التوصيل),Restaurant Order Type
+"Who owes the money. An order changes type only between two 'walk_in' types: converting across counterparties would move the debt to somebody who ordered nothing (D-038).",مين عليه فلوس الطلب. الطلب يتحوّل بس بين نوعين الزبون فيهم يدفع بنفسه.
+Customer Mode,العميل في الطلب
+optional,اختياري,Restaurant Order Type
+required,إجباري,Restaurant Order Type
+pre_set,عميل ثابت,Restaurant Order Type
+Pre-set Customer,العميل الثابت
+Required before the order type can be activated.,لازم تختاره إذا نوع العميل «عميل ثابت».
+Visibility,وين يظهر,Restaurant Order Type
+Allowed Branches,الفروع
+Leave empty to allow every branch.,اتركها فاضية عشان يظهر في كل الفروع.
+Allowed Sections,الأقسام
+Leave empty to allow every section.,اتركها فاضية عشان يظهر في كل الأقسام.
+Allowed POS Profiles,أجهزة الكاشير
+Leave empty to allow every POS profile.,اتركها فاضية عشان يظهر في كل الأجهزة.
+Allowed Roles,الأدوار
+Leave empty to allow every role.,اتركها فاضية عشان يقدر يستخدمه كل الموظفين.
+Payment,الدفع,Restaurant Order Type
+Selling Price List,قائمة أسعار خاصة,Restaurant Order Type
+Overrides the terminal's price list for orders of this type. Leave empty to use the terminal's.,إذا أسعار هذا النوع تختلف (مثل التطبيقات)، اختر قائمتها هنا. اتركها فاضية عشان يستخدم أسعار الجهاز.
+Allowed Payment Methods,طرق الدفع المسموحة
+Promotions,العروض,Restaurant Order Type
+Auto Promotions,عروض تلقائية
+Loyalty Points,نقاط الولاء,Restaurant Order Type
+"Orders of this type earn and spend loyalty points. An 'account' type never does, whatever this says — a platform's guest or a company billed monthly is somebody else's debt (D-189). Switch it off here for a walk-in type that should not take part.",طلبات هذا النوع تجمع نقاط ولاء وتصرفها. الحساب الآجل ما يجمع نقاط أبداً.
+Item Visibility,إخفاء أصناف
+Hidden Item Groups,مجموعات ما تظهر في هذا النوع
+Additional Fields,خانات إضافية,Restaurant Order Type
 Screen Layout,تخطيط الشاشة
 Default Printer,طابعة الكاشير,POS Profile
 "Cashier printer, and the final fallback for kitchen routing.",الطابعة اللي تطبع فاتورة العميل من هذا الجهاز. وإذا تذكرة مطبخ ما لقت طابعة، تنطبع هنا.

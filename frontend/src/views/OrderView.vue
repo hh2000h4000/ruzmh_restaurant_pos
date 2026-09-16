@@ -171,6 +171,8 @@ async function startFromRoute(): Promise<void> {
   if (existing) {
     pane.value = "items";
     if (existing !== orders.order?.order_name) {
+      // A type that sends on save sends as it is put down (`D-223`).
+      await orders.putDown();
       // Put the previous bill down before picking this one up (`D-106`).
       // Neither event changes anything, so the server cannot infer either —
       // and "who had this bill open" is a question asked about a bill that
@@ -188,6 +190,7 @@ async function startFromRoute(): Promise<void> {
     // that opens on a list looks like a filing cabinet; the cashier's job is in
     // front of them, and the list is one tap away in the bar.
     // `?pane=new` is how the payment screen says "straight into the next one".
+    await orders.putDown();
     orders.clear();
     pane.value = route.query.pane === "new" ? "new" : "items";
     return;
@@ -199,6 +202,7 @@ async function startFromRoute(): Promise<void> {
     return;
   }
 
+  await orders.putDown();
   orders.clear();
   // Where the cashier lands if the type cannot open right now — a closed shift,
   // a table to pick, a customer to find. Never the menu pane with no bill under

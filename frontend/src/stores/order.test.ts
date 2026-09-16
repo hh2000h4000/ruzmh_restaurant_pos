@@ -20,6 +20,8 @@ import type { OrderDetail } from "@/api/order";
 import * as orderApi from "@/api/order";
 import { t } from "@/i18n";
 import { useOrderStore } from "@/stores/order";
+import { useSessionStore } from "@/stores/session";
+import type { PosSession } from "@/types/session";
 
 const ORDER = "RO-2026-09-00001";
 
@@ -41,6 +43,46 @@ function bill(): OrderDetail {
 beforeEach(() => {
   setActivePinia(createPinia());
   vi.clearAllMocks();
+});
+
+/**
+ * `D-223` — "send to the kitchen on save" was a setting nothing read. The bill is
+ * saved on every add, so "save" is the moment the cashier puts it down.
+ */
+describe("putting a bill down", () => {
+  function onType(sendOn: "manual" | "save" | "payment", status = "pending") {
+    useSessionStore().data = {
+      order_types: [{ name: "OT-DELIVERY", send_to_kitchen_on: sendOn }],
+    } as unknown as PosSession;
+
+    const orders = useOrderStore();
+    orders.order = {
+      ...bill(),
+      order_type: "OT-DELIVERY",
+      items: [{ idx: 1, status }],
+    } as unknown as OrderDetail;
+    vi.mocked(kitchenApi.sendToKitchen).mockResolvedValue({ kots_created: [], unrouted_items: [] } as never);
+    vi.mocked(orderApi.getOrder).mockResolvedValue(bill());
+    return orders;
+  }
+
+  it("sends what is unsent when the type sends on save", async () => {
+    await onType("save").putDown();
+
+    expect(kitchenApi.sendToKitchen).toHaveBeenCalledWith(ORDER);
+  });
+
+  it("leaves a manual type to the cashier", async () => {
+    await onType("manual").putDown();
+
+    expect(kitchenApi.sendToKitchen).not.toHaveBeenCalled();
+  });
+
+  it("sends nothing twice", async () => {
+    await onType("save", "sent").putDown();
+
+    expect(kitchenApi.sendToKitchen).not.toHaveBeenCalled();
+  });
 });
 
 /**

@@ -587,9 +587,15 @@ def _create_sales_invoice(order, payments, settlement: str = "till"):
 
 
 def _send_kitchen_if_due(order) -> list:
-	"""FR-2.7e — order types configured to hold the ticket until payment."""
+	"""FR-2.7e — order types configured to hold the ticket until payment.
+
+	**And a ``save`` type paid before it was put down** (`D-223`). That type sends
+	when the cashier leaves the bill; paying straight from the bill is leaving it
+	too, and the only moment the server sees. Without this, a takeaway rung up
+	and paid in one go would reach the customer and never the kitchen.
+	"""
 	when = frappe.db.get_value("Restaurant Order Type", order.order_type, "send_to_kitchen_on")
-	if when != "payment":
+	if when not in ("payment", "save"):
 		return []
 
 	if not any(row.status == "pending" for row in order.items):

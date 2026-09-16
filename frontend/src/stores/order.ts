@@ -510,6 +510,26 @@ export const useOrderStore = defineStore("order", () => {
     return true;
   }
 
+  /**
+   * Put the bill down, and send what is unsent when its type says so (`D-223`).
+   *
+   * `send_to_kitchen_on = save` was a setting nothing read: every type on it —
+   * the shipped Delivery and the delivery apps among them — behaved as manual.
+   * "Save" here is the moment the cashier leaves the bill: a new order, or
+   * another one opened. Every add is already saved to the server, so sending on
+   * each one would print a ticket per tap. Paying straight from the bill is the
+   * server's half (`payment._send_kitchen_if_due`).
+   */
+  async function putDown(): Promise<void> {
+    const current = order.value;
+    if (!current || !hasUnsent.value) return;
+
+    const type = useSessionStore().orderTypes.find((row) => row.name === current.order_type);
+    if (type?.send_to_kitchen_on !== "save") return;
+
+    await sendToKitchen();
+  }
+
   /** Put a kitchen ticket that did not print on paper again (FR-6.4, `D-211`). */
   async function reprintTicket(kotName: string): Promise<boolean> {
     if (!order.value) return false;
@@ -640,6 +660,7 @@ export const useOrderStore = defineStore("order", () => {
     voidLine,
     cancel,
     sendToKitchen,
+    putDown,
     reprintTicket,
     clear,
   };

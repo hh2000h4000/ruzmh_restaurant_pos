@@ -354,6 +354,23 @@ class TestPaymentSideEffects(PaymentTestBase):
 		self.assertEqual(len(result["kots_created"]), 1)
 		self.assertEqual(frappe.db.count("Kitchen Order Ticket", {"restaurant_order": order.name}), 1)
 
+	def test_a_send_on_save_order_type_paid_at_once_still_reaches_the_kitchen(self):
+		"""D-223 — a ``save`` type sends as the bill is put down; paying is putting it down."""
+		frappe.db.set_value("Restaurant Order Type", self.order_type, "send_to_kitchen_on", "save")
+		self.addCleanup(
+			frappe.db.set_value, "Restaurant Order Type", self.order_type, "send_to_kitchen_on", "payment"
+		)
+
+		order = self._payable_order()
+		grill = frappe.db.get_value("Production Center", {"title": "RPOS Test Grill"}, "name")
+		order.items[0].production_center = grill
+		order.save(ignore_permissions=True)
+
+		result = self._pay(order)
+
+		self.assertEqual(len(result["kots_created"]), 1)
+		self.assertEqual(frappe.db.count("Kitchen Order Ticket", {"restaurant_order": order.name}), 1)
+
 
 class TestPaymentDiscount(PaymentTestBase):
 	def test_discount_within_the_limit_is_applied_and_audited(self):

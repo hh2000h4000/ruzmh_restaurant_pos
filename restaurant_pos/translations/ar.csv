@@ -47,6 +47,33 @@ Drawer Type,نوع الدرج
 "Shared: one drawer open at a time on the terminal, and whoever signs in works on it. Close it at the change of shift and the next cashier opens a new one the same day. Per cashier: several drawers open at once, one for each cashier.",مشترك: درج واحد مفتوح على الجهاز، وأي موظف يسجّل دخوله يشتغل عليه. يُقفل عند تغيير المناوبة ويفتح الموظف التالي درجاً جديداً في نفس اليوم. لكل موظف: أكثر من درج مفتوح بنفس الوقت، درج لكل موظف.
 single,درج مشترك يُسلَّم بين الموظفين,Branch
 multi,لكل موظف درجه (أكثر من درج بنفس الوقت),Branch
+Restaurant Settings,إعدادات المطعم
+VAT Number,الرقم الضريبي
+Printed on customer receipts.,يطلع على فاتورة العميل.
+Default Warehouse,المستودع الافتراضي
+Stock is deducted from this warehouse.,المخزون ينقص من هذا المستودع.
+Default Cost Center,مركز التكلفة الافتراضي
+Order Number Resets,متى يرجع رقم الطلب إلى ١
+"How often the short number a customer is told goes back to 1. Daily is what most restaurants use; the record id is unaffected and stays unique forever (FR-2.10).",الرقم القصير اللي يُنادى فيه العميل متى يرجع يبدأ من ١. أغلب المطاعم تختار يومي. رقم الطلب الطويل ما يتأثر وما يتكرر أبداً.
+daily,يومي,Branch
+shift,مع كل يوم عمل جديد,Branch
+weekly,أسبوعي,Branch
+monthly,شهري,Branch
+never,ما يرجع أبداً,Branch
+Settlement Required,عدّ الفلوس عند إقفال الدرج
+Finish open orders before closing the day,إنهاء الطلبات المفتوحة قبل إقفال اليوم
+"On: the day cannot end while a bill is still open, so every one of them is settled or cancelled first. Off: open bills carry over to the next day and stay fully editable. Neither is wrong — a table that leaves without paying is an ordinary evening in some restaurants and an incident in others.",معلّمة: ما ينقفل اليوم وفيه فاتورة مفتوحة، لازم كل فاتورة تنحاسب أو تتلغى أول. غير معلّمة: الفواتير المفتوحة تترحّل لليوم اللي بعده وتقدر تكمل عليها.
+Warn when this many orders are carried over,نبّهني إذا الطلبات المرحّلة وصلت هذا العدد
+"Only applies where the setting above is off. Closing the day says so when more than this many bills are still open — it never refuses: ending the business day is an accounting act, and stopping one because a list has grown is the wrong kind of answer. Measured, a till reading three thousand open bills takes four seconds to draw its own list, and it redraws on every order in the branch. 0 means never warn.",تشتغل بس إذا الخانة اللي فوقها غير معلّمة. عند إقفال اليوم ينبّهك إذا الفواتير المفتوحة أكثر من هذا الرقم، بس ما يمنعك تقفل. صفر يعني لا تنبّه أبداً.
+Allow more than one bill on a table,السماح بأكثر من فاتورة على الطاولة
+"On: a table can carry several open bills at once — two couples sharing a large table, or a group that asked to be billed separately from the start. Off: a table has one bill, and a second attempt is refused. Off by default: a till that quietly opens a second bill on table four turns one party into two, and the mistake surfaces when somebody pays half of it.",معلّمة: الطاولة تقدر يكون عليها أكثر من فاتورة مفتوحة، مثل طاولة كبيرة عليها ناس ما يعرفون بعض. غير معلّمة: فاتورة وحدة للطاولة، والثانية تنرفض. الأفضل تخليها غير معلّمة إلا إذا تحتاجها.
+Branch Address,عنوان الفرع
+Reservations,الحجوزات
+Expected Table Time (minutes),مدة جلسة الطاولة المتوقعة (بالدقائق)
+"How long a party usually stays. A booked table is held this long before the booking, a walk-in seated inside that window is warned, and a second booking on the same table closer than this is refused. Toast and SevenRooms plan on the same figure — about an hour and a half for a couple.",كم تجلس المجموعة عادة. الطاولة المحجوزة تنحجز هذي المدة قبل موعد الحجز، وإذا أجلست أحد بدون حجز خلالها ينبّهك، وما يقبل حجزين على نفس الطاولة أقرب من هذي المدة.
+Grace for Late Guests (minutes),مهلة تأخير الزبائن (بالدقائق)
+"How long a booked table waits after the booking time before it goes back to the floor. Fifteen minutes is the common practice. The booking stays expected until the day is closed, which records it as a no-show.",كم تنتظر الطاولة المحجوزة بعد موعد الحجز قبل ما ترجع متاحة. المعتاد ١٥ دقيقة. الحجز يبقى منتظر لين ينقفل اليوم، وبعدها يتسجل إنهم ما حضروا.
+"The brand colours every terminal in this branch renders with, unless the terminal names its own. Empty falls through to the default theme (FR-15.2).",ألوان شاشة الكاشير لكل أجهزة الفرع، إلا الجهاز اللي محدد له ثيم خاص. إذا تركتها فاضية يستخدم الثيم الافتراضي.
 void_item,إبطال صنف,POS Audit Log
 void_order,إبطال طلب,POS Audit Log
 cancel_order,إلغاء طلب,POS Audit Log
@@ -252,4 +279,4 @@ specific_items,أصناف محدّدة,Restaurant Promotion
 {0} is not a payment method on this terminal.,{0} ليست طريقة دفع على هذا الجهاز.
 {0} is not accepted for this order type.,{0} غير مقبولة لهذا النوع من الطلبات.
 {0} orders are still open on this day.,ما زال هناك {0} طلبات مفتوحة في هذا اليوم.
-{0} still has the till open. Close it before taking over.,{0} ما زال التِل مفتوحاً لديه. أغلقه قبل الاستلام.
+{0} still has the till open. Close it before taking over.,{0} لسا فاتح الدرج. لازم يقفله قبل ما تستلم.

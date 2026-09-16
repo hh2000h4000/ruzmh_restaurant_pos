@@ -44,10 +44,24 @@ Loyalty points,نقاط الولاء
 Loyalty Points Balance,رصيد نقاط الولاء
 Restaurant POS Settings,إعدادات نقاط البيع
 Drawer Type,نوع الدرج
-"Shared: one drawer open at a time on the terminal, and whoever signs in works on it. Close it at the change of shift and the next cashier opens a new one the same day. Per cashier: several drawers open at once, one for each cashier.",مشترك: درج واحد مفتوح على الجهاز، وأي موظف يسجّل دخوله يشتغل عليه. يُقفل عند تغيير المناوبة ويفتح الموظف التالي درجاً جديداً في نفس اليوم. لكل موظف: أكثر من درج مفتوح بنفس الوقت، درج لكل موظف.
+"Shared: one drawer open at a time on the terminal, and whoever signs in works on it. Close it at the change of shift and the next cashier opens a new one the same day. Per cashier: several drawers open at once, one for each cashier.",مشترك: درج واحد مفتوح على الجهاز، وأي موظف يدخل برقمه يبيع عليه. عند تغيير الشفت يقفله الموظف، واللي بعده يفتح درج جديد في نفس اليوم. لكل موظف درجه: كل كاشير له درج، وممكن أكثر من درج مفتوح بنفس الوقت على أجهزة مختلفة.
 single,درج مشترك يُسلَّم بين الموظفين,Branch
 multi,لكل موظف درجه (أكثر من درج بنفس الوقت),Branch
 Restaurant Settings,إعدادات المطعم
+"<b>The till itself is at /restaurant-pos</b> — this page is the office behind it: the menu, the floor, the shifts and the trail. A cashier never needs to come here, and nothing on this page is where an order is taken.","<b>شاشة الكاشير على الرابط /restaurant-pos</b>. هذي الصفحة للإدارة: القائمة، والصالة، والمناوبات، والسجل. الكاشير ما يحتاج يدخل هنا."
+"Printers are defined once per branch, here — not repeated on every till. An <b>agent</b> running inside the restaurant is what reaches them; the server only renders and queues.","هنا تضيف طابعات كل فرع مرة وحدة، وما تحتاج تضيفها على كل جهاز. <b>برنامج الطباعة</b> اللي على كمبيوتر داخل المطعم هو اللي يوصل للطابعات ويطبع."
+POS Opening Entry,فتح الدرج
+POS Closing Entry,إقفال الدرج
+POS Profile,جهاز الكاشير
+Printers,الطابعات
+Print Agents,برامج الطباعة
+Routing Rules,قواعد التوجيه
+Print Queue,طابور الطباعة
+Printer,طابعة
+Print Agent,برنامج الطباعة
+Printer Routing Rule,قاعدة توجيه
+Print Template,نموذج طباعة
+Print Job,مهمة طباعة
 VAT Number,الرقم الضريبي
 Printed on customer receipts.,يطلع على فاتورة العميل.
 Default Warehouse,المستودع الافتراضي
@@ -170,7 +184,7 @@ POS Order Activity,نشاط الطلب
 POS Order Counter,عدّاد الأرقام
 POS Permission Set,مجموعة صلاحيات
 POS Permissions,الصلاحيات
-POS Print Agent,وكيل الطباعة
+POS Print Agent,برنامج الطباعة
 POS Print Job,مهمة طباعة
 POS Print Template,قالب طباعة
 POS Printer Routing Rule,قاعدة توجيه الطباعة
@@ -178,12 +192,12 @@ POS Printer,طابعة
 POS Profile {0} has no Restaurant Section configured.,الطرفية {0} ليس لها قسم مضبوط.
 POS Quick Note,ملاحظة سريعة
 POS Screen Layout,تخطيط الشاشة
-POS Sync Entry,مُدخل مزامنة
-Paper and problems,الورق والأعطال
+POS Sync Entry,سجل المزامنة
+Paper and problems,النماذج والمشاكل
 Party Size must be at least 1.,عدد الضيوف لا يقل عن واحد.
 Payment method {0} does not exist.,طريقة الدفع {0} غير موجودة.
 Payment of {0} does not cover the total of {1}.,المبلغ {0} لا يغطي الإجمالي {1}.
-People and the trail,الأشخاص والأثر
+People and the trail,الموظفين والسجل
 Points can be used from {0} upwards; this customer has {1}.,تُستخدم النقاط من {0} فأكثر، ورصيد هذا العميل {1}.
 Printing,الطباعة
 Production Center,مركز إنتاج
@@ -218,7 +232,7 @@ Table {0} is not in this branch.,الطاولة {0} ليست في هذا الف�
 Table {0} is out of service.,الطاولة {0} خارج الخدمة.
 Table {0} seats {1}; the party is {2}.,الطاولة {0} تتّسع لـ{1}، والعدد {2}.
 Table {0} still has an open order.,الطاولة {0} عليها طلب مفتوح.
-Terminals,الطرفيات
+Terminals,أجهزة الكاشير
 That PIN is already in use. Choose a different one.,هذا الرقم مستخدم. اختر رقماً آخر.
 That PIN was not recognised.,الرقم السري غير صحيح.
 Too many wrong PINs on this device. Try again in {0} minutes.,محاولات خاطئة كثيرة من هذا الجهاز. حاول بعد {0} دقائق.
@@ -253,7 +267,7 @@ This login is not linked to an employee record.,هذا الحساب غير مر�
 This order type must be paid by {0}.,هذا النوع من الطلبات يُدفع بـ{0}.
 This reservation is {0} and can no longer be changed.,هذا الحجز {0} ولا يمكن تغييره.
 This till session is already closed.,هذه المناوبة مغلقة أصلاً.
-What prints where,ما يُطبع وأين
+What prints where,وين ينطبع كل شي
 You are already clocked in.,أنت مسجَّل حضورك بالفعل.
 You are not clocked in.,لم تسجّل حضورك.
 You cannot set {0} above your own limit of {1}%.,لا يمكنك رفع {0} فوق حدّك {1}%.

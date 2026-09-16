@@ -10,3 +10,4 @@ restaurant_pos.patches.v1_0.set_order_type_counterparty
 restaurant_pos.patches.v1_0.grant_change_order_type
 restaurant_pos.patches.v1_0.keep_existing_layouts_on_the_grid
 restaurant_pos.patches.v1_0.grant_missing_permission_defaults
+restaurant_pos.patches.v1_0.remove_stale_branch_carry_limit

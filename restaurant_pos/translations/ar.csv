@@ -56,6 +56,17 @@ Kitchen routing priority level 6.,المكان اللي تنطبع فيه تذك
 POS Modifier Groups,الإضافات
 Modifier Groups,مجموعات الإضافات
 Modifier Group,مجموعة الإضافات
+Screen Layout,تخطيط الشاشة
+Default Printer,طابعة الكاشير,POS Profile
+"Cashier printer, and the final fallback for kitchen routing.",الطابعة اللي تطبع فاتورة العميل من هذا الجهاز. وإذا تذكرة مطبخ ما لقت طابعة، تنطبع هنا.
+Receipt Template,نموذج فاتورة العميل
+"The customer receipt this terminal prints, as chosen — Preview it on the template. Empty uses the branch's template, then the default (D-214).",شكل فاتورة العميل اللي يطبعها هذا الجهاز. تقدر تشوف شكله من شاشة النموذج. إذا تركتها فاضية يستخدم نموذج الفرع أو النموذج الافتراضي.
+Current Restaurant Shift,اليوم المفتوح حالياً
+"This terminal's brand colours. Empty falls through to the branch's theme, then the default (FR-15.2).",ألوان شاشة الكاشير على هذا الجهاز. إذا تركتها فاضية يستخدم ثيم الفرع أو الثيم الافتراضي.
+Allowed Order Types,أنواع الطلب على هذا الجهاز
+Leave empty to show every active order type on this terminal.,اتركها فاضية عشان تطلع كل أنواع الطلب على هذا الجهاز.
+Order Type,نوع الطلب
+Write Off Limit,حد الشطب
 Row order determines display order in the modifier popup.,ترتيب الصفوف هو ترتيب ظهور الإضافات للكاشير.
 Title,الاسم,POS Printer
 Identity,البيانات,POS Printer

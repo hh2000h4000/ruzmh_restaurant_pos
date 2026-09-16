@@ -207,7 +207,7 @@
  "index_web_pages_for_search": 1,
  "istable": 0,
  "links": [],
- "modified": "2026-09-14 18:00:00.000000",
+ "modified": "2026-09-16 14:00:00.000000",
  "modified_by": "Administrator",
  "module": "Restaurant POS",
  "name": "POS Printer",
@@ -290,6 +290,7 @@
   }
  ],
  "search_fields": "title,branch,ip_address",
+ "show_title_field_in_link": 1,
  "sort_field": "modified",
  "sort_order": "DESC",
  "states": [],

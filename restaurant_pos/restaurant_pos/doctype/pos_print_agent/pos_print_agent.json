@@ -151,7 +151,7 @@
    "link_fieldname": "agent"
   }
  ],
- "modified": "2026-09-14 13:00:00.000000",
+ "modified": "2026-09-16 14:00:00.000000",
  "modified_by": "Administrator",
  "module": "Restaurant POS",
  "name": "POS Print Agent",
@@ -195,6 +195,7 @@
   }
  ],
  "search_fields": "title,branch",
+ "show_title_field_in_link": 1,
  "sort_field": "modified",
  "sort_order": "DESC",
  "states": [],

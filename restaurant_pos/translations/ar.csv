@@ -49,6 +49,14 @@ single,درج مشترك يُسلَّم بين الموظفين,Branch
 multi,لكل موظف درجه (أكثر من درج بنفس الوقت),Branch
 Restaurant Settings,إعدادات المطعم
 Title (English),الاسم بالإنجليزي
+POS Display Name (Arabic),الاسم العربي على الكاشير
+Default Production Center,مركز التحضير الافتراضي
+Kitchen routing priority level 5.,المكان اللي تنطبع فيه تذكرة هذا الصنف في المطبخ.
+Kitchen routing priority level 6.,المكان اللي تنطبع فيه تذكرة أصناف هذي المجموعة في المطبخ، إذا الصنف نفسه ما له مركز.
+POS Modifier Groups,الإضافات
+Modifier Groups,مجموعات الإضافات
+Modifier Group,مجموعة الإضافات
+Row order determines display order in the modifier popup.,ترتيب الصفوف هو ترتيب ظهور الإضافات للكاشير.
 Title,الاسم,POS Printer
 Identity,البيانات,POS Printer
 Identity,البيانات,POS Print Agent
@@ -294,7 +302,7 @@ Payment of {0} does not cover the total of {1}.,المبلغ {0} لا يغطي �
 People and the trail,الموظفين والسجل
 Points can be used from {0} upwards; this customer has {1}.,تُستخدم النقاط من {0} فأكثر، ورصيد هذا العميل {1}.
 Printing,الطباعة
-Production Center,مركز إنتاج
+Production Center,مركز التحضير
 Quantity must be greater than zero.,الكمية يجب أن تكون أكبر من صفر.
 Reservation {0} does not exist.,الحجز {0} غير موجود.
 Reservation {0} is not in this branch.,الحجز {0} ليس في هذا الفرع.

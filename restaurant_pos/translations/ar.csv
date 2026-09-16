@@ -56,6 +56,40 @@ Kitchen routing priority level 6.,المكان اللي تنطبع فيه تذك
 POS Modifier Groups,الإضافات
 Modifier Groups,مجموعات الإضافات
 Modifier Group,مجموعة الإضافات
+POS PIN,الرقم السري للكاشير
+5 digits. Signs this person in at the till and approves overrides. Write-only — never displayed.,خمسة أرقام. يدخل فيه الموظف للكاشير، والمدير يوافق فيه على الخصم والإلغاء. ما يظهر بعد الحفظ.
+POS Cashier,كاشير
+POS Senior Cashier,كاشير أول
+POS Manager,مدير نقاط البيع
+Restaurant Admin,مسؤول المطعم
+Role,الدور,POS Permission Set
+Discounts,الخصومات,POS Permission Set
+Max Item Discount %,أعلى خصم على الصنف %
+Max Order Discount %,أعلى خصم على الفاتورة %
+0 means no discount allowed.,صفر يعني ما يقدر يسوي خصم.
+Can Apply Manual Promotion,يطبّق عرض يدوي
+Order Actions,الطلبات,POS Permission Set
+Can Void Item,يبطل صنف
+Can Void Order,يبطل طلب
+Can Cancel Order,يلغي طلب
+Can Change Order Type,يغيّر نوع الطلب
+Can Reopen Closed Order,يفتح طلب مقفل
+Can Transfer Table,ينقل الطلب لطاولة ثانية
+Can Merge Tables,يضم طاولات
+Can Split and Merge Bills,يقسم ويدمج الفواتير
+"Move items between open bills — splitting one in two, or merging two into one (BR-067).",ينقل أصناف بين الفواتير المفتوحة.
+Can Change Item Price,يغيّر سعر الصنف
+Payment,الدفع,POS Permission Set
+Can Create Return,يسوي مرتجع
+Can Reprint Receipt,يعيد طباعة الفاتورة
+Can Override Payment Method,يغيّر طريقة الدفع
+Shift,المناوبة,POS Permission Set
+Can Open Shift,يفتح الدرج
+Can Close Shift,يقفل الدرج
+Can Close Other Cashiers' Shift,يقفل درج غيره
+Can Close The Day Over Open Orders,يقفل اليوم وفيه طلبات مفتوحة
+Can View All Orders,يشوف كل الطلبات
+Can Access Reports,يشوف التقارير
 Identity,البيانات,Restaurant Order Type
 Behaviour,طريقة العمل,Restaurant Order Type
 Sort Order,الترتيب,Restaurant Order Type

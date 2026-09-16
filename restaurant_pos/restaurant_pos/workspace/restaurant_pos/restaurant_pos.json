@@ -287,9 +287,20 @@
    "hidden": 0,
    "is_query_report": 0,
    "label": "People and the trail",
-   "link_count": 3,
+   "link_count": 4,
    "onboard": 0,
    "type": "Card Break"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "User",
+   "link_count": 0,
+   "link_to": "User",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
   },
   {
    "dependencies": "",
@@ -396,7 +407,7 @@
    "type": "Link"
   }
  ],
- "modified": "2026-09-16 13:00:00.000000",
+ "modified": "2026-09-16 15:00:00.000000",
  "modified_by": "Administrator",
  "module": "Restaurant POS",
  "name": "Restaurant POS",

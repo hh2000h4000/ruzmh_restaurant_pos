@@ -49,6 +49,60 @@ single,درج مشترك يُسلَّم بين الموظفين,Branch
 multi,لكل موظف درجه (أكثر من درج بنفس الوقت),Branch
 Restaurant Settings,إعدادات المطعم
 Title (English),الاسم بالإنجليزي
+Title,الاسم,POS Printer
+Identity,البيانات,POS Printer
+Identity,البيانات,POS Print Agent
+"Use <b>Pair a Device</b> and type the short code into the agent installer on the restaurant's computer — it works once, for ten minutes. <b>Generate Keys</b> is the manual way: the secret is shown once, to copy into the agent's configuration by hand.","اضغط <b>ربط جهاز</b> واكتب الرمز في برنامج الطباعة على كمبيوتر المطعم. الرمز يشتغل مرة وحدة ولمدة عشر دقائق. أما <b>إنشاء مفاتيح يدوياً</b> فهي للفني."
+Title,الاسم,POS Print Agent
+Fallback Printer,الطابعة البديلة
+Connection,الاتصال,POS Printer
+Connection Type,طريقة الاتصال
+IP Address,عنوان IP,POS Printer
+Port,المنفذ,POS Printer
+USB Vendor ID,رقم الشركة المصنّعة (USB)
+USB Product ID,رقم المنتج (USB)
+Printer Model,نوع الطابعة
+Paper Width,عرض الورق
+Print Width (dots),عرض الطباعة (بالنقاط)
+Print Mode,طريقة الطباعة
+Cut After Print,قص الورقة بعد الطباعة
+Cash Drawer Pin,منفذ درج الفلوس
+image,صورة,POS Printer
+text,نص,POS Printer
+generic,نوع آخر,POS Printer
+"Which agent puts paper through this printer. A network printer in the kitchen belongs to the branch's agent; a USB printer belongs to the agent on the machine it is plugged into. Naming an owner is what stops five tills each printing the same ticket.",برنامج الطباعة اللي يطبع على هذي الطابعة. طابعة الشبكة تتبع برنامج الفرع، وطابعة USB تتبع البرنامج اللي على الكمبيوتر الموصولة فيه.
+"network: by IP address. windows: a printer installed in Windows on the agent's machine — the usual way for a USB printer on a Windows PC (D-212). usb: direct USB by vendor and product id, for an agent on Linux or a Raspberry Pi.",شبكة: الطابعة موصولة بالشبكة ولها عنوان IP. ويندوز: طابعة معرّفة في ويندوز على الكمبيوتر اللي فيه برنامج الطباعة، وهذي الطريقة المعتادة لطابعة USB. USB مباشر: للأجهزة اللي تشتغل بنظام لينكس.
+"Hex, e.g. 04b8","مثل 04b8"
+"Hex, e.g. 0202","مثل 0202"
+"Exactly as Windows lists it under Printers & scanners, e.g. POS-X Thermal Printer. The agent sends the ticket's bytes to it unchanged, so the printer stays usable by every other program.",اكتب اسم الطابعة نفسه اللي يطلع في ويندوز تحت «الطابعات والماسحات الضوئية»، مثل POS-X Thermal Printer.
+"Leave empty for most printers. Set it when the printer reaches less than its paper: a 180 dpi printer draws 512 dots on 80mm paper, not 576, and the right of every receipt falls off. The test page's ruler shows the width that fits (D-215).",اتركها فاضية لأغلب الطابعات. عبّها بس إذا الفاتورة تنقص من الجنب: بعض الطابعات على ورق 80mm تطبع 512 نقطة بدل 576. صفحة تجربة الطباعة توضح لك الرقم المناسب.
+Image mode is required for reliable Arabic output.,خلها «صورة» عشان العربي يطلع صحيح.
+"Which pin of the printer's drawer socket is pulsed. Almost every cash drawer is on pin 2; some Star hardware uses pin 5. A drawer on the wrong pin never opens and says nothing.",أغلب أدراج الفلوس على المنفذ 2، وبعض أجهزة Star على 5. إذا الدرج ما ينفتح بعد الدفع جرّب المنفذ الثاني.
+Credentials,الربط,POS Print Agent
+User,المستخدم,POS Print Agent
+Pairing Code Expires,انتهاء رمز الربط
+Health,الحالة,POS Print Agent
+Last Seen,آخر اتصال
+Agent Version,نسخة البرنامج
+Host Name,اسم الكمبيوتر
+"Where it runs, in words a technician can act on: ""Front till PC"", ""Kitchen mini PC"".",مكان البرنامج بكلام واضح، مثل «كمبيوتر الكاشير» أو «كمبيوتر المطبخ».
+"Created automatically. The agent signs in with this user's API key and secret — Frappe's own token auth, so there is no second login to write or to get wrong.","يتسوّى تلقائياً، وما تحتاج تغيّره."
+While a pairing code is outstanding. Empty once it is used or replaced.,وقت انتهاء رمز الربط. تفضى بعد ما يُستخدم.
+"Last time the agent asked for work. A silent agent is why nothing is printing, and a technician should be able to read that here rather than guess it.",آخر مرة البرنامج اتصل بالنظام. إذا صار له وقت طويل ما اتصل، فالبرنامج مطفي أو ما يوصل للموقع.
+Generate Keys,إنشاء مفاتيح يدوياً
+This agent has never asked for work. Nothing it owns can print yet.,البرنامج ما اتصل أبداً، فالطابعات اللي تتبعه ما راح تطبع لين تربطه.
+"Silent since {0}. It is not running, or cannot reach this server.",ما اتصل من {0}. البرنامج مطفي أو ما يوصل للموقع.
+Test Print,تجربة طباعة
+Test print,تجربة طباعة
+Rendering…,جاري التجهيز…
+Waiting for the agent to take it…,ننتظر برنامج الطباعة يستلمها…
+Printed. Check the paper.,انطبعت. شيك على الورقة.
+The agent could not print it.,برنامج الطباعة ما قدر يطبعها.
+Still {0} after 30 seconds. The agent is probably not running — check Last Seen on it.,لسا ما انطبعت بعد 30 ثانية. غالباً برنامج الطباعة مطفي، شيك على «آخر اتصال» فيه.
+"No print agent owns this printer, so nothing can reach it.",ما فيه برنامج طباعة مربوط بهذي الطابعة، فما راح تطبع.
+Agent credentials,مفاتيح البرنامج
+Copy both,انسخ الاثنين
+"A new secret replaces the old one, and any agent still using the old one stops printing. Continue?",المفتاح الجديد يلغي القديم، وأي برنامج يستخدم القديم بيوقف يطبع. تكمل؟
 Title (Arabic),الاسم بالعربي
 Table Number,رقم الطاولة
 Section Type,نوع القسم
@@ -285,10 +339,10 @@ network,شبكة,POS Printer
 windows,ويندوز,POS Printer
 usb,USB مباشر,POS Printer
 Windows Printer Name,اسم الطابعة في ويندوز
-"On the restaurant's computer, run the print agent installer and enter:","على كمبيوتر المطعم، شغّل برنامج تثبيت وكيل الطباعة وأدخل:"
+"On the restaurant's computer, run the print agent installer and enter:","على كمبيوتر المطعم، شغّل برنامج الطباعة واكتب:"
 Site address,عنوان الموقع
 Pairing code,رمز الربط
-"It works once, for {0} minutes. Asking for a new code cancels this one.","يعمل مرة واحدة، لمدة {0} دقائق. طلب رمز جديد يُلغي هذا الرمز."
+"It works once, for {0} minutes. Asking for a new code cancels this one.","الرمز يشتغل مرة وحدة ولمدة {0} دقائق. وإذا طلبت رمز جديد، هذا يلغى."
 Done,تم
 That time has already passed.,هذا الوقت فات.
 The PIN must be exactly {0} digits.,الرقم السري يجب أن يكون {0} أرقام بالضبط.

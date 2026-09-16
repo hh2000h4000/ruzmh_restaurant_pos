@@ -3,6 +3,16 @@
 
 frappe.ui.form.on("POS Print Agent", {
 	refresh(frm) {
+		// An HTML field's content is not passed through translation by the form,
+		// so the help is set here where __() reaches it.
+		frm.set_df_property(
+			"credentials_help",
+			"options",
+			`<p class="text-muted">${__(
+				"Use <b>Pair a Device</b> and type the short code into the agent installer on the restaurant's computer — it works once, for ten minutes. <b>Generate Keys</b> is the manual way: the secret is shown once, to copy into the agent's configuration by hand.",
+			)}</p>`,
+		);
+
 		if (frm.is_new()) return;
 
 		// D-212 — the everyday way: a short code typed into the installer.

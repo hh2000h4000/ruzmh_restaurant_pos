@@ -56,6 +56,23 @@ Kitchen routing priority level 6.,المكان اللي تنطبع فيه تذك
 POS Modifier Groups,الإضافات
 Modifier Groups,مجموعات الإضافات
 Modifier Group,مجموعة الإضافات
+Series,سلسلة التسمية,RPOS Theme
+Identity,البيانات,RPOS Theme
+Title,الاسم,RPOS Theme
+Primary,اللون الأساسي,RPOS Theme
+Secondary,اللون الثانوي,RPOS Theme
+Background,لون الخلفية,RPOS Theme
+Text,لون النص,RPOS Theme
+The theme a terminal falls back to when neither it nor its branch names one. Marking this one takes the mark off the others.,الثيم اللي تستخدمه الأجهزة إذا لا الجهاز ولا الفرع محدد له ثيم. وإذا علّمت هذا، تنشال العلامة عن الباقي.
+"Switched off, terminals naming it fall through to the branch's theme, then to the default.",إذا شلت العلامة، الأجهزة اللي عليه ترجع لثيم الفرع أو الثيم الافتراضي.
+Primary actions and active states.,الأزرار الرئيسية والأشياء المختارة.
+Secondary actions and accents.,الأزرار الثانوية واللمسات الصغيرة.
+The screen behind the cards.,خلفية الشاشة ورا البطاقات.
+Cards and panels.,البطاقات واللوحات.
+Text and icons on primary.,النص والأيقونات فوق اللون الأساسي.
+Text and icons on secondary.,النص والأيقونات فوق اللون الثانوي.
+"Body text, read against the background.",النص العادي فوق الخلفية.
+"Receipts and the customer display. Uploads public, because the till shows it to a cashier and a guest.",يطلع على الفاتورة وشاشة العميل.
 Minimum Balance to Spend,أقل رصيد يسمح بالصرف
 A customer spends nothing until they hold at least this many points.,العميل ما يقدر يصرف نقاطه لين يوصل رصيده هذا العدد.
 Most of a Bill Points May Pay,أعلى نسبة من الفاتورة تدفعها النقاط

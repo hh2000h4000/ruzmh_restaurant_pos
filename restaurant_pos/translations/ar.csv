@@ -56,6 +56,46 @@ Kitchen routing priority level 6.,المكان اللي تنطبع فيه تذك
 POS Modifier Groups,الإضافات
 Modifier Groups,مجموعات الإضافات
 Modifier Group,مجموعة الإضافات
+Minimum Balance to Spend,أقل رصيد يسمح بالصرف
+A customer spends nothing until they hold at least this many points.,العميل ما يقدر يصرف نقاطه لين يوصل رصيده هذا العدد.
+Most of a Bill Points May Pay,أعلى نسبة من الفاتورة تدفعها النقاط
+Taken of what is left after the offers and any discount.,تنحسب من الفاتورة بعد العروض والخصم.
+Identity,البيانات,Restaurant Promotion
+Is Active,مفعّل,Restaurant Promotion
+Auto Apply,يتطبق تلقائياً,Restaurant Promotion
+Exclusive,ما يجتمع مع عروض ثانية,Restaurant Promotion
+Cannot stack with other promotions.,ما ينطبق مع أي عرض ثاني على نفس الفاتورة.
+Priority,الأولوية,Restaurant Promotion
+"Which promotion wins when two could touch the same item. Higher goes first (100 before 10). On a tie the one giving the customer the greater discount wins, so an unset priority is safe rather than arbitrary. A single item is never discounted by two promotions.",إذا عرضين ينطبقون على نفس الصنف، الأعلى أولوية يفوز. وإذا تساووا، يفوز العرض اللي خصمه أكبر للزبون.
+Validity,المدة,Restaurant Promotion
+Valid From,من تاريخ,Restaurant Promotion
+Valid To,إلى تاريخ,Restaurant Promotion
+Time From,من الساعة,Restaurant Promotion
+Time To,إلى الساعة,Restaurant Promotion
+For happy hour windows.,لعروض ساعات معينة في اليوم.
+Days of Week,أيام الأسبوع,Restaurant Promotion
+Benefit,العرض,Restaurant Promotion
+Promotion Type,نوع العرض,Restaurant Promotion
+Discount Value,قيمة الخصم,Restaurant Promotion
+"Percentage or amount, depending on Promotion Type.",نسبة أو مبلغ، على حسب نوع العرض.
+Buy Quantity,كم يشتري,Restaurant Promotion
+"How many have to be bought before any come free. Counted across every item the offer covers, not per dish (D-173).",كم صنف لازم يشتري الزبون من أصناف العرض قبل ما يجيه شي مجاني.
+Get Free,كم ياخذ مجاناً,Restaurant Promotion
+"How many come free once the buy quantity is reached. **The cheapest ones are the free ones**, and the offer repeats: buy 2 get 1 gives two free on six (D-173).",كم صنف يجيه مجاناً. الأرخص هو اللي يصير مجاني، والعرض يتكرر: اشترِ ٢ وخذ ١ يعطي ٢ مجاناً على ٦ أصناف.
+Free Item,الصنف المجاني,Restaurant Promotion
+Free Item Group,مجموعة الصنف المجاني,Restaurant Promotion
+"Any item from this group, chosen by the guest. Leave the item above empty to use this.",الزبون يختار أي صنف من هذي المجموعة. اترك الصنف اللي فوق فاضي.
+Free Quantity,الكمية المجانية,Restaurant Promotion
+Applies To,ينطبق على,Restaurant Promotion
+Apply To,ينطبق على,Restaurant Promotion
+Applicable Order Types,أنواع الطلب,Restaurant Promotion
+Applicable Branches,الفروع,Restaurant Promotion
+Applicable Sections,الأقسام,Restaurant Promotion
+Item Scope,الأصناف المشمولة,Restaurant Promotion
+Minimum Order Amount,أقل مبلغ للفاتورة,Restaurant Promotion
+"The bill has to reach this before the promotion applies. 0 means no minimum. Measured on the total before this promotion, so two promotions cannot argue about which was counted first.",الفاتورة لازم توصل هذا المبلغ عشان ينطبق العرض. صفر يعني بدون حد أدنى.
+Applicable Item Groups,المجموعات,Restaurant Promotion
+Applicable Items,الأصناف,Restaurant Promotion
 POS PIN,الرقم السري للكاشير
 5 digits. Signs this person in at the till and approves overrides. Write-only — never displayed.,خمسة أرقام. يدخل فيه الموظف للكاشير، والمدير يوافق فيه على الخصم والإلغاء. ما يظهر بعد الحفظ.
 POS Cashier,كاشير

@@ -17,6 +17,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { OrderDetail, OrderLine } from "@/api/order";
 import OrderPanel from "@/components/order/OrderPanel.vue";
+import { t } from "@/i18n";
 
 vi.mock("@/stores/session", () => ({
   useSessionStore: () => ({
@@ -95,5 +96,15 @@ describe("carrying the offer's name down to the dish", () => {
 
     expect(marks).toHaveLength(1);
     expect(marks[0].text()).toContain("برغر");
+  });
+});
+
+describe("the bill's status", () => {
+  // A paid bill is opened for a return; its badge read the raw "closed".
+  it.each(["closed", "cancelled"] as const)("names a %s bill in words", (status) => {
+    const text = panel(bill({ status }), [line({ status: "sent" })]).text();
+
+    expect(text).toContain(t(`status.${status}`));
+    expect(text).not.toContain(status);
   });
 });

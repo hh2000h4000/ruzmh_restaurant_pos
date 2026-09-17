@@ -91,7 +91,9 @@ const STATUS_CLASS: Record<string, string> = {
   cancelled: "text-order-cancelled",
 };
 
-const KNOWN_STATUSES = ["draft", "active", "in_kitchen", "pending_payment"] as const;
+// A paid or cancelled bill is opened too — for a return, a reprint, its log —
+// and without them here its badge read the raw "closed" in an Arabic till.
+const KNOWN_STATUSES = ["draft", "active", "in_kitchen", "pending_payment", "closed", "cancelled"] as const;
 
 const statusLabel = computed(() => {
   const known = KNOWN_STATUSES.find((candidate) => candidate === props.order?.status);

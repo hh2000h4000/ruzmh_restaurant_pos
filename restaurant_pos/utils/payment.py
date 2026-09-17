@@ -335,22 +335,62 @@ def _settlement_of(payments) -> str:
 	return kinds.pop()
 
 
-def _validate_methods(order, payments) -> None:
-	"""BR-023 / BR-002 — the order type decides what may be used."""
-	allowed = frappe.get_all(
-		"OT Payment Method",
-		filters={"parent": order.order_type, "parenttype": "Restaurant Order Type"},
-		fields=["payment_method", "is_forced"],
+def terminal_methods(pos_profile: str) -> list[str]:
+	"""The payment methods set on the terminal, in the order the manager put them.
+
+	**Not filtered by ERPNext's `allow_in_returns`.** That field exists on
+	`POS Payment Method` and defaults to `0`, so gating a refund on it would ship
+	a terminal that can refund nothing at all — measured on both sites, where
+	every row carries zero (BR-054, D-066).
+	"""
+	return frappe.get_all(
+		"POS Payment Method",
+		filters={"parent": pos_profile, "parenttype": "POS Profile"},
+		pluck="mode_of_payment",
+		order_by="idx",
 	)
 
-	forced = [row.payment_method for row in allowed if row.is_forced]
-	permitted = {row.payment_method for row in allowed}
+
+def allowed_methods(order) -> list[dict]:
+	"""What this bill may be paid with (BR-023, BR-002, D-224).
+
+	**The order type when it names methods, else the terminal's.** An app's
+	type names its own method, and that settles it. Every other type fell back
+	to *every enabled Mode of Payment*, so a till set up to take cash showed
+	Cheque, Wire Transfer and Bank Draft beside it — the user: "only what I
+	choose should show". The terminal's list is that choice, and it is mandatory
+	on the POS Profile, so there is always one.
+
+	One answer for the screen and for Confirm: the list the cashier is offered
+	is the list the server accepts.
+	"""
+	rows = frappe.get_all(
+		"OT Payment Method",
+		filters={"parent": order.order_type, "parenttype": "Restaurant Order Type"},
+		fields=["payment_method", "is_forced", "is_default"],
+		order_by="idx",
+	)
+	if rows:
+		return rows
+
+	return [
+		{"payment_method": method, "is_forced": 0, "is_default": 0}
+		for method in terminal_methods(order.pos_profile)
+	]
+
+
+def _validate_methods(order, payments) -> None:
+	"""BR-023 / BR-002 — only the methods this bill is offered may pay it."""
+	allowed = allowed_methods(order)
+
+	forced = [row["payment_method"] for row in allowed if row["is_forced"]]
+	permitted = {row["payment_method"] for row in allowed}
 
 	for row in payments:
 		if not frappe.db.exists("Mode of Payment", row["method"]):
 			frappe.throw(_("Unknown payment method: {0}").format(row["method"]))
 
-		if permitted and row["method"] not in permitted:
+		if row["method"] not in permitted:
 			frappe.throw(_("{0} is not accepted for this order type.").format(row["method"]))
 
 		if forced and row["method"] not in forced:

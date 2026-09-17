@@ -173,17 +173,7 @@ def get_payment_summary(order_name: str) -> dict:
 	order = frappe.get_doc("Restaurant Order", order_name)
 	validate_branch_access(order.branch)
 
-	allowed = frappe.get_all(
-		"OT Payment Method",
-		filters={"parent": order.order_type, "parenttype": "Restaurant Order Type"},
-		fields=["payment_method", "is_forced", "is_default"],
-	)
-
-	if not allowed:
-		allowed = [
-			{"payment_method": row.name, "is_forced": 0, "is_default": 0}
-			for row in frappe.get_all("Mode of Payment", filters={"enabled": 1}, fields=["name"])
-		]
+	allowed = service.allowed_methods(order)
 
 	# Only a method that takes notes can be handed more than the bill and give
 	# change back, so only those are offered round denominations to tap

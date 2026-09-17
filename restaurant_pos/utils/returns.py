@@ -24,7 +24,7 @@ from frappe.utils import flt, now_datetime
 
 from restaurant_pos.utils import loyalty, numbering, payment, printing
 from restaurant_pos.utils.audit import log_audit
-from restaurant_pos.utils.payment import is_credit_method
+from restaurant_pos.utils.payment import is_credit_method, terminal_methods
 from restaurant_pos.utils.permissions import (
 	consume_override_token,
 	get_pos_permission_set,
@@ -135,24 +135,6 @@ def _returned_quantities(rows: list[str]) -> dict[str, float]:
 		taken[row.sales_invoice_item] = taken.get(row.sales_invoice_item, 0.0) + abs(flt(row.qty))
 
 	return taken
-
-
-def terminal_methods(pos_profile: str) -> list[str]:
-	"""Every way this till can hand money back (BR-054, D-066).
-
-	**Not filtered by ERPNext's `allow_in_returns`.** That field exists on
-	`POS Payment Method` and defaults to `0`, so gating on it would ship a
-	terminal that can refund nothing at all — measured on both sites, where every
-	row carries zero. A manager who later wants to forbid a method has the field
-	waiting; until somebody sets one, "allowed" is the honest reading of a
-	setting nobody has touched.
-	"""
-	return frappe.get_all(
-		"POS Payment Method",
-		filters={"parent": pos_profile, "parenttype": "POS Profile"},
-		pluck="mode_of_payment",
-		order_by="idx",
-	)
 
 
 def _paid_with(invoice: str) -> list[dict]:

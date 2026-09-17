@@ -181,6 +181,34 @@ class TestPaymentValidation(PaymentTestBase):
 		with self.assertRaises(frappe.ValidationError):
 			service.process_payment(order, payments=[{"method": "Camel", "amount": flt(order.total_amount)}])
 
+	def _a_method_off_the_terminal(self) -> str:
+		name = "RPOS Not On This Till"
+		if not frappe.db.exists("Mode of Payment", name):
+			frappe.get_doc({"doctype": "Mode of Payment", "mode_of_payment": name, "type": "Bank"}).insert(
+				ignore_permissions=True
+			)
+		return name
+
+	def test_the_screen_offers_only_the_terminals_methods(self):
+		"""D-224 — with no methods on the order type, the terminal's list is the list."""
+		order = self._payable_order()
+		off = self._a_method_off_the_terminal()
+		if frappe.get_all("OT Payment Method", filters={"parent": order.order_type}, limit=1):
+			self.skipTest("the order type carries its own methods")
+
+		offered = [row["payment_method"] for row in api.get_payment_summary(order.name)["payment_methods"]]
+
+		self.assertEqual(offered, service.terminal_methods(order.pos_profile))
+		self.assertNotIn(off, offered)
+
+	def test_a_method_not_on_the_terminal_is_refused(self):
+		"""D-224 — the server refuses what the screen would not have offered."""
+		order = self._payable_order()
+		off = self._a_method_off_the_terminal()
+
+		with self.assertRaises(frappe.ValidationError):
+			service.process_payment(order, payments=[{"method": off, "amount": flt(order.total_amount)}])
+
 	def test_change_is_the_difference_from_what_was_handed_over(self):
 		"""BR-021 / FR-10.3."""
 		order = self._payable_order()

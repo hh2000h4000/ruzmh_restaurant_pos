@@ -1,5 +1,5 @@
-"An order is either settled at the till or billed to an account, not both.",الطلب إما يُسدَّد في التِل أو يُقيَّد على حساب، لا الاثنين معاً.
-"No printer is linked to this terminal, so nothing can be printed.",لا توجد طابعة مربوطة بهذه الطرفية، فلا شيء يمكن طباعته.
+"An order is either settled at the till or billed to an account, not both.",الطلب يا ينحاسب في الكاشير يا ينسجل على حساب، ما يصير الاثنين.
+"No printer is linked to this terminal, so nothing can be printed.",ما فيه طابعة مربوطة بهذا الجهاز، فما راح ينطبع شي.
 "Order {0} has not been paid, so there is nothing to return.",الطلب {0} غير مدفوع، فلا شيء لإرجاعه.
 "Set how many days points last. Left empty, they would expire the day they are earned.",حدّد كم يوماً تبقى النقاط. لو تُرك فارغاً تنتهي في يوم كسبها.
 "Table {0} belongs to section {1}, not {2}.",الطاولة {0} في قسم {1} وليست في {2}.
@@ -18,24 +18,24 @@ A reason is required to void an item.,سبب إلغاء الصنف مطلوب.
 A return quantity must be greater than zero.,كمية الإرجاع يجب أن تكون أكبر من صفر.
 An address line is required.,العنوان مطلوب.
 An empty order cannot be paid.,لا يمكن دفع طلب فارغ.
-An offline order must carry the totals it was sold at.,الطلب المرسل من وضع عدم الاتصال يجب أن يحمل إجمالياته.
+An offline order must carry the totals it was sold at.,الطلب اللي انباع بدون إنترنت لازم يوصل ومعه مبالغه.
 At most {0} points can be used on this bill.,أقصى ما يمكن استخدامه على هذه الفاتورة {0} نقطة.
-Attendance needs the HR app. Ask an administrator to install it.,الحضور يحتاج تطبيق الموارد البشرية. اطلب من المسؤول تثبيته.
+Attendance needs the HR app. Ask an administrator to install it.,الحضور يحتاج تطبيق الموارد البشرية. كلّم المسؤول يثبّته.
 Cancel Reason is required when a reservation is cancelled.,سبب الإلغاء مطلوب عند إلغاء الحجز.
 Choose a table for this reservation first.,اختر طاولة لهذا الحجز أولاً.
 Choose at least one item to return.,اختر صنفاً واحداً على الأقل للإرجاع.
 Choose how to refund this.,اختر طريقة الإرجاع.
 Choose why this is being returned.,اختر سبب الإرجاع.
-Your till on {0} has been open since {1}. Close it before clocking out.,عهدتك مفتوحة على {0} منذ {1}، أغلقها قبل تسجيل الانصراف.
-Your till on {0} has been open since {1}. Close it before opening another.,عهدتك مفتوحة على {0} منذ {1}، أغلقها قبل فتح عهدة أخرى.
+Your till on {0} has been open since {1}. Close it before clocking out.,درجك مفتوح على {0} من {1}. اقفله قبل ما تسجل انصراف.
+Your till on {0} has been open since {1}. Close it before opening another.,درجك مفتوح على {0} من {1}. اقفله قبل ما تفتح درج ثاني.
 Customer {0} does not exist.,العميل {0} غير موجود.
-Day {0} is already closed.,اليوم {0} مغلق أصلاً.
-Discount of {0}% exceeds your limit of {1}%.,خصم {0}% يتجاوز حدّك {1}%.
+Day {0} is already closed.,اليوم {0} مقفل من قبل.
+Discount of {0}% exceeds your limit of {1}%.,خصم {0}% أكثر من الحد المسموح لك {1}%.
 Enter a reason for the difference before closing.,أدخل سبب الفرق قبل الإغلاق.
 Enter the number of guests.,أدخل عدد الضيوف.
 Hardware,الأجهزة
 Invalid PIN or insufficient permissions.,الرقم السري غير صحيح أو الصلاحية غير كافية.
-Invoice {0} did not come from this till.,الفاتورة {0} ليست من هذا التِل.
+Invoice {0} did not come from this till.,الفاتورة {0} مو من هذا الجهاز.
 Item {0} does not exist.,الصنف {0} غير موجود.
 Item {0} is disabled.,الصنف {0} موقوف.
 Kitchen Order Ticket,تذكرة مطبخ
@@ -63,8 +63,8 @@ Primary,اللون الأساسي,RPOS Theme
 Secondary,اللون الثانوي,RPOS Theme
 Background,لون الخلفية,RPOS Theme
 Text,لون النص,RPOS Theme
-The theme a terminal falls back to when neither it nor its branch names one. Marking this one takes the mark off the others.,الثيم اللي تستخدمه الأجهزة إذا لا الجهاز ولا الفرع محدد له ثيم. وإذا علّمت هذا، تنشال العلامة عن الباقي.
-"Switched off, terminals naming it fall through to the branch's theme, then to the default.",إذا شلت العلامة، الأجهزة اللي عليه ترجع لثيم الفرع أو الثيم الافتراضي.
+The theme a terminal falls back to when neither it nor its branch names one. Marking this one takes the mark off the others.,الألوان اللي تستخدمها الأجهزة إذا لا الجهاز ولا الفرع محدد له ألوان. وإذا علّمت هذي، تنشال العلامة عن الباقي.
+"Switched off, terminals naming it fall through to the branch's theme, then to the default.",إذا شلت العلامة، الأجهزة اللي عليها ترجع لألوان الفرع أو الألوان الافتراضية.
 Primary actions and active states.,الأزرار الرئيسية والأشياء المختارة.
 Secondary actions and accents.,الأزرار الثانوية واللمسات الصغيرة.
 The screen behind the cards.,خلفية الشاشة ورا البطاقات.
@@ -140,9 +140,9 @@ Payment,الدفع,POS Permission Set
 Can Create Return,يسوي مرتجع
 Can Reprint Receipt,يعيد طباعة الفاتورة
 Can Override Payment Method,يغيّر طريقة الدفع
-Shift,المناوبة,POS Permission Set
-Can Open Shift,يفتح الدرج
-Can Close Shift,يقفل الدرج
+Shift,الدرج واليوم,POS Permission Set
+Can Open Shift,يفتح درج
+Can Close Shift,يقفل درجه
 Can Close Other Cashiers' Shift,يقفل درج غيره
 Can Close The Day Over Open Orders,يقفل اليوم وفيه طلبات مفتوحة
 Can View All Orders,يشوف كل الطلبات
@@ -189,13 +189,13 @@ Loyalty Points,نقاط الولاء,Restaurant Order Type
 Item Visibility,إخفاء أصناف
 Hidden Item Groups,مجموعات ما تظهر في هذا النوع
 Additional Fields,خانات إضافية,Restaurant Order Type
-Screen Layout,تخطيط الشاشة
+Screen Layout,ترتيب شاشة الكاشير
 Default Printer,طابعة الكاشير,POS Profile
 "Cashier printer, and the final fallback for kitchen routing.",الطابعة اللي تطبع فاتورة العميل من هذا الجهاز. وإذا تذكرة مطبخ ما لقت طابعة، تنطبع هنا.
 Receipt Template,نموذج فاتورة العميل
 "The customer receipt this terminal prints, as chosen — Preview it on the template. Empty uses the branch's template, then the default (D-214).",شكل فاتورة العميل اللي يطبعها هذا الجهاز. تقدر تشوف شكله من شاشة النموذج. إذا تركتها فاضية يستخدم نموذج الفرع أو النموذج الافتراضي.
 Current Restaurant Shift,اليوم المفتوح حالياً
-"This terminal's brand colours. Empty falls through to the branch's theme, then the default (FR-15.2).",ألوان شاشة الكاشير على هذا الجهاز. إذا تركتها فاضية يستخدم ثيم الفرع أو الثيم الافتراضي.
+"This terminal's brand colours. Empty falls through to the branch's theme, then the default (FR-15.2).",ألوان شاشة الكاشير على هذا الجهاز. إذا تركتها فاضية يستخدم ألوان الفرع أو الألوان الافتراضية.
 Allowed Order Types,أنواع الطلب على هذا الجهاز
 Leave empty to show every active order type on this terminal.,اتركها فاضية عشان تطلع كل أنواع الطلب على هذا الجهاز.
 Order Type,نوع الطلب
@@ -294,18 +294,18 @@ occupied,مشغولة,Restaurant Table
 reserved,محجوزة,Restaurant Table
 cleaning,تنظيف,Restaurant Table
 inactive,موقوفة,Restaurant Table
-"<b>The till itself is at /restaurant-pos</b> — this page is the office behind it: the menu, the floor, the shifts and the trail. A cashier never needs to come here, and nothing on this page is where an order is taken.","<b>شاشة الكاشير على الرابط /restaurant-pos</b>. هذي الصفحة للإدارة: القائمة، والصالة، والمناوبات، والسجل. الكاشير ما يحتاج يدخل هنا."
+"<b>The till itself is at /restaurant-pos</b> — this page is the office behind it: the menu, the floor, the shifts and the trail. A cashier never needs to come here, and nothing on this page is where an order is taken.",<b>شاشة الكاشير على الرابط /restaurant-pos</b>. هذي الصفحة للإدارة: القائمة، والصالة، وأيام العمل، والسجلات. الكاشير ما يحتاج يدخل هنا.
 "Printers are defined once per branch, here — not repeated on every till. An <b>agent</b> running inside the restaurant is what reaches them; the server only renders and queues.","هنا تضيف طابعات كل فرع مرة وحدة، وما تحتاج تضيفها على كل جهاز. <b>برنامج الطباعة</b> اللي على كمبيوتر داخل المطعم هو اللي يوصل للطابعات ويطبع."
 POS Opening Entry,فتح الدرج
 POS Closing Entry,إقفال الدرج
 POS Profile,جهاز الكاشير
 Printers,الطابعات
 Print Agents,برامج الطباعة
-Routing Rules,قواعد التوجيه
-Print Queue,طابور الطباعة
+Routing Rules,وين تنطبع التذاكر
+Print Queue,الطباعة المنتظرة
 Printer,طابعة
 Print Agent,برنامج الطباعة
-Printer Routing Rule,قاعدة توجيه
+Printer Routing Rule,قاعدة طباعة
 Print Template,نموذج طباعة
 Print Job,مهمة طباعة
 VAT Number,الرقم الضريبي
@@ -333,117 +333,116 @@ Expected Table Time (minutes),مدة جلسة الطاولة المتوقعة (�
 "How long a party usually stays. A booked table is held this long before the booking, a walk-in seated inside that window is warned, and a second booking on the same table closer than this is refused. Toast and SevenRooms plan on the same figure — about an hour and a half for a couple.",كم تجلس المجموعة عادة. الطاولة المحجوزة تنحجز هذي المدة قبل موعد الحجز، وإذا أجلست أحد بدون حجز خلالها ينبّهك، وما يقبل حجزين على نفس الطاولة أقرب من هذي المدة.
 Grace for Late Guests (minutes),مهلة تأخير الزبائن (بالدقائق)
 "How long a booked table waits after the booking time before it goes back to the floor. Fifteen minutes is the common practice. The booking stays expected until the day is closed, which records it as a no-show.",كم تنتظر الطاولة المحجوزة بعد موعد الحجز قبل ما ترجع متاحة. المعتاد ١٥ دقيقة. الحجز يبقى منتظر لين ينقفل اليوم، وبعدها يتسجل إنهم ما حضروا.
-"The brand colours every terminal in this branch renders with, unless the terminal names its own. Empty falls through to the default theme (FR-15.2).",ألوان شاشة الكاشير لكل أجهزة الفرع، إلا الجهاز اللي محدد له ثيم خاص. إذا تركتها فاضية يستخدم الثيم الافتراضي.
+"The brand colours every terminal in this branch renders with, unless the terminal names its own. Empty falls through to the default theme (FR-15.2).",ألوان شاشة الكاشير لكل أجهزة الفرع، إلا الجهاز اللي محدد له ألوان خاصة. إذا تركتها فاضية يستخدم الألوان الافتراضية.
 void_item,إبطال صنف,POS Audit Log
 void_order,إبطال طلب,POS Audit Log
 cancel_order,إلغاء طلب,POS Audit Log
-discount_applied,خصم مطبَّق,POS Audit Log
+discount_applied,خصم,POS Audit Log
 discount_override,تفويض خصم,POS Audit Log
-promotion_applied,عرض مطبَّق,POS Audit Log
+promotion_applied,عرض,POS Audit Log
 price_change,تغيير سعر,POS Audit Log
 manager_override,تفويض مدير,POS Audit Log
 payment_method_override,تغيير طريقة الدفع,POS Audit Log
 return_created,إنشاء مرتجع,POS Audit Log
 order_reopened,إعادة فتح طلب,POS Audit Log
-reprint_receipt,إعادة طباعة إيصال,POS Audit Log
-shift_opened,فتح مناوبة,POS Audit Log
-shift_closed,إغلاق مناوبة,POS Audit Log
+reprint_receipt,إعادة طباعة فاتورة,POS Audit Log
+shift_opened,فتح درج,POS Audit Log
+shift_closed,إقفال درج,POS Audit Log
 order_type_changed,تغيير نوع الطلب,POS Audit Log
 table_changed,تغيير الطاولة,POS Audit Log
 clock_in,تسجيل حضور,POS Audit Log
 clock_out,تسجيل انصراف,POS Audit Log
-pin_sign_in_failed,فشل دخول برقم سري,POS Audit Log
+pin_sign_in_failed,رقم سري خاطئ,POS Audit Log
 bill_split,تقسيم فاتورة,POS Audit Log
 bill_merged,دمج فواتير,POS Audit Log
 tables_merged,دمج طاولات,POS Audit Log
 loyalty_redeemed,صرف نقاط ولاء,POS Audit Log
 permission_changed,تغيير صلاحية,POS Audit Log
 role_changed,تغيير دور,POS Audit Log
-RPOS Theme,ثيم نقاط البيع
-Default Theme,الثيم الافتراضي
+RPOS Theme,ألوان شاشة الكاشير
+Default Theme,الألوان الافتراضية
 Text on Primary,النص على اللون الأساسي
 Text on Secondary,النص على اللون الثانوي
-Text colours (chosen for you),ألوان النص (تُختار لك)
+Text colours (chosen for you),ألوان الكتابة (يختارها النظام)
 Preview,معاينة
 chosen for you,اختاره النظام
-yours,اخترته أنت
-Your restaurant's colours. The colour of the text on them is chosen for you.,ألوان مطعمك. ولون النص عليها يُختار لك.
-"Left empty, black or white is chosen for each — whichever a cashier reads on the colour beside it. Set one only if your brand insists, and it must still reach 4.5:1.","إن تُركت فارغة يُختار لكلٍّ أسود أو أبيض — أيّهما يقرؤه الكاشير على اللون المجاور. لا تضع لوناً إلا إذا كانت هويتك تفرضه، وعليه أن يبلغ ٤٫٥:١."
+yours,انت اخترته
+Your restaurant's colours. The colour of the text on them is chosen for you.,ألوان مطعمك. ولون الكتابة فوقها يختاره النظام.
+"Left empty, black or white is chosen for each — whichever a cashier reads on the colour beside it. Set one only if your brand insists, and it must still reach 4.5:1.",إذا تركتها فاضية، النظام يختار أسود أو أبيض حسب اللي ينقرا أوضح. لا تغيّرها إلا إذا هوية مطعمك تحتاج لون معيّن.
 Surface,البطاقات
 Brand Logo,شعار المطعم
-Brand,الهوية
+Brand,هوية المطعم
 Colours,الألوان
 Appearance,المظهر
-Theme,الثيم
-"{0} against {1} is only {2}:1, and a cashier needs {3}:1 to read it under restaurant lighting. Clear the field and {4} is chosen for you ({5}:1).","«{0}» على «{1}» تباينهما {2}:1 فقط، والكاشير يحتاج {3}:1 ليقرأه تحت إضاءة المطعم. فرّغ الحقل ليُختار لك {4} ({5}:1)."
+Theme,ألوان الشاشة
+"{0} against {1} is only {2}:1, and a cashier needs {3}:1 to read it under restaurant lighting. Clear the field and {4} is chosen for you ({5}:1).",«{0}» على «{1}» ما ينقرا زين (التباين {2}:1 والمطلوب {3}:1). فضّ الخانة والنظام يختار لك {4} ({5}:1).
 Choose for me,اختر لي
-Too close to read. It needs {0}:1.,اللونان متقاربان ولا يُقرآن. المطلوب {0}:1.
-{0} is not a colour.,{0} ليس لوناً.
+Too close to read. It needs {0}:1.,اللونين قريبين من بعض وما ينقرون. المطلوب {0}:1.
+{0} is not a colour.,{0} مو لون.
 Menu pictures,صور القائمة
 Customer display,شاشة العميل
 Message while waiting,الرسالة أثناء الانتظار
 Banners,البنرات الإعلانية
 Banner,بنر
 Seconds per banner,ثواني كل بنر
-"How long each banner stays before the next one. Eight seconds is long enough to read a line and short enough to hold a queue's attention.",كم يبقى كل بنر قبل الذي يليه. ثماني ثوانٍ تكفي لقراءة سطر ولا تُملّ المنتظرين.
-"Designed images, shown in this order and then round again. While an order is on the screen they take the larger side of it, and on a small screen the order has it alone.",صورٌ مصمَّمة تُعرض بهذا الترتيب ثم تعود من أوّلها. وأثناء الطلب تأخذ الجزء الأكبر من الشاشة، وعلى الشاشة الصغيرة يبقى الطلب وحده.
-"A designed banner: the offer, its picture and its words, as one image. Uploads public, because the screen facing the room shows it to a guest.",بنر مصمَّم: العرض وصورته وكلماته في صورة واحدة. يُرفع عاماً لأن الشاشة تعرضه للضيوف.
-"For you, not for the guest: which banner this row is.",لك أنت لا للضيف: ما هذا البنر.
-"Your own words, in your own language — an offer, the wifi password, opening hours. Left empty, the screen shows the name, the clock and a welcome.","بكلماتك ولغتك — عرضٌ، أو كلمة شبكة الواي فاي، أو أوقات العمل. إن تُركت فارغة تعرض الشاشة الاسم والساعة وترحيباً."
-"Shown on the customer's screen while no order is on it, under the restaurant's name and the clock.",تظهر على شاشة العميل حين لا يكون عليها طلب، تحت اسم المطعم والساعة.
-"Left empty, the till draws its own icon.",إن تُركت فارغة يرسم الكاشير أيقونته.
+How long each banner stays before the next one. Eight seconds is long enough to read a line and short enough to hold a queue's attention.,كم ثانية يبقى كل بنر قبل اللي بعده. ٨ ثواني تكفي عشان ينقرا.
+"Designed images, shown in this order and then round again. While an order is on the screen they take the larger side of it, and on a small screen the order has it alone.",صور جاهزة تتبدل بهذا الترتيب وترجع من أولها. وقت الطلب تاخذ الجزء الأكبر من الشاشة، وعلى الشاشة الصغيرة يطلع الطلب بس.
+"A designed banner: the offer, its picture and its words, as one image. Uploads public, because the screen facing the room shows it to a guest.",صورة البنر جاهزة بالعرض والكلام اللي فيه.
+"For you, not for the guest: which banner this row is.",اسم للبنر عشان تعرفه، ما يطلع للزبون.
+"Your own words, in your own language — an offer, the wifi password, opening hours. Left empty, the screen shows the name, the clock and a welcome.",اكتب اللي تبيه: عرض، أو باسورد الواي فاي، أو أوقات الدوام. إذا تركتها فاضية تطلع الشاشة اسم المطعم والساعة وترحيب.
+"Shown on the customer's screen while no order is on it, under the restaurant's name and the clock.",تطلع على شاشة العميل وقت ما فيه طلب، تحت اسم المطعم والساعة.
+"Left empty, the till draws its own icon.",إذا تركتها فاضية يحط الكاشير أيقونة من عنده.
 Default group picture,الصورة الافتراضية للمجموعات
 Default dish picture,الصورة الافتراضية للأصناف
-Shown on a group's tile when the group has no picture of its own.,تظهر على بطاقة المجموعة إذا لم تكن لها صورة خاصة.
-Shown on a dish's tile when the dish has no picture of its own.,تظهر على بطاقة الصنف إذا لم تكن له صورة خاصة.
-"{0} is a private file, and the till cannot show it to a cashier. Upload it as public.",{0} ملف خاص، والكاشير لا يستطيع عرضه. ارفعه كملف عام.
+Shown on a group's tile when the group has no picture of its own.,تطلع على المجموعة اللي ما لها صورة.
+Shown on a dish's tile when the dish has no picture of its own.,تطلع على الصنف اللي ما له صورة.
+"{0} is a private file, and the till cannot show it to a cashier. Upload it as public.",{0} ملف خاص، والكاشير ما يقدر يعرضه. ارفعه كملف عام.
 Balance on,الرصيد بتاريخ
-Expected to be spent (%),نسبة الصرف المتوقّعة (٪)
+Expected to be spent (%),كم نسبة النقاط اللي تتوقع تنصرف (٪)
 Net of VAT,الصافي قبل الضريبة
-Points held,النقاط غير المصروفة
+Points held,النقاط اللي عند العملاء
 Their value,قيمتها
-Liability at {0}% expected to be spent,الالتزام بنسبة صرف متوقّعة {0}٪
-Points owed back by customers,نقاط مستحقّة على العملاء
-Choose the company to report on.,اختر الشركة التي تريد تقريرها.
-"This company's terminals sell under tax templates that disagree, so the net and the liability are left out. Work them from the value.",أجهزة هذه الشركة تبيع بقوالب ضريبة مختلفة، فلم يُحسب الصافي ولا الالتزام. احسبهما من القيمة.
-"These terminals charge no VAT, so the net is the value itself.",هذه الأجهزة لا تحتسب ضريبة، فالصافي هو القيمة نفسها.
-"Net of VAT at {0}%, which the menu prices include, from the terminals' tax template.",الصافي قبل ضريبة {0}٪ المشمولة في أسعار القائمة، من قالب الضريبة على الأجهزة.
-"Points come off before VAT on these terminals, so the net is the value itself.",النقاط تُخصم قبل الضريبة على هذه الأجهزة، فالصافي هو القيمة نفسها.
-Manager authorisation is invalid or has expired.,تفويض المدير غير صالح أو انتهت صلاحيته.
-Manager authorisation is required.,يلزم تفويض المدير.
+Liability at {0}% expected to be spent,المبلغ المستحق إذا انصرف {0}٪ منها
+Points owed back by customers,نقاط على العملاء
+Choose the company to report on.,اختر الشركة.
+"This company's terminals sell under tax templates that disagree, so the net and the liability are left out. Work them from the value.",أجهزة هذي الشركة عليها قوالب ضريبة مختلفة، فما انحسب الصافي ولا المستحق. احسبهم من القيمة.
+"These terminals charge no VAT, so the net is the value itself.",هذي الأجهزة ما عليها ضريبة، فالصافي هو نفس القيمة.
+"Net of VAT at {0}%, which the menu prices include, from the terminals' tax template.",الصافي بعد إخراج ضريبة {0}٪ اللي داخلة في أسعار القائمة.
+"Points come off before VAT on these terminals, so the net is the value itself.",النقاط تنخصم قبل الضريبة على هذي الأجهزة، فالصافي هو نفس القيمة.
+Manager authorisation is invalid or has expired.,موافقة المدير غلط أو انتهت. اطلبها مرة ثانية.
+Manager authorisation is required.,يحتاج موافقة المدير.
 Modifier group {0} does not apply to this item.,مجموعة الإضافات {0} لا تنطبق على هذا الصنف.
 Modifier option {0} is not available.,خيار الإضافة {0} غير متاح.
 No price is configured for {0} in price list {1}.,لا يوجد سعر للصنف {0} في قائمة الأسعار {1}.
 Only {0} of that line is left to return.,المتبقي من هذا السطر للإرجاع: {0}.
-Open a shift before taking orders.,افتح المناوبة قبل استقبال الطلبات.
-Open the till,افتح نقطة البيع
+Open a shift before taking orders.,افتح الدرج قبل ما تستقبل طلبات.
+Open the till,افتح شاشة الكاشير
 Order type {0} is not active.,نوع الطلب {0} غير مفعّل.
 Order type {0} is not available here.,نوع الطلب {0} غير متاح على هذا الجهاز.
 Order type {0} needs a customer.,نوع الطلب {0} يحتاج عميلاً.
 Order type {0} requires a customer.,نوع الطلب {0} يتطلب عميلاً.
 Order type {0} requires a table.,نوع الطلب {0} يتطلب طاولة.
-Order {0} is already cancelled.,الطلب {0} ملغى أصلاً.
-Order {0} is {1} and can no longer be modified.,الطلب {0} حالته {1} ولا يمكن تعديله.
-POS Audit Log,سجل التدقيق
+Order {0} is already cancelled.,الطلب {0} ملغى من قبل.
+Order {0} is {1} and can no longer be modified.,الطلب {0} حالته {1}، فما تقدر تعدّل عليه.
+POS Audit Log,سجل العمليات
 POS Modifier Group,مجموعة إضافات
-POS Order Activity,نشاط الطلب
-POS Order Counter,عدّاد الأرقام
+POS Order Activity,سجل الطلب
+POS Order Counter,عدّاد أرقام الطلبات
 POS Permission Set,مجموعة صلاحيات
 POS Permissions,الصلاحيات
 POS Print Agent,برنامج الطباعة
 POS Print Job,مهمة طباعة
-POS Print Template,قالب طباعة
-POS Printer Routing Rule,قاعدة توجيه الطباعة
+POS Print Template,نموذج طباعة
+POS Printer Routing Rule,قاعدة طباعة
 POS Printer,طابعة
-POS Profile {0} has no Restaurant Section configured.,الطرفية {0} ليس لها قسم مضبوط.
+POS Profile {0} has no Restaurant Section configured.,جهاز الكاشير {0} ما له قسم. اختر له قسم من ملف الجهاز.
 POS Quick Note,ملاحظة سريعة
-POS Screen Layout,تخطيط الشاشة
+POS Screen Layout,ترتيب شاشة الكاشير
 POS Sync Entry,سجل المزامنة
-Paper and problems,النماذج والمشاكل
+Paper and problems,الطباعة والأعطال
 Party Size must be at least 1.,عدد الضيوف لا يقل عن واحد.
 Payment method {0} does not exist.,طريقة الدفع {0} غير موجودة.
-Payment of {0} does not cover the total of {1}.,المبلغ {0} لا يغطي الإجمالي {1}.
-People and the trail,الموظفين والسجل
+Payment of {0} does not cover the total of {1}.,المبلغ {0} أقل من الإجمالي {1}.
 Points can be used from {0} upwards; this customer has {1}.,تُستخدم النقاط من {0} فأكثر، ورصيد هذا العميل {1}.
 Printing,الطباعة
 Production Center,مركز التحضير
@@ -454,21 +453,20 @@ Restaurant Floor Plan,مخطط الصالة
 Restaurant Order Type,نوع الطلب
 Restaurant Order,طلب
 Restaurant Orders,الطلبات
-Restaurant POS runs single-tier loyalty programs. Tiers are not supported yet.,نقاط البيع تعمل ببرنامج ولاء بمستوى واحد. المستويات غير مدعومة بعد.
+Restaurant POS runs single-tier loyalty programs. Tiers are not supported yet.,برنامج الولاء هنا مستوى واحد، والمستويات مو مدعومة حالياً.
 Restaurant POS,نقاط البيع
-Restaurant Promotion,عرض ترويجي
+Restaurant Promotion,عرض
 Restaurant Reservation,حجز
 Restaurant Section,قسم
-Restaurant Shift,مناوبة
-Restaurant Shifts,المناوبات
+Restaurant Shift,يوم العمل
+Restaurant Shifts,أيام العمل
 Restaurant Table,طاولة
-Row #{0} has already gone to the kitchen. Void it instead.,السطر رقم {0} أُرسل للمطبخ. ألغِه بدل حذفه.
-Row #{0} is already voided.,السطر رقم {0} ملغى أصلاً.
-Row #{0} is not on this order.,السطر رقم {0} ليس في هذا الطلب.
-Row #{0} is voided.,السطر رقم {0} ملغى.
+Row #{0} has already gone to the kitchen. Void it instead.,السطر {0} راح للمطبخ، فما ينحذف. ألغه بدال كذا.
+Row #{0} is already voided.,السطر {0} ملغى من قبل.
+Row #{0} is not on this order.,السطر {0} مو في هذا الطلب.
+Row #{0} is voided.,السطر {0} ملغى.
 Select at least one payment method.,اختر طريقة دفع واحدة على الأقل.
-Service,الخدمة
-Set a default customer on POS Profile {0} before taking payment.,عيّن عميلاً افتراضياً على الطرفية {0} قبل استلام الدفع.
+Set a default customer on POS Profile {0} before taking payment.,اختر العميل الافتراضي في ملف جهاز الكاشير {0} قبل الدفع.
 Set one collection rule: how much a customer spends to earn one point.,حدّد قاعدة تجميع واحدة: كم ينفق العميل ليكسب نقطة.
 Set what one point is worth when it is spent.,حدّد قيمة النقطة الواحدة عند صرفها.
 Sign in first.,سجّل الدخول أولاً.
@@ -476,13 +474,12 @@ Table {0} does not exist.,الطاولة {0} غير موجودة.
 Table {0} is already booked at {1} for {2}.,الطاولة {0} محجوزة الساعة {1} باسم {2}.
 Table {0} is not in this branch.,الطاولة {0} ليست في هذا الفرع.
 Table {0} is out of service.,الطاولة {0} خارج الخدمة.
-Table {0} seats {1}; the party is {2}.,الطاولة {0} تتّسع لـ{1}، والعدد {2}.
+Table {0} seats {1}; the party is {2}.,الطاولة {0} تكفي {1} أشخاص، والعدد {2}.
 Table {0} still has an open order.,الطاولة {0} عليها طلب مفتوح.
-Terminals,أجهزة الكاشير
 That PIN is already in use. Choose a different one.,هذا الرقم مستخدم. اختر رقماً آخر.
 That PIN was not recognised.,الرقم السري غير صحيح.
-Too many wrong PINs on this device. Try again in {0} minutes.,محاولات خاطئة كثيرة من هذا الجهاز. حاول بعد {0} دقائق.
-Too many wrong pairing codes from this device. Try again in {0} minutes.,رموز ربط خاطئة كثيرة من هذا الجهاز. حاول بعد {0} دقائق.
+Too many wrong PINs on this device. Try again in {0} minutes.,دخلت رقم سري غلط أكثر من مرة. جرّب بعد {0} دقائق.
+Too many wrong pairing codes from this device. Try again in {0} minutes.,دخلت رمز ربط غلط أكثر من مرة. جرّب بعد {0} دقائق.
 "That pairing code is not valid, or it has expired. Ask for a new one.","رمز الربط غير صحيح أو انتهت صلاحيته. اطلب رمزاً جديداً."
 Paired from {0}.,تم الربط من {0}.
 an unknown machine,جهاز غير معروف
@@ -499,20 +496,19 @@ Done,تم
 That time has already passed.,هذا الوقت فات.
 The PIN must be exactly {0} digits.,الرقم السري يجب أن يكون {0} أرقام بالضبط.
 The amount received is less than the amount being paid.,المبلغ المستلم أقل من المبلغ المدفوع.
-The day and the drawer,اليوم والدرج
 The floor,الصالة
 The loyalty balance changed while this bill was being paid. Nothing has been charged.,تغيّر رصيد النقاط أثناء دفع هذه الفاتورة. لم يُخصم شيء.
 The menu,القائمة
 The minimum balance to spend points cannot be negative.,الحد الأدنى للرصيد لا يكون سالباً.
 The share of a bill points may pay must be between 1 and 100 percent.,نسبة الفاتورة التي تدفعها النقاط يجب أن تكون بين 1 و100.
 There is nothing new to send to the kitchen.,لا يوجد جديد لإرساله للمطبخ.
-This bill prices differently on the screen ({0}) and on the invoice ({1}). ,هذه الفاتورة تُحسب على الشاشة ({0}) وعلى الفاتورة ({1}) بشكل مختلف. لم يُخصم شيء. راجع قالب الضريبة على الجهاز.
-This bill was sold offline at {0} but comes to {1} here ,هذه الفاتورة بيعت بلا اتصال بمبلغ {0} وتُحسب هنا {1}
+This bill prices differently on the screen ({0}) and on the invoice ({1}). ,مبلغ الفاتورة على الشاشة ({0}) غير عن مبلغها في الفاتورة ({1}). ما انخصم شي. راجع قالب الضريبة على الجهاز.
+This bill was sold offline at {0} but comes to {1} here ,هذي الفاتورة انباعت بدون إنترنت بمبلغ {0}، وهنا طلع مبلغها {1}
 This customer has {0} points.,رصيد هذا العميل {0} نقطة.
-This login is not linked to an employee record.,هذا الحساب غير مرتبط بسجل موظف.
+This login is not linked to an employee record.,هذا الحساب مو مربوط بموظف.
 This order type must be paid by {0}.,هذا النوع من الطلبات يُدفع بـ{0}.
 This reservation is {0} and can no longer be changed.,هذا الحجز {0} ولا يمكن تغييره.
-This till session is already closed.,هذه المناوبة مغلقة أصلاً.
+This till session is already closed.,هذا الدرج مقفل من قبل.
 What prints where,وين ينطبع كل شي
 You are already clocked in.,أنت مسجَّل حضورك بالفعل.
 You are not clocked in.,لم تسجّل حضورك.
@@ -540,3 +536,37 @@ specific_items,أصناف محدّدة,Restaurant Promotion
 {0} is not accepted for this order type.,{0} غير مقبولة لهذا النوع من الطلبات.
 {0} orders are still open on this day.,ما زال هناك {0} طلبات مفتوحة في هذا اليوم.
 {0} still has the till open. Close it before taking over.,{0} لسا فاتح الدرج. لازم يقفله قبل ما تستلم.
+POS Orders,الطلبات
+Kitchen Tickets,تذاكر المطبخ
+Table Reservations,الحجوزات
+Order History Log,سجل الطلبات
+Dining Sections,الأقسام
+Dining Tables,الطاولات
+Floor Plans,مخططات الصالة
+Business Days,أيام العمل
+Drawer Openings,سجل فتح الدرج
+Drawer Closings,سجل إقفال الدرج
+Order Number Counters,عدّاد أرقام الطلبات
+Menu Groups,مجموعات الأصناف
+Menu Items,الأصناف
+Menu Prices,أسعار الأصناف
+POS Order Types,أنواع الطلب
+Till Screen Layouts,ترتيب شاشة الكاشير
+Quick Notes,الملاحظات السريعة
+Offers and Discounts,العروض والخصومات
+Cashier Devices,أجهزة الكاشير
+POS Branches,الفروع
+POS Staff,المستخدمين
+POS Permission Sets,مجموعات الصلاحيات
+Audit Trail,سجل العمليات
+Sync Log,سجل المزامنة
+Loyalty Programs,برامج الولاء
+Loyalty Point Movements,حركات النقاط
+Customer Point Balances,أرصدة نقاط العملاء
+POS General Settings,الإعدادات العامة
+Till Colours,ألوان شاشة الكاشير
+Orders and Bookings,الطلبات والحجوزات
+Days and Drawers,أيام العمل والدرج
+Devices and Branches,الأجهزة والفروع
+Staff and Logs,الموظفين والسجلات
+User,المستخدم

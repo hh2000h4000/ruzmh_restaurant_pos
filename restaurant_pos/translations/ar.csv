@@ -570,3 +570,34 @@ Days and Drawers,أيام العمل والدرج
 Devices and Branches,الأجهزة والفروع
 Staff and Logs,الموظفين والسجلات
 User,المستخدم
+Context,بيانات الطلب,Kitchen Order Ticket
+Restaurant Order,الطلب,Kitchen Order Ticket
+KOT Type,نوع التذكرة,Kitchen Order Ticket
+Production Center,مركز التحضير,Kitchen Order Ticket
+Table,الطاولة,Kitchen Order Ticket
+Order Number,رقم الطلب,Kitchen Order Ticket
+Call Name,اسم المناداة,Kitchen Order Ticket
+Order Type,نوع الطلب,Kitchen Order Ticket
+Cashier,الكاشير,Kitchen Order Ticket
+Order Notes,ملاحظات الطلب,Kitchen Order Ticket
+Items,الأصناف,Kitchen Order Ticket
+Printing,الطباعة,Kitchen Order Ticket
+Sent At,وقت الإرسال,Kitchen Order Ticket
+Printed At,وقت الطباعة,Kitchen Order Ticket
+Print Status,حالة الطباعة,Kitchen Order Ticket
+Printer Used,الطابعة,Kitchen Order Ticket
+initial,أول إرسال,Kitchen Order Ticket
+addition,إضافة,Kitchen Order Ticket
+void,إلغاء,Kitchen Order Ticket
+reprint,إعادة طباعة,Kitchen Order Ticket
+pending,بانتظار الطباعة,Kitchen Order Ticket
+printed,انطبعت,Kitchen Order Ticket
+failed,ما انطبعت,Kitchen Order Ticket
+Item,الصنف,KOT Item
+Item Name (Arabic),اسم الصنف,KOT Item
+Qty,الكمية,KOT Item
+Action,العملية,KOT Item
+Modifiers,الإضافات,KOT Item
+Notes,ملاحظات,KOT Item
+add,إضافة,KOT Item
+void,إلغاء,KOT Item

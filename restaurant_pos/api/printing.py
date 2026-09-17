@@ -378,11 +378,18 @@ def _sample_context(template_type: str) -> dict | None:
 		order = frappe.db.get_value("Restaurant Order", {"sales_invoice": name}, "name")
 		return service.receipt_context(invoice, service._receipt_order(order)) | {"_sample": name}
 
-	name = frappe.db.get_value("POS Closing Entry", {}, "name", order_by="creation desc")
-	if not name:
+	# The financial report reads what the till prints (`D-219`). This handed it a
+	# bare POS Closing Entry, the context of the report before D-219, and every
+	# shift report template failed its preview on the first field it looked for.
+	entry = frappe.db.get_value(
+		"POS Opening Entry", {"docstatus": 1}, ["name", "pos_profile"], as_dict=True, order_by="creation desc"
+	)
+	if not entry:
 		return None
 
-	return {"doc": frappe.get_doc("POS Closing Entry", name), "_sample": name}
+	return service.shift_report_context(pos_profile=entry.pos_profile, opening_entry=entry.name) | {
+		"_sample": entry.name
+	}
 
 
 # `D-209` — `jobs_for` and `retry` stood here for a print-status screen that was

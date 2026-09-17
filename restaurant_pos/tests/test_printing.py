@@ -884,6 +884,19 @@ class TestTheFinancialReportOnPaper(PaymentTestBase):
 		self.assertEqual(frappe.db.get_value("POS Print Job", job, "job_type"), "shift_report")
 		return render.call_args.args[1], png.call_args.args[0]
 
+	def test_the_desk_preview_draws_the_financial_report(self):
+		"""The template preview rendered the report's pre-D-219 context and failed on 'company'."""
+		from restaurant_pos.api import printing as printing_api
+
+		self._pay(self._payable_order())
+		template = frappe.db.get_value(
+			"POS Print Template", {"template_type": "shift_report", "is_default": 1}, "name"
+		)
+
+		result = printing_api.preview_template(template)
+
+		self.assertTrue(result["image"].startswith("data:image/png;base64,"))
+
 	def test_an_open_drawer_prints_an_x_report_of_what_it_took(self):
 		self._pay(self._payable_order())
 

@@ -368,21 +368,47 @@ def _stock_that_is_not_there(order, profile) -> str | None:
 				"{0} is kept in stock and {1} has none. Enter its stock, or tick Allow Negative Stock on the item."
 			).format(name, warehouse)
 
-		# **Selling below zero still has to be costed** (`D-234`). ERPNext posts
-		# the cost of goods sold from a valuation rate, and a stock item that has
-		# never been received has none — so it refuses the invoice inside Confirm,
-		# in a paragraph about accounting entries, with the money already taken.
-		# The rate it wants is the item's own cost, which a restaurant knows: it
-		# bought the coffee. Asked for here, by name, before any tender.
-		if not (flt(held.valuation_rate if held else 0) or flt(_valuation_rate(row.name))):
+		# **Selling below zero still has to be costed** (`D-234`) — but only where
+		# ERPNext itself would refuse. It posts the cost of goods sold from a
+		# valuation rate, and an item never received has none, so the invoice is
+		# refused inside Confirm in a paragraph about accounting entries, with
+		# the money already taken.
+		#
+		# **Its rule, asked of it** (`D-235`): the refusal needs perpetual
+		# inventory *and* nothing to fall back on — and its fallbacks are wider
+		# than a valuation rate: the last ledger entry, then the item's valuation
+		# rate, then its standard rate, then a buying price. Our own shortcut
+		# knew two of those, so it warned about sales ERPNext would have posted.
+		if _erpnext_would_refuse(row.name, warehouse, profile):
 			return _("{0} has no valuation rate. Enter the cost of one unit on the item.").format(name)
 
 	return None
 
 
-def _valuation_rate(item: str) -> float:
-	"""The cost per unit the item master carries, if anybody has set one."""
-	return flt(frappe.db.get_value("Item", item, "valuation_rate"))
+def _erpnext_would_refuse(item: str, warehouse: str, profile) -> bool:
+	"""Whether ERPNext would stop this line for want of a cost.
+
+	Asked of ERPNext rather than answered here: one rule, one place
+	(`CLAUDE.md` §5.5), and this one has four fallbacks and a company setting in
+	it. `raise_error_if_no_rate=False` makes it report rather than throw.
+	"""
+	import erpnext
+	from erpnext.stock.stock_ledger import get_valuation_rate
+
+	if not erpnext.is_perpetual_inventory_enabled(profile.company):
+		return False
+
+	return not flt(
+		get_valuation_rate(
+			item,
+			warehouse,
+			"Sales Invoice",
+			"",
+			currency=profile.currency,
+			company=profile.company,
+			raise_error_if_no_rate=False,
+		)
+	)
 
 
 def is_credit_method(method: str) -> bool:

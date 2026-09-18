@@ -72,6 +72,26 @@ class TestPairing(DeviceTestBase):
 		self.assertEqual(held, pairing.digest(pairing.digits_of(code)))
 
 
+class TestItIsAWrite(DeviceTestBase):
+	"""**Frappe discards everything a GET writes.**
+
+	The first pairing on a real till went out as a GET, because that is what our
+	read helper sends. The server matched the code, wrote the token, answered
+	with it — and the transaction was rolled back underneath the answer. The till
+	held a token for a terminal that had never been paired, and the very next
+	call said so. Nothing in the suite noticed: the tests call Python.
+	"""
+
+	def test_pairing_is_refused_over_a_get(self):
+		for endpoint in (session.pair_device, session.issue_device_code, session.unpair_device):
+			with self.subTest(endpoint=endpoint.__name__):
+				self.assertEqual(
+					frappe.allowed_http_methods_for_whitelisted_func.get(endpoint),
+					["POST"],
+					f"{endpoint.__name__} must be POST-only: a GET would roll its writes away",
+				)
+
+
 class TestFreeingIt(DeviceTestBase):
 	def test_an_unpaired_terminal_refuses_every_machine(self):
 		self._free_it()

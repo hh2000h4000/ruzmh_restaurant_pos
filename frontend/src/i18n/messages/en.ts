@@ -110,8 +110,6 @@ export const messages = {
   "setup.hint": "Type the pairing code the manager issued on this terminal. Asked once.",
   "setup.code": "Pairing code",
   "setup.codeExample": "1234-5678",
-  "setup.deviceName": "Name this device",
-  "setup.deviceNameExample": "Front till",
   "setup.pair": "Pair this device",
 
   // Home

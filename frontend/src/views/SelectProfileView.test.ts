@@ -23,10 +23,10 @@ vi.mock("vue-router", () => ({
   useRouter: () => ({ push, currentRoute: { value: { query: {} } } }),
 }));
 
-const query = vi.fn();
+const command = vi.fn();
 vi.mock("@/api/client", async () => {
   const actual = await vi.importActual<typeof import("@/api/client")>("@/api/client");
-  return { ...actual, query: (...args: unknown[]) => query(...args) };
+  return { ...actual, command: (...args: unknown[]) => command(...args) };
 });
 
 function screen() {
@@ -37,12 +37,12 @@ describe("pairing this machine", () => {
   beforeEach(() => {
     setActivePinia(createPinia());
     localStorage.clear();
-    query.mockReset();
+    command.mockReset();
     push.mockReset();
   });
 
   it("keeps the token so the next load does not ask again", async () => {
-    query.mockResolvedValueOnce({ pos_profile: "T1", device_token: "tok-1" });
+    command.mockResolvedValueOnce({ pos_profile: "T1", device_token: "tok-1" });
     const session = useSessionStore();
     vi.spyOn(session, "load").mockImplementation(async () => {
       session.data = { pos_profile: { name: "T1" } } as never;
@@ -54,7 +54,9 @@ describe("pairing this machine", () => {
     await view.find("form").trigger("submit");
     await flushPromises();
 
-    expect(query).toHaveBeenCalledWith("session.pair_device", expect.objectContaining({ code: "1234-5678" }));
+    // A POST: Frappe discards what a GET writes, so pairing over one handed
+    // back a token the server had already rolled away.
+    expect(command).toHaveBeenCalledWith("session.pair_device", { code: "1234-5678" });
     expect(pairedDevice()).toEqual({ posProfile: "T1", token: "tok-1" });
     expect(session.load).toHaveBeenCalledWith("T1", "tok-1");
     expect(push).toHaveBeenCalled();

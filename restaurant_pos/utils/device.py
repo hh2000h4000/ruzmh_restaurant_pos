@@ -66,6 +66,30 @@ def issue_code(pos_profile: str) -> dict:
 	}
 
 
+def machine_name() -> str:
+	"""What to call this machine when nobody typed a name (`D-226`).
+
+	The cashier setting a till up should not have to invent a label: one
+	terminal is one machine, so the terminal's own name is the honest default,
+	and the browser it runs in is what a manager needs beside it to tell two
+	apart.
+	"""
+	# There is no request when a script or a test pairs a till.
+	agent = (frappe.get_request_header("User-Agent") if frappe.request else "") or ""
+	agent = agent.lower()
+	for token, label in (
+		("android", "Android"),
+		("iphone", "iPhone"),
+		("ipad", "iPad"),
+		("windows", "Windows"),
+		("mac os", "Mac"),
+		("linux", "Linux"),
+	):
+		if token in agent:
+			return label
+	return _("a till")
+
+
 def pair(code: str, device_name: str | None = None) -> dict:
 	"""Spend a code and hand this machine the terminal it names.
 
@@ -104,7 +128,7 @@ def pair(code: str, device_name: str | None = None) -> dict:
 			"rpos_pairing_code_hash": None,
 			"rpos_pairing_expires": None,
 			"rpos_device_token_hash": pairing.digest(token),
-			"rpos_device_name": (device_name or "").strip()[:140] or _("a till"),
+			"rpos_device_name": (device_name or "").strip()[:140] or machine_name(),
 			"rpos_paired_at": now_datetime(),
 			"rpos_paired_by": frappe.session.user,
 		},

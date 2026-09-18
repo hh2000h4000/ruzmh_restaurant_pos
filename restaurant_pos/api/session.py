@@ -45,25 +45,31 @@ DEFAULT_BANNER_SECONDS = 8
 #: fallback, and lives there beside the resolution that reaches for it.
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def pair_device(code: str, device_name: str | None = None) -> dict:
 	"""Bind this machine to the terminal the code names (`D-226`).
 
 	This replaced a list of every terminal the cashier could reach. The list was
 	one tap away from a till in Dammam selling on the Riyadh branch (`D-035`),
 	and nothing in it stopped two machines from taking the same terminal.
+
+	**POST, and pinned to it.** Frappe discards everything a GET writes, so the
+	first cashier to pair got a token back, a terminal that had never been
+	paired, and a refusal one line later. The code has no business in a URL
+	either, where the web server's log and the browser's history outlive the ten
+	minutes it is worth (the same reason the manager PIN travels in a body).
 	"""
 	assert_pos_user()
 	return device.pair(code, device_name=device_name)
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def issue_device_code(pos_profile: str) -> dict:
 	"""A pairing code for a terminal, for whoever may edit it — the desk button."""
 	return device.issue_code(pos_profile)
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def unpair_device(pos_profile: str) -> dict:
 	"""Free a terminal from the machine holding it — the desk button."""
 	return device.unpair(pos_profile)

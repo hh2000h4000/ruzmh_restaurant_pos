@@ -2,7 +2,7 @@
 import { onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 
-import { ApiError, query } from "@/api/client";
+import { ApiError, command } from "@/api/client";
 import LocaleToggle from "@/components/LocaleToggle.vue";
 import { forgetDevice, pairedDevice, rememberDevice } from "@/device";
 import { t } from "@/i18n";
@@ -26,7 +26,6 @@ const session = useSessionStore();
 const router = useRouter();
 
 const code = ref("");
-const deviceName = ref("");
 const message = ref<string | null>(null);
 const busy = ref(false);
 const starting = ref(true);
@@ -47,9 +46,11 @@ async function pair(): Promise<void> {
   message.value = null;
 
   try {
-    const paired = await query<{ pos_profile: string; device_token: string }>("session.pair_device", {
+    // A POST, both because Frappe throws away anything a GET writes — the first
+    // pairing handed back a token for a terminal that had never been paired —
+    // and because a live code has no business in a URL the web server logs.
+    const paired = await command<{ pos_profile: string; device_token: string }>("session.pair_device", {
       code: code.value,
-      device_name: deviceName.value,
     });
 
     rememberDevice({ posProfile: paired.pos_profile, token: paired.device_token });
@@ -139,16 +140,6 @@ function nextScreen(): string | { name: string } {
             autofocus
             class="min-h-tap rounded-rpos border border-line bg-background px-4 py-3 text-center text-2xl tracking-widest"
             :placeholder="t('setup.codeExample')"
-          >
-        </label>
-
-        <label class="flex flex-col gap-1">
-          <span class="text-sm text-muted">{{ t("setup.deviceName") }}</span>
-          <input
-            v-model="deviceName"
-            autocomplete="off"
-            class="min-h-tap rounded-rpos border border-line bg-background px-4 py-3"
-            :placeholder="t('setup.deviceNameExample')"
           >
         </label>
 

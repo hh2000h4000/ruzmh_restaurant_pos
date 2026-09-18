@@ -62,6 +62,18 @@ describe("pairing this machine", () => {
     expect(push).toHaveBeenCalled();
   });
 
+  it("says what the server said, not a guess at it", async () => {
+    command.mockRejectedValueOnce(new ApiError("Not permitted", 403, "PermissionError"));
+
+    const view = screen();
+    await flushPromises();
+    await view.find("input").setValue("1111-2222");
+    await view.find("form").trigger("submit");
+    await flushPromises();
+
+    expect(view.find('[role="alert"]').text()).toBe("Not permitted");
+  });
+
   it("forgets a pairing the server has stopped accepting", async () => {
     localStorage.setItem("rpos.pos_profile", "T1");
     localStorage.setItem("rpos.device_token", "stale");

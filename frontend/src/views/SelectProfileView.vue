@@ -82,8 +82,21 @@ async function start(posProfile: string, token: string): Promise<void> {
   }
 }
 
+/**
+ * Say what the server said.
+ *
+ * This used to answer every 403 with "sign in first", which is one cause among
+ * several and was the wrong one twice in a row: a stale bundle calling the
+ * pairing endpoint the old way is refused with *Not permitted*, and the cashier
+ * read an instruction that could not help them. The server's own message is
+ * translated and specific; only a refusal that carries none falls back.
+ */
 function explain(cause: unknown): string {
-  if (cause instanceof ApiError && cause.isPermissionDenied) return t("setup.signInFirst");
+  if (cause instanceof ApiError) {
+    const generic = t("err.failed", { status: cause.status });
+    if (cause.message && cause.message !== generic) return cause.message;
+    if (cause.isPermissionDenied) return t("setup.signInFirst");
+  }
   return cause instanceof Error ? cause.message : String(cause);
 }
 

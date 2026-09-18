@@ -618,3 +618,5 @@ This terminal is not paired with any device yet. Ask a manager for a pairing cod
 {0} is paired with another device. Ask a manager for a pairing code.,{0} مرتبط بجهاز ثاني. اطلب من المدير رمز ربط.
 device_paired,ربط جهاز,POS Audit Log
 device_unpaired,فك ارتباط جهاز,POS Audit Log
+Drawer,الدرج,Restaurant Order
+The drawer this bill was settled into. Written at payment so a report reads it rather than reconstructing it from times (D-227).,الدرج اللي انحاسبت فيه الفاتورة. ينكتب وقت الدفع عشان التقارير تقراه جاهز.

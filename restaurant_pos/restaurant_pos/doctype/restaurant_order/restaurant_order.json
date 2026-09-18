@@ -49,6 +49,7 @@
   "opened_at",
   "closed_at",
   "sales_invoice",
+  "pos_opening_entry",
   "lifecycle_cb",
   "cancel_reason",
   "cancelled_by",
@@ -149,11 +150,11 @@
    "options": "Restaurant Table"
   },
   {
+   "description": "Tables joined to this one for a party spread across several (BR-063). The `table` above is the first and is not repeated here; the join is reversed when the bill closes, because occupancy is read from the bills.",
    "fieldname": "extra_tables",
    "fieldtype": "Table",
-   "options": "Restaurant Order Table",
    "label": "Joined Tables",
-   "description": "Tables joined to this one for a party spread across several (BR-063). The `table` above is the first and is not repeated here; the join is reversed when the bill closes, because occupancy is read from the bills."
+   "options": "Restaurant Order Table"
   },
   {
    "fieldname": "cover_count",
@@ -246,11 +247,11 @@
    "precision": "2"
   },
   {
+   "description": "The promotion a cashier picked by hand (D-165). Input, where `promotion` is output: a promotion with `is_auto_apply` off is offered rather than taken, and without somewhere to record the choice there was no way to take it. A choice here outranks the engine's own pick — somebody decided.",
    "fieldname": "chosen_promotion",
    "fieldtype": "Link",
-   "options": "Restaurant Promotion",
    "label": "Chosen Promotion",
-   "description": "The promotion a cashier picked by hand (D-165). Input, where `promotion` is output: a promotion with `is_auto_apply` off is offered rather than taken, and without somewhere to record the choice there was no way to take it. A choice here outranks the engine's own pick — somebody decided."
+   "options": "Restaurant Promotion"
   },
   {
    "default": "0",
@@ -261,46 +262,46 @@
    "read_only": 1
   },
   {
+   "description": "The promotion this bill qualified for, chosen by the engine (D-163).",
    "fieldname": "promotion",
    "fieldtype": "Link",
-   "options": "Restaurant Promotion",
    "label": "Promotion",
-   "read_only": 1,
-   "description": "The promotion this bill qualified for, chosen by the engine (D-163)."
+   "options": "Restaurant Promotion",
+   "read_only": 1
   },
   {
+   "default": "0",
+   "description": "How much of `discount_amount` came from the promotion rather than from a person.",
    "fieldname": "promotion_amount",
    "fieldtype": "Currency",
    "label": "Promotion Amount",
-   "read_only": 1,
-   "default": "0",
-   "description": "How much of `discount_amount` came from the promotion rather than from a person."
+   "read_only": 1
   },
   {
+   "default": "0",
+   "description": "Points the customer spent on this bill (FR-10.5, D-189). Input, like `chosen_promotion`: set at the payment screen and checked against the balance there.",
    "fieldname": "loyalty_points",
    "fieldtype": "Int",
    "label": "Loyalty Points Spent",
-   "default": "0",
-   "no_copy": 1,
-   "description": "Points the customer spent on this bill (FR-10.5, D-189). Input, like `chosen_promotion`: set at the payment screen and checked against the balance there."
+   "no_copy": 1
   },
   {
+   "default": "0",
+   "description": "How much of `discount_amount` the points paid. A discount, not a payment: ZATCA taxes what is left after them (D-189).",
    "fieldname": "loyalty_amount",
    "fieldtype": "Currency",
    "label": "Loyalty Amount",
-   "read_only": 1,
-   "default": "0",
    "no_copy": 1,
-   "description": "How much of `discount_amount` the points paid. A discount, not a payment: ZATCA taxes what is left after them (D-189)."
+   "read_only": 1
   },
   {
+   "default": "0",
+   "description": "Points this bill granted when it was paid — on the invoice's net total, before VAT and after every reduction (BR-084).",
    "fieldname": "loyalty_points_earned",
    "fieldtype": "Int",
    "label": "Loyalty Points Earned",
-   "read_only": 1,
-   "default": "0",
    "no_copy": 1,
-   "description": "Points this bill granted when it was paid — on the invoice's net total, before VAT and after every reduction (BR-084)."
+   "read_only": 1
   },
   {
    "fieldname": "totals_cb",
@@ -354,6 +355,16 @@
    "label": "Sales Invoice",
    "no_copy": 1,
    "options": "Sales Invoice",
+   "read_only": 1
+  },
+  {
+   "description": "The drawer this bill was settled into. Written at payment, so a report reads it rather than reconstructing it from times (D-227).",
+   "fieldname": "pos_opening_entry",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "Drawer",
+   "no_copy": 1,
+   "options": "POS Opening Entry",
    "read_only": 1
   },
   {
@@ -431,7 +442,7 @@
  "index_web_pages_for_search": 1,
  "istable": 0,
  "links": [],
- "modified": "2026-09-08 13:00:00.000000",
+ "modified": "2026-09-18 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Restaurant POS",
  "name": "Restaurant Order",

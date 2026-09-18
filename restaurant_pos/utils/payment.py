@@ -109,6 +109,17 @@ def process_payment(
 	# (`D-106`). The user's rule, in their words: الفاتورة تسجل باسم اللي
 	# أغلقها وليس اللي فتحها.
 	order.cashier = frappe.session.user
+	# **And the drawer the notes went into** (`D-227`). The shift report used to
+	# reconstruct this from the terminal, the cashier and the drawer's own window
+	# — right, but derived: a corrected opening time moved bills between drawers,
+	# and nothing on a bill could answer "which count was this in?". It is known
+	# here, at the one moment money changes hands, so it is written here.
+	# Imported here: `shift` reads `is_credit_method` from this module, and a
+	# module-level import either way closes the circle.
+	from restaurant_pos.utils.shift import selling_till
+
+	drawer = selling_till(order.pos_profile)
+	order.pos_opening_entry = drawer.name if drawer else None
 	order.save(ignore_permissions=True)
 
 	# BR-061 / FR-2.7g — the table is not free until it has been cleaned, and not

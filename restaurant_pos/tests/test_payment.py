@@ -562,3 +562,15 @@ class TheBillIsFiledUnderWhoeverTookTheMoney(PaymentTestBase):
 
 		self.assertEqual(report["orders"]["closed"], 1, "the drawer counts what it settled")
 		self.assertGreater(report["till_expected"], 0.0)
+
+	def test_the_bill_names_the_drawer_it_was_settled_into(self):
+		"""D-227 — written at payment, so a report reads it instead of deriving it."""
+		from restaurant_pos.utils import shift as shift_service
+
+		order = self._payable_order()
+		drawer = shift_service.selling_till(self.profile)
+		self._pay(order)
+
+		self.assertEqual(
+			frappe.db.get_value("Restaurant Order", order.name, "pos_opening_entry"), drawer.name
+		)

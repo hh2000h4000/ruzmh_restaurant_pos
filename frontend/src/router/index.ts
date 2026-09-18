@@ -29,10 +29,19 @@ const router = createRouter({
       meta: { requiresSession: false, requiresSignIn: false },
     },
     {
+      /**
+       * Pairing comes before signing in (`D-226`).
+       *
+       * The PIN pad belongs to a terminal — it names the branch, and scopes the
+       * PIN to the people who may work there — so a machine that does not know
+       * which terminal it is cannot ask anybody to sign in. Requiring a session
+       * here sent a freshly installed till to the PIN pad first, which is the
+       * one screen it cannot answer.
+       */
       path: "/setup",
       name: "setup",
       component: () => import("@/views/SelectProfileView.vue"),
-      meta: { requiresSession: false },
+      meta: { requiresSession: false, requiresSignIn: false },
     },
     /**
      * The till, with no bill in hand yet (D-055).

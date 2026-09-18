@@ -258,6 +258,35 @@ class TestTheTillIsToldBeforeTheMoney(PaymentTestBase):
 
 		self.assertTrue(api.get_payment_summary(order.name)["blocker"])
 
+	def test_a_dish_kept_in_stock_with_none_in_the_warehouse_is_said_first(self):
+		"""D-232 — ERPNext refuses it at Confirm, after the money is counted.
+
+		The user met it on a coffee: *1.0 units are required in Finished Goods to
+		complete this transaction*, on the tap that should have printed a receipt.
+		"""
+		order = self._payable_order()
+		frappe.db.set_value("Item", ITEM, "is_stock_item", 1)
+		self.addCleanup(frappe.db.set_value, "Item", ITEM, "is_stock_item", 0)
+		frappe.clear_document_cache("Item", ITEM)
+		self.addCleanup(frappe.clear_document_cache, "Item", ITEM)
+
+		blocker = api.get_payment_summary(order.name)["blocker"]
+
+		name = frappe.db.get_value("Item", ITEM, "item_name") or ITEM
+		self.assertTrue(blocker, "the screen must say it before any tender")
+		self.assertIn(name, blocker, "the dish is named, so the manager knows which one")
+		self.assertIn(
+			frappe.db.get_value("POS Profile", self.profile, "warehouse"),
+			blocker,
+			"and the warehouse it is missing from",
+		)
+
+	def test_a_dish_that_is_not_stock_blocks_nothing(self):
+		"""A prepared dish is not stock: the kitchen consumes beans, not cups."""
+		order = self._payable_order()
+
+		self.assertIsNone(api.get_payment_summary(order.name)["blocker"])
+
 	def test_a_terminal_that_is_set_up_blocks_nothing(self):
 		order = self._payable_order()
 		self.assertIsNone(api.get_payment_summary(order.name)["blocker"])

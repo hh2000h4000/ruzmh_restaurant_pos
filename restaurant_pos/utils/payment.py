@@ -307,6 +307,62 @@ def invoice_blocker(order) -> str | None:
 	if not (order.customer or profile.customer):
 		return _("Set a default customer on POS Profile {0} before taking payment.").format(order.pos_profile)
 
+	return _stock_that_is_not_there(order, profile)
+
+
+def _stock_that_is_not_there(order, profile) -> str | None:
+	"""A dish ERPNext keeps stock for, with none in the warehouse (`D-232`).
+
+	The invoice moves stock (`04` §6), so a line whose item is stock-tracked and
+	whose warehouse holds nothing stops the sale — in ERPNext's own words, in
+	the middle of Confirm, with the money already counted out. The user met it
+	on a coffee: *1.0 units of Turkish Coffee are required in Finished Goods to
+	complete this transaction.*
+
+	**Almost always the item is the mistake, not the stock.** A prepared dish is
+	not stock: what the kitchen consumes is coffee beans and milk, and a
+	restaurant tracks those, not the cup. So the answer this names is the one
+	the manager wants — clear *Maintain Stock* on the item — and it is said when
+	the payment screen opens rather than after the tender (`D-125`).
+
+	Skipped entirely where ERPNext is set to allow negative stock: the sale goes
+	through there, and a warning about a stock level nobody is enforcing is
+	noise.
+	"""
+	if frappe.db.get_single_value("Stock Settings", "allow_negative_stock"):
+		return None
+
+	wanted: dict[str, float] = {}
+	for row in order.items or []:
+		if row.status != "void":
+			wanted[row.item] = wanted.get(row.item, 0.0) + flt(row.qty)
+	if not wanted:
+		return None
+
+	tracked = frappe.get_all(
+		"Item",
+		filters={"name": ("in", list(wanted)), "is_stock_item": 1},
+		fields=["name", "item_name"],
+	)
+	if not tracked:
+		return None
+
+	warehouse = profile.warehouse
+	on_hand = {
+		row.item_code: flt(row.actual_qty)
+		for row in frappe.get_all(
+			"Bin",
+			filters={"item_code": ("in", [row.name for row in tracked]), "warehouse": warehouse},
+			fields=["item_code", "actual_qty"],
+		)
+	}
+
+	for row in tracked:
+		if on_hand.get(row.name, 0.0) < wanted[row.name]:
+			return _(
+				"{0} is kept in stock and {1} has none. Clear Maintain Stock on the item, or receive stock for it."
+			).format(row.item_name or row.name, warehouse)
+
 	return None
 
 

@@ -622,3 +622,4 @@ Drawer,الدرج,Restaurant Order
 The drawer this bill was settled into. Written at payment so a report reads it rather than reconstructing it from times (D-227).,الدرج اللي انحاسبت فيه الفاتورة. ينكتب وقت الدفع عشان التقارير تقراه جاهز.
 Every sale on this terminal is invoiced to this customer unless the cashier names another. Payment is refused while it is empty.,كل بيع على هذا الجهاز ينسجل على هذا العميل إلا إذا اختار الكاشير عميل ثاني. وبدونه الدفع ما يشتغل.
 "{0} is kept in stock and {1} has none. Enter its stock, or tick Allow Negative Stock on the item.","الصنف «{0}» ما له كمية في المستودع {1}. أدخل كميته، أو علّم على «السماح بالمخزون السالب» في بطاقة الصنف عشان البيع ما يتوقف."
+{0} has no valuation rate. Enter the cost of one unit on the item.,الصنف «{0}» ما له تكلفة. اكتب «معدل التقييم» (تكلفة الوحدة) في بطاقة الصنف.

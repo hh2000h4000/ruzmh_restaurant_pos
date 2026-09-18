@@ -295,15 +295,38 @@ class TestTheTillIsToldBeforeTheMoney(PaymentTestBase):
 		until the delivery is entered.
 		"""
 		order = self._payable_order()
-		frappe.db.set_value("Item", ITEM, "allow_negative_stock", 1)
-		self.addCleanup(frappe.db.set_value, "Item", ITEM, "allow_negative_stock", 0)
+		self._sells_below_zero(ITEM)
+		frappe.db.set_value("Item", ITEM, "valuation_rate", 7.5)
+		self.addCleanup(frappe.db.set_value, "Item", ITEM, "valuation_rate", 0)
+		self._tracked(ITEM)
+
+		self.assertIsNone(api.get_payment_summary(order.name)["blocker"])
+
+	def test_an_item_that_may_go_negative_still_needs_a_cost(self):
+		"""D-234 — ERPNext posts the cost of goods sold from a valuation rate.
+
+		Without one it refuses the invoice inside Confirm, in a paragraph about
+		accounting entries, after the money is counted. The restaurant knows the
+		figure — it bought the coffee — so it is asked for on the screen instead.
+		"""
+		order = self._payable_order()
+		self._sells_below_zero(ITEM)
+		self._tracked(ITEM)
+
+		blocker = api.get_payment_summary(order.name)["blocker"]
+
+		name = frappe.db.get_value("Item", ITEM, "item_name") or ITEM
+		self.assertTrue(blocker)
+		self.assertIn(name, blocker)
+
+	def _sells_below_zero(self, item: str) -> None:
+		"""ERPNext's own per-item switch (`D-233`)."""
+		frappe.db.set_value("Item", item, "allow_negative_stock", 1)
+		self.addCleanup(frappe.db.set_value, "Item", item, "allow_negative_stock", 0)
 		# `is_negative_stock_allowed` reads it with `cache=True`, which is held on
 		# the connection for the life of the request — a test process is one.
 		frappe.db.value_cache.clear()
 		self.addCleanup(frappe.db.value_cache.clear)
-		self._tracked(ITEM)
-
-		self.assertIsNone(api.get_payment_summary(order.name)["blocker"])
 
 	def _tracked(self, item: str) -> None:
 		"""An item ERPNext keeps a balance for, with nothing in the warehouse."""

@@ -347,26 +347,42 @@ def _stock_that_is_not_there(order, profile) -> str | None:
 		return None
 
 	warehouse = profile.warehouse
-	on_hand = {
-		row.item_code: flt(row.actual_qty)
+	bins = {
+		row.item_code: row
 		for row in frappe.get_all(
 			"Bin",
 			filters={"item_code": ("in", [row.name for row in tracked]), "warehouse": warehouse},
-			fields=["item_code", "actual_qty"],
+			fields=["item_code", "actual_qty", "valuation_rate"],
 		)
 	}
 
 	for row in tracked:
-		if on_hand.get(row.name, 0.0) >= wanted[row.name]:
-			continue
-		if is_negative_stock_allowed(item_code=row.name):
+		held = bins.get(row.name)
+		name = row.item_name or row.name
+
+		if flt(held.actual_qty if held else 0) >= wanted[row.name]:
 			continue
 
-		return _(
-			"{0} is kept in stock and {1} has none. Enter its stock, or tick Allow Negative Stock on the item."
-		).format(row.item_name or row.name, warehouse)
+		if not is_negative_stock_allowed(item_code=row.name):
+			return _(
+				"{0} is kept in stock and {1} has none. Enter its stock, or tick Allow Negative Stock on the item."
+			).format(name, warehouse)
+
+		# **Selling below zero still has to be costed** (`D-234`). ERPNext posts
+		# the cost of goods sold from a valuation rate, and a stock item that has
+		# never been received has none — so it refuses the invoice inside Confirm,
+		# in a paragraph about accounting entries, with the money already taken.
+		# The rate it wants is the item's own cost, which a restaurant knows: it
+		# bought the coffee. Asked for here, by name, before any tender.
+		if not (flt(held.valuation_rate if held else 0) or flt(_valuation_rate(row.name))):
+			return _("{0} has no valuation rate. Enter the cost of one unit on the item.").format(name)
 
 	return None
+
+
+def _valuation_rate(item: str) -> float:
+	"""The cost per unit the item master carries, if anybody has set one."""
+	return flt(frappe.db.get_value("Item", item, "valuation_rate"))
 
 
 def is_credit_method(method: str) -> bool:

@@ -265,10 +265,7 @@ class TestTheTillIsToldBeforeTheMoney(PaymentTestBase):
 		complete this transaction*, on the tap that should have printed a receipt.
 		"""
 		order = self._payable_order()
-		frappe.db.set_value("Item", ITEM, "is_stock_item", 1)
-		self.addCleanup(frappe.db.set_value, "Item", ITEM, "is_stock_item", 0)
-		frappe.clear_document_cache("Item", ITEM)
-		self.addCleanup(frappe.clear_document_cache, "Item", ITEM)
+		self._tracked(ITEM)
 
 		blocker = api.get_payment_summary(order.name)["blocker"]
 
@@ -286,6 +283,34 @@ class TestTheTillIsToldBeforeTheMoney(PaymentTestBase):
 		order = self._payable_order()
 
 		self.assertIsNone(api.get_payment_summary(order.name)["blocker"])
+
+	def test_an_item_marked_allow_negative_stock_sells_anyway(self):
+		"""D-233 — ERPNext's own per-item switch, and the user's real problem.
+
+		A restaurant sells faster than anybody can enter deliveries. The stock is
+		on the shelf and not yet in the books, and a till that refuses the sale
+		loses the customer, not the count. ERPNext answers this on the item —
+		`Item.allow_negative_stock`, which its own POS honours — so the item keeps
+		its cost, its purchases and its movements, and the balance goes negative
+		until the delivery is entered.
+		"""
+		order = self._payable_order()
+		frappe.db.set_value("Item", ITEM, "allow_negative_stock", 1)
+		self.addCleanup(frappe.db.set_value, "Item", ITEM, "allow_negative_stock", 0)
+		# `is_negative_stock_allowed` reads it with `cache=True`, which is held on
+		# the connection for the life of the request — a test process is one.
+		frappe.db.value_cache.clear()
+		self.addCleanup(frappe.db.value_cache.clear)
+		self._tracked(ITEM)
+
+		self.assertIsNone(api.get_payment_summary(order.name)["blocker"])
+
+	def _tracked(self, item: str) -> None:
+		"""An item ERPNext keeps a balance for, with nothing in the warehouse."""
+		frappe.db.set_value("Item", item, "is_stock_item", 1)
+		self.addCleanup(frappe.db.set_value, "Item", item, "is_stock_item", 0)
+		frappe.clear_document_cache("Item", item)
+		self.addCleanup(frappe.clear_document_cache, "Item", item)
 
 	def test_a_terminal_that_is_set_up_blocks_nothing(self):
 		order = self._payable_order()

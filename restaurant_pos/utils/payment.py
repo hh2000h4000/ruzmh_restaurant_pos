@@ -311,7 +311,7 @@ def invoice_blocker(order) -> str | None:
 
 
 def _stock_that_is_not_there(order, profile) -> str | None:
-	"""A dish ERPNext keeps stock for, with none in the warehouse (`D-232`).
+	"""A dish ERPNext keeps stock for, with none in the warehouse (`D-232`, `D-233`).
 
 	The invoice moves stock (`04` §6), so a line whose item is stock-tracked and
 	whose warehouse holds nothing stops the sale — in ERPNext's own words, in
@@ -319,18 +319,17 @@ def _stock_that_is_not_there(order, profile) -> str | None:
 	on a coffee: *1.0 units of Turkish Coffee are required in Finished Goods to
 	complete this transaction.*
 
-	**Almost always the item is the mistake, not the stock.** A prepared dish is
-	not stock: what the kitchen consumes is coffee beans and milk, and a
-	restaurant tracks those, not the cup. So the answer this names is the one
-	the manager wants — clear *Maintain Stock* on the item — and it is said when
-	the payment screen opens rather than after the tender (`D-125`).
+	**The rule is ERPNext's own**, not a second opinion of ours:
+	`is_negative_stock_allowed` is what its POS asks before refusing a row, and
+	it answers yes for an item marked *Allow Negative Stock* and for a site that
+	allows it everywhere. A restaurant selling faster than it can enter
+	deliveries marks the item, keeps its cost and its purchases, and is never
+	stopped in front of a queue (`D-233`).
 
-	Skipped entirely where ERPNext is set to allow negative stock: the sale goes
-	through there, and a warning about a stock level nobody is enforcing is
-	noise.
+	What we add is **when** it is said: on the payment screen as it opens rather
+	than inside Confirm (`D-125`).
 	"""
-	if frappe.db.get_single_value("Stock Settings", "allow_negative_stock"):
-		return None
+	from erpnext.stock.stock_ledger import is_negative_stock_allowed
 
 	wanted: dict[str, float] = {}
 	for row in order.items or []:
@@ -358,10 +357,14 @@ def _stock_that_is_not_there(order, profile) -> str | None:
 	}
 
 	for row in tracked:
-		if on_hand.get(row.name, 0.0) < wanted[row.name]:
-			return _(
-				"{0} is kept in stock and {1} has none. Clear Maintain Stock on the item, or receive stock for it."
-			).format(row.item_name or row.name, warehouse)
+		if on_hand.get(row.name, 0.0) >= wanted[row.name]:
+			continue
+		if is_negative_stock_allowed(item_code=row.name):
+			continue
+
+		return _(
+			"{0} is kept in stock and {1} has none. Enter its stock, or tick Allow Negative Stock on the item."
+		).format(row.item_name or row.name, warehouse)
 
 	return None
 
@@ -605,7 +608,9 @@ def _create_sales_invoice(order, payments, settlement: str = "till"):
 			"posting_date": now_datetime().date(),
 			"posting_time": now_datetime().time(),
 			# 04 §6 — stock leaves through the Sales Invoice. ERPNext skips
-			# non-stock items, so a menu of prepared dishes is unaffected.
+			# non-stock items, so a menu of prepared dishes is unaffected, and an
+			# item the restaurant sells faster than it can enter deliveries is
+			# marked **Allow Negative Stock** on the item itself (`D-233`).
 			"update_stock": 1,
 			"set_warehouse": profile.warehouse,
 			"taxes_and_charges": profile.taxes_and_charges,

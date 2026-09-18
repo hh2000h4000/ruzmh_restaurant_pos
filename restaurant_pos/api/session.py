@@ -45,7 +45,7 @@ DEFAULT_BANNER_SECONDS = 8
 #: fallback, and lives there beside the resolution that reaches for it.
 
 
-@frappe.whitelist(methods=["POST"])
+@frappe.whitelist(allow_guest=True, methods=["POST"])
 def pair_device(code: str, device_name: str | None = None) -> dict:
 	"""Bind this machine to the terminal the code names (`D-226`).
 
@@ -53,13 +53,25 @@ def pair_device(code: str, device_name: str | None = None) -> dict:
 	one tap away from a till in Dammam selling on the Riyadh branch (`D-035`),
 	and nothing in it stopped two machines from taking the same terminal.
 
+	**`allow_guest`, exactly as the print agent pairs** (`D-212`). A machine
+	being set up has nobody signed in on it, and cannot have: the PIN pad belongs
+	to a terminal, so the terminal has to be known before anybody can sign in.
+	Requiring a session here refused the cashier with *Login to access* at the
+	one screen where logging in is not yet possible — which is what happened on
+	the user's own till.
+
+	**The code is the authorisation**, and it is a narrow one: eight digits
+	issued by a manager on the profile, alive for ten minutes, spent on first
+	use, and guessing held to the PIN pad's per-device lockout (`D-204`). What it
+	buys is a token for *that* terminal and nothing else — no session, no
+	permissions, and no sale until a cashier signs in with their own PIN.
+
 	**POST, and pinned to it.** Frappe discards everything a GET writes, so the
 	first cashier to pair got a token back, a terminal that had never been
 	paired, and a refusal one line later. The code has no business in a URL
 	either, where the web server's log and the browser's history outlive the ten
 	minutes it is worth (the same reason the manager PIN travels in a body).
 	"""
-	assert_pos_user()
 	return device.pair(code, device_name=device_name)
 
 

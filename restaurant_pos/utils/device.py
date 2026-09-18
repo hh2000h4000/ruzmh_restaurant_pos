@@ -93,9 +93,10 @@ def machine_name() -> str:
 def pair(code: str, device_name: str | None = None) -> dict:
 	"""Spend a code and hand this machine the terminal it names.
 
-	Signed in as the cashier who is setting the till up — unlike the print
-	agent's pairing, which has nobody to sign in as. The code is still held to
-	the PIN pad's lockout, because a code is a code (`D-204`).
+	Reached by a machine with nobody signed in on it, like the print agent's
+	pairing (`D-212`): the till has to know which terminal it is before it can
+	draw a PIN pad. The code is the authorisation, and guessing it is held to the
+	PIN pad's own per-device lockout (`D-204`).
 
 	**A paired profile is re-paired, not refused.** The manager issued a code
 	for this terminal knowing it had a device; that is how a broken till is
@@ -130,7 +131,9 @@ def pair(code: str, device_name: str | None = None) -> dict:
 			"rpos_device_token_hash": pairing.digest(token),
 			"rpos_device_name": (device_name or "").strip()[:140] or machine_name(),
 			"rpos_paired_at": now_datetime(),
-			"rpos_paired_by": frappe.session.user,
+			# Guest when the machine pairs before anybody has signed in on it,
+			# which is the ordinary case; the audit entry carries the machine.
+			"rpos_paired_by": None if frappe.session.user == "Guest" else frappe.session.user,
 		},
 		update_modified=False,
 	)

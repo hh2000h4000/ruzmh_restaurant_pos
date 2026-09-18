@@ -72,6 +72,34 @@ class TestPairing(DeviceTestBase):
 		self.assertEqual(held, pairing.digest(pairing.digits_of(code)))
 
 
+class TestNobodyIsSignedInYet(DeviceTestBase):
+	"""The machine pairs before the first cashier does (`D-226`).
+
+	The PIN pad belongs to a terminal, so the terminal has to be known before
+	anybody can sign in — which made "you must be signed in" a refusal at the one
+	screen where signing in is not yet possible. The user met it on their own
+	till, as *Login to access*.
+	"""
+
+	def test_a_till_with_nobody_on_it_can_still_pair(self):
+		code = self._code()
+		frappe.set_user("Guest")
+		self.addCleanup(frappe.set_user, "Administrator")
+
+		paired = session.pair_device(code)
+
+		frappe.set_user("Administrator")
+		self.assertTrue(session.load_pos_session(self.profile, device_token=paired["device_token"]))
+
+	def test_a_guest_still_cannot_guess_a_code(self):
+		self._free_it()
+		frappe.set_user("Guest")
+		self.addCleanup(frappe.set_user, "Administrator")
+
+		with self.assertRaises(frappe.AuthenticationError):
+			session.pair_device("0000-0000")
+
+
 class TestItIsAWrite(DeviceTestBase):
 	"""**Frappe discards everything a GET writes.**
 

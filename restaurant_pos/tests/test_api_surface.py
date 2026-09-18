@@ -72,7 +72,10 @@ UNSCOPED = {
 	"api.auth.clock_out": "the caller's own attendance",
 	"api.session.csrf_token": "issues a token for the caller's own session",
 	"api.session.ping": "answers whether the server is reachable",
-	"api.session.pair_device": "a pairing code is the authorisation; the cashier must still be a till user",
+	"api.session.pair_device": (
+		"a one-time code from a manager is the authorisation, and it names the terminal itself; "
+		"guesses are locked out per device like the PIN pad (D-204, D-226)"
+	),
 	# `customer.*` and `session.get_modifier_groups` stood here as "not
 	# branch-scoped" — true, and it left every customer's phone number readable
 	# by any signed-in account. They name no branch, so they call
@@ -102,10 +105,15 @@ UNSCOPED = {
 }
 
 #: The only endpoints a signed-out caller may use. **Each one is a conversation**:
-#: the PIN pad, because a locked till has nobody signed in, and pairing, because a
-#: print agent being installed has no key yet (`D-212`).
+#: the PIN pad, because a locked till has nobody signed in; the print agent's
+#: pairing, because a machine being installed has no key yet (`D-212`); and the
+#: till's own pairing, because the PIN pad belongs to a terminal, so the terminal
+#: must be known before anybody can sign in at all (`D-226`). All three are
+#: authorised by something the caller has to have been given — a PIN or a
+#: one-time code — and all three are locked out per device on repeated failures.
 GUEST_ENDPOINTS = {
 	"api.auth.sign_in",
+	"api.session.pair_device",
 	"restaurant_pos.doctype.pos_print_agent.pos_print_agent.pair",
 }
 

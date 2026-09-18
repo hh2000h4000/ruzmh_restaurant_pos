@@ -111,6 +111,7 @@ export const messages = {
   "setup.code": "Pairing code",
   "setup.codeExample": "1234-5678",
   "setup.pair": "Pair this device",
+  "setup.storageAtRisk": "This browser may delete this till's data. Open the till from its own shortcut.",
 
   // Home
   "home.newOrder": "Open a new order",

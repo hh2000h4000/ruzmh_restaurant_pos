@@ -99,6 +99,7 @@ const messages: Catalogue["messages"] = {
   "setup.code": "رمز الربط",
   "setup.codeExample": "1234-5678",
   "setup.pair": "اربط هذا الجهاز",
+  "setup.storageAtRisk": "هذا المتصفح ممكن يحذف بيانات الكاشير. افتح الكاشير من الاختصار الخاص فيه.",
 
   // Home
   "home.newOrder": "افتح طلباً جديداً",

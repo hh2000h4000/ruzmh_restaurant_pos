@@ -31,6 +31,25 @@ const pin = ref("");
 const posProfile = computed(() => session.profile?.name ?? pairedDevice()?.posProfile ?? null);
 const build = __RPOS_BUILD__;
 
+/**
+ * Whether this browser has promised not to delete the till's data (`D-228`).
+ *
+ * The terminal's pairing, the cached menu and any sale still waiting in the
+ * queue all live in this browser's storage. A browser that has not granted
+ * durable storage may drop the lot when the disk fills, and the first anybody
+ * would know is a till asking for a pairing code mid-service. It is asked for
+ * at start-up (`offline/db.ts`); this is the only place the answer is visible
+ * without opening devtools, and it sits beside the build for the same reason.
+ */
+const storageSafe = ref<boolean | null>(null);
+onMounted(async () => {
+  try {
+    storageSafe.value = (await navigator.storage?.persisted?.()) ?? null;
+  } catch {
+    storageSafe.value = null;
+  }
+});
+
 /** Boxes drawn from the server's own length, so the two cannot disagree. */
 const boxes = computed(() => Array.from({ length: auth.pinLength }, (_, index) => index));
 
@@ -142,6 +161,12 @@ async function punch(): Promise<void> {
         -->
         <p class="rpos-numeric mt-2 text-xs text-muted/70">
           {{ build }}
+        </p>
+        <p
+          v-if="storageSafe === false"
+          class="mt-1 text-xs text-status-cleaning"
+        >
+          {{ t("setup.storageAtRisk") }}
         </p>
       </div>
 

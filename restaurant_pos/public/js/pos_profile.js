@@ -23,7 +23,7 @@ frappe.ui.form.on("POS Profile", {
 
 function pair_till(frm) {
 	frappe.call({
-		method: "restaurant_pos.restaurant_pos.api.session.issue_device_code",
+		method: "restaurant_pos.api.session.issue_device_code",
 		args: { pos_profile: frm.doc.name },
 		freeze: true,
 		callback: ({ message }) => {
@@ -72,7 +72,7 @@ function unpair_till(frm) {
 		]),
 		() => {
 			frappe.call({
-				method: "restaurant_pos.restaurant_pos.api.session.unpair_device",
+				method: "restaurant_pos.api.session.unpair_device",
 				args: { pos_profile: frm.doc.name },
 				freeze: true,
 				callback: () => frm.reload_doc(),

@@ -638,8 +638,43 @@ def grant_erpnext_permissions() -> None:
 				update_permission_property(doctype, role, 0, "read", 0)
 
 
+#: ERPNext's own fields that a till cannot work without, made required on the
+#: form rather than refused at the payment screen (`D-231`).
+#:
+#: A `POS Profile` with no default customer looks complete, saves without a
+#: word, and then refuses every sale: ERPNext needs a customer on the invoice,
+#: so `invoice_blocker` reports it and the payment screen shows it in red. The
+#: user met exactly that. The form is where the manager is standing when the
+#: field is empty, so the form is where it is asked for.
+REQUIRED_ERPNEXT_FIELDS = {
+	("POS Profile", "customer"): (
+		"Every sale on this terminal is invoiced to this customer unless the cashier "
+		"names another. Payment is refused while it is empty."
+	),
+}
+
+
+def require_erpnext_fields() -> None:
+	"""Mark those fields required, and say why on the field itself.
+
+	A Property Setter, not an edit to ERPNext's own DocType (`CLAUDE.md` §3):
+	an upgrade replaces the DocType and leaves this standing.
+	"""
+	from frappe.custom.doctype.property_setter.property_setter import make_property_setter
+
+	for (doctype, fieldname), description in REQUIRED_ERPNEXT_FIELDS.items():
+		if not frappe.db.exists("DocType", doctype):
+			continue
+
+		make_property_setter(doctype, fieldname, "reqd", 1, "Check", validate_fields_for_doctype=False)
+		make_property_setter(
+			doctype, fieldname, "description", description, "Text", validate_fields_for_doctype=False
+		)
+
+
 def after_install():
 	create_custom_fields(CUSTOM_FIELDS, ignore_validate=True)
+	require_erpnext_fields()
 	grant_erpnext_permissions()
 	create_default_templates()
 	frappe.db.commit()
@@ -651,6 +686,7 @@ def after_install():
 
 def after_migrate():
 	create_custom_fields(CUSTOM_FIELDS, ignore_validate=True)
+	require_erpnext_fields()
 	grant_erpnext_permissions()
 
 	# Unlike the defaults above, templates are re-checked on every migrate: they

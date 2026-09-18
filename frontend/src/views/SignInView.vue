@@ -4,6 +4,7 @@ import { useRouter } from "vue-router";
 
 import DigitPad from "@/components/DigitPad.vue";
 import LocaleToggle from "@/components/LocaleToggle.vue";
+import { pairedDevice } from "@/device";
 import { sinceWhen, t } from "@/i18n";
 import { useAuthStore } from "@/stores/auth";
 import { useSessionStore } from "@/stores/session";
@@ -23,7 +24,11 @@ const auth = useAuthStore();
 const session = useSessionStore();
 
 const pin = ref("");
-const posProfile = computed(() => session.profile?.name ?? null);
+// The terminal this PIN is being typed on. The session names it once it is
+// loaded; before that — a till paired a moment ago, with nobody signed in yet —
+// the pairing on this machine is the only thing that knows (`D-226`), and the
+// sign-in trail is worth scoping even then.
+const posProfile = computed(() => session.profile?.name ?? pairedDevice()?.posProfile ?? null);
 const build = __RPOS_BUILD__;
 
 /** Boxes drawn from the server's own length, so the two cannot disagree. */

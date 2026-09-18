@@ -2,6 +2,7 @@
 import { onMounted, onUnmounted, watch } from "vue";
 import { useRouter } from "vue-router";
 
+import { pairedDevice } from "@/device";
 import { t, tn } from "@/i18n";
 import { useAuthStore } from "@/stores/auth";
 import { useConnectionStore } from "@/stores/connection";
@@ -34,7 +35,20 @@ watch(
     if (state !== "unauthenticated") return;
 
     useAuthStore().forget();
-    if (router.currentRoute.value.name !== "sign-in") void router.push({ name: "sign-in" });
+
+    // **Unless this machine has never been paired** (`D-226`). A till being
+    // installed is unauthenticated by definition — nobody can sign in on it yet,
+    // because the PIN pad belongs to a terminal it does not know. This watcher
+    // pushed it to the pad anyway, over the pairing screen, on every probe: the
+    // guard sent it to pairing and the watcher took it straight back, so the
+    // code box could not be reached at all.
+    const at = router.currentRoute.value.name;
+    if (!pairedDevice()) {
+      if (at !== "setup") void router.push({ name: "setup" });
+      return;
+    }
+
+    if (at !== "sign-in") void router.push({ name: "sign-in" });
   },
 );
 

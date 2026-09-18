@@ -71,12 +71,21 @@ async function start(posProfile: string, token: string): Promise<void> {
     await session.load(posProfile, token);
     await router.push(nextScreen());
   } catch (cause) {
-    message.value = explain(cause);
+    // **Paired, but nobody has signed in yet** — the ordinary state of a till
+    // that has just been set up. The terminal payload belongs to a person: it
+    // carries their permissions. So the next screen is the PIN pad, not an
+    // error about a pairing that is perfectly good (`D-226`).
+    if (cause instanceof ApiError && cause.isPermissionDenied) {
+      await router.push({ name: "sign-in" });
+      return;
+    }
 
-    // The pairing no longer works — a manager freed the terminal, or gave it to
-    // another machine. Forget it so this screen can ask for a new code, rather
-    // than retrying a token the server has stopped accepting.
-    if (cause instanceof ApiError && cause.isPermissionDenied) forgetDevice();
+    // The pairing itself no longer works — a manager freed the terminal, or
+    // gave it to another machine, and the server refuses this token by name.
+    // Forget it so this screen can ask for a new code.
+    if (cause instanceof ApiError && cause.status === 401) forgetDevice();
+
+    message.value = explain(cause);
   } finally {
     busy.value = false;
   }

@@ -31,10 +31,20 @@ describe("a till nobody has paired yet", () => {
   });
 
   it("is asked for a pairing code, not for a PIN", async () => {
-    await router.push({ name: "setup" });
+    // The till, as a cashier finds it: the app opens on the floor, and the
+    // guard decides what it is allowed to show.
+    await router.push({ name: "home" });
     await router.isReady();
 
     expect(router.currentRoute.value.name).toBe("setup");
+  });
+
+  it("is still asked for one when it lands deeper in the app", async () => {
+    await router.push("/order/RO-2026-09-00001");
+    await router.isReady();
+
+    expect(router.currentRoute.value.name).toBe("setup");
+    expect(router.currentRoute.value.query.next).toBe("/order/RO-2026-09-00001");
   });
 
   it("still asks for a PIN once it knows which terminal it is", async () => {

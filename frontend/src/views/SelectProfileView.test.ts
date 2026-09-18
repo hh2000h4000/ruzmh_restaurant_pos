@@ -74,16 +74,32 @@ describe("pairing this machine", () => {
     expect(view.find('[role="alert"]').text()).toBe("Not permitted");
   });
 
-  it("forgets a pairing the server has stopped accepting", async () => {
+  it("forgets a pairing the server refuses by name", async () => {
     localStorage.setItem("rpos.pos_profile", "T1");
     localStorage.setItem("rpos.device_token", "stale");
     const session = useSessionStore();
-    vi.spyOn(session, "load").mockRejectedValue(new ApiError("paired elsewhere", 403));
+    // 401: the terminal is paired with another machine, or with none.
+    vi.spyOn(session, "load").mockRejectedValue(new ApiError("paired elsewhere", 401));
 
     const view = screen();
     await flushPromises();
 
     expect(pairedDevice()).toBeNull();
     expect(view.find("form").exists()).toBe(true);
+  });
+
+  it("sends a paired till to the PIN pad when nobody is signed in", async () => {
+    // The ordinary state right after pairing: the machine is known, the person
+    // is not. The terminal payload carries permissions, so it needs a person.
+    localStorage.setItem("rpos.pos_profile", "T1");
+    localStorage.setItem("rpos.device_token", "good");
+    const session = useSessionStore();
+    vi.spyOn(session, "load").mockRejectedValue(new ApiError("Login to access", 403, "PermissionError"));
+
+    screen();
+    await flushPromises();
+
+    expect(push).toHaveBeenCalledWith({ name: "sign-in" });
+    expect(pairedDevice()).toEqual({ posProfile: "T1", token: "good" });
   });
 });

@@ -133,6 +133,22 @@ router.onError((error, to) => {
 router.afterEach(arrived);
 
 router.beforeEach(async (to) => {
+  // **Which till, before who** (`D-226`). The PIN pad is scoped to a terminal —
+  // it names the branch and the people who may work there — so a machine that
+  // has not been paired cannot ask anybody to sign in.
+  //
+  // This used to run the other way round, and a freshly installed till went
+  // straight to the PIN pad: the one screen it had no way to answer, on a
+  // machine whose whole problem was that it did not know what it was. Pairing
+  // is now the first screen, as it is on every POS that pairs devices.
+  //
+  // It remembers where it was going, so a refresh or the reload after an update
+  // comes back to that screen rather than home (`D-221`).
+  const session = useSessionStore();
+  if (to.meta.requiresSession !== false && !session.isLoaded) {
+    return to.name === "home" ? { name: "setup" } : { name: "setup", query: { next: to.fullPath } };
+  }
+
   // Who before what (`D-094`). Every other screen assumes a person: the audit
   // log records one, the permission set belongs to one, and a drawer is
   // somebody's. Probed once rather than assumed, because "not asked yet" and
@@ -140,7 +156,7 @@ router.beforeEach(async (to) => {
   // sign-in screen.
   const auth = useAuthStore();
   if (to.meta.requiresSignIn !== false) {
-    if (!auth.known) await auth.probe(useSessionStore().profile?.name ?? null);
+    if (!auth.known) await auth.probe(session.profile?.name ?? null);
     if (!auth.signedIn) return { name: "sign-in" };
   }
 
@@ -159,15 +175,7 @@ router.beforeEach(async (to) => {
     return { name: "sign-in" };
   }
 
-  if (to.meta.requiresSession === false) return true;
-
-  // Every screen but setup needs the terminal configuration; without it there
-  // is no branch, no menu and no permissions to render against.
-  const session = useSessionStore();
-  // It remembers where it was going, so a refresh or the reload after an update
-  // comes back to that screen rather than home (`D-221`).
-  if (session.isLoaded) return true;
-  return to.name === "home" ? { name: "setup" } : { name: "setup", query: { next: to.fullPath } };
+  return true;
 });
 
 export default router;

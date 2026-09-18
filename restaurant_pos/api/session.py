@@ -529,13 +529,21 @@ def _catalog(profile, order_types: list[dict]) -> tuple[list[dict], list[dict]]:
 		# None, not 0: an item with no price cannot be sold, and the UI must be
 		# able to tell that apart from a deliberately free item (D-020).
 		row.rate = prices.get(row.item_code)
-		# Only the lists that differ from the terminal's; the common case adds
-		# nothing to the payload.
-		row.rates = {
-			name: rates[row.item_code]
-			for name, rates in by_list.items()
-			if name != profile.selling_price_list and row.item_code in rates
-		}
+		# **Every list, including the terminal's own** (`D-229`).
+		#
+		# This used to skip the terminal's list, on the reasoning that `rate`
+		# already carries it and the common case should add nothing to the
+		# payload. But the till reads `rates[list]` whenever the order type names
+		# one — and an order type that names *the terminal's own list*, which is
+		# the ordinary way to say "sell these at the usual prices", then found
+		# nothing there. Every tile read "no price" and could not be tapped,
+		# while the bill above them priced correctly, because the server resolves
+		# this properly. The user met it mid-service, and closing the app
+		# "fixed" it only until an order type was chosen again.
+		#
+		# One number per item per list is nothing next to a menu; a rule the
+		# screen has to remember is not (`CLAUDE.md` §5.5).
+		row.rates = {name: rates[row.item_code] for name, rates in by_list.items() if row.item_code in rates}
 		row.modifier_groups = modifiers.get(row.item_code, [])
 		row.display_name = row.pos_display_name_ar or row.item_name
 		row.image = row.image or picture

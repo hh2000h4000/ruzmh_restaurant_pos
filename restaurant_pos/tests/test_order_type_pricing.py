@@ -80,6 +80,29 @@ class TestOrderTypePricing(OrderTestBase):
 		self.assertEqual(row["rate"], 25, "the terminal's own price stays on `rate`")
 		self.assertEqual(row["rates"][DELIVERY_LIST], DELIVERY_RATE)
 
+	def test_a_type_selling_at_the_terminal_s_own_prices_still_has_them(self):
+		"""**The user's menu going blank mid-service** (`D-229`).
+
+		An order type that names the terminal's own price list is the ordinary
+		way to say "sell these at the usual prices". The payload used to leave
+		that list out of `rates` — `rate` already carried it — and the till,
+		which reads `rates[list]` whenever the order type names one, found
+		nothing: every tile said "no price" and refused to be tapped, while the
+		bill above them priced correctly.
+		"""
+		terminal_list = frappe.db.get_value("POS Profile", self.profile, "selling_price_list")
+		frappe.db.set_value("Restaurant Order Type", self.dine_in, "selling_price_list", terminal_list)
+		self.addCleanup(
+			frappe.db.set_value, "Restaurant Order Type", self.dine_in, "selling_price_list", None
+		)
+		frappe.clear_document_cache("Restaurant Order Type", self.dine_in)
+		self.addCleanup(frappe.clear_document_cache, "Restaurant Order Type", self.dine_in)
+
+		payload = session.load_pos_session(self.profile, device_token=test_fixtures.DEVICE_TOKEN)
+		row = next(entry for entry in payload["items"] if entry["item_code"] == ITEM)
+
+		self.assertEqual(row["rates"][terminal_list], 25)
+
 	def test_the_order_type_reports_its_list_to_the_app(self):
 		payload = session.load_pos_session(self.profile, device_token=test_fixtures.DEVICE_TOKEN)
 		row = next(entry for entry in payload["order_types"] if entry["name"] == self.order_type)

@@ -46,7 +46,7 @@
    "in_list_view": 1,
    "in_standard_filter": 1,
    "label": "Action Type",
-   "options": "void_item\nvoid_order\ncancel_order\ndiscount_applied\ndiscount_override\npromotion_applied\nprice_change\nmanager_override\npayment_method_override\nreturn_created\norder_reopened\nreprint_receipt\nshift_opened\nshift_closed\norder_type_changed\ntable_changed\nclock_in\nclock_out\npin_sign_in_failed\nbill_split\nbill_merged\ntables_merged\nloyalty_redeemed\npermission_changed\nrole_changed",
+   "options": "void_item\nvoid_order\ncancel_order\ndiscount_applied\ndiscount_override\npromotion_applied\nprice_change\nmanager_override\npayment_method_override\nreturn_created\norder_reopened\nreprint_receipt\nshift_opened\nshift_closed\norder_type_changed\ntable_changed\nclock_in\nclock_out\npin_sign_in_failed\nbill_split\nbill_merged\ntables_merged\nloyalty_redeemed\npermission_changed\nrole_changed\ndevice_paired\ndevice_unpaired",
    "reqd": 1
   },
   {
@@ -127,7 +127,7 @@
  "index_web_pages_for_search": 1,
  "istable": 0,
  "links": [],
- "modified": "2026-09-07 16:00:00.000000",
+ "modified": "2026-09-18 10:00:00.000000",
  "modified_by": "Administrator",
  "module": "Restaurant POS",
  "name": "POS Audit Log",

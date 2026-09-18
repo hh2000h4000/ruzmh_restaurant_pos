@@ -72,7 +72,7 @@ UNSCOPED = {
 	"api.auth.clock_out": "the caller's own attendance",
 	"api.session.csrf_token": "issues a token for the caller's own session",
 	"api.session.ping": "answers whether the server is reachable",
-	"api.session.list_pos_profiles": "lists only the terminals the caller may use; the filter is the check",
+	"api.session.pair_device": "a pairing code is the authorisation; the cashier must still be a till user",
 	# `customer.*` and `session.get_modifier_groups` stood here as "not
 	# branch-scoped" — true, and it left every customer's phone number readable
 	# by any signed-in account. They name no branch, so they call
@@ -83,6 +83,12 @@ UNSCOPED = {
 	"api.printing.report": "authenticated by the agent's api key; scoped to that agent's own jobs",
 	# Desk-only, on the DocType itself, behind ERPNext's own document
 	# permissions rather than the POS permission set.
+	"api.session.issue_device_code": (
+		"desk action on the POS Profile, behind ERPNext document permissions (D-226)"
+	),
+	"api.session.unpair_device": (
+		"desk action on the POS Profile, behind ERPNext document permissions (D-226)"
+	),
 	"restaurant_pos.doctype.pos_print_agent.pos_print_agent.generate_keys": (
 		"desk action on the DocType, behind ERPNext document permissions"
 	),

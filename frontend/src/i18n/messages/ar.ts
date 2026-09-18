@@ -95,8 +95,12 @@ const messages: Catalogue["messages"] = {
   // Device setup
   "setup.signInFirst": "سجّل الدخول أولاً، ثم أعد المحاولة.",
   "setup.title": "تهيئة الجهاز",
-  "setup.hint": "اختر نقطة البيع الخاصة بهذا الجهاز. يُسأل مرة واحدة فقط.",
-  "setup.empty": "لا توجد نقطة بيع متاحة لحسابك. اطلب من المدير إضافتك إلى نقطة بيع.",
+  "setup.hint": "اكتب رمز الربط اللي طلعه لك المدير من ملف جهاز الكاشير. يُسأل مرة وحدة بس.",
+  "setup.code": "رمز الربط",
+  "setup.codeExample": "1234-5678",
+  "setup.deviceName": "اسم هذا الجهاز",
+  "setup.deviceNameExample": "كاشير الباب",
+  "setup.pair": "اربط هذا الجهاز",
 
   // Home
   "home.newOrder": "افتح طلباً جديداً",

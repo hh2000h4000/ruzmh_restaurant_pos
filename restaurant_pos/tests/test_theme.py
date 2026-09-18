@@ -16,6 +16,7 @@ Refs: FR-15.1..FR-15.6, D-014, D-198
 
 import frappe
 
+from restaurant_pos.setup import test_fixtures
 from restaurant_pos.tests.test_order import OrderTestBase
 from restaurant_pos.utils import theme as theme_service
 
@@ -72,7 +73,7 @@ class TestTheThemeATerminalRendersWith(OrderTestBase):
 	def _rendered(self) -> dict:
 		from restaurant_pos.api import session
 
-		return session.load_pos_session(self.profile)["theme"]
+		return session.load_pos_session(self.profile, device_token=test_fixtures.DEVICE_TOKEN)["theme"]
 
 	def test_the_terminals_own_theme_wins(self):
 		self._theme(HOUSE_DEFAULT, is_default=1)

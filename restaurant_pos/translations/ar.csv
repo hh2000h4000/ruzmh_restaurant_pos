@@ -601,3 +601,20 @@ Modifiers,الإضافات,KOT Item
 Notes,ملاحظات,KOT Item
 add,إضافة,KOT Item
 void,إلغاء,KOT Item
+Paired Device,الجهاز المرتبط,POS Profile
+Device,الجهاز,POS Profile
+Paired At,وقت الربط,POS Profile
+Paired By,ربطه,POS Profile
+The machine this terminal is paired with. Empty means it is free to pair.,الجهاز المرتبط بهذا الملف. إذا كانت فاضية فالملف متاح لأي جهاز.
+Pair a Till,ربط جهاز كاشير
+Unpair the Till,فك ارتباط الجهاز
+No till is paired with this terminal yet. Pair one before it can sell.,ما فيه جهاز مرتبط بهذا الملف. اربط جهاز قبل ما يبيع عليه.
+"On the till, open the cashier screen and enter:","على جهاز الكاشير، افتح شاشة الكاشير واكتب:"
+Using this code moves the terminal off {0}.,استخدام هذا الرمز ينقل الملف من {0} إلى الجهاز الجديد.
+{0} stops being able to sell on this terminal until it is paired again. Continue?,{0} ما راح يقدر يبيع على هذا الملف لين تربطه من جديد. تكمل؟
+The paired till,الجهاز المرتبط
+a till,جهاز كاشير
+This terminal is not paired with any device yet. Ask a manager for a pairing code.,هذا الملف ما هو مرتبط بأي جهاز. اطلب من المدير رمز ربط.
+{0} is paired with another device. Ask a manager for a pairing code.,{0} مرتبط بجهاز ثاني. اطلب من المدير رمز ربط.
+device_paired,ربط جهاز,POS Audit Log
+device_unpaired,فك ارتباط جهاز,POS Audit Log

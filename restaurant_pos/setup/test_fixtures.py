@@ -23,6 +23,10 @@ from frappe.utils import nowdate
 BRANCH = "Riyadh"
 SECTION_TITLE = "RPOS Test Hall"
 PROFILE = "RPOS Test Terminal"
+
+#: The suite's till is a paired device like any other (`D-226`): the session
+#: refuses a machine that holds no token, so the fixtures hold one.
+DEVICE_TOKEN = "rpos-test-device-token"
 COMPANY_ABBR_FALLBACK = "RTC"
 
 #: Enough to seat the table tests, and few enough to read in a failure message.
@@ -207,6 +211,7 @@ def _pos_profile(company: str, section: str) -> str:
 	"""
 	if frappe.db.exists("POS Profile", PROFILE):
 		frappe.db.set_value("POS Profile", PROFILE, "restaurant_section", section)
+		_pair_test_device(PROFILE)
 		return PROFILE
 
 	abbr = frappe.db.get_value("Company", company, "abbr") or COMPANY_ABBR_FALLBACK
@@ -227,7 +232,22 @@ def _pos_profile(company: str, section: str) -> str:
 		}
 	)
 	profile.insert(ignore_permissions=True)
+	_pair_test_device(profile.name)
 	return profile.name
+
+
+def _pair_test_device(profile: str) -> None:
+	from restaurant_pos.utils import pairing
+
+	frappe.db.set_value(
+		"POS Profile",
+		profile,
+		{
+			"rpos_device_token_hash": pairing.digest(DEVICE_TOKEN),
+			"rpos_device_name": "the suite",
+		},
+		update_modified=False,
+	)
 
 
 def _warehouse(company: str) -> str:

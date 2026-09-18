@@ -2,6 +2,7 @@ import { defineStore } from "pinia";
 import { computed, ref } from "vue";
 
 import { ApiError, query } from "@/api/client";
+import { pairedDevice } from "@/device";
 import { initLocale } from "@/i18n";
 import { loadSession, saveSession } from "@/offline/cache";
 import type { CatalogItem, OrderType, PosSession } from "@/types/session";
@@ -93,13 +94,16 @@ export const useSessionStore = defineStore("session", () => {
     initLocale(payload.lang);
   }
 
-  async function load(posProfile: string): Promise<void> {
+  async function load(posProfile: string, deviceToken?: string): Promise<void> {
     loading.value = true;
     error.value = null;
 
     try {
       const payload = await query<PosSession>("session.load_pos_session", {
         pos_profile: posProfile,
+        // Proves the machine, not the cashier (`D-226`). Without it the server
+        // refuses: a terminal belongs to one till.
+        device_token: deviceToken ?? pairedDevice()?.token ?? "",
       });
 
       adopt(payload);

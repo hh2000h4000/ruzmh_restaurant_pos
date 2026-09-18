@@ -1,21 +1,17 @@
 # Copyright (c) 2026, RPOS and contributors
 # For license information, please see license.txt
 
-import secrets
-
 import frappe
 from frappe import _
 from frappe.model.document import Document
-from frappe.utils import add_to_date, get_url, now_datetime
+from frappe.utils import get_url, now_datetime
 
-#: How long a pairing code works (`D-212`). Long enough to walk from the desk to
-#: the restaurant's computer and run the installer; short enough that a code on
-#: a photographed screen is dead by the time anybody could use it.
-PAIRING_MINUTES = 10
+from restaurant_pos.utils import pairing
 
-#: Eight digits: a hundred million codes, against five wrong guesses per device
-#: every five minutes, inside a ten-minute window.
-PAIRING_DIGITS = 8
+#: The code, its lifetime and the lockout are shared with the till's own pairing
+#: (`D-226`) — see `utils/pairing.py`.
+PAIRING_MINUTES = pairing.PAIRING_MINUTES
+PAIRING_DIGITS = pairing.PAIRING_DIGITS
 
 #: The role the agent's user carries, and the only one it carries.
 #:
@@ -141,16 +137,13 @@ def issue_pairing_code(agent: str) -> dict:
 	if not doc.user:
 		frappe.throw(_("This agent has no user yet. Save it first."))
 
-	code = f"{secrets.randbelow(10**PAIRING_DIGITS):0{PAIRING_DIGITS}d}"
+	code = pairing.new_code()
 	doc.db_set(
-		{
-			"pairing_code_hash": _digest(code),
-			"pairing_expires_at": add_to_date(now_datetime(), minutes=PAIRING_MINUTES),
-		},
+		{"pairing_code_hash": _digest(code), "pairing_expires_at": pairing.expires_at()},
 		update_modified=False,
 	)
 
-	return {"code": f"{code[:4]}-{code[4:]}", "minutes": PAIRING_MINUTES, "url": get_url()}
+	return {"code": pairing.pretty(code), "minutes": PAIRING_MINUTES, "url": get_url()}
 
 
 @frappe.whitelist(allow_guest=True)
@@ -162,20 +155,10 @@ def pair(code: str, host: str | None = None) -> dict:
 	per-device lockout the till's PIN pad uses (`D-204`), counted apart from it,
 	and the code dies on first use or after ten minutes, whichever is sooner.
 	"""
-	from restaurant_pos.utils.manager_pin import LOCK_SECONDS, attempts_from
-
 	ip = frappe.local.request_ip
-	tracker = attempts_from(ip, scope="pair") if ip else None
-	if tracker and not tracker.is_user_allowed():
-		frappe.throw(
-			_("Too many wrong pairing codes from this device. Try again in {0} minutes.").format(
-				LOCK_SECONDS // 60
-			),
-			frappe.RateLimitExceededError,
-		)
+	tracker = pairing.guard()
 
-	# Typed with or without its hyphen, and with whatever a paste carried along.
-	digits = "".join(character for character in (code or "") if character.isdigit())
+	digits = pairing.digits_of(code)
 	name = (
 		frappe.db.get_value(
 			"POS Print Agent",
@@ -189,12 +172,7 @@ def pair(code: str, host: str | None = None) -> dict:
 		else None
 	)
 	if not name:
-		if tracker:
-			tracker.add_failure_attempt()
-		frappe.throw(
-			_("That pairing code is not valid, or it has expired. Ask for a new one."),
-			frappe.AuthenticationError,
-		)
+		pairing.refuse(tracker)
 
 	doc = frappe.get_doc("POS Print Agent", name)
 	# Spent before anything else happens, so a second request racing this one
@@ -216,14 +194,7 @@ def pair(code: str, host: str | None = None) -> dict:
 
 
 def _digest(code: str) -> str:
-	"""A keyed digest, so a stolen database alone does not hand over a live code.
-
-	The same construction as the PIN lookup (`manager_pin.lookup_of`), for the
-	same reason.
-	"""
-	from restaurant_pos.utils.manager_pin import lookup_of
-
-	return lookup_of(code)
+	return pairing.digest(code)
 
 
 def for_session() -> str:

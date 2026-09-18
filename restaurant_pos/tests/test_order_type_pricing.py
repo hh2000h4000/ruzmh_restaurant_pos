@@ -12,6 +12,7 @@ Refs: FR-1.6, D-036
 import frappe
 
 from restaurant_pos.api import session
+from restaurant_pos.setup import test_fixtures
 from restaurant_pos.tests.test_order import ITEM, OrderTestBase
 from restaurant_pos.utils import order as service
 
@@ -73,14 +74,14 @@ class TestOrderTypePricing(OrderTestBase):
 
 	def test_the_catalog_carries_the_other_list_so_the_till_can_price_offline(self):
 		"""09 §3 — the app cannot fetch delivery prices during an outage."""
-		payload = session.load_pos_session(self.profile)
+		payload = session.load_pos_session(self.profile, device_token=test_fixtures.DEVICE_TOKEN)
 		row = next(entry for entry in payload["items"] if entry["item_code"] == ITEM)
 
 		self.assertEqual(row["rate"], 25, "the terminal's own price stays on `rate`")
 		self.assertEqual(row["rates"][DELIVERY_LIST], DELIVERY_RATE)
 
 	def test_the_order_type_reports_its_list_to_the_app(self):
-		payload = session.load_pos_session(self.profile)
+		payload = session.load_pos_session(self.profile, device_token=test_fixtures.DEVICE_TOKEN)
 		row = next(entry for entry in payload["order_types"] if entry["name"] == self.order_type)
 
 		self.assertEqual(row["selling_price_list"], DELIVERY_LIST)
@@ -99,11 +100,11 @@ class TestOrderTypePricing(OrderTestBase):
 			return real_get_all(*args, **kwargs)
 
 		# Warm the caches first, so this measures queries and not cache misses.
-		session.load_pos_session(self.profile)
+		session.load_pos_session(self.profile, device_token=test_fixtures.DEVICE_TOKEN)
 
 		frappe.get_all = counting
 		try:
-			session.load_pos_session(self.profile)
+			session.load_pos_session(self.profile, device_token=test_fixtures.DEVICE_TOKEN)
 		finally:
 			frappe.get_all = real_get_all
 

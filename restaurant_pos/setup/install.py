@@ -497,6 +497,75 @@ CUSTOM_FIELDS = {
 			"description": "Leave empty to show every active order type on this terminal.",
 			"insert_after": "rpos_order_types_section",
 		},
+		# **Which machine this terminal is** (`D-226`). One POS Profile is one
+		# till: the device pairs once with a short code and keeps a token, and
+		# no second machine can sell on it until a manager unpairs this one.
+		{
+			"fieldname": "rpos_device_section",
+			"fieldtype": "Section Break",
+			"label": "Paired Device",
+			"insert_after": "allowed_order_types",
+		},
+		{
+			"fieldname": "rpos_device_name",
+			"fieldtype": "Data",
+			"label": "Device",
+			"read_only": 1,
+			"no_copy": 1,
+			"description": "The machine this terminal is paired with. Empty means it is free to pair.",
+			"insert_after": "rpos_device_section",
+		},
+		{
+			"fieldname": "rpos_paired_at",
+			"fieldtype": "Datetime",
+			"label": "Paired At",
+			"read_only": 1,
+			"no_copy": 1,
+			"insert_after": "rpos_device_name",
+		},
+		{
+			"fieldname": "rpos_device_cb",
+			"fieldtype": "Column Break",
+			"insert_after": "rpos_paired_at",
+		},
+		{
+			"fieldname": "rpos_paired_by",
+			"fieldtype": "Link",
+			"options": "User",
+			"label": "Paired By",
+			"read_only": 1,
+			"no_copy": 1,
+			"insert_after": "rpos_device_cb",
+		},
+		{
+			"fieldname": "rpos_pairing_expires",
+			"fieldtype": "Datetime",
+			"label": "Pairing Code Expires",
+			"read_only": 1,
+			"no_copy": 1,
+			"description": "While a pairing code is outstanding. Empty once it is used or replaced.",
+			"insert_after": "rpos_paired_by",
+		},
+		# Digests, never the values: a stolen database hands over neither a live
+		# code nor a working device token (`manager_pin.lookup_of`).
+		{
+			"fieldname": "rpos_device_token_hash",
+			"fieldtype": "Data",
+			"label": "Device Token Hash",
+			"read_only": 1,
+			"hidden": 1,
+			"no_copy": 1,
+			"insert_after": "rpos_pairing_expires",
+		},
+		{
+			"fieldname": "rpos_pairing_code_hash",
+			"fieldtype": "Data",
+			"label": "Pairing Code Hash",
+			"read_only": 1,
+			"hidden": 1,
+			"no_copy": 1,
+			"insert_after": "rpos_device_token_hash",
+		},
 	],
 }
 

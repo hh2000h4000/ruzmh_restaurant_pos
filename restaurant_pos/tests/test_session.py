@@ -10,6 +10,7 @@ import frappe
 from frappe.tests.utils import FrappeTestCase
 
 from restaurant_pos.api import session
+from restaurant_pos.setup import test_fixtures
 from restaurant_pos.tests.test_order import ITEM, OrderTestBase
 
 #: Items these tests invent. They are sellable, so anything left behind turns up
@@ -39,7 +40,7 @@ class TestLoadPosSession(OrderTestBase):
 		super().tearDownClass()
 
 	def _load(self):
-		return session.load_pos_session(self.profile)
+		return session.load_pos_session(self.profile, device_token=test_fixtures.DEVICE_TOKEN)
 
 	def test_the_payload_has_every_key_the_contract_promises(self):
 		"""07 §2 — the Vue app is written against exactly these keys."""

@@ -13,6 +13,7 @@ Refs: D-040, BR-064
 
 import frappe
 
+from restaurant_pos.setup import test_fixtures
 from restaurant_pos.tests.test_order import BRANCH, OrderTestBase
 from restaurant_pos.utils import order as service
 
@@ -103,7 +104,7 @@ class TestSessionOffersEveryHall(OrderTestBase):
 		"""The floor plan needs them all to offer tabs (D-040)."""
 		from restaurant_pos.api import session as session_api
 
-		payload = session_api.load_pos_session(self.profile)
+		payload = session_api.load_pos_session(self.profile, device_token=test_fixtures.DEVICE_TOKEN)
 		names = {row["name"] for row in payload["sections"]}
 
 		self.assertIn(self.section, names, "the terminal's own hall is missing")
@@ -116,7 +117,7 @@ class TestSessionOffersEveryHall(OrderTestBase):
 		"""D-038 — the screen greys out what it cannot convert to."""
 		from restaurant_pos.api import session as session_api
 
-		payload = session_api.load_pos_session(self.profile)
+		payload = session_api.load_pos_session(self.profile, device_token=test_fixtures.DEVICE_TOKEN)
 		self.assertTrue(payload["order_types"], "no order types in the payload")
 
 		for row in payload["order_types"]:

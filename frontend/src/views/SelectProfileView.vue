@@ -4,89 +4,86 @@ import { useRouter } from "vue-router";
 
 import { ApiError, query } from "@/api/client";
 import LocaleToggle from "@/components/LocaleToggle.vue";
-import { pick, t } from "@/i18n";
+import { forgetDevice, pairedDevice, rememberDevice } from "@/device";
+import { t } from "@/i18n";
 import { useSessionStore } from "@/stores/session";
 
 /**
- * Terminal setup — seen **once**, when the app is installed on a till.
+ * Pairing — seen **once**, when the app is installed on a till (`D-226`).
  *
- * The device belongs to one POS Profile. It is not a question the cashier
- * answers at the start of a shift: a till in Dammam must not be able to start
- * selling on the Riyadh branch because somebody tapped the wrong row (D-035).
- * Once chosen, the choice is remembered and this screen never appears again.
+ * This screen used to list every terminal the cashier could reach and remember
+ * the tap. One tap was all that stood between a till in Dammam and the Riyadh
+ * branch (`D-035`), and nothing stopped a second machine taking a terminal that
+ * was already somebody's: two tills on one drawer, receipts in the wrong room.
  *
- * It used to ask the cashier to type the profile's name from memory, which is
- * why nobody could get past it.
+ * So the manager issues a code on the terminal in the office and the machine
+ * types it here, once. What comes back is a device token, kept on this machine
+ * and sent with every session load.
  *
  * Authentication is Frappe's (04 §7). This app never handles credentials.
  */
-const REMEMBERED = "rpos.pos_profile";
-
-interface ProfileOption {
-  name: string;
-  company: string | null;
-  branch: string | null;
-  section_title: string | null;
-  section_title_ar: string | null;
-}
-
 const session = useSessionStore();
 const router = useRouter();
 
-const options = ref<ProfileOption[]>([]);
+const code = ref("");
+const deviceName = ref("");
 const message = ref<string | null>(null);
 const busy = ref(false);
-const listing = ref(true);
+const starting = ref(true);
 
 onMounted(async () => {
-  const remembered = localStorage.getItem(REMEMBERED);
-  if (remembered) {
-    await start(remembered);
+  const paired = pairedDevice();
+  if (paired) {
+    await start(paired.posProfile, paired.token);
     if (session.isLoaded) return;
   }
-
-  await loadOptions();
+  starting.value = false;
 });
 
-async function loadOptions(): Promise<void> {
-  listing.value = true;
-  try {
-    options.value = await query<ProfileOption[]>("session.list_pos_profiles");
-    message.value = null;
-  } catch (cause) {
-    message.value =
-      cause instanceof ApiError && cause.isPermissionDenied
-        ? t("setup.signInFirst")
-        : cause instanceof Error
-          ? cause.message
-          : String(cause);
-  } finally {
-    listing.value = false;
-  }
-}
-
-async function start(posProfile: string): Promise<void> {
+async function pair(): Promise<void> {
   if (busy.value) return;
 
   busy.value = true;
   message.value = null;
 
   try {
-    await session.load(posProfile);
-    localStorage.setItem(REMEMBERED, posProfile);
-    await router.push(nextScreen());
+    const paired = await query<{ pos_profile: string; device_token: string }>("session.pair_device", {
+      code: code.value,
+      device_name: deviceName.value,
+    });
+
+    rememberDevice({ posProfile: paired.pos_profile, token: paired.device_token });
+    code.value = "";
+    await start(paired.pos_profile, paired.device_token);
   } catch (cause) {
-    if (cause instanceof ApiError && cause.isPermissionDenied) {
-      message.value = t("setup.signInFirst");
-    } else {
-      message.value = cause instanceof Error ? cause.message : String(cause);
-    }
-    // The remembered terminal no longer works — a deleted profile, a revoked
-    // permission. Forget it so this screen can offer the others.
-    localStorage.removeItem(REMEMBERED);
+    message.value = explain(cause);
   } finally {
     busy.value = false;
   }
+}
+
+async function start(posProfile: string, token: string): Promise<void> {
+  busy.value = true;
+  message.value = null;
+
+  try {
+    await session.load(posProfile, token);
+    await router.push(nextScreen());
+  } catch (cause) {
+    message.value = explain(cause);
+
+    // The pairing no longer works — a manager freed the terminal, or gave it to
+    // another machine. Forget it so this screen can ask for a new code, rather
+    // than retrying a token the server has stopped accepting.
+    if (cause instanceof ApiError && cause.isPermissionDenied) forgetDevice();
+  } finally {
+    busy.value = false;
+  }
+}
+
+function explain(cause: unknown): string {
+  if (cause instanceof ApiError && cause.isPermissionDenied) return t("setup.signInFirst");
+  return cause instanceof Error ? cause.message : String(cause);
 }
 
 /**
@@ -103,11 +100,6 @@ function nextScreen(): string | { name: string } {
   return typeof next === "string" && next.startsWith("/") && !next.startsWith("//")
     ? next
     : { name: "home" };
-}
-
-function subtitle(option: ProfileOption): string {
-  const section = pick(option.section_title_ar, option.section_title);
-  return [option.branch, section].filter(Boolean).join(" · ");
 }
 </script>
 
@@ -127,37 +119,47 @@ function subtitle(option: ProfileOption): string {
       </p>
 
       <p
-        v-if="listing || busy"
+        v-if="starting"
         class="py-6 text-center text-muted"
       >
         {{ t("common.loading") }}
       </p>
 
-      <div
-        v-else-if="options.length"
-        class="flex flex-col gap-2"
-      >
-        <button
-          v-for="option in options"
-          :key="option.name"
-          type="button"
-          class="min-h-tap rounded-rpos border border-line px-4 py-3 text-start transition hover:border-primary hover:bg-background focus:outline-none focus:ring-2 focus:ring-primary"
-          @click="start(option.name)"
-        >
-          <span class="block font-medium">{{ option.name }}</span>
-          <span
-            v-if="subtitle(option)"
-            class="block text-sm text-muted"
-          >{{ subtitle(option) }}</span>
-        </button>
-      </div>
-
-      <p
+      <form
         v-else
-        class="rounded-rpos bg-background p-4 text-center text-sm text-muted"
+        class="flex flex-col gap-3"
+        @submit.prevent="pair"
       >
-        {{ t("setup.empty") }}
-      </p>
+        <label class="flex flex-col gap-1">
+          <span class="text-sm text-muted">{{ t("setup.code") }}</span>
+          <input
+            v-model="code"
+            inputmode="numeric"
+            autocomplete="off"
+            autofocus
+            class="min-h-tap rounded-rpos border border-line bg-background px-4 py-3 text-center text-2xl tracking-widest"
+            :placeholder="t('setup.codeExample')"
+          >
+        </label>
+
+        <label class="flex flex-col gap-1">
+          <span class="text-sm text-muted">{{ t("setup.deviceName") }}</span>
+          <input
+            v-model="deviceName"
+            autocomplete="off"
+            class="min-h-tap rounded-rpos border border-line bg-background px-4 py-3"
+            :placeholder="t('setup.deviceNameExample')"
+          >
+        </label>
+
+        <button
+          type="submit"
+          class="min-h-tap rounded-rpos bg-primary px-4 py-3 font-medium text-on-primary disabled:opacity-60"
+          :disabled="busy || !code"
+        >
+          {{ busy ? t("common.loading") : t("setup.pair") }}
+        </button>
+      </form>
 
       <p
         v-if="session.cachedAt"

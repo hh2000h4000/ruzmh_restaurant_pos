@@ -11,6 +11,7 @@ Refs: 07_API_Design.md, FR-8.1..8.3, BR-040..BR-045, D-047
 
 import frappe
 from frappe import _
+from frappe.utils import cint
 
 from restaurant_pos.utils import idempotency, printing
 from restaurant_pos.utils import shift as service
@@ -29,18 +30,24 @@ def get_day_summary(shift: str) -> dict:
 
 
 @frappe.whitelist()
-def get_till_summary(opening_entry: str) -> dict:
+def get_till_summary(opening_entry: str, for_counting: int = 0) -> dict:
 	"""One drawer's takings, and what closing it will be measured against.
 
-	Opens the cash drawer as it answers (`D-093`). This is the request the
-	closing screen makes when it opens, and the cashier is about to count the
-	cash — the drawer has to be open for that. `close_till` would be too late:
-	by then the count has already been typed in.
+	**The drawer opens only when somebody is about to count it** (`D-093`,
+	`D-237`). The closing screen asks with `for_counting`, because the cashier
+	is standing there with the cash and `close_till` would be too late — by then
+	the count has been typed in. Reading the same figures on screen is not that:
+	a cashier checking the X report mid-shift, or a manager looking over their
+	shoulder, must not pop the drawer in front of a queue.
+
+	One endpoint for one question, with the side effect named at the call site,
+	rather than two that answer the same thing and drift (`CLAUDE.md` §5.5).
 	"""
 	summary = service.summarise_till(opening_entry)
 
-	pos_profile = frappe.db.get_value("POS Opening Entry", opening_entry, "pos_profile")
-	printing.open_drawer(pos_profile, reason="counting the till")
+	if cint(for_counting):
+		pos_profile = frappe.db.get_value("POS Opening Entry", opening_entry, "pos_profile")
+		printing.open_drawer(pos_profile, reason="counting the till")
 
 	return summary
 

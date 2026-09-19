@@ -101,6 +101,39 @@ class ShiftTestBase(OrderTestBase):
 		return returns.create_return(order, items=[{"row": row, "qty": 1}], reason_code="goods_returned")
 
 
+class TestReadingTheReportDoesNotPopTheDrawer(ShiftTestBase):
+	"""D-237 — the X report is read on screen, and the cash stays locked up.
+
+	The drawer opens for a count (`D-093`), which is somebody standing at the
+	till with the notes in their hand. A cashier glancing at the figures
+	mid-shift, or a manager reading them over their shoulder, must not throw the
+	cash drawer open in front of a queue.
+	"""
+
+	def _opened(self) -> list:
+		from unittest.mock import patch
+
+		from restaurant_pos.api import shift as endpoint
+
+		opened: list = []
+		with patch("restaurant_pos.utils.printing.open_drawer", side_effect=lambda *a, **k: opened.append(a)):
+			entry = service.open_till(pos_profile=self.profile)["entry"]
+			opened.clear()
+			endpoint.get_till_summary(entry)
+			read_only = list(opened)
+
+			endpoint.get_till_summary(entry, for_counting=1)
+			counting = list(opened)
+
+		return [read_only, counting]
+
+	def test_reading_leaves_it_shut_and_counting_opens_it(self):
+		read_only, counting = self._opened()
+
+		self.assertEqual(read_only, [], "reading the figures must not open the drawer")
+		self.assertEqual(len(counting), 1, "the closing screen still opens it to be counted")
+
+
 class TestTheFinancialReport(ShiftTestBase):
 	"""`D-219` — what the X and Z reports print, taken from the pro tills and Vitec's.
 

@@ -45,7 +45,8 @@ watch(
     reason.value = "";
     if (!isOpen) return;
 
-    report.value = await shift.tillSummary();
+    // `true`: the cashier is about to count, so the drawer opens (`D-093`).
+    report.value = await shift.tillSummary(true);
     if (!report.value) return;
 
     // Pre-filled with what is expected: a drawer that balances needs no typing,

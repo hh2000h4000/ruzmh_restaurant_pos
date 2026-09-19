@@ -117,7 +117,7 @@ const entries = computed<MenuEntry[]>(() => {
   // away prints it, and prints it again on coming back. Offered for a shared
   // drawer held by someone else too, because that is the drawer it checks.
   if (shift.tillOpen) {
-    rows.push({ key: "printReport", label: "shift.printReport", icon: "receipt" });
+    rows.push({ key: "viewReport", label: "shift.reportTitle", icon: "receipt" });
   }
 
   rows.push(BOOKINGS);

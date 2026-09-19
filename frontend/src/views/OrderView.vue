@@ -26,6 +26,7 @@ import UnprintedTickets from "@/components/order/UnprintedTickets.vue";
 import ReturnDialog from "@/components/order/ReturnDialog.vue";
 import CloseDayDialog from "@/components/shift/CloseDayDialog.vue";
 import CloseTillDialog from "@/components/shift/CloseTillDialog.vue";
+import TillReportDialog from "@/components/shift/TillReportDialog.vue";
 import OpenTillDialog from "@/components/shift/OpenTillDialog.vue";
 import RosterDialog from "@/components/shift/RosterDialog.vue";
 import ShiftMenu from "@/components/shift/ShiftMenu.vue";
@@ -312,6 +313,8 @@ const menuAnchor = useDismiss(menuOpen);
 
 const openingTill = ref(false);
 const closingTill = ref(false);
+/** The X report on screen; printing it is a button inside (`D-237`). */
+const viewingReport = ref(false);
 const closingDay = ref(false);
 
 function onMenu(key: string): void {
@@ -324,7 +327,7 @@ function onMenu(key: string): void {
   else if (key === "clock") void punchClock();
   else if (key === "roster") showingRoster.value = true;
   else if (key === "customerDisplay") openCustomerDisplay();
-  else if (key === "printReport") void printTillReport();
+  else if (key === "viewReport") viewingReport.value = true;
   // D-191 — a pane like the bar's own, reached from the menu because the bar
   // had no room for a sixth. Through `onNavigate`, so walking to it cancels a
   // table or a booking waiting for its order type, exactly as the bar does.
@@ -782,15 +785,6 @@ async function reprintRefund(dailyNumber: number): Promise<void> {
   } catch (cause) {
     notice.error(said(cause));
   }
-}
-
-/**
- * The drawer's X report (`D-219`), said out loud like every print (`D-074`) —
- * and a refusal as an error, which stays until it is read (`D-220`).
- */
-async function printTillReport(): Promise<void> {
-  if (await shift.printTillReport()) notice.info(t("print.reportSent"));
-  else if (shift.error) notice.error(shift.error);
 }
 
 /** The screen never unmounts, so the address is what tells it to change. */
@@ -1897,6 +1891,11 @@ async function send(): Promise<void> {
     <OpenTillDialog
       :open="openingTill"
       @close="onTillOpened"
+    />
+
+    <TillReportDialog
+      :open="viewingReport"
+      @close="viewingReport = false"
     />
 
     <CloseTillDialog

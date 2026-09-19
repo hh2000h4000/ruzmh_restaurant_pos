@@ -111,8 +111,18 @@ export function getShiftState(posProfile: string): Promise<ShiftState> {
   return query<ShiftState>("shift.get_state", { pos_profile: posProfile });
 }
 
-export function getTillSummary(openingEntry: string): Promise<ShiftReport> {
-  return query<ShiftReport>("shift.get_till_summary", { opening_entry: openingEntry });
+/**
+ * One drawer's figures.
+ *
+ * `forCounting` is what pops the cash drawer (`D-093`, `D-237`): the closing
+ * screen asks for it because the cashier is standing there with the money.
+ * Reading the same numbers on screen must not open it in front of a queue.
+ */
+export function getTillSummary(openingEntry: string, forCounting = false): Promise<ShiftReport> {
+  return query<ShiftReport>("shift.get_till_summary", {
+    opening_entry: openingEntry,
+    for_counting: forCounting ? 1 : 0,
+  });
 }
 
 /**

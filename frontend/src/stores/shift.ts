@@ -122,11 +122,16 @@ export const useShiftStore = defineStore("shift", () => {
     return true;
   }
 
-  /** The count a close will be measured against — read fresh, never cached. */
-  async function tillSummary(): Promise<ShiftReport | null> {
+  /**
+   * The drawer's figures — read fresh, never cached.
+   *
+   * `forCounting` pops the cash drawer (`D-093`): the closing screen asks with
+   * it, the X report on screen does not (`D-237`).
+   */
+  async function tillSummary(forCounting = false): Promise<ShiftReport | null> {
     const entry = state.value?.till.entry;
     if (!entry) return null;
-    return run(() => shiftApi.getTillSummary(entry));
+    return run(() => shiftApi.getTillSummary(entry, forCounting));
   }
 
   /** The drawer's X report on paper (`D-219`). The refusal, if any, is in `error`. */

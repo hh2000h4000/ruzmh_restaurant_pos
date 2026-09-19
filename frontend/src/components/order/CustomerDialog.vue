@@ -348,15 +348,18 @@ async function saveAddress(): Promise<void> {
           </span>
         </button>
 
+        <!-- Only when there is nothing to keep on screen: replacing a list the
+             cashier is reading with the word "loading" is the same flicker one
+             layer down (`D-236`). -->
         <p
-          v-if="searching"
+          v-if="searching && !results.length"
           class="p-4 text-center text-sm text-muted"
         >
           {{ t("common.loading") }}
         </p>
 
         <p
-          v-else-if="!results.length && term.trim().length >= 3"
+          v-else-if="!searching && !results.length && term.trim().length >= 3"
           class="p-4 text-center text-sm text-muted"
         >
           {{ t("customer.noResults") }}
@@ -370,11 +373,15 @@ async function saveAddress(): Promise<void> {
         </p>
       </div>
 
-      <!-- The way in, and it carries what was already typed. -->
+      <!-- The way in, and it carries what was already typed.
+           **Always here, enabled or not** (`D-236`). It used to appear at three
+           digits and vanish again on every keystroke while the search ran, and
+           the pad below it moved under the cashier's finger each time — the
+           whole dialog appeared to shake as a number was typed. -->
       <button
-        v-if="term.trim().length >= 3 && !searching"
         type="button"
-        class="mb-3 flex min-h-tap w-full items-center justify-center gap-2 rounded-rpos border border-dashed border-primary/50 text-sm font-semibold text-primary transition duration-200 ease-rpos hover:bg-primary/5"
+        class="mb-3 flex min-h-tap w-full items-center justify-center gap-2 rounded-rpos border border-dashed border-primary/50 text-sm font-semibold text-primary transition duration-200 ease-rpos hover:bg-primary/5 disabled:opacity-40 disabled:hover:bg-transparent"
+        :disabled="term.trim().length < 3 || busy"
         @click="startCreate"
       >
         <AppIcon

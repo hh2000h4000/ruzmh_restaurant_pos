@@ -623,3 +623,14 @@ The drawer this bill was settled into. Written at payment so a report reads it r
 Every sale on this terminal is invoiced to this customer unless the cashier names another. Payment is refused while it is empty.,كل بيع على هذا الجهاز ينسجل على هذا العميل إلا إذا اختار الكاشير عميل ثاني. وبدونه الدفع ما يشتغل.
 "{0} is kept in stock and {1} has none. Enter its stock, or tick Allow Negative Stock on the item.","الصنف «{0}» ما له كمية في المستودع {1}. أدخل كميته، أو علّم على «السماح بالمخزون السالب» في بطاقة الصنف عشان البيع ما يتوقف."
 {0} has no valuation rate. Enter the cost of one unit on the item.,الصنف «{0}» ما له تكلفة. اكتب «معدل التقييم» (تكلفة الوحدة) في بطاقة الصنف.
+"Remove the discount on {0} before moving items — a discount cannot be split.","شيل الخصم عن الفاتورة {0} قبل نقل الأصناف — الخصم ما ينقسم."
+Choose at least one item to move.,اختر صنفاً واحداً على الأقل للنقل.
+Row #{0} is listed twice.,السطر {0} مكرر في الطلب.
+Row #{0} has only {1}.,السطر {0} ما فيه إلا {1}.
+"This branch keeps one bill per table, so a seated bill cannot be split.",هذا الفرع يخلي فاتورة وحدة لكل طاولة، فما تنقسم فاتورة جالسة على طاولة. فعّل «السماح بأكثر من فاتورة على الطاولة» في إعدادات الفرع.
+There is nothing on {0} to merge.,الفاتورة {0} فاضية، ما فيها شي يندمج.
+Merged into {0},دُمجت في {0}
+{0} is billed to an account and cannot be converted.,الطلب {0} على حساب آجل، فما يتحوّل لنوع ثاني.
+Seat this order at a table before joining others to it.,أجلس الطلب على طاولة قبل ما تضم له طاولات ثانية.
+Table {0} already has a bill on it. Merge the bills instead.,الطاولة {0} عليها فاتورة. ادمج الفاتورتين بدل الضمّ.
+Choose at least one free table to join.,اختر طاولة فاضية واحدة على الأقل للضمّ.

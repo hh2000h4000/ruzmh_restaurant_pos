@@ -1104,13 +1104,20 @@ def merge_orders(source, target, **kwargs) -> dict:
 	source.closed_at = now_datetime()
 	source.save(ignore_permissions=True)
 
-	# **The table goes with the bill** (`D-160`). It used to be released here,
-	# which is right when both bills were on one table and wrong the moment they
-	# were not: the guests whose bill moved are still sitting where they were,
-	# and the floor plan drew their table free while they ate at it.
-	if source.table:
-		join_table(target, source.table)
-		release_table(source.table)
+	# **The tables go with the bill** (`D-160`, `D-238`). They used to be
+	# released here, which is right when both bills were on one table and wrong
+	# the moment they were not: the guests whose bill moved are still sitting
+	# where they were, and the floor plan drew their table free while they ate.
+	#
+	# **Every one of them, not just the first.** This read `source.table` alone,
+	# so a party spread over two tables (`BR-063`) left the joined ones pointing
+	# at a bill that had just been cancelled: occupied for ever, on a floor plan
+	# nobody could clear, until somebody edited the table by hand. The user met
+	# it while photographing the guide — table 2 stayed occupied by a bill that
+	# no longer existed.
+	for table in tables_of(source):
+		join_table(target, table)
+		release_table(table)
 
 	activity.log(source, "merged", subject=target.name, details={"into": target.name})
 

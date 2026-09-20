@@ -177,7 +177,6 @@ export const messages = {
   "tables.joinEmpty": "No free table in this hall to join.",
   "tables.joinHasBill": "Has a bill",
   "tables.joinConfirm": "Join {count}",
-  "tables.joined": "{count} tables joined to this bill.",
   "tables.start": "Open the order",
   "table.available": "Free",
   "table.occupied": "Occupied",
@@ -499,6 +498,14 @@ export const plurals = {
   "count.items": { one: "{n} item", other: "{n} items" },
   "count.bills": { one: "{n} bill", other: "{n} bills" },
   "count.seats": { one: "{n} seat", other: "{n} seats" },
+  "count.tablesJoined": {
+    zero: "No table was joined",
+    one: "One table joined to this bill.",
+    two: "Two tables joined to this bill.",
+    few: "{n} tables joined to this bill.",
+    many: "{n} tables joined to this bill.",
+    other: "{n} tables joined to this bill.",
+  },
   "count.queued": { one: "{n} action waiting", other: "{n} actions waiting" },
   "count.syncFailed": { one: "{n} action failed", other: "{n} actions failed" },
 } as const;

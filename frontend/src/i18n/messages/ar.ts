@@ -162,7 +162,6 @@ const messages: Catalogue["messages"] = {
   "tables.joinEmpty": "لا توجد طاولة فاضية في هذه الصالة للضمّ.",
   "tables.joinHasBill": "عليها فاتورة",
   "tables.joinConfirm": "ضمّ {count}",
-  "tables.joined": "ضُمّت {count} طاولات لهذه الفاتورة.",
   "tables.start": "فتح الطلب",
   "table.available": "فارغة",
   "table.occupied": "مشغولة",
@@ -499,6 +498,14 @@ const plurals: Catalogue["plurals"] = {
     few: "{n} كراسي",
     many: "{n} كرسياً",
     other: "{n} كرسي",
+  },
+  "count.tablesJoined": {
+    zero: "ما ضُمّت أي طاولة",
+    one: "ضُمّت طاولة واحدة لهذه الفاتورة.",
+    two: "ضُمّت طاولتان لهذه الفاتورة.",
+    few: "ضُمّت {n} طاولات لهذه الفاتورة.",
+    many: "ضُمّت {n} طاولة لهذه الفاتورة.",
+    other: "ضُمّت {n} طاولة لهذه الفاتورة.",
   },
   "count.queued": {
     zero: "لا شيء بانتظار المزامنة",

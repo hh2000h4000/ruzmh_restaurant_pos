@@ -238,6 +238,42 @@ class MovingLinesBetweenBills(OrderTestBase):
 
 		self.assertIn(target.name, frappe.db.get_value("Restaurant Order", source.name, "cancel_reason"))
 
+	def test_every_table_the_bill_held_moves_with_it(self):
+		"""**D-238** — a party across two tables, merged onto another bill.
+
+		This moved `order.table` alone, so a joined table kept pointing at a bill
+		the merge had just cancelled: occupied for ever, on a floor plan nobody
+		could clear. The user met it while photographing the guide — one table
+		stayed busy under a bill that no longer existed.
+		"""
+		second = frappe.db.get_value(
+			"Restaurant Table",
+			{"section": self.section, "is_active": 1, "name": ("!=", self.table)},
+			"name",
+		)
+		if not second:
+			self.skipTest("this section has one table")
+		free_table(second)
+		self.addCleanup(free_table, second)
+
+		self._allow_two_bills()
+		source = self._bill(1)
+		source.table = self.table
+		source.save(ignore_permissions=True)
+		service.join_table(source, second)
+		source.reload()
+
+		target = self._bill(1)
+		service.merge_orders(source, target)
+
+		target.reload()
+		self.assertIn(second, service.tables_of(target), "the joined table follows the food")
+		self.assertEqual(
+			frappe.db.get_value("Restaurant Table", second, "current_order"),
+			target.name,
+			"and the floor plan shows whoever is actually sitting there",
+		)
+
 	def test_an_empty_bill_has_nothing_to_merge(self):
 		source = self._order()
 		target = self._bill(1)

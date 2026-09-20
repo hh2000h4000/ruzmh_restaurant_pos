@@ -1194,7 +1194,9 @@ const joiningTables = ref(false);
  */
 async function onTablesJoined(joined: string[]): Promise<void> {
   joiningTables.value = false;
-  notice.info(t("tables.joined", { count: formatNumber(joined.length) }));
+  // One table is "طاولة واحدة", not "1 طاولات" (`D-238`): Arabic counts in
+  // six forms, and the app has `tn` for exactly this.
+  notice.info(tn("count.tablesJoined", joined.length));
   await reload();
   pane.value = "tables";
 }

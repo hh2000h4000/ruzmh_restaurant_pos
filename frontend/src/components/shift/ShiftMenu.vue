@@ -46,6 +46,22 @@ const shift = useShiftStore();
 const auth = useAuthStore();
 
 /**
+ * Which till this is, and where it stands (`D-240`).
+ *
+ * Nothing on the selling screen said it. A manager walking the floor, or a
+ * cashier on a device that was paired to the wrong terminal, had no way to ask
+ * — and the answer decides which drawer their sale lands in and which branch's
+ * day it belongs to. It goes here, one deliberate tap behind the bar, rather
+ * than into a header that a phone-width till cannot spare (`D-221`).
+ */
+const whereWeAre = computed(() => {
+  const branch = session.data?.branch;
+  return [branch?.branch || branch?.name, session.profile?.name].filter(Boolean).join(" · ");
+});
+
+const restaurant = computed(() => session.profile?.company ?? "");
+
+/**
  * Clocking out where the day is ended (`FR-8.4` step 4).
  *
  * It was only on the sign-in screen, which is the wrong end of the shift: a
@@ -161,6 +177,21 @@ const heldBy = computed(() =>
     v-if="open"
     class="absolute bottom-full z-30 mb-2 w-72 overflow-hidden rounded-rpos border border-line bg-surface shadow-lift end-0"
   >
+    <div
+      v-if="whereWeAre"
+      class="border-b border-line bg-background px-4 py-2"
+    >
+      <p
+        v-if="restaurant"
+        class="truncate text-xs font-semibold"
+      >
+        {{ restaurant }}
+      </p>
+      <p class="truncate text-xs text-muted">
+        {{ whereWeAre }}
+      </p>
+    </div>
+
     <p
       v-if="heldBy"
       class="border-b border-line bg-background px-4 py-2 text-xs text-muted"

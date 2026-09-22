@@ -238,6 +238,38 @@ QUICK_NOTES = [
 	},
 	{"title": "Cutlery included", "title_ar": "مع أدوات المائدة", "scope": "both", "sort_order": 30},
 	{"title": "No cutlery", "title_ar": "بدون أدوات مائدة", "scope": "both", "sort_order": 31},
+	# **Why, tapped rather than typed** (`D-239`). The answers to "why was this
+	# voided" and "why was this bill cancelled" are the same handful every day,
+	# and they are typed one-handed with a customer waiting. A restaurant edits
+	# this list like any other.
+	{
+		"title": "Customer changed their mind",
+		"title_ar": "الزبون غيّر رأيه",
+		"scope": "void_reason",
+		"sort_order": 40,
+	},
+	{"title": "Rung up by mistake", "title_ar": "انضاف بالغلط", "scope": "void_reason", "sort_order": 41},
+	{"title": "Out of stock", "title_ar": "الصنف خلص", "scope": "void_reason", "sort_order": 42},
+	{"title": "Wrong item", "title_ar": "صنف خطأ", "scope": "void_reason", "sort_order": 43},
+	{
+		"title": "Customer left",
+		"title_ar": "الزبون انسحب",
+		"scope": "cancel_reason",
+		"sort_order": 50,
+	},
+	{
+		"title": "Opened by mistake",
+		"title_ar": "الفاتورة انفتحت بالغلط",
+		"scope": "cancel_reason",
+		"sort_order": 51,
+	},
+	{"title": "Took too long", "title_ar": "التحضير تأخر", "scope": "cancel_reason", "sort_order": 52},
+	{
+		"title": "Moved to another bill",
+		"title_ar": "تحوّل لفاتورة ثانية",
+		"scope": "cancel_reason",
+		"sort_order": 53,
+	},
 ]
 
 

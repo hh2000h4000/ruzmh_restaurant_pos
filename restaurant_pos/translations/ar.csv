@@ -634,3 +634,9 @@ Merged into {0},دُمجت في {0}
 Seat this order at a table before joining others to it.,أجلس الطلب على طاولة قبل ما تضم له طاولات ثانية.
 Table {0} already has a bill on it. Merge the bills instead.,الطاولة {0} عليها فاتورة. ادمج الفاتورتين بدل الضمّ.
 Choose at least one free table to join.,اختر طاولة فاضية واحدة على الأقل للضمّ.
+void_reason,سبب إلغاء صنف,POS Quick Note
+cancel_reason,سبب إلغاء طلب,POS Quick Note
+item,ملاحظة على صنف,POS Quick Note
+order,ملاحظة على الطلب,POS Quick Note
+both,ملاحظة على الاثنين,POS Quick Note
+"What this line is offered for: a note on an item or on the order, or a ready-made reason on the screen that asks why an item was voided or a bill cancelled.",وش هذا السطر: ملاحظة على صنف أو على الطلب، أو سبب جاهز يظهر في شاشة إلغاء الصنف أو إلغاء الطلب.

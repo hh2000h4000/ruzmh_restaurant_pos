@@ -43,13 +43,13 @@
   },
   {
    "default": "item",
-   "description": "Where this note may be used. An item note travels to the one station that cooks the dish; an order note is printed on the header of every station's ticket (FR-2.9).",
+   "description": "What this line is offered for: a note on an item or on the order, or a ready-made reason on the screen that asks why an item was voided or a bill cancelled.",
    "fieldname": "scope",
    "fieldtype": "Select",
    "in_list_view": 1,
    "in_standard_filter": 1,
    "label": "Scope",
-   "options": "item\norder\nboth",
+   "options": "item\norder\nboth\nvoid_reason\ncancel_reason",
    "reqd": 1
   },
   {
@@ -66,7 +66,7 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-08-29 00:00:00.000000",
+ "modified": "2026-09-22 10:00:00.000000",
  "modified_by": "Administrator",
  "module": "Restaurant POS",
  "name": "POS Quick Note",

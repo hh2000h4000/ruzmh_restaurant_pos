@@ -19,20 +19,31 @@ import { useSessionStore } from "@/stores/session";
  * station that cooks it; an `order` note is printed on every station's ticket.
  * Showing the wrong list here would let a cashier put an allergy where only the
  * grill can see it.
+ *
+ * **Reasons are the same question** (`D-239`). *Why was this voided* and *why
+ * was this bill cancelled* are typed on a touch screen, in the rush, by
+ * somebody with a customer waiting — and the answers are the same handful every
+ * day. So they are chips from the same list a manager keeps, and the box stays
+ * for the one that is not on it. `both` is a note scope only: a note offered on
+ * items and orders is not a reason for voiding anything.
  */
 const props = defineProps<{
-  /** Which saved notes to offer. */
-  scope: "item" | "order";
+  /** Which saved lines to offer. */
+  scope: "item" | "order" | "void_reason" | "cancel_reason";
   placeholder?: string;
+  /** One line, not a list — a reason is one sentence (`D-239`). */
+  single?: boolean;
 }>();
 
 const text = defineModel<string>({ default: "" });
 
 const session = useSessionStore();
 
+const notesScope = computed(() => props.scope === "item" || props.scope === "order");
+
 const chips = computed(() =>
   (session.data?.quick_notes ?? []).filter(
-    (note) => note.scope === props.scope || note.scope === "both",
+    (note) => note.scope === props.scope || (notesScope.value && note.scope === "both"),
   ),
 );
 
@@ -69,6 +80,15 @@ function isOn(note: { title: string; title_ar: string }): boolean {
  */
 function toggle(note: { title: string; title_ar: string }): void {
   const value = label(note);
+
+  // A reason replaces rather than accumulates: "customer changed their mind،
+  // wrong item" is two answers to one question, and the audit log reads worse
+  // for it (`D-239`).
+  if (props.single) {
+    text.value = isOn(note) ? "" : value;
+    return;
+  }
+
   const next = isOn(note)
     ? parts.value.filter((part) => part !== value)
     : [...parts.value, value];

@@ -43,7 +43,8 @@ function identity(over: { clocked_in?: boolean; holding_till?: boolean; employee
 /** The menu as a cashier meets it: the day open, and a drawer of their own. */
 function menu(over: Parameters<typeof identity>[0], tillOpen = true) {
   useSessionStore().data = {
-    pos_profile: { name: "T1" },
+    pos_profile: { name: "كاشير 1", company: "مطعم الرزمة", branch: "Riyadh" },
+    branch: { name: "Riyadh", branch: "فرع الصحافة" },
     permissions: {},
   } as unknown as PosSession;
 
@@ -141,5 +142,18 @@ describe("the day's bookings", () => {
     await entry.trigger("click");
 
     expect(wrapper.emitted("select")).toEqual([["reservations"]]);
+  });
+});
+
+describe("which till this is", () => {
+  it("names the restaurant, the branch and the terminal (D-240)", () => {
+    // The user asked where the branch is shown: nothing on the selling screen
+    // said it, and a device paired to the wrong terminal was found out by the
+    // first sale landing in another branch's day.
+    const text = menu({ clocked_in: true }).text();
+
+    expect(text).toContain("مطعم الرزمة");
+    expect(text).toContain("فرع الصحافة");
+    expect(text).toContain("كاشير 1");
   });
 });

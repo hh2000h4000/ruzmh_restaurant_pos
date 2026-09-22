@@ -2,6 +2,7 @@
 import { ref, watch } from "vue";
 
 import BaseDialog from "@/components/BaseDialog.vue";
+import NoteEditor from "@/components/order/NoteEditor.vue";
 import { t } from "@/i18n";
 
 /**
@@ -26,6 +27,8 @@ const props = defineProps<{
   placeholder: string;
   /** What the destructive button says, in the words of the act. */
   confirm: string;
+  /** Which ready-made reasons to offer (`D-239`). */
+  scope: "void_reason" | "cancel_reason";
   busy?: boolean;
 }>();
 
@@ -60,13 +63,14 @@ function submit(): void {
       {{ explain }}
     </p>
 
-    <input
+    <!-- Tap the usual answer, or write the one that is not there (`D-239`). -->
+    <NoteEditor
       v-model="reason"
-      type="text"
-      class="mb-4 min-h-tap w-full rounded-rpos border border-line bg-background px-3"
+      class="mb-4"
+      :scope="scope"
       :placeholder="placeholder"
-      @keyup.enter="submit"
-    >
+      single
+    />
 
     <div class="flex gap-2">
       <button

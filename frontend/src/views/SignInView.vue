@@ -147,11 +147,14 @@ async function punch(): Promise<void> {
         <h1 class="text-3xl font-semibold tracking-tight text-content">
           RPOS
         </h1>
+        <!-- Where this till stands, before anybody signs in on it (`D-240`).
+             A device paired to the wrong terminal is otherwise found out by the
+             first sale landing in another branch's day. -->
         <p
-          v-if="session.branch"
+          v-if="session.branch || posProfile"
           class="mt-1.5 text-sm text-muted"
         >
-          {{ session.branch }}
+          {{ [session.branch, posProfile].filter(Boolean).join(" · ") }}
         </p>
         <!--
           Which build this terminal is actually running (D-100). A till holds

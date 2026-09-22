@@ -344,6 +344,7 @@ defineExpose({ reload: load });
       :placeholder="t('reservations.cancelPlaceholder')"
       :confirm="t('reservations.cancel')"
       :busy="busy"
+      scope="cancel_reason"
       @confirm="confirmCancel"
       @close="cancelling = null"
     />

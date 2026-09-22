@@ -1,82 +1,87 @@
 // @vitest-environment jsdom
 
 /**
- * *Why?* — the one box the till has for it.
+ * Why, tapped rather than typed (`D-239`).
  *
- * `BR-013` says a reason is mandatory. Until now the rule was written twice, in
- * two dialogs that were the same but for four strings, and the copies had
- * already drifted. What is asserted here is the rule itself — mandatory, and
- * trimmed, and never carried over from the last time it was asked — so it can
- * only be right or wrong once.
+ * "Why was this voided" and "why was this bill cancelled" are answered
+ * one-handed, in a rush, with a customer waiting — and the answers are the same
+ * handful every day. The user asked for them as buttons, and they come from the
+ * list a manager already keeps for quick notes, so there is one screen in the
+ * desk and one mechanism in the till.
  */
 import { mount } from "@vue/test-utils";
-import { describe, expect, it } from "vitest";
+import { createPinia, setActivePinia } from "pinia";
+import { beforeEach, describe, expect, it } from "vitest";
 
 import ReasonDialog from "@/components/order/ReasonDialog.vue";
+import { useSessionStore } from "@/stores/session";
 
-function open(props: Record<string, unknown> = {}) {
+const NOTES = [
+  { name: "n1", title: "No onion", title_ar: "بدون بصل", scope: "item" },
+  { name: "n2", title: "Cutlery", title_ar: "أدوات مائدة", scope: "both" },
+  { name: "n3", title: "Rung up by mistake", title_ar: "انضاف بالغلط", scope: "void_reason" },
+  { name: "n4", title: "Out of stock", title_ar: "الصنف خلص", scope: "void_reason" },
+  { name: "n5", title: "Customer left", title_ar: "الزبون انسحب", scope: "cancel_reason" },
+];
+
+function dialog(scope: "void_reason" | "cancel_reason") {
   return mount(ReasonDialog, {
     props: {
       open: true,
-      title: "سبب الإلغاء",
-      explain: "برغر لحم",
-      placeholder: "مثال: طلب الزبون التغيير",
+      title: "لماذا؟",
+      explain: "شيش طاووق",
+      placeholder: "اكتب السبب",
       confirm: "إلغاء الصنف",
-      ...props,
+      scope,
     },
     global: { stubs: { teleport: true } },
   });
 }
 
-type Wrapper = ReturnType<typeof open>;
-
-/** The destructive button is the last one; the first goes back. */
-const act = (wrapper: Wrapper) => wrapper.findAll("button").at(-1)!;
-
 describe("asking why", () => {
-  it("will not act on an empty box", () => {
-    expect(act(open()).attributes("disabled")).toBeDefined();
+  beforeEach(() => {
+    setActivePinia(createPinia());
+    useSessionStore().data = { quick_notes: NOTES } as never;
   });
 
-  it("will not act on spaces either", async () => {
-    const wrapper = open();
-    await wrapper.find("input").setValue("   ");
+  it("offers only the reasons for this act, never the kitchen notes", () => {
+    const view = dialog("void_reason");
+    const chips = view.findAll("button").map((button) => button.text());
 
-    expect(act(wrapper).attributes("disabled")).toBeDefined();
+    expect(chips).toContain("انضاف بالغلط");
+    expect(chips).toContain("الصنف خلص");
+    expect(chips).not.toContain("الزبون انسحب");
+    // `both` is a note scope: an item note is not a reason for voiding one.
+    expect(chips).not.toContain("أدوات مائدة");
   });
 
-  it("acts once a reason is given, and hands it over trimmed", async () => {
-    const wrapper = open();
-    await wrapper.find("input").setValue("  الزبون غيّر رأيه  ");
+  it("a tap answers the question, and the confirm button comes alive", async () => {
+    const view = dialog("cancel_reason");
+    expect(view.find("button.bg-danger").attributes("disabled")).toBeDefined();
 
-    expect(act(wrapper).attributes("disabled")).toBeUndefined();
-    await act(wrapper).trigger("click");
+    await view.findAll("button").find((b) => b.text() === "الزبون انسحب")?.trigger("click");
 
-    expect(wrapper.emitted("confirm")).toEqual([["الزبون غيّر رأيه"]]);
+    expect((view.find("textarea").element as HTMLTextAreaElement).value).toBe("الزبون انسحب");
+    expect(view.find("button.bg-danger").attributes("disabled")).toBeUndefined();
   });
 
-  it("holds still while the last answer is in flight", async () => {
-    const wrapper = open({ busy: true });
-    await wrapper.find("input").setValue("خطأ في الطلب");
+  it("a second tap replaces the answer rather than adding to it", async () => {
+    const view = dialog("void_reason");
+    const tap = async (label: string) =>
+      view.findAll("button").find((b) => b.text() === label)?.trigger("click");
 
-    expect(act(wrapper).attributes("disabled")).toBeDefined();
+    await tap("انضاف بالغلط");
+    await tap("الصنف خلص");
+
+    // One question, one answer — not "rung up by mistake، out of stock".
+    expect((view.find("textarea").element as HTMLTextAreaElement).value).toBe("الصنف خلص");
   });
 
-  it("does not offer the last line's reason for the next one", async () => {
-    const wrapper = open();
-    await wrapper.find("input").setValue("سقط على الأرض");
+  it("still takes a reason nobody listed", async () => {
+    const view = dialog("void_reason");
 
-    await wrapper.setProps({ open: false });
-    await wrapper.setProps({ open: true });
+    await view.find("textarea").setValue("وقع من الويتر");
 
-    expect((wrapper.find("input").element as HTMLInputElement).value).toBe("");
-    expect(act(wrapper).attributes("disabled")).toBeDefined();
-  });
-
-  it("says what is being reversed and what the button will do", () => {
-    const wrapper = open();
-
-    expect(wrapper.text()).toContain("برغر لحم");
-    expect(act(wrapper).text()).toBe("إلغاء الصنف");
+    expect(view.find("button.bg-danger").attributes("disabled")).toBeUndefined();
   });
 });

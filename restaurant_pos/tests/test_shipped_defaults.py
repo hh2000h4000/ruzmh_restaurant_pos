@@ -29,7 +29,7 @@ import frappe
 from frappe.tests.utils import FrappeTestCase
 from frappe.utils import flt
 
-from restaurant_pos.setup.defaults import PERMISSION_SETS
+from restaurant_pos.setup.defaults import PERMISSION_SETS, QUICK_NOTES
 
 
 class TheShippedDefaultsReachedThisSite(FrappeTestCase):
@@ -65,4 +65,26 @@ class TheShippedDefaultsReachedThisSite(FrappeTestCase):
 			"patch to carry it to sites installed before it — see "
 			"`patches/v1_0/grant_missing_permission_defaults.py` — or a test changed a "
 			"permission set and left it changed.",
+		)
+
+	def test_the_ready_made_reasons_reached_this_site(self):
+		"""D-239 — the same forgetting, one shape along.
+
+		The reasons a cashier taps instead of typing ship in `QUICK_NOTES`, and
+		that list runs on install only. Without `add_ready_made_reasons`, a site
+		installed before them shows an empty row of chips and nobody can tell
+		why. This says so by name.
+		"""
+		missing = [
+			values["title"]
+			for values in QUICK_NOTES
+			if values["scope"] in ("void_reason", "cancel_reason")
+			and not frappe.db.exists("POS Quick Note", {"scope": values["scope"]})
+		]
+
+		self.assertEqual(
+			missing,
+			[],
+			"No ready-made reasons on this site. `patches/v1_0/add_ready_made_reasons.py` "
+			"carries them to sites installed before them.",
 		)

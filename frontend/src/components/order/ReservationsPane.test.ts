@@ -139,7 +139,9 @@ describe("cancelling and missing", () => {
     // page as it now stands — which is what a cashier's finger touches.
     await flushPromises();
 
-    await wrapper.find('[role="dialog"] input').setValue("the guest called");
+    // The reason box is a textarea since `D-239`: it sits under the chips of
+    // ready-made reasons, and this one is not on that list.
+    await wrapper.find('[role="dialog"] textarea').setValue("the guest called");
 
     const confirm = wrapper
       .find('[role="dialog"]')

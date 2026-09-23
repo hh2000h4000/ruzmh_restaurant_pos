@@ -666,8 +666,6 @@ def _resolve_modifiers(item: str, selected: list | None) -> tuple[list, float]:
 			delta += effect
 		elif option.price_effect == "subtract":
 			delta -= effect
-		elif option.price_effect == "replace":
-			delta += effect
 
 		resolved.append(
 			{

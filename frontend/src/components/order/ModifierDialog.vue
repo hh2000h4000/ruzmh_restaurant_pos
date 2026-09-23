@@ -107,7 +107,7 @@ const priceDelta = computed(() => {
     for (const title of chosen.value[group.name] ?? []) {
       const option = group.options.find((candidate) => candidate.title === title);
       if (!option) continue;
-      if (option.price_effect === "add" || option.price_effect === "replace") {
+      if (option.price_effect === "add") {
         delta += option.price_amount;
       } else if (option.price_effect === "subtract") {
         delta -= option.price_amount;

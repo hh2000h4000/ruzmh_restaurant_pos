@@ -3,7 +3,7 @@ import { query } from "./client";
 export interface ModifierOption {
   title: string;
   title_ar: string;
-  price_effect: "none" | "add" | "subtract" | "replace";
+  price_effect: "none" | "add" | "subtract";
   price_amount: number;
   is_default: 0 | 1;
 }

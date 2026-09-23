@@ -39,7 +39,7 @@
    "fieldtype": "Select",
    "in_list_view": 1,
    "label": "Price Effect",
-   "options": "none\nadd\nsubtract\nreplace",
+   "options": "none\nadd\nsubtract",
    "reqd": 1
   },
   {

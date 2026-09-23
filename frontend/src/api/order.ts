@@ -197,7 +197,7 @@ export interface OrderLine {
     option: string;
     option_ar: string;
     amount: number;
-    price_effect?: "none" | "add" | "subtract" | "replace";
+    price_effect?: "none" | "add" | "subtract";
   }[];
   production_center: string | null;
 }

@@ -346,7 +346,6 @@ Price Effect,أثره على السعر,POS Modifier Option
 none,ما يغيّر السعر,POS Modifier Option
 add,يزيد على السعر,POS Modifier Option
 subtract,ينقص من السعر,POS Modifier Option
-replace,يزيد على السعر (مثل add),POS Modifier Option
 Price Amount,المبلغ,POS Modifier Option
 Stock Item,صنف المخزون,POS Modifier Option
 Set when this option consumes separate stock.,حدّده إذا هذا الخيار يخصم من مخزون صنف ثاني.

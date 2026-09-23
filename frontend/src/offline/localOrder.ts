@@ -150,10 +150,6 @@ export function toOrderDetail(state: LocalOrderState, pricing: Pricing): OrderDe
 /**
  * One line, modifiers included — mirrors `utils/order._resolve_modifiers` and
  * `utils/totals.line_amount`.
- *
- * `replace` adds like `add` does. That looks wrong and is what the server does
- * (`utils/order.py`), so the port follows it rather than improving on it: a
- * device that computed the "better" answer would disagree with the invoice.
  */
 function lineAmount(line: LocalLine): number {
   const delta = line.modifiers.reduce((sum, modifier) => {

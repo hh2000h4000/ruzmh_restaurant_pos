@@ -370,6 +370,19 @@ Error,الخطأ,POS Print Job
 Item Sales,مبيعات الأصناف
 Daily Sales,مبيعات الأيام
 Hourly Sales,مبيعات الساعات
+Sales Exceptions,الخصومات والإلغاءات
+Staff Sales,مبيعات الموظفين
+Payment Types,طرق الدفع
+"One row per person, not per act",صف لكل موظف بدل كل حركة
+Everything,الكل
+How Many,العدد
+Amount,المبلغ
+Timestamp,الوقت
+Name,الاسم
+Sales,المبيعات
+Kind,النوع
+Taken,المقبوض
+"{0} came off in exceptions, against takings of {1}.",راح {0} في خصومات وإلغاءات، مقابل مبيعات {1}.
 Show cost and profit,أظهر التكلفة والربح
 Cost,التكلفة
 Profit,الربح

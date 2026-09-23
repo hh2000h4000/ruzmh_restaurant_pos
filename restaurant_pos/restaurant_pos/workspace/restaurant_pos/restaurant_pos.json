@@ -161,7 +161,7 @@
    "hidden": 0,
    "is_query_report": 0,
    "label": "Reports",
-   "link_count": 3,
+   "link_count": 6,
    "onboard": 0,
    "type": "Card Break"
   },
@@ -194,6 +194,39 @@
    "label": "Hourly Sales",
    "link_count": 0,
    "link_to": "Hourly Sales",
+   "link_type": "Report",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 1,
+   "label": "Payment Types",
+   "link_count": 0,
+   "link_to": "Payment Types",
+   "link_type": "Report",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 1,
+   "label": "Staff Sales",
+   "link_count": 0,
+   "link_to": "Staff Sales",
+   "link_type": "Report",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 1,
+   "label": "Sales Exceptions",
+   "link_count": 0,
+   "link_to": "Sales Exceptions",
    "link_type": "Report",
    "onboard": 0,
    "type": "Link"
@@ -448,7 +481,7 @@
    "type": "Link"
   }
  ],
- "modified": "2026-09-23 18:00:00.000000",
+ "modified": "2026-09-23 21:00:00.000000",
  "modified_by": "Administrator",
  "module": "Restaurant POS",
  "name": "Restaurant POS",

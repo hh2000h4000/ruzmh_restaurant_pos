@@ -367,6 +367,16 @@ Attempts,عدد المحاولات,POS Print Job
 Claimed At,وقت الاستلام,POS Print Job
 Printed At,وقت الطباعة,POS Print Job
 Error,الخطأ,POS Print Job
+Reports,التقارير
+Item Sales,مبيعات الأصناف
+"One row per group, not per dish",صف لكل مجموعة بدل كل صنف
+Sold,انباع
+Returned,انرجع
+Net Quantity,الصافي
+Sales (excl. VAT),المبيعات (بدون ضريبة)
+Share of Sales %,النسبة من المبيعات %
+Choose the days to report on.,اختر الأيام اللي تبي التقرير عنها.
+From Date cannot be after To Date.,«من تاريخ» ما يكون بعد «إلى تاريخ».
 "What the agent said went wrong, in its own words. ""Out of paper"" and ""connection refused"" are not the same call-out.","كلام برنامج الطباعة نفسه عن سبب الفشل. «خلص الورق» غير «ما قدر يوصل للطابعة» — وكل واحد له حل ثاني."
 Set when this job is the fallback printer's attempt after the first one failed (BR-072).,تتعبّى إذا كانت هذي محاولة الطابعة البديلة بعد ما فشلت الأولى.
 "ESC/POS, base64. Rendered once when the job was queued so a reprint puts out exactly what came out the first time.",محتوى المطبوع كما رُسم أول مرة، عشان إعادة الطباعة تطلع نفس الورقة بالضبط.

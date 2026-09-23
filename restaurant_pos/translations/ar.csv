@@ -308,6 +308,70 @@ Used when the primary printer is unreachable.,تُستخدم إذا الطابع
 Kitchen Display System,شاشة المطبخ,Production Center
 Has KDS,فيه شاشة مطبخ,Production Center
 KDS Display ID,رقم شاشة المطبخ,Production Center
+Identity,البيانات,POS Screen Layout
+Title,الاسم,POS Screen Layout
+Grid,الترتيب,POS Screen Layout
+Layout Mode,طريقة الترتيب,POS Screen Layout
+flow,بالترتيب اللي تحت,POS Screen Layout
+grid,بالشبكة,POS Screen Layout
+Grid Columns,عدد الأعمدة,POS Screen Layout
+Grid Rows,عدد الصفوف,POS Screen Layout
+Background Color,لون الخلفية,POS Screen Layout
+Buttons,الأزرار,POS Screen Layout
+Flow lays the buttons out in the order below and ignores the grid; Grid places each one by its own row and column.,«بالترتيب اللي تحت» يرتّب الأزرار مثل ترتيب الصفوف ويتجاهل الشبكة. «بالشبكة» يحط كل زر في العمود والصف اللي تكتبه له.
+Type,نوع الزر,POS Screen Layout Button
+item_group,مجموعة أصناف,POS Screen Layout Button
+item,صنف,POS Screen Layout Button
+goto_screen,ينقل لشاشة ثانية,POS Screen Layout Button
+action,إجراء,POS Screen Layout Button
+Item Group,مجموعة الأصناف,POS Screen Layout Button
+Item,الصنف,POS Screen Layout Button
+Go To Screen,الشاشة اللي ينقل لها,POS Screen Layout Button
+Action,الإجراء,POS Screen Layout Button
+Position,المكان في الشبكة,POS Screen Layout Button
+Column Start,بداية العمود,POS Screen Layout Button
+Column Span,عرض الزر بالأعمدة,POS Screen Layout Button
+Row Start,بداية الصف,POS Screen Layout Button
+Row Span,طول الزر بالصفوف,POS Screen Layout Button
+Display,الشكل,POS Screen Layout Button
+Display Text (English),النص بالإنجليزي,POS Screen Layout Button
+Display Text (Arabic),النص بالعربي,POS Screen Layout Button
+Image,الصورة,POS Screen Layout Button
+Background Color,لون الخلفية,POS Screen Layout Button
+Text Color,لون النص,POS Screen Layout Button
+Font Size (px),حجم الخط,POS Screen Layout Button
+Target,وين تطبع,POS Print Job
+Printer,الطابعة,POS Print Job
+Agent,برنامج الطباعة,POS Print Job
+"Copied from the printer when the job is queued, not read through it. Which agent owns a printer can be changed while a job is in flight, and a queued job must not move to a different building because somebody edited a form.","يُنسخ من بطاقة الطابعة وقت ما تدخل المهمة الطابور. لو غيّر أحد برنامج الطابعة والمهمة لسا واقفة، ما تنتقل لمكان ثاني."
+Branch,الفرع,POS Print Job
+Job Type,نوع المطبوع,POS Print Job
+customer_receipt,فاتورة العميل
+kot,تذكرة مطبخ
+bill_preview,معاينة الفاتورة
+shift_report,تقرير الدرج
+test,تجربة طباعة,POS Print Job
+drawer,فتح الدرج
+Copies,عدد النسخ,POS Print Job
+Status,الحالة,POS Print Job
+queued,في الطابور,POS Print Job
+claimed,عند البرنامج,POS Print Job
+printed,انطبعت,POS Print Job
+failed,ما انطبعت,POS Print Job
+Source,مصدرها,POS Print Job
+Reference Doctype,نوع المستند,POS Print Job
+Reference Name,رقم المستند,POS Print Job
+Retry Of,إعادة لمهمة,POS Print Job
+Result,النتيجة,POS Print Job
+Attempts,عدد المحاولات,POS Print Job
+Claimed At,وقت الاستلام,POS Print Job
+Printed At,وقت الطباعة,POS Print Job
+Error,الخطأ,POS Print Job
+"What the agent said went wrong, in its own words. ""Out of paper"" and ""connection refused"" are not the same call-out.","كلام برنامج الطباعة نفسه عن سبب الفشل. «خلص الورق» غير «ما قدر يوصل للطابعة» — وكل واحد له حل ثاني."
+Set when this job is the fallback printer's attempt after the first one failed (BR-072).,تتعبّى إذا كانت هذي محاولة الطابعة البديلة بعد ما فشلت الأولى.
+"ESC/POS, base64. Rendered once when the job was queued so a reprint puts out exactly what came out the first time.",محتوى المطبوع كما رُسم أول مرة، عشان إعادة الطباعة تطلع نفس الورقة بالضبط.
+Payload,المحتوى,POS Print Job
+Payload Bytes,حجم المحتوى,POS Print Job
 What it prints,الأصناف اللي تطبع هنا
 What {0} prints,الأصناف اللي يطبعها {0}
 "Ticking a group here takes it off whichever station had it. Two stations claiming one group is a coin toss, not a richer setup.","لما تختار مجموعة هنا تنشال من المحطة اللي كانت عندها. مجموعة وحدة على محطتين معناها ما تدري وين بتطبع."

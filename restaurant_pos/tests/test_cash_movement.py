@@ -16,6 +16,7 @@ Refs: FR-8.3, BR-041, BR-044, D-245
 import frappe
 from frappe.utils import flt
 
+from restaurant_pos.setup import cash_accounts
 from restaurant_pos.tests.test_payment import CASH, PaymentTestBase
 from restaurant_pos.utils import cash_movement
 from restaurant_pos.utils import shift as shifts
@@ -175,3 +176,107 @@ def _a_second_method(pos_profile: str) -> str | None:
 		if row != CASH and not frappe.db.get_value("Mode of Payment", row, "rpos_is_credit"):
 			return row
 	return None
+
+
+class TestItReachesTheBooks(CashMovementTestBase):
+	"""`D-246` — the reason carries the account, as Toast's pay-out reasons do."""
+
+	@classmethod
+	def setUpClass(cls):
+		super().setUpClass()
+		cls.company = frappe.db.get_value("POS Profile", cls.profile, "company")
+		cls.account = _an_expense_account(cls.company)
+		cash_accounts.setup(cls.company)
+
+	def _with_account(self, account: str | None) -> str:
+		"""A reason of our own, so the shipped ones keep whatever the site gave them."""
+		title = "RPOS Test Cash Reason"
+		if not frappe.db.exists("POS Quick Note", title):
+			frappe.get_doc(
+				{
+					"doctype": "POS Quick Note",
+					"title": title,
+					"title_ar": title,
+					"scope": "cash_reason",
+					"is_active": 1,
+				}
+			).insert(ignore_permissions=True)
+
+		frappe.db.set_value("POS Quick Note", title, "expense_account", account)
+		return title
+
+	def _move_for(self, reason: str, direction: str = "out", amount: float = 20) -> str:
+		result = cash_movement.record(self.profile, direction=direction, amount=amount, reason=reason)
+		return result["movement"]
+
+	def test_a_movement_posts_its_own_entry(self):
+		reason = self._with_account(self.account)
+
+		movement = self._move_for(reason)
+
+		entry = frappe.db.get_value("POS Cash Movement", movement, "journal_entry")
+		self.assertTrue(entry, "no journal entry was posted")
+		self.assertEqual(frappe.db.get_value("Journal Entry", entry, "voucher_type"), "Cash Entry")
+
+	def test_money_out_debits_the_reason_and_credits_the_drawer(self):
+		reason = self._with_account(self.account)
+
+		movement = self._move_for(reason, direction="out", amount=20)
+
+		lines = _lines_of(frappe.db.get_value("POS Cash Movement", movement, "journal_entry"))
+		self.assertAlmostEqual(lines[self.account]["debit"], 20, places=2)
+		self.assertAlmostEqual(sum(row["credit"] for row in lines.values()), 20, places=2)
+
+	def test_money_in_turns_the_entry_around(self):
+		reason = self._with_account(self.account)
+
+		movement = self._move_for(reason, direction="in", amount=20)
+
+		lines = _lines_of(frappe.db.get_value("POS Cash Movement", movement, "journal_entry"))
+		self.assertAlmostEqual(lines[self.account]["credit"], 20, places=2)
+
+	def test_a_reason_with_no_account_still_moves_the_money_and_says_why_not(self):
+		"""The books never hold the drawer hostage."""
+		reason = self._with_account(None)
+		before = self._expected()
+
+		movement = self._move_for(reason, amount=15)
+
+		row = frappe.db.get_value(
+			"POS Cash Movement", movement, ["journal_entry", "posting_note"], as_dict=True
+		)
+		self.assertIsNone(row.journal_entry)
+		self.assertTrue(row.posting_note, "nothing said why it did not post")
+		self.assertAlmostEqual(self._expected(), before - 15, places=2)
+
+	def test_the_shipped_reasons_are_given_somewhere_to_land(self):
+		"""`D-246` — the user had no idea which accounts to use, so these are made."""
+		for title in ("Bought supplies", "Change from the safe"):
+			with self.subTest(reason=title):
+				if not frappe.db.exists("POS Quick Note", title):
+					self.skipTest("this site does not ship the reason")
+				self.assertTrue(frappe.db.get_value("POS Quick Note", title, "expense_account"))
+
+
+def _an_expense_account(company: str) -> str:
+	return frappe.get_all(
+		"Account",
+		filters={"company": company, "root_type": "Expense", "is_group": 0},
+		pluck="name",
+		limit=1,
+	)[0]
+
+
+def _lines_of(entry: str) -> dict[str, dict]:
+	rows = frappe.get_all(
+		"Journal Entry Account",
+		filters={"parent": entry},
+		fields=["account", "debit_in_account_currency", "credit_in_account_currency"],
+	)
+	return {
+		row.account: {
+			"debit": flt(row.debit_in_account_currency),
+			"credit": flt(row.credit_in_account_currency),
+		}
+		for row in rows
+	}

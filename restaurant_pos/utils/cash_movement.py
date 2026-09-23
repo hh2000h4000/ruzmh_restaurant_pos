@@ -18,17 +18,24 @@ again. And it is written through `assert_may_sell`, the same gate a sale passes
 (`D-058`) — a drawer that has been counted and handed over cannot have money
 taken out of it afterwards.
 
-**Not yet in the ledger.** The notes moved but the books do not know, because
-posting it needs an account per reason and nobody has chosen those. The drawer
-is made honest first, and the accounting entry is named as owed rather than
-guessed at.
+**And it reaches the ledger through its reason** (`D-246`). Toast maps each
+pay-out reason to a GL account, and so does this: the manager chooses the
+account once, on the reason, and the cashier taps a chip. A movement then posts
+its own `Cash Entry` — the reason's account against the drawer's cash account,
+which ERPNext already knows from `Mode of Payment Account`.
 
-Refs: FR-8.3, BR-041, BR-044, D-058, D-245
+**The books never hold the drawer hostage.** A reason with no account, a payment
+method with no account, a closed accounting period — none of them stop the
+movement being recorded, because the count at closing has to be right either
+way. What did not post is written on the movement in words, so it is a job
+somebody can finish rather than a silence.
+
+Refs: FR-8.3, BR-041, BR-044, D-058, D-245, D-246
 """
 
 import frappe
 from frappe import _
-from frappe.utils import flt, now_datetime
+from frappe.utils import flt, getdate, now_datetime
 
 from restaurant_pos.utils.audit import log_audit
 from restaurant_pos.utils.order import table_section_branch
@@ -105,6 +112,8 @@ def record(
 		}
 	).insert(ignore_permissions=True)
 
+	_post_to_ledger(movement, pos_profile)
+
 	log_audit(
 		f"cash_{direction}",
 		branch=branch,
@@ -119,7 +128,83 @@ def record(
 		},
 	)
 
-	return {"movement": movement.name, "drawer": till.name, "amount": amount, "direction": direction}
+	return {
+		"movement": movement.name,
+		"drawer": till.name,
+		"amount": amount,
+		"direction": direction,
+		"journal_entry": movement.journal_entry,
+	}
+
+
+def _post_to_ledger(movement, pos_profile: str) -> None:
+	"""One `Cash Entry`: the reason's account against the drawer's cash account.
+
+	Written onto the movement either way — the voucher when it posted, and the
+	sentence saying why not when it did not.
+	"""
+	account = frappe.db.get_value("POS Quick Note", {"title_ar": movement.reason}, "expense_account")
+	if not account:
+		account = frappe.db.get_value("POS Quick Note", {"title": movement.reason}, "expense_account")
+
+	if not account:
+		return _not_posted(movement, _("This reason has no accounting account."))
+
+	terminal = frappe.db.get_value("POS Profile", pos_profile, ["company", "cost_center"], as_dict=True)
+	cash_account = frappe.db.get_value(
+		"Mode of Payment Account",
+		{"parent": movement.mode_of_payment, "company": terminal.company},
+		"default_account",
+	)
+	if not cash_account:
+		return _not_posted(
+			movement, _("{0} has no account on this company.").format(movement.mode_of_payment)
+		)
+
+	# Out of the drawer: the reason's account takes it and the cash account gives
+	# it up. In: the other way round.
+	debit, credit = (account, cash_account) if movement.direction == "out" else (cash_account, account)
+	cost_center = terminal.cost_center or frappe.db.get_value("Company", terminal.company, "cost_center")
+
+	try:
+		entry = frappe.get_doc(
+			{
+				"doctype": "Journal Entry",
+				"voucher_type": "Cash Entry",
+				"company": terminal.company,
+				"posting_date": getdate(movement.moved_at),
+				"user_remark": f"{movement.reason} ({movement.name})",
+				"accounts": [
+					{
+						"account": debit,
+						"debit_in_account_currency": flt(movement.amount),
+						"cost_center": cost_center,
+					},
+					{
+						"account": credit,
+						"credit_in_account_currency": flt(movement.amount),
+						"cost_center": cost_center,
+					},
+				],
+			}
+		).insert(ignore_permissions=True)
+		entry.submit()
+	except Exception as refusal:
+		# A closed period, a frozen account, a chart somebody rearranged. The
+		# drawer is already right; this is the books saying not yet.
+		frappe.db.set_value(
+			"POS Cash Movement", movement.name, "posting_note", str(refusal), update_modified=False
+		)
+		return
+
+	frappe.db.set_value(
+		"POS Cash Movement", movement.name, "journal_entry", entry.name, update_modified=False
+	)
+	movement.journal_entry = entry.name
+
+
+def _not_posted(movement, why: str) -> None:
+	frappe.db.set_value("POS Cash Movement", movement.name, "posting_note", why, update_modified=False)
 
 
 def _authorise(override_token: str | None) -> str | None:

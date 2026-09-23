@@ -13,6 +13,7 @@ modified - every extension is a ``Custom Field``.
 import frappe
 from frappe.custom.doctype.custom_field.custom_field import create_custom_fields
 
+from restaurant_pos.setup import cash_accounts
 from restaurant_pos.setup.defaults import create_default_data
 from restaurant_pos.setup.print_templates import create_default_templates
 
@@ -682,6 +683,10 @@ def after_install():
 	# Shipped defaults run on install only. See setup/defaults.py for why they
 	# must never be re-applied on migrate.
 	create_default_data()
+
+	# `D-246` — the reasons exist now, so give them somewhere in the books to
+	# land. Never overwrites an account or a mapping somebody already chose.
+	cash_accounts.setup()
 
 
 def after_migrate():

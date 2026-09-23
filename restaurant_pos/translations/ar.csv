@@ -603,6 +603,14 @@ POS Printer,طابعة
 POS Profile {0} has no Restaurant Section configured.,جهاز الكاشير {0} ما له قسم. اختر له قسم من ملف الجهاز.
 POS Quick Note,ملاحظة سريعة
 POS Cash Movement,حركة نقد
+Accounting Account,الحساب المحاسبي
+In the Books,في الدفاتر
+Journal Entry,قيد اليومية
+Not Posted Because,ما انقيّد لأن
+This reason has no accounting account.,هذا السبب ما له حساب محاسبي.
+{0} has no account on this company.,{0} ما لها حساب في هذي الشركة.
+"Where the money went, in the books. Set it and every movement given this reason posts its own journal entry against this account; left empty the drawer still counts it and nothing reaches the ledger. This is how Toast handles a pay-out reason (D-246).","وين راحت الفلوس في الدفاتر. إذا حدّدت الحساب، كل حركة بهذا السبب تطلع لها قيد يومية عليه. وإذا تركته فاضي، الدرج يحسبها عادي وما يوصل الدفاتر شي."
+"Why no entry was posted, when none was. Empty means it posted.",ليش ما انقيّد، إذا ما انقيّد. فاضي يعني انقيّد.
 Movement,الحركة
 Drawer,الدرج
 Direction,الاتجاه

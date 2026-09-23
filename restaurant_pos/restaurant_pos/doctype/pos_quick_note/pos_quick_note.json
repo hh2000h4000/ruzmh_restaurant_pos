@@ -12,6 +12,7 @@
   "title_ar",
   "identity_cb",
   "scope",
+  "expense_account",
   "sort_order",
   "is_active"
  ],
@@ -53,6 +54,14 @@
    "reqd": 1
   },
   {
+   "depends_on": "eval:doc.scope=='cash_reason'",
+   "description": "Where the money went, in the books. Set it and every movement given this reason posts its own journal entry against this account; left empty the drawer still counts it and nothing reaches the ledger. This is how Toast handles a pay-out reason (D-246).",
+   "fieldname": "expense_account",
+   "fieldtype": "Link",
+   "label": "Accounting Account",
+   "options": "Account"
+  },
+  {
    "fieldname": "sort_order",
    "fieldtype": "Int",
    "label": "Sort Order"
@@ -66,7 +75,7 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-09-23 19:30:00.000000",
+ "modified": "2026-09-23 20:00:00.000000",
  "modified_by": "Administrator",
  "module": "Restaurant POS",
  "name": "POS Quick Note",

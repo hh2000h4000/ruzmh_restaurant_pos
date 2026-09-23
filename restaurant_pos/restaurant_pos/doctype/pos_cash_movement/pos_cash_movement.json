@@ -22,7 +22,10 @@
   "branch",
   "context_cb",
   "cashier",
-  "approved_by"
+  "approved_by",
+  "ledger_section",
+  "journal_entry",
+  "posting_note"
  ],
  "fields": [
   {
@@ -140,11 +143,30 @@
    "label": "Approved By",
    "options": "User",
    "read_only": 1
+  },
+  {
+   "fieldname": "ledger_section",
+   "fieldtype": "Section Break",
+   "label": "In the Books"
+  },
+  {
+   "fieldname": "journal_entry",
+   "fieldtype": "Link",
+   "label": "Journal Entry",
+   "options": "Journal Entry",
+   "read_only": 1
+  },
+  {
+   "description": "Why no entry was posted, when none was. Empty means it posted.",
+   "fieldname": "posting_note",
+   "fieldtype": "Small Text",
+   "label": "Not Posted Because",
+   "read_only": 1
   }
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-09-23 00:00:00.000000",
+ "modified": "2026-09-23 20:00:00.000000",
  "modified_by": "Administrator",
  "module": "Restaurant POS",
  "name": "POS Cash Movement",

@@ -14,3 +14,4 @@ restaurant_pos.patches.v1_0.remove_stale_branch_carry_limit
 restaurant_pos.patches.v1_0.add_ready_made_reasons
 restaurant_pos.patches.v1_0.retire_replace_price_effect
 restaurant_pos.patches.v1_0.add_cash_reasons
+restaurant_pos.patches.v1_0.add_cash_reason_accounts

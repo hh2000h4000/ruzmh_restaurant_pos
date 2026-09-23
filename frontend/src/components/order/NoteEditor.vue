@@ -29,7 +29,7 @@ import { useSessionStore } from "@/stores/session";
  */
 const props = defineProps<{
   /** Which saved lines to offer. */
-  scope: "item" | "order" | "void_reason" | "cancel_reason";
+  scope: "item" | "order" | "void_reason" | "cancel_reason" | "cash_reason";
   placeholder?: string;
   /** One line, not a list — a reason is one sentence (`D-239`). */
   single?: boolean;

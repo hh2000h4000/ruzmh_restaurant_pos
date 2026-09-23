@@ -13,7 +13,7 @@ import frappe
 from frappe import _
 from frappe.utils import cint
 
-from restaurant_pos.utils import idempotency, printing
+from restaurant_pos.utils import cash_movement, idempotency, printing
 from restaurant_pos.utils import shift as service
 
 
@@ -176,5 +176,42 @@ def close_day(
 	result = service.close_day(shift_name=shift, force=bool(int(force or 0)), pos_profile=pos_profile)
 	idempotency.remember(
 		queue_id, "close_day", result, reference_doctype="Restaurant Shift", reference_name=shift
+	)
+	return result
+
+
+@frappe.whitelist(methods=["POST"])
+def move_drawer_cash(
+	pos_profile: str,
+	direction: str,
+	amount: float,
+	reason: str,
+	mode_of_payment: str | None = None,
+	override_token: str | None = None,
+	queue_id: str | None = None,
+) -> dict:
+	"""Notes in or out of the open drawer for something that is not a sale (`D-245`).
+
+	**POST only, and idempotent.** Money that moves twice because a tap was
+	repeated is the defect this whole record exists to prevent.
+	"""
+	replay = idempotency.previous_result(queue_id)
+	if replay is not None:
+		return replay
+
+	result = cash_movement.record(
+		pos_profile,
+		direction=direction,
+		amount=amount,
+		reason=reason,
+		mode_of_payment=mode_of_payment,
+		override_token=override_token,
+	)
+	idempotency.remember(
+		queue_id,
+		"move_drawer_cash",
+		result,
+		reference_doctype="POS Cash Movement",
+		reference_name=result["movement"],
 	)
 	return result

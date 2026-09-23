@@ -522,6 +522,8 @@ tables_merged,دمج طاولات
 loyalty_redeemed,صرف نقاط ولاء
 permission_changed,تغيير صلاحية
 role_changed,تغيير دور
+cash_in,إيداع نقد في الدرج
+cash_out,سحب نقد من الدرج
 RPOS Theme,ألوان شاشة الكاشير
 Default Theme,الألوان الافتراضية
 Text on Primary,النص على اللون الأساسي
@@ -600,6 +602,21 @@ POS Printer Routing Rule,قاعدة طباعة
 POS Printer,طابعة
 POS Profile {0} has no Restaurant Section configured.,جهاز الكاشير {0} ما له قسم. اختر له قسم من ملف الجهاز.
 POS Quick Note,ملاحظة سريعة
+POS Cash Movement,حركة نقد
+Movement,الحركة
+Drawer,الدرج
+Direction,الاتجاه
+in,إيداع,POS Cash Movement
+out,سحب,POS Cash Movement
+Moved At,وقت الحركة
+Why,السبب
+Can Move Cash In or Out of the Drawer,يسحب ويودع نقداً في الدرج
+A cash movement must be more than zero.,مبلغ الحركة لازم يكون أكبر من صفر.
+A cash movement is either in or out.,الحركة إما إيداع أو سحب.
+Say what the money was for.,اكتب وش كانت الفلوس له.
+Moving money in or out of the drawer needs a manager.,سحب أو إيداع نقد من الدرج يحتاج مدير.
+A cash movement cannot be deleted. It is the drawer's record.,حركة النقد ما تنحذف — هي سجلّ الدرج.
+POS Profile {0} has no cash payment method.,جهاز الكاشير {0} ما له طريقة دفع نقدية.
 POS Screen Layout,ترتيب شاشة الكاشير
 POS Sync Entry,سجل المزامنة
 Paper and problems,الطباعة والأعطال
@@ -799,6 +816,7 @@ Table {0} already has a bill on it. Merge the bills instead.,الطاولة {0} 
 Choose at least one free table to join.,اختر طاولة فاضية واحدة على الأقل للضمّ.
 void_reason,سبب إلغاء صنف,POS Quick Note
 cancel_reason,سبب إلغاء طلب,POS Quick Note
+cash_reason,سبب حركة نقد,POS Quick Note
 item,ملاحظة على صنف,POS Quick Note
 order,ملاحظة على الطلب,POS Quick Note
 both,ملاحظة على الاثنين,POS Quick Note

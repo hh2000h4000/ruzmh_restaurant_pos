@@ -26,6 +26,7 @@ import UnprintedTickets from "@/components/order/UnprintedTickets.vue";
 import ReturnDialog from "@/components/order/ReturnDialog.vue";
 import CloseDayDialog from "@/components/shift/CloseDayDialog.vue";
 import CloseTillDialog from "@/components/shift/CloseTillDialog.vue";
+import DrawerCashDialog from "@/components/shift/DrawerCashDialog.vue";
 import TillReportDialog from "@/components/shift/TillReportDialog.vue";
 import OpenTillDialog from "@/components/shift/OpenTillDialog.vue";
 import RosterDialog from "@/components/shift/RosterDialog.vue";
@@ -315,6 +316,7 @@ const openingTill = ref(false);
 const closingTill = ref(false);
 /** The X report on screen; printing it is a button inside (`D-237`). */
 const viewingReport = ref(false);
+const movingCash = ref(false);
 const closingDay = ref(false);
 
 function onMenu(key: string): void {
@@ -328,6 +330,7 @@ function onMenu(key: string): void {
   else if (key === "roster") showingRoster.value = true;
   else if (key === "customerDisplay") openCustomerDisplay();
   else if (key === "viewReport") viewingReport.value = true;
+  else if (key === "drawerCash") movingCash.value = true;
   // D-191 — a pane like the bar's own, reached from the menu because the bar
   // had no room for a sixth. Through `onNavigate`, so walking to it cancels a
   // table or a booking waiting for its order type, exactly as the bar does.
@@ -1898,6 +1901,15 @@ async function send(): Promise<void> {
     <TillReportDialog
       :open="viewingReport"
       @close="viewingReport = false"
+    />
+
+    <DrawerCashDialog
+      :open="movingCash"
+      @done="
+        movingCash = false;
+        void shift.refresh();
+      "
+      @close="movingCash = false"
     />
 
     <CloseTillDialog

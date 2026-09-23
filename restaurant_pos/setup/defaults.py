@@ -270,6 +270,32 @@ QUICK_NOTES = [
 		"scope": "cancel_reason",
 		"sort_order": 53,
 	},
+	# `D-245` — why notes left the drawer or came into it. The four a restaurant
+	# actually uses; anything rarer is still typed.
+	{
+		"title": "Change from the safe",
+		"title_ar": "فكّة من الخزنة",
+		"scope": "cash_reason",
+		"sort_order": 60,
+	},
+	{
+		"title": "Bought supplies",
+		"title_ar": "شراء مستلزمات",
+		"scope": "cash_reason",
+		"sort_order": 61,
+	},
+	{
+		"title": "Cash to the safe",
+		"title_ar": "تحويل للخزنة",
+		"scope": "cash_reason",
+		"sort_order": 62,
+	},
+	{
+		"title": "Delivery driver float",
+		"title_ar": "عهدة مندوب التوصيل",
+		"scope": "cash_reason",
+		"sort_order": 63,
+	},
 ]
 
 

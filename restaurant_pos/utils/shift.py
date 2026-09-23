@@ -37,7 +37,7 @@ import frappe
 from frappe import _
 from frappe.utils import cint, flt, format_datetime, now_datetime, nowdate, nowtime
 
-from restaurant_pos.utils import printing
+from restaurant_pos.utils import cash_movement, printing
 from restaurant_pos.utils.order import profiles_in, table_section_branch
 from restaurant_pos.utils.payment import is_credit_method
 from restaurant_pos.utils.permissions import (
@@ -562,14 +562,38 @@ def summarise_till(opening_entry: str) -> dict:
 
 	opening = {row.mode_of_payment: flt(row.opening_amount) for row in entry.balance_details}
 	report = _report(
-		day or frappe._dict(name=None, branch=None, status=None), orders, opening, refunds=refunds
+		day or frappe._dict(name=None, branch=None, status=None),
+		orders,
+		opening,
+		refunds=refunds,
+		moved=cash_movement.totals_of(entry.name),
 	)
+	report["movements"] = _movements_of(entry.name)
 	report["entry"] = entry.name
 	report["user"] = entry.user
 	report["opened_at"] = entry.period_start_date
 	# Its count, once there is one — what its Z report prints (`D-219`).
 	report["tills"] = _counted_tills([entry.name]) if entry.status == "Closed" else []
 	return report
+
+
+def _movements_of(opening_entry: str) -> list[dict]:
+	"""Every note that moved for something that was not a sale, so the Z says why.
+
+	A difference the count can explain is not a difference; one it cannot is the
+	whole reason this list is printed beside the figures (`D-245`).
+	"""
+	rows = frappe.get_all(
+		"POS Cash Movement",
+		filters={"pos_opening_entry": opening_entry},
+		fields=["name", "direction", "amount", "reason", "mode_of_payment", "moved_at", "cashier"],
+		order_by="moved_at asc",
+	)
+	for row in rows:
+		row["amount"] = money(row["amount"])
+		row["by"] = frappe.db.get_value("User", row["cashier"], "full_name") or row["cashier"]
+
+	return rows
 
 
 def _period_end(entry) -> object:
@@ -602,11 +626,11 @@ def _refunds_in(window: list, **filters) -> list[str]:
 	)
 
 
-def _report(day, orders: list, opening: dict, *, refunds: list[str]) -> dict:
+def _report(day, orders: list, opening: dict, *, refunds: list[str], moved: dict | None = None) -> dict:
 	closed = [row for row in orders if row.status == "closed"]
 	still_open = [row for row in orders if row.status in OPEN_ORDER_STATUSES]
 	sold = [row.sales_invoice for row in closed if row.sales_invoice]
-	methods = _by_method(sold, refunds, opening)
+	methods = _by_method(sold, refunds, opening, moved or {})
 	refund_rows = (
 		frappe.get_all("Sales Invoice", filters={"name": ("in", refunds)}, fields=["owner", "grand_total"])
 		if refunds
@@ -693,7 +717,7 @@ def _by_order_type(closed: list) -> list[dict]:
 	return sorted(tally.values(), key=lambda entry: -entry["sales"])
 
 
-def _by_method(invoices: list[str], refunds: list[str], opening: dict) -> list[dict]:
+def _by_method(invoices: list[str], refunds: list[str], opening: dict, moved: dict) -> list[dict]:
 	"""FR-8.3 — takings per payment method, and what each one means.
 
 	Read from the **Sales Invoice**, which is where a payment is recorded: the
@@ -746,6 +770,8 @@ def _by_method(invoices: list[str], refunds: list[str], opening: dict) -> list[d
 				"taken": 0.0,
 				"refunded": 0.0,
 				"opening": 0.0,
+				"moved_in": 0.0,
+				"moved_out": 0.0,
 			},
 		)
 
@@ -761,11 +787,23 @@ def _by_method(invoices: list[str], refunds: list[str], opening: dict) -> list[d
 	for method, amount in opening.items():
 		line(method)["opening"] = flt(amount)
 
+	# **And what moved for something that was not a sale** (`D-245`): change
+	# fetched from the safe, a bag of ice paid for out of the till. The notes
+	# left the box, so the box is expected to hold that much less.
+	for method, movement in moved.items():
+		entry = line(method)
+		entry["moved_in"] = flt(movement.get("in"))
+		entry["moved_out"] = flt(movement.get("out"))
+
 	for entry in tally.values():
-		for figure in ("sales", "taken", "refunded", "opening"):
+		for figure in ("sales", "taken", "refunded", "opening", "moved_in", "moved_out"):
 			entry[figure] = money(entry[figure])
 		# Nothing is expected in a drawer for credit: the money is not there.
-		entry["expected"] = 0.0 if entry["kind"] == "credit" else money(entry["opening"] + entry["sales"])
+		entry["expected"] = (
+			0.0
+			if entry["kind"] == "credit"
+			else money(entry["opening"] + entry["sales"] + entry["moved_in"] - entry["moved_out"])
+		)
 
 	return sorted(tally.values(), key=lambda entry: (entry["kind"], -entry["sales"]))
 

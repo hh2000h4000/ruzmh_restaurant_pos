@@ -175,3 +175,20 @@ export function closeDay(payload: {
 }> {
   return mutate("shift.close_day", payload);
 }
+
+/**
+ * Notes in or out of the open drawer, for something that is not a sale (`D-245`).
+ *
+ * `mutate` because it carries a `queue_id`: money that moves twice because a tap
+ * was repeated is the defect the whole record exists to prevent.
+ */
+export function moveDrawerCash(payload: {
+  pos_profile: string;
+  direction: "in" | "out";
+  amount: number;
+  reason: string;
+  mode_of_payment?: string | null;
+  override_token?: string | null;
+}): Promise<{ movement: string; drawer: string; amount: number; direction: string }> {
+  return mutate("shift.move_drawer_cash", payload);
+}

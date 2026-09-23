@@ -28,7 +28,7 @@ const props = defineProps<{
   /** What the destructive button says, in the words of the act. */
   confirm: string;
   /** Which ready-made reasons to offer (`D-239`). */
-  scope: "void_reason" | "cancel_reason";
+  scope: "void_reason" | "cancel_reason" | "cash_reason";
   busy?: boolean;
 }>();
 

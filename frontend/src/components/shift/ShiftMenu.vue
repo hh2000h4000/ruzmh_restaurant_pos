@@ -134,6 +134,10 @@ const entries = computed<MenuEntry[]>(() => {
   // drawer held by someone else too, because that is the drawer it checks.
   if (shift.tillOpen) {
     rows.push({ key: "viewReport", label: "shift.reportTitle", icon: "receipt" });
+    // `D-245` — notes out for a bag of ice, or in from the safe. Offered to every
+    // cashier: without the permission the screen asks for a manager's PIN, which
+    // is the same shape a discount over their ceiling takes.
+    rows.push({ key: "drawerCash", label: "drawerCash.title", icon: "card" });
   }
 
   rows.push(BOOKINGS);

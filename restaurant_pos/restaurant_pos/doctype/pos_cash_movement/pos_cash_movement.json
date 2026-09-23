@@ -1,0 +1,207 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "naming_series:",
+ "creation": "2026-09-23 00:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 0,
+ "engine": "InnoDB",
+ "field_order": [
+  "naming_series",
+  "movement_section",
+  "pos_opening_entry",
+  "direction",
+  "amount",
+  "movement_cb",
+  "mode_of_payment",
+  "moved_at",
+  "why_section",
+  "reason",
+  "context_section",
+  "pos_profile",
+  "branch",
+  "context_cb",
+  "cashier",
+  "approved_by"
+ ],
+ "fields": [
+  {
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "hidden": 1,
+   "label": "Naming Series",
+   "options": "CASH-.YYYY.-.#####.",
+   "reqd": 1
+  },
+  {
+   "fieldname": "movement_section",
+   "fieldtype": "Section Break",
+   "label": "Movement"
+  },
+  {
+   "description": "The drawer this money left or entered. A movement belongs to one drawer and is counted with it.",
+   "fieldname": "pos_opening_entry",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "Drawer",
+   "options": "POS Opening Entry",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "direction",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Direction",
+   "options": "in\nout",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "amount",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Amount",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "movement_cb",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "mode_of_payment",
+   "fieldtype": "Link",
+   "label": "Mode of Payment",
+   "options": "Mode of Payment",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "moved_at",
+   "fieldtype": "Datetime",
+   "label": "Moved At",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "why_section",
+   "fieldtype": "Section Break",
+   "label": "Why"
+  },
+  {
+   "description": "What the money was for. A drawer that is short by a number nobody can explain is the defect this field exists to prevent.",
+   "fieldname": "reason",
+   "fieldtype": "Small Text",
+   "in_list_view": 1,
+   "label": "Reason",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "context_section",
+   "fieldtype": "Section Break",
+   "label": "Context"
+  },
+  {
+   "fieldname": "pos_profile",
+   "fieldtype": "Link",
+   "label": "POS Profile",
+   "options": "POS Profile",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "branch",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "Branch",
+   "options": "Branch",
+   "read_only": 1
+  },
+  {
+   "fieldname": "context_cb",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "cashier",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "Cashier",
+   "options": "User",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "description": "The manager whose PIN allowed it, when the cashier could not do it alone.",
+   "fieldname": "approved_by",
+   "fieldtype": "Link",
+   "label": "Approved By",
+   "options": "User",
+   "read_only": 1
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-09-23 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Restaurant POS",
+ "name": "POS Cash Movement",
+ "naming_rule": "By \"Naming Series\" field",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Restaurant Admin",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 0,
+   "delete": 0,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Restaurant Manager",
+   "share": 1,
+   "write": 0
+  },
+  {
+   "create": 0,
+   "delete": 0,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "POS Manager",
+   "share": 1,
+   "write": 0
+  },
+  {
+   "create": 0,
+   "delete": 0,
+   "email": 0,
+   "export": 0,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "POS Cashier",
+   "share": 0,
+   "write": 0
+  }
+ ],
+ "sort_field": "moved_at",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

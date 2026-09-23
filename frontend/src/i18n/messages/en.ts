@@ -177,6 +177,10 @@ export const messages = {
   "tables.joinEmpty": "No free table in this hall to join.",
   "tables.joinHasBill": "Has a bill",
   "tables.joinConfirm": "Join {count}",
+  "tables.readyTitle": "Table {number} is ready?",
+  "tables.readyBody":
+    "A table waits on Cleaning after its last bill is paid. Say it is wiped down and it goes back to free.",
+  "tables.readyConfirm": "It is ready",
   "tables.start": "Open the order",
   "table.available": "Free",
   "table.occupied": "Occupied",

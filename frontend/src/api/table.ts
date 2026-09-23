@@ -1,4 +1,4 @@
-import { query } from "./client";
+import { command, query } from "./client";
 
 export interface FloorTable {
   name: string;
@@ -51,4 +51,19 @@ export interface FloorPlan {
 
 export function getFloorPlan(section: string): Promise<FloorPlan> {
   return query<FloorPlan>("table.get_floor_plan", { section });
+}
+
+/**
+ * Put a table back into service, or take it out — the cashier's end of
+ * `api/table.update_status`.
+ *
+ * A table goes to `cleaning` on its own when the last bill is paid, and only a
+ * person can say it is wiped down. Without this the status was a dead end: the
+ * server could set it and nothing on the till could clear it.
+ */
+export function setTableStatus(
+  table: string,
+  status: "available" | "cleaning" | "inactive",
+): Promise<{ table: string; status: string }> {
+  return command("table.update_status", { table, status });
 }

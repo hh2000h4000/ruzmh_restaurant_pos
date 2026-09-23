@@ -5,6 +5,7 @@ import { getFloorPlan, type FloorTable } from "@/api/table";
 import AppIcon from "@/components/AppIcon.vue";
 import BaseDialog from "@/components/BaseDialog.vue";
 import BillPicker from "@/components/order/BillPicker.vue";
+import TableReadyDialog from "@/components/order/TableReadyDialog.vue";
 import { pick, t, timeOnly, tn } from "@/i18n";
 import { useSessionStore } from "@/stores/session";
 
@@ -61,6 +62,7 @@ const loading = ref(true);
 
 /** The table whose bills the cashier is choosing between (`BR-066`). */
 const picking = ref<FloorTable | null>(null);
+const readying = ref<FloorTable | null>(null);
 const failure = ref<string | null>(null);
 
 const sections = computed(() => session.data?.sections ?? []);
@@ -121,6 +123,13 @@ function onTable(table: FloorTable): void {
 
   if (bills.length === 1) {
     emit("open", bills[0].name);
+    return;
+  }
+
+  // A `cleaning` table is waiting to be told it is wiped down, and the Tables
+  // screen asks with the same dialog (`CLAUDE.md` §5.5).
+  if (table.status === "cleaning") {
+    readying.value = table;
     return;
   }
 
@@ -212,7 +221,7 @@ defineExpose({ reload: load });
           type="button"
           class="flex min-h-[7rem] flex-col items-center justify-center gap-1 rounded-rpos border-2 p-3 transition duration-200 ease-rpos hover:-translate-y-px hover:shadow-card disabled:opacity-60 disabled:hover:translate-y-0 disabled:hover:shadow-none"
           :class="STATUS_CLASS[table.status]"
-          :disabled="table.status === 'inactive' || table.status === 'cleaning'"
+          :disabled="table.status === 'inactive'"
           :aria-label="`${t('card.table', { number: table.table_number })} — ${statusLabel[table.status]}`"
           @click="onTable(table)"
         >
@@ -265,6 +274,15 @@ defineExpose({ reload: load });
       :table="picking"
       @pick="openBill"
       @close="picking = null"
+    />
+
+    <TableReadyDialog
+      :table="readying"
+      @done="
+        readying = null;
+        void load();
+      "
+      @close="readying = null"
     />
 
     <BaseDialog

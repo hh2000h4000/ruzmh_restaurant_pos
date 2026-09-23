@@ -5,6 +5,7 @@ import { useRoute, useRouter } from "vue-router";
 import { getFloorPlan, type FloorTable } from "@/api/table";
 import BaseDialog from "@/components/BaseDialog.vue";
 import BillPicker from "@/components/order/BillPicker.vue";
+import TableReadyDialog from "@/components/order/TableReadyDialog.vue";
 import { pick, t, timeOnly, tn } from "@/i18n";
 import { useOrderStore } from "@/stores/order";
 import { useSessionStore } from "@/stores/session";
@@ -49,6 +50,7 @@ const chosen = ref<FloorTable | null>(null);
 
 /** The table whose bills the cashier is choosing between (`BR-066`). */
 const picking = ref<FloorTable | null>(null);
+const readying = ref<FloorTable | null>(null);
 const coverCount = ref(2);
 const creating = ref(false);
 
@@ -114,6 +116,7 @@ async function load(): Promise<void> {
 watch(activeSection, () => {
   chosen.value = null;
   picking.value = null;
+  readying.value = null;
   void load();
 });
 
@@ -134,6 +137,13 @@ async function onTable(table: FloorTable): Promise<void> {
 
   if (bills.length === 1) {
     await router.push({ name: "order", params: { orderName: bills[0].name } });
+    return;
+  }
+
+  // A wiped-down table is the one thing a `cleaning` table is waiting to be
+  // told; before this it was simply disabled and stayed that way for ever.
+  if (table.status === "cleaning") {
+    readying.value = table;
     return;
   }
 
@@ -267,7 +277,7 @@ async function startOrder(): Promise<void> {
           type="button"
           class="flex min-h-[7rem] flex-col items-center justify-center gap-1 rounded-rpos border-2 p-3 disabled:opacity-60"
           :class="STATUS_CLASS[table.status]"
-          :disabled="table.status === 'inactive' || table.status === 'cleaning'"
+          :disabled="table.status === 'inactive'"
           :aria-label="`${t('card.table', { number: table.table_number })} — ${statusLabel[table.status]}`"
           @click="onTable(table)"
         >
@@ -319,6 +329,15 @@ async function startOrder(): Promise<void> {
       :table="picking"
       @pick="openBill"
       @close="picking = null"
+    />
+
+    <TableReadyDialog
+      :table="readying"
+      @done="
+        readying = null;
+        void load();
+      "
+      @close="readying = null"
     />
 
     <BaseDialog

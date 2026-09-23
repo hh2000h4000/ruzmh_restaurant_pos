@@ -159,12 +159,15 @@ def _joined_tables(names: list[str]) -> dict[str, list[str]]:
 	return joined
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def update_status(table: str, status: str) -> dict:
 	"""Change a table's status by hand — typically cleaning back to available.
 
 	Refuses to free a table that still has an order on it; that is what closing
 	or cancelling the order is for (BR-061).
+
+	**POST only.** Frappe rolls back a GET's writes, so reached as a query this
+	would answer "available" and change nothing (`D-226` learned it the hard way).
 	"""
 	allowed = {"available", "cleaning", "inactive"}
 	if status not in allowed:

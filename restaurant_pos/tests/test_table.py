@@ -108,3 +108,19 @@ class TestFloorPlan(OrderTestBase):
 
 		with self.assertRaises(frappe.ValidationError):
 			api.update_status(table, "occupied")
+
+	def test_a_cleaning_table_can_be_told_it_is_wiped_down(self):
+		"""`D-242` — the till's only way out of `cleaning`, and it had none."""
+		table = frappe.db.get_value("Restaurant Table", {"section": self.section, "is_active": 1}, "name")
+		frappe.db.set_value("Restaurant Table", table, {"status": "cleaning", "current_order": None})
+
+		api.update_status(table, "available")
+
+		self.assertEqual(frappe.db.get_value("Restaurant Table", table, "status"), "available")
+
+	def test_it_is_a_write_and_only_answers_a_post(self):
+		"""A GET's writes are rolled back: it would answer "available" and free nothing."""
+		self.assertEqual(
+			frappe.allowed_http_methods_for_whitelisted_func.get(api.update_status),
+			["POST"],
+		)

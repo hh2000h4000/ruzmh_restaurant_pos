@@ -43,5 +43,10 @@ frappe.query_reports["Item Sales"] = {
 			label: __("One row per group, not per dish"),
 			fieldtype: "Check",
 		},
+		{
+			fieldname: "show_cost",
+			label: __("Show cost and profit"),
+			fieldtype: "Check",
+		},
 	],
 };

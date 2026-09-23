@@ -27,21 +27,23 @@ from restaurant_pos.utils import returns
 
 REASON = "goods_returned"
 
-EMPTY = {"qty": 0.0, "returned_qty": 0.0, "net_qty": 0.0, "amount": 0.0}
+EMPTY = {"qty": 0.0, "returned_qty": 0.0, "net_qty": 0.0, "amount": 0.0, "cost": 0.0, "profit": 0.0}
+
+
+def _run(**filters):
+	return report.execute({"from_date": today(), "to_date": today(), **filters})
 
 
 def _row(key: str = ITEM, **filters) -> dict:
 	"""One line of the report, or an empty one when the dish is not on it."""
-	filters = {"from_date": today(), "to_date": today(), **filters}
-	_columns, rows = report.execute(filters)
+	_columns, rows, _message = _run(**filters)
 	by_key = {row.get("item_code") or row["item_group"]: row for row in rows}
 	return by_key.get(key) or dict(EMPTY)
 
 
 def _delta(before: dict, after: dict) -> dict:
-	return {
-		field: flt(after[field] - before[field], 2) for field in ("qty", "returned_qty", "net_qty", "amount")
-	}
+	fields = ("qty", "returned_qty", "net_qty", "amount", "cost", "profit")
+	return {field: flt(after.get(field, 0) - before.get(field, 0), 2) for field in fields}
 
 
 class TestWhatSold(PaymentTestBase):
@@ -69,7 +71,7 @@ class TestWhatSold(PaymentTestBase):
 		order = self._payable_order(qty=2)
 		self._pay(order)
 
-		_columns, rows = report.execute({"from_date": today(), "to_date": today()})
+		_columns, rows, _message = report.execute({"from_date": today(), "to_date": today()})
 
 		self.assertAlmostEqual(sum(row["share"] for row in rows), 100.0, places=1)
 
@@ -128,3 +130,43 @@ class TestTheWindowAndTheScope(PaymentTestBase):
 		after = _row(group, group_by_item_group=1)
 		self.assertNotIn("item_code", after)
 		self.assertEqual(_delta(before, after)["qty"], 2)
+
+
+class TestCostAndProfit(PaymentTestBase):
+	"""`D-244` — asked for, never assumed."""
+
+	def test_the_columns_are_absent_until_they_are_asked_for(self):
+		"""A restaurant without stock has no cost, and a blank column is not one."""
+		asked, unasked = _run(show_cost=1)[0], _run()[0]
+
+		self.assertIn("cost", [column["fieldname"] for column in asked])
+		self.assertNotIn("cost", [column["fieldname"] for column in unasked])
+
+	def test_a_costed_dish_reports_its_cost_and_what_is_left(self):
+		cost = 4.0
+		frappe.db.set_value("Item", ITEM, "valuation_rate", cost)
+		frappe.db.set_value("Stock Settings", None, "allow_negative_stock", 1)
+		frappe.db.value_cache = {}
+		frappe.clear_document_cache("Item", ITEM)
+		before = _row(show_cost=1)
+
+		order = self._payable_order(qty=2)
+		self._pay(order)
+
+		moved = _delta(before, _row(show_cost=1))
+		line = frappe.get_doc("Sales Invoice", order.sales_invoice).items[0]
+		self.assertAlmostEqual(moved["cost"], flt(line.incoming_rate) * 2, places=2)
+		self.assertAlmostEqual(moved["profit"], moved["amount"] - moved["cost"], places=2)
+
+	def test_a_dish_with_no_cost_is_said_aloud_not_counted_as_free(self):
+		"""The margin would otherwise read 100% and be believed."""
+		order = self._payable_order(qty=1)
+		self._pay(order)
+
+		_columns, rows, message = _run(show_cost=1)
+		blind = [row for row in rows if row["uncosted_qty"]]
+
+		if blind:
+			self.assertIn(str(len(blind)), message)
+		else:
+			self.assertIsNone(message)

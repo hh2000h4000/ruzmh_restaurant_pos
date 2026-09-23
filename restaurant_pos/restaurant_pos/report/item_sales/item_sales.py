@@ -14,64 +14,44 @@ calls it the product mix and it is the first screen a restaurant owner opens.
 prices tax-inclusive (`D-091`) or not, so the same column means the same thing
 across branches, and it is the number a food cost is compared against.
 
-**Dated the way money is dated everywhere else** (`D-217`): a sale counts in the
-period its bill was settled, whatever day opened it, and a refund counts in the
-period it was paid out, against a sale of any age. So this report and the day's
-report cannot disagree about the same fortnight.
+**Cost is asked for, not assumed** (`D-244`). `incoming_rate` is what the stock
+was worth when the dish left it — ERPNext's own gross profit reads the same
+figure — but a restaurant running without stock has none, and a margin column
+reading 100% on every line is a lie told in a currency. So the columns appear
+only when the owner ticks for them, and lines with no cost are counted and said
+aloud rather than passed off as free to make.
 
-Refs: FR-11.2, D-217, D-243
+Refs: FR-11.2, D-217, D-243, D-244
 """
 
 import frappe
 from frappe import _
-from frappe.utils import flt, getdate
+from frappe.utils import flt
 
-#: A bill that took money. Cancelled ones sold nothing.
-SETTLED = "closed"
+from restaurant_pos.utils import reporting
 
 
 def execute(filters=None):
 	filters = frappe._dict(filters or {})
-	from_date, to_date = _window(filters)
+	from_date, to_date = reporting.window(filters)
+	by_group = bool(filters.group_by_item_group)
+	costed = bool(filters.show_cost)
 
-	sold = _sold_lines(filters, from_date, to_date)
-	returned = _returned_lines(filters, from_date, to_date)
+	orders = reporting.settled_orders(filters, from_date, to_date, ["sales_invoice"])
+	sold = _lines_of([row.sales_invoice for row in orders], filters.item_group)
+	returned = _lines_of(reporting.credit_notes(filters, from_date, to_date), filters.item_group)
 
-	rows = _tally(sold, returned, by_group=bool(filters.group_by_item_group))
+	rows = _tally(sold, returned, by_group=by_group)
 	rows = [row for row in rows if row["qty"] or row["returned_qty"]]
 	rows.sort(key=lambda row: row["amount"], reverse=True)
 
 	total = sum(row["amount"] for row in rows)
 	for row in rows:
 		row["share"] = flt(row["amount"] / total * 100, 2) if total else 0.0
+		if costed:
+			_cost_columns(row)
 
-	return _columns(by_group=bool(filters.group_by_item_group)), rows
-
-
-# --------------------------------------------------------------------------- #
-# Filters
-# --------------------------------------------------------------------------- #
-
-
-def _window(filters) -> tuple[str, str]:
-	if not filters.from_date or not filters.to_date:
-		frappe.throw(_("Choose the days to report on."))
-
-	from_date, to_date = getdate(filters.from_date), getdate(filters.to_date)
-	if from_date > to_date:
-		frappe.throw(_("From Date cannot be after To Date."))
-
-	return f"{from_date} 00:00:00", f"{to_date} 23:59:59"
-
-
-def _scope(filters) -> dict:
-	"""The branch and order type, as filters on `Restaurant Order`."""
-	scope = {}
-	if filters.branch:
-		scope["branch"] = filters.branch
-	if filters.order_type:
-		scope["order_type"] = filters.order_type
-	return scope
+	return _columns(by_group=by_group, costed=costed), rows, (_message(rows) if costed else None)
 
 
 # --------------------------------------------------------------------------- #
@@ -90,54 +70,8 @@ def _lines_of(invoices: list[str], item_group: str | None) -> list[frappe._dict]
 	return frappe.get_all(
 		"Sales Invoice Item",
 		filters=filters,
-		fields=["item_code", "item_name", "item_group", "qty", "net_amount"],
+		fields=["item_code", "item_name", "item_group", "qty", "net_amount", "incoming_rate"],
 	)
-
-
-def _sold_lines(filters, from_date: str, to_date: str) -> list[frappe._dict]:
-	invoices = frappe.get_all(
-		"Restaurant Order",
-		filters={
-			**_scope(filters),
-			"status": SETTLED,
-			"closed_at": ("between", [from_date, to_date]),
-			"sales_invoice": ("is", "set"),
-		},
-		pluck="sales_invoice",
-	)
-	return _lines_of(invoices, filters.item_group)
-
-
-def _returned_lines(filters, from_date: str, to_date: str) -> list[frappe._dict]:
-	"""Credit notes paid out in the window, against a sale of any age (`D-217`).
-
-	Scoped through the bill they reverse, because a credit note carries no branch
-	of its own — the same walk `utils/returns` makes to find a refund's order.
-	"""
-	credits = frappe.get_all(
-		"Sales Invoice",
-		filters={
-			"is_return": 1,
-			"docstatus": 1,
-			"posting_date": ("between", [getdate(from_date), getdate(to_date)]),
-			"return_against": ("is", "set"),
-		},
-		fields=["name", "return_against"],
-	)
-	if not credits:
-		return []
-
-	scope = _scope(filters)
-	originals = list({row.return_against for row in credits})
-	in_scope = set(
-		frappe.get_all(
-			"Restaurant Order",
-			filters={**scope, "sales_invoice": ("in", originals)},
-			pluck="sales_invoice",
-		)
-	)
-
-	return _lines_of([row.name for row in credits if row.return_against in in_scope], filters.item_group)
 
 
 # --------------------------------------------------------------------------- #
@@ -159,6 +93,8 @@ def _tally(sold: list, returned: list, *, by_group: bool) -> list[dict]:
 				"returned_qty": 0.0,
 				"net_qty": 0.0,
 				"amount": 0.0,
+				"cost": 0.0,
+				"uncosted_qty": 0.0,
 			}
 			# `item_name` carries no column: Frappe's Link cell reads it from the row
 			# and prints "CODE: Name", so a column of its own would repeat the words.
@@ -169,13 +105,15 @@ def _tally(sold: list, returned: list, *, by_group: bool) -> list[dict]:
 		row = row_for(line)
 		row["qty"] += flt(line.qty)
 		row["amount"] += flt(line.net_amount)
+		_add_cost(row, line)
 
 	# A credit note's own quantities and amounts are already negative, so the
-	# returned column is their size and the takings simply add them.
+	# returned column is their size and the takings — and the cost — simply add.
 	for line in returned:
 		row = row_for(line)
 		row["returned_qty"] += abs(flt(line.qty))
 		row["amount"] += flt(line.net_amount)
+		_add_cost(row, line)
 
 	for row in rows.values():
 		row["net_qty"] = row["qty"] - row["returned_qty"]
@@ -184,36 +122,66 @@ def _tally(sold: list, returned: list, *, by_group: bool) -> list[dict]:
 	return list(rows.values())
 
 
+def _add_cost(row: dict, line) -> None:
+	"""What the stock was worth as it left — and how much left with no worth at all."""
+	rate = flt(line.incoming_rate)
+	if rate:
+		row["cost"] += rate * flt(line.qty)
+	else:
+		row["uncosted_qty"] += abs(flt(line.qty))
+
+
+def _cost_columns(row: dict) -> None:
+	row["cost"] = flt(row["cost"], 2)
+	row["profit"] = flt(row["amount"] - row["cost"], 2)
+	row["margin"] = flt(row["profit"] / row["amount"] * 100, 2) if row["amount"] else 0.0
+
+
+def _message(rows: list[dict]) -> str | None:
+	"""Say it plainly when a margin is built on dishes that were never costed."""
+	blind = [row for row in rows if row["uncosted_qty"]]
+	if not blind:
+		return None
+
+	return _("{0} of {1} lines have no cost, so their profit reads as the whole price.").format(
+		len(blind), len(rows)
+	)
+
+
 # --------------------------------------------------------------------------- #
 # Columns
 # --------------------------------------------------------------------------- #
 
 
-def _columns(*, by_group: bool) -> list[dict]:
-	# The Link cell already prints "CODE: Name", so a name column beside it would
-	# be the same words twice.
+def _columns(*, by_group: bool, costed: bool) -> list[dict]:
 	item = {
 		"fieldname": "item_code",
 		"label": _("Item"),
 		"fieldtype": "Link",
 		"options": "Item",
-		"width": 260,
+		"width": 240,
 	}
 	group = {
 		"fieldname": "item_group",
 		"label": _("Item Group"),
 		"fieldtype": "Link",
 		"options": "Item Group",
-		"width": 180,
+		"width": 170,
 	}
 
-	return ([group] if by_group else [item, group]) + [
+	money = [
 		{"fieldname": "qty", "label": _("Sold"), "fieldtype": "Float", "width": 90},
 		{"fieldname": "returned_qty", "label": _("Returned"), "fieldtype": "Float", "width": 100},
 		{"fieldname": "net_qty", "label": _("Net Quantity"), "fieldtype": "Float", "width": 110},
 		{"fieldname": "amount", "label": _("Sales (excl. VAT)"), "fieldtype": "Currency", "width": 150},
-		# **Float, not Percent.** Frappe's total row averages a percent column, and
-		# the average of six dishes' shares is a number that means nothing. Summed,
-		# the column totals 100 and says what it should.
-		{"fieldname": "share", "label": _("Share of Sales %"), "fieldtype": "Float", "width": 130},
 	]
+	cost = [
+		{"fieldname": "cost", "label": _("Cost"), "fieldtype": "Currency", "width": 130},
+		{"fieldname": "profit", "label": _("Profit"), "fieldtype": "Currency", "width": 130},
+		# **Float, not Percent**, for the same reason the share is: Frappe's total
+		# row averages a percent column, and an average of margins is not a margin.
+		{"fieldname": "margin", "label": _("Margin %"), "fieldtype": "Float", "width": 100},
+	]
+	share = {"fieldname": "share", "label": _("Share of Sales %"), "fieldtype": "Float", "width": 130}
+
+	return ([group] if by_group else [item, group]) + money + (cost if costed else []) + [share]

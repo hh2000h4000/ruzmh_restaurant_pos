@@ -367,8 +367,29 @@ Attempts,عدد المحاولات,POS Print Job
 Claimed At,وقت الاستلام,POS Print Job
 Printed At,وقت الطباعة,POS Print Job
 Error,الخطأ,POS Print Job
-Reports,التقارير
 Item Sales,مبيعات الأصناف
+Daily Sales,مبيعات الأيام
+Hourly Sales,مبيعات الساعات
+Show cost and profit,أظهر التكلفة والربح
+Cost,التكلفة
+Profit,الربح
+Margin %,هامش الربح %
+"{0} of {1} lines have no cost, so their profit reads as the whole price.",{0} من {1} صفوف بلا تكلفة، فربحها يطلع بكامل السعر.
+Day,اليوم
+Weekday,اسم اليوم
+Bills,الفواتير
+VAT,الضريبة
+Total Taken,الإجمالي المقبوض
+Refunded,المرتجعات
+Net,الصافي
+Average Bill,متوسط الفاتورة
+Period Total,إجمالي الفترة
+Time Slot,الفترة
+Slot,طول الفترة
+Every hour,كل ساعة
+Every half hour,كل نصف ساعة
+Every quarter hour,كل ربع ساعة
+Choose a slot of {0} minutes.,اختر فترة من {0} دقيقة.
 "One row per group, not per dish",صف لكل مجموعة بدل كل صنف
 Sold,انباع
 Returned,انرجع

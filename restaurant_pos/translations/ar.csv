@@ -294,6 +294,62 @@ occupied,مشغولة,Restaurant Table
 reserved,محجوزة,Restaurant Table
 cleaning,تنظيف,Restaurant Table
 inactive,موقوفة,Restaurant Table
+Identity,البيانات,Production Center
+Title (English),الاسم بالإنجليزي,Production Center
+Title (Arabic),الاسم بالعربي,Production Center
+Branch,الفرع,Production Center
+Printing,الطباعة,Production Center
+Printer,الطابعة,Production Center
+Fallback Printer,الطابعة البديلة,Production Center
+Auto Print on Send,اطبع تلقائياً عند الإرسال,Production Center
+Show Prices on KOT,أظهر الأسعار على التذكرة,Production Center
+Kitchen tickets never show prices (BR-075).,تذاكر المطبخ ما تعرض أسعار.
+Used when the primary printer is unreachable.,تُستخدم إذا الطابعة الأساسية ما ردّت.
+Kitchen Display System,شاشة المطبخ,Production Center
+Has KDS,فيه شاشة مطبخ,Production Center
+KDS Display ID,رقم شاشة المطبخ,Production Center
+What it prints,الأصناف اللي تطبع هنا
+What {0} prints,الأصناف اللي يطبعها {0}
+"Ticking a group here takes it off whichever station had it. Two stations claiming one group is a coin toss, not a richer setup.","لما تختار مجموعة هنا تنشال من المحطة اللي كانت عندها. مجموعة وحدة على محطتين معناها ما تدري وين بتطبع."
+No printer on this station. Tickets fall back to the cashier's printer.,ما فيه طابعة على هذي المحطة. التذاكر بتطبع على طابعة الكاشير.
+{0} now prints {1} group(s).,{0} صار يطبع {1} مجموعة.
+now on {0},الحين على {0}
+Scope,على وش تنطبق,POS Printer Routing Rule
+Branch,الفرع,POS Printer Routing Rule
+Order Type,نوع الطلب,POS Printer Routing Rule
+POS Profile,الجهاز,POS Printer Routing Rule
+Item Group,مجموعة الأصناف,POS Printer Routing Rule
+Item,الصنف,POS Printer Routing Rule
+Target,وين يطبع,POS Printer Routing Rule
+Production Center,مركز التحضير,POS Printer Routing Rule
+Priority,الأولوية,POS Printer Routing Rule
+Leave empty to match every order type.,اتركها فاضية عشان تنطبق على كل أنواع الطلب.
+Leave empty to match every POS profile.,اتركها فاضية عشان تنطبق على كل الأجهزة.
+Mutually exclusive with Item.,إما مجموعة وإما صنف، مو الاثنين.
+Most specific match. Mutually exclusive with Item Group.,أدق مطابقة. إما صنف وإما مجموعة، مو الاثنين.
+Lower number is evaluated first.,الرقم الأصغر يُقرأ أولاً.
+Identity,البيانات,POS Modifier Group
+Title (English),الاسم بالإنجليزي,POS Modifier Group
+Title (Arabic),الاسم بالعربي,POS Modifier Group
+Selection Type,طريقة الاختيار,POS Modifier Group
+single,خيار واحد,POS Modifier Group
+multiple,أكثر من خيار,POS Modifier Group
+Is Required,إجباري,POS Modifier Group
+Selection Limits,حدود الاختيار,POS Modifier Group
+Min Selections,أقل عدد خيارات,POS Modifier Group
+Max Selections,أكثر عدد خيارات,POS Modifier Group
+0 means unlimited.,صفر يعني بلا حد.
+Options,الخيارات,POS Modifier Group
+Title (English),الاسم بالإنجليزي,POS Modifier Option
+Title (Arabic),الاسم بالعربي,POS Modifier Option
+Price Effect,أثره على السعر,POS Modifier Option
+none,ما يغيّر السعر,POS Modifier Option
+add,يزيد على السعر,POS Modifier Option
+subtract,ينقص من السعر,POS Modifier Option
+replace,يزيد على السعر (مثل add),POS Modifier Option
+Price Amount,المبلغ,POS Modifier Option
+Stock Item,صنف المخزون,POS Modifier Option
+Set when this option consumes separate stock.,حدّده إذا هذا الخيار يخصم من مخزون صنف ثاني.
 "<b>The till itself is at /restaurant-pos</b> — this page is the office behind it: the menu, the floor, the shifts and the trail. A cashier never needs to come here, and nothing on this page is where an order is taken.",<b>شاشة الكاشير على الرابط /restaurant-pos</b>. هذي الصفحة للإدارة: القائمة، والصالة، وأيام العمل، والسجلات. الكاشير ما يحتاج يدخل هنا.
 "Printers are defined once per branch, here — not repeated on every till. An <b>agent</b> running inside the restaurant is what reaches them; the server only renders and queues.","هنا تضيف طابعات كل فرع مرة وحدة، وما تحتاج تضيفها على كل جهاز. <b>برنامج الطباعة</b> اللي على كمبيوتر داخل المطعم هو اللي يوصل للطابعات ويطبع."
 POS Opening Entry,فتح الدرج
@@ -334,31 +390,44 @@ Expected Table Time (minutes),مدة جلسة الطاولة المتوقعة (�
 Grace for Late Guests (minutes),مهلة تأخير الزبائن (بالدقائق)
 "How long a booked table waits after the booking time before it goes back to the floor. Fifteen minutes is the common practice. The booking stays expected until the day is closed, which records it as a no-show.",كم تنتظر الطاولة المحجوزة بعد موعد الحجز قبل ما ترجع متاحة. المعتاد ١٥ دقيقة. الحجز يبقى منتظر لين ينقفل اليوم، وبعدها يتسجل إنهم ما حضروا.
 "The brand colours every terminal in this branch renders with, unless the terminal names its own. Empty falls through to the default theme (FR-15.2).",ألوان شاشة الكاشير لكل أجهزة الفرع، إلا الجهاز اللي محدد له ألوان خاصة. إذا تركتها فاضية يستخدم الألوان الافتراضية.
-void_item,إبطال صنف,POS Audit Log
-void_order,إبطال طلب,POS Audit Log
-cancel_order,إلغاء طلب,POS Audit Log
-discount_applied,خصم,POS Audit Log
-discount_override,تفويض خصم,POS Audit Log
-promotion_applied,عرض,POS Audit Log
-price_change,تغيير سعر,POS Audit Log
-manager_override,تفويض مدير,POS Audit Log
-payment_method_override,تغيير طريقة الدفع,POS Audit Log
-return_created,إنشاء مرتجع,POS Audit Log
-order_reopened,إعادة فتح طلب,POS Audit Log
-reprint_receipt,إعادة طباعة فاتورة,POS Audit Log
-shift_opened,فتح درج,POS Audit Log
-shift_closed,إقفال درج,POS Audit Log
-order_type_changed,تغيير نوع الطلب,POS Audit Log
-table_changed,تغيير الطاولة,POS Audit Log
-clock_in,تسجيل حضور,POS Audit Log
-clock_out,تسجيل انصراف,POS Audit Log
-pin_sign_in_failed,رقم سري خاطئ,POS Audit Log
-bill_split,تقسيم فاتورة,POS Audit Log
-bill_merged,دمج فواتير,POS Audit Log
-tables_merged,دمج طاولات,POS Audit Log
-loyalty_redeemed,صرف نقاط ولاء,POS Audit Log
-permission_changed,تغيير صلاحية,POS Audit Log
-role_changed,تغيير دور,POS Audit Log
+Action,العملية,POS Audit Log
+Timestamp,الوقت,POS Audit Log
+Action Type,نوع العملية,POS Audit Log
+Restaurant Order,الطلب,POS Audit Log
+Reason,السبب,POS Audit Log
+Actors,مين سوّاها,POS Audit Log
+Cashier,الكاشير,POS Audit Log
+Approved By,وافق عليها,POS Audit Log
+Context,وين صارت,POS Audit Log
+Branch,الفرع,POS Audit Log
+POS Profile,جهاز الكاشير,POS Audit Log
+Details,التفاصيل,POS Audit Log
+"Empty for an action taken in the back office, which happens on no terminal — a permission or role change (D-201).",تكون فاضية إذا العملية صارت في المكتب مو على جهاز كاشير، مثل تغيير صلاحية أو دور.
+void_item,إبطال صنف
+void_order,إبطال طلب
+cancel_order,إلغاء طلب
+discount_applied,خصم
+discount_override,تفويض خصم
+promotion_applied,عرض
+price_change,تغيير سعر
+manager_override,تفويض مدير
+payment_method_override,تغيير طريقة الدفع
+return_created,إنشاء مرتجع
+order_reopened,إعادة فتح طلب
+reprint_receipt,إعادة طباعة فاتورة
+shift_opened,فتح درج
+shift_closed,إقفال درج
+order_type_changed,تغيير نوع الطلب
+table_changed,تغيير الطاولة
+clock_in,تسجيل حضور
+clock_out,تسجيل انصراف
+pin_sign_in_failed,رقم سري خاطئ
+bill_split,تقسيم فاتورة
+bill_merged,دمج فواتير
+tables_merged,دمج طاولات
+loyalty_redeemed,صرف نقاط ولاء
+permission_changed,تغيير صلاحية
+role_changed,تغيير دور
 RPOS Theme,ألوان شاشة الكاشير
 Default Theme,الألوان الافتراضية
 Text on Primary,النص على اللون الأساسي
@@ -616,8 +685,8 @@ The paired till,الجهاز المرتبط
 a till,جهاز كاشير
 This terminal is not paired with any device yet. Ask a manager for a pairing code.,هذا الملف ما هو مرتبط بأي جهاز. اطلب من المدير رمز ربط.
 {0} is paired with another device. Ask a manager for a pairing code.,{0} مرتبط بجهاز ثاني. اطلب من المدير رمز ربط.
-device_paired,ربط جهاز,POS Audit Log
-device_unpaired,فك ارتباط جهاز,POS Audit Log
+device_paired,ربط جهاز
+device_unpaired,فك ارتباط جهاز
 Drawer,الدرج,Restaurant Order
 The drawer this bill was settled into. Written at payment so a report reads it rather than reconstructing it from times (D-227).,الدرج اللي انحاسبت فيه الفاتورة. ينكتب وقت الدفع عشان التقارير تقراه جاهز.
 Every sale on this terminal is invoiced to this customer unless the cashier names another. Payment is refused while it is empty.,كل بيع على هذا الجهاز ينسجل على هذا العميل إلا إذا اختار الكاشير عميل ثاني. وبدونه الدفع ما يشتغل.
@@ -639,4 +708,11 @@ cancel_reason,سبب إلغاء طلب,POS Quick Note
 item,ملاحظة على صنف,POS Quick Note
 order,ملاحظة على الطلب,POS Quick Note
 both,ملاحظة على الاثنين,POS Quick Note
+Identity,البيانات,POS Quick Note
+Title,الاسم بالإنجليزي,POS Quick Note
+Title (Arabic),الاسم بالعربي,POS Quick Note
+Scope,وين يظهر,POS Quick Note
+Sort Order,الترتيب,POS Quick Note
+What the kitchen reads. Printing is Arabic-first (FR-7.4).,هذا اللي يقرأه المطبخ. الطباعة بالعربي أولاً.
+"The branch setting `Finish open orders before closing the day` is the rule; this is the only way past it. Off for a cashier: a day closed over bills nobody meant to carry cannot be undone, and the till already offers the two honest answers — settle them or cancel them.","إعداد الفرع «إنهاء الطلبات المفتوحة قبل إقفال اليوم» هو القاعدة، وهذي الخانة هي الطريق الوحيد لتجاوزها. اتركها مقفلة للكاشير: اليوم اللي انقفل وفيه فواتير ما أحد قصد يرحّلها ما يرجع، والكاشير عنده جوابان صادقان — يحاسبها أو يلغيها."
 "What this line is offered for: a note on an item or on the order, or a ready-made reason on the screen that asks why an item was voided or a bill cancelled.",وش هذا السطر: ملاحظة على صنف أو على الطلب، أو سبب جاهز يظهر في شاشة إلغاء الصنف أو إلغاء الطلب.

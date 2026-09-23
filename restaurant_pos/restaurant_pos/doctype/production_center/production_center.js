@@ -7,7 +7,7 @@ frappe.ui.form.on("Production Center", {
 
 		// The everyday question — "what does the grill printer print?" — asked
 		// once instead of one routing-rule document per item group (D-095).
-		frm.add_custom_button(__("Item Groups"), () => choose_groups(frm));
+		frm.add_custom_button(__("What it prints"), () => choose_groups(frm));
 
 		if (!frm.doc.printer) {
 			frm.dashboard.set_headline(

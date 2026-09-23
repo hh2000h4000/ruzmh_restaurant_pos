@@ -715,3 +715,133 @@ Sort Order,الترتيب,POS Quick Note
 What the kitchen reads. Printing is Arabic-first (FR-7.4).,هذا اللي يقرأه المطبخ. الطباعة بالعربي أولاً.
 "The branch setting `Finish open orders before closing the day` is the rule; this is the only way past it. Off for a cashier: a day closed over bills nobody meant to carry cannot be undone, and the till already offers the two honest answers — settle them or cancel them.","إعداد الفرع «إنهاء الطلبات المفتوحة قبل إقفال اليوم» هو القاعدة، وهذي الخانة هي الطريق الوحيد لتجاوزها. اتركها مقفلة للكاشير: اليوم اللي انقفل وفيه فواتير ما أحد قصد يرحّلها ما يرجع، والكاشير عنده جوابان صادقان — يحاسبها أو يلغيها."
 "What this line is offered for: a note on an item or on the order, or a ready-made reason on the screen that asks why an item was voided or a bill cancelled.",وش هذا السطر: ملاحظة على صنف أو على الطلب، أو سبب جاهز يظهر في شاشة إلغاء الصنف أو إلغاء الطلب.
+Order {0} does not exist.,الطلب {0} غير موجود.
+{0} is not something a screen records.,{0} ليست حركة تُسجَّل من الشاشة.
+Kitchen Order Ticket {0} does not exist.,تذكرة المطبخ {0} غير موجودة.
+Unknown order view {0}.,عرض طلبات غير معروف: {0}.
+Type something to search for.,اكتب شيئاً للبحث عنه.
+Order {0} was already paid — invoice {1}.,الطلب {0} مدفوع من قبل — الفاتورة {1}.
+That job was not given to this agent.,هذي المهمة مو لهذا البرنامج.
+Invoice {0} does not exist.,الفاتورة {0} غير موجودة.
+Invoice {0} is not submitted.,الفاتورة {0} غير مرحّلة.
+Nothing to preview with: this site has no {0} yet.,ما فيه شي نعاين عليه: الموقع ما فيه {0} بعد.
+POS Profile {0} does not exist.,جهاز الكاشير {0} غير موجود.
+Section {0} does not exist.,القسم {0} غير موجود.
+A table cannot be set to {0} by hand.,ما تقدر تخلي الطاولة {0} يدوياً.
+A Kitchen Order Ticket must contain at least one item.,تذكرة المطبخ لازم فيها صنف واحد على الأقل.
+Row #{0}: Qty must be greater than zero.,السطر {0}: الكمية لازم تكون أكبر من صفر.
+POS Audit Log entries cannot be modified.,سجل العمليات ما يتعدّل.
+POS Audit Log entries cannot be deleted.,سجل العمليات ما ينحذف.
+At least one modifier option is required.,لازم خيار واحد على الأقل في المجموعة.
+Row #{0}: Option '{1}' is listed more than once.,السطر {0}: الخيار «{1}» مكرر.
+Row #{0}: Price Amount cannot be negative.,السطر {0}: المبلغ ما يكون بالسالب.
+A single-selection group can have only one default option.,مجموعة «خيار واحد» ما لها إلا خيار افتراضي واحد.
+Selection limits cannot be negative.,حدود الاختيار ما تكون بالسالب.
+A required group must allow at least one selection.,المجموعة الإجبارية لازم تسمح باختيار واحد على الأقل.
+Min Selections cannot be greater than Max Selections.,أقل عدد خيارات ما يكون أكبر من أكثر عدد.
+Max Selections cannot exceed the {0} active options.,أكثر عدد خيارات ما يتجاوز {0} خيارات مفعّلة.
+{0} must be between 0 and 100.,{0} لازم يكون بين 0 و100.
+Print Width must be between {0} and {1} dots.,عرض الطباعة لازم يكون بين {0} و{1} نقطة.
+Windows Printer Name is required for a printer installed in Windows.,اسم الطابعة في ويندوز مطلوب لطابعة معرّفة في ويندوز.
+IP Address is required for a network printer.,عنوان IP مطلوب لطابعة الشبكة.
+'{0}' is not a valid IP address.,«{0}» مو عنوان IP صحيح.
+Port must be between 1 and 65535.,المنفذ لازم يكون بين 1 و65535.
+{0} is required for a USB printer.,{0} مطلوب لطابعة USB.
+"{0} must be a 4-digit hex value, for example 04b8.",{0} لازم يكون أربع خانات ست عشرية، مثل 04b8.
+A printer cannot be its own fallback printer.,الطابعة ما تكون بديلة نفسها.
+{0} runs at {1} and cannot reach a printer at {2}.,{0} يشتغل على {1} وما يوصل لطابعة على {2}.
+"Set either Item or Item Group on a routing rule, not both.",في قاعدة الطباعة اختر صنفاً أو مجموعة، مو الاثنين.
+Priority cannot be negative.,الأولوية ما تكون بالسالب.
+This agent has no user yet. Save it first.,هذا البرنامج ما له مستخدم بعد. احفظه أولاً.
+This user is not an active print agent.,هذا المستخدم مو برنامج طباعة مفعّل.
+This job is with the agent right now. Wait for it to report back.,هذي المهمة عند البرنامج الحين. انتظر لين يرد.
+{0} is already the default {1} template for {2} paper.,{0} هو أصلاً نموذج {1} الافتراضي لورق {2}.
+Grid Columns must be at least 1.,عدد الأعمدة لازم يكون 1 على الأقل.
+Grid Rows must be at least 1.,عدد الصفوف لازم يكون 1 على الأقل.
+Row #{0}: {1} is required for a '{2}' button.,السطر {0}: {1} مطلوب لزر من نوع «{2}».
+Row #{0}: A button cannot navigate to its own screen.,السطر {0}: الزر ما ينقل لنفس الشاشة اللي هو فيها.
+Row #{0}: Column Span and Row Span must be at least 1.,السطر {0}: عرض الزر وطوله لازم 1 على الأقل.
+Row #{0}: Column Start and Row Start are 1-based.,السطر {0}: بداية العمود والصف تبدأ من 1.
+Row #{0}: Button exceeds the grid width of {1} columns.,السطر {0}: الزر يتجاوز عرض الشبكة ({1} أعمدة).
+Row #{0}: Button exceeds the grid height of {1} rows.,السطر {0}: الزر يتجاوز طول الشبكة ({1} صفوف).
+"Row #{0}: Cell (column {1}, row {2}) is already used by row #{3}.",السطر {0}: الخانة (عمود {1}، صف {2}) مشغولة بالسطر {3}.
+"A Production Center needs a Printer, a KDS, or both.",مركز التحضير يحتاج طابعة أو شاشة مطبخ أو الاثنين.
+Fallback Printer must be different from the primary Printer.,الطابعة البديلة لازم تكون غير الطابعة الأساسية.
+{0} must be greater than zero.,{0} لازم يكون أكبر من صفر.
+"An order's type is changed through the order screen, not by editing it.",نوع الطلب يتغيّر من شاشة الكاشير، مو بتعديل المستند.
+Cover Count cannot be negative.,عدد الضيوف ما يكون بالسالب.
+Discount Value cannot be negative.,قيمة الخصم ما تكون بالسالب.
+A percentage discount cannot exceed 100.,الخصم بالنسبة ما يتجاوز 100.
+Row #{0}: Rate cannot be negative.,السطر {0}: السعر ما يكون بالسالب.
+Row #{0}: Course cannot be negative.,السطر {0}: رقم الوجبة ما يكون بالسالب.
+Row #{0}: Void Reason is required for a voided item.,السطر {0}: سبب الإبطال مطلوب للصنف الملغى.
+Cancel Reason is required when an order is cancelled.,سبب الإلغاء مطلوب عند إلغاء الطلب.
+Closed At cannot be earlier than Opened At.,وقت الإقفال ما يكون قبل وقت الفتح.
+Set the Pre-set Customer before activating {0}.,حدّد العميل الافتراضي قبل تفعيل {0}.
+Row #{0}: {1} is listed more than once.,السطر {0}: {1} مكرر.
+Only one payment method can be marked as forced.,ما تنحدد إلا طريقة دفع وحدة كإجبارية.
+Only one payment method can be marked as default.,ما تنحدد إلا طريقة دفع وحدة كافتراضية.
+Row #{0}: Options are required for a 'select' additional field.,السطر {0}: الخيارات مطلوبة للحقل من نوع «قائمة».
+Row #{0}: Label '{1}' is used more than once.,السطر {0}: الاسم «{1}» مكرر.
+Valid To cannot be earlier than Valid From.,«صالح إلى» ما يكون قبل «صالح من».
+"Set both Time From and Time To, or neither.",حدّد وقت البداية والنهاية، أو اتركهما فاضيين.
+A percentage discount must be between 0 and 100.,الخصم بالنسبة لازم يكون بين 0 و100.
+A fixed amount discount must be greater than zero.,الخصم بالمبلغ لازم يكون أكبر من صفر.
+"Choose a free item, or a group the guest may pick from.",اختر صنفاً مجانياً، أو مجموعة يختار منها الزبون.
+"Choose either a free item or a group, not both.",اختر صنفاً مجانياً أو مجموعة، مو الاثنين.
+Free Quantity must be at least one.,الكمية المجانية لازم تكون واحد على الأقل.
+Buy Quantity must be at least one.,كمية الشراء لازم تكون واحد على الأقل.
+Get Free must be at least one.,الكمية المجانية لازم تكون واحد على الأقل.
+A minimum order amount cannot be negative.,أقل مبلغ للطلب ما يكون بالسالب.
+{0} cannot be empty when Apply To is '{1}'.,{0} ما تكون فاضية لما «ينطبق على» يساوي «{1}».
+{0} cannot be empty when Item Scope is '{1}'.,{0} ما تكون فاضية لما «الأصناف المشمولة» تساوي «{1}».
+Capacity cannot be negative.,عدد الكراسي ما يكون بالسالب.
+{0} cannot be negative.,{0} ما يكون بالسالب.
+Customer Name,اسم العميل
+Loyalty Program,برنامج الولاء
+Create a POS Profile before loading demo data.,أضف جهاز كاشير قبل تحميل بيانات العرض.
+POS Profile {0} has no Restaurant Section.,جهاز الكاشير {0} ما له قسم.
+POS Profile {0} has no selling price list.,جهاز الكاشير {0} ما له قائمة أسعار.
+{0} has no 'Duties and Taxes' account group to file VAT under.,{0} ما فيها مجموعة حسابات «الضرائب والرسوم» عشان تُقيَّد فيها الضريبة.
+A permission change must record what changed.,تغيير الصلاحية لازم يُسجَّل معه وش تغيّر.
+This site has no Country.,الموقع ما فيه دولة محددة.
+This site has no {0}.,الموقع ما فيه {0}.
+This bill was sold offline at {0} but comes to {1} here (a difference of {2}). Nothing has been posted — a manager has to settle it before it can be synced.,هذي الفاتورة انباعت بلا اتصال بـ{0} وتطلع هنا {1} (الفرق {2}). ما انقيّد شي — لازم المدير يسوّيها قبل المزامنة.
+An order cannot go from {0} to {1}.,الطلب ما ينتقل من {0} إلى {1}.
+Table {0} is {1}.,الطاولة {0} {1}.
+An address needs a customer.,العنوان يحتاج عميلاً.
+That address does not belong to this customer.,هذا العنوان مو لهذا العميل.
+Order type {0} decides its own customer.,نوع الطلب {0} يحدد عميله بنفسه.
+{0} is required.,{0} مطلوب.
+{0} must be one of: {1},{0} لازم يكون واحداً من: {1}
+A bill cannot be split into itself.,الفاتورة ما تنقسم على نفسها.
+Both bills must be the same order type to move items between them.,لازم الفاتورتين من نفس نوع الطلب عشان تنقل أصنافاً بينهما.
+This bill prices differently on the screen ({0}) and on the invoice ({1}). Nothing has been charged. A manager should check the terminal's tax template.,هذي الفاتورة تحسب على الشاشة {0} وفي الفاتورة {1}. ما انحسب على أحد شي. المدير يراجع قالب الضريبة على الجهاز.
+"Invoice {0} was issued for order {1}. Reverse it with a return, not a cancellation.",الفاتورة {0} صدرت للطلب {1}. ترجعها بمرتجع، مو بإلغاء.
+A point-of-sale invoice is not cancelled,فاتورة نقاط البيع ما تُلغى
+Unknown payment method: {0},طريقة دفع غير معروفة: {0}
+{0} does not combine with a manual discount.,{0} ما يجتمع مع خصم يدوي.
+You are not allowed to choose a promotion by hand.,ما عندك صلاحية تختار عرضاً بيدك.
+That promotion does not apply to this bill.,هذا العرض ما ينطبق على هذي الفاتورة.
+Restaurant Order {0},طلب {0}
+Unknown POS permission: {0},صلاحية غير معروفة: {0}
+{0} is not an RPOS role.,{0} مو دوراً في النظام.
+You cannot edit the permissions of {0}.,ما تقدر تعدّل صلاحيات {0}.
+You cannot grant a permission you do not have: {0}.,ما تقدر تعطي صلاحية ما عندك: {0}.
+You cannot change your own roles.,ما تقدر تغيّر أدوارك بنفسك.
+You cannot assign the role {0}.,ما تقدر تعطي دور {0}.
+You cannot manage the PIN of {0}.,ما تقدر تدير الرقم السري لـ{0}.
+"No {0} template for {1} paper. Add one, or mark an existing one as default.",ما فيه نموذج {0} لورق {1}. أضف واحداً، أو علّم نموذجاً موجوداً كافتراضي.
+"wkhtmltoimage is not installed on the server, so nothing can be printed.",برنامج wkhtmltoimage مو منصّب على الخادم، فما ينطبع شي.
+Rendering the document took too long.,رسم المستند أخذ وقتاً أطول من اللازم.
+The document could not be rendered for printing.,ما انقدر يُرسم المستند للطباعة.
+"{0} has no print agent, so nothing can reach it.",{0} ما له برنامج طباعة، فما يوصله شي.
+{0} is switched off.,{0} مطفأ.
+Line {0} is not on this invoice.,السطر {0} مو في هذي الفاتورة.
+Return of {0}: {1},مرتجع {0}: {1}
+{0} is not a refund.,{0} مو استرداداً.
+Production Center {0} does not exist.,مركز التحضير {0} غير موجود.
+Day {0},يوم {0}
+POS Profile {0} has no payment method configured.,جهاز الكاشير {0} ما له طريقة دفع.
+A bill is split between one person or more.,الفاتورة تنقسم على شخص أو أكثر.
+An offline order needs its queue id.,الطلب اللي انباع بلا اتصال لازم معه رقم الطابور.

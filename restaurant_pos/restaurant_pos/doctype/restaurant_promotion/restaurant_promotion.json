@@ -249,7 +249,8 @@
    "fieldtype": "Link",
    "label": "Free Item",
    "mandatory_depends_on": "eval:doc.promotion_type=='free_item'",
-   "options": "Item"
+   "options": "Item",
+   "description": "One named dish that comes free. Leave it empty and use the group below instead."
   },
   {
    "fieldname": "free_item_group",
@@ -264,7 +265,8 @@
    "fieldtype": "Int",
    "label": "Free Quantity",
    "default": "1",
-   "depends_on": "eval:doc.promotion_type=='free_item'"
+   "depends_on": "eval:doc.promotion_type=='free_item'",
+   "description": "How many come free. The cheapest qualifying lines on the bill are the ones discounted, and no line is ever added — the guest orders the reward and the offer takes its price off (D-175)."
   },
   {
    "fieldname": "apply_to_section",
@@ -311,7 +313,8 @@
   {
    "fieldname": "item_scope_section",
    "fieldtype": "Section Break",
-   "label": "Item Scope"
+   "label": "Which Items Qualify",
+   "description": "Which lines this offer looks at. For a free-item offer this is what the bill must contain to qualify — the reward itself is chosen further down."
   },
   {
    "default": "all",
@@ -319,7 +322,8 @@
    "fieldtype": "Select",
    "label": "Item Scope",
    "options": "all\nspecific_groups\nspecific_items",
-   "reqd": 1
+   "reqd": 1,
+   "description": "All: every line on the bill. Specific groups or items: only those. **On a free-item offer this is the qualifying purchase, not the reward** — pick Grills here and Drinks below for \"buy a grill, get a drink free\" (D-249)."
   },
   {
    "fieldname": "min_order_amount",
@@ -332,20 +336,22 @@
    "fieldname": "applicable_item_groups",
    "fieldtype": "Table",
    "label": "Applicable Item Groups",
-   "options": "Promotion Item Group"
+   "options": "Promotion Item Group",
+   "description": "Child groups count too, so naming Drinks covers the hot ones and the cold ones."
   },
   {
    "depends_on": "eval:doc.item_scope=='specific_items'",
    "fieldname": "applicable_items",
    "fieldtype": "Table",
    "label": "Applicable Items",
-   "options": "Promotion Item"
+   "options": "Promotion Item",
+   "description": "The exact dishes, when a group is too wide."
   }
  ],
  "index_web_pages_for_search": 1,
  "istable": 0,
  "links": [],
- "modified": "2026-09-24 01:00:00.000000",
+ "modified": "2026-09-24 03:00:00.000000",
  "modified_by": "Administrator",
  "module": "Restaurant POS",
  "name": "Restaurant Promotion",

@@ -372,6 +372,15 @@ Daily Sales,مبيعات الأيام
 Hourly Sales,مبيعات الساعات
 Sales Exceptions,الخصومات والإلغاءات
 Coupon Sales,مبيعات الكوبونات
+Which Items Qualify,أي الأصناف تؤهّل
+The lines the discount comes off.,الأسطر اللي ينزل عليها الخصم.
+The lines the discount is spread across.,الأسطر اللي يتوزّع عليها الخصم.
+The lines counted towards the offer — and the free ones come from among them.,الأسطر اللي تُعدّ للعرض — والمجاني يطلع منها.
+"What the bill must contain to qualify. The free item itself is chosen below: pick Grills here and Drinks below for ""buy a grill, get a drink free"".","وش لازم يكون في الفاتورة عشان تتأهّل. والصنف المجاني نفسه تختاره تحت: حط «المشاوي» هنا و«المشروبات» تحت، تصير «اشترِ مشوياً وخذ مشروباً مجاناً»."
+"Which lines this offer looks at. For a free-item offer this is what the bill must contain to qualify — the reward itself is chosen further down.",أي الأسطر يشوفها هذا العرض. وفي عرض «صنف مجاني» هذا شرط التأهل — والمكافأة نفسها تختارها تحت.
+Child groups count too, so naming Drinks covers the hot ones and the cold ones.,المجموعات اللي تحتها تنحسب كمان، فاختيار «المشروبات» يشمل الساخنة والباردة.
+"The exact dishes, when a group is too wide.",الأصناف بعينها، لما تكون المجموعة واسعة زيادة.
+One named dish that comes free. Leave it empty and use the group below instead.,صنف واحد محدد يطلع مجاناً. اتركه فاضي واستخدم المجموعة تحت.
 POS Coupon,كوبون
 Coupons,الكوبونات
 Coupon,الكوبون

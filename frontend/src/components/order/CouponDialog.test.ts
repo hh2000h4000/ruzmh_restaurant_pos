@@ -72,6 +72,18 @@ describe("entering a coupon", () => {
     expect((view.find("input").element as HTMLInputElement).value).toBe("SAV");
   });
 
+  it("types a numbered code, digit for digit", async () => {
+    // The user found this on the first screen he opened: the pad carried only
+    // the characters the random generator draws from, so `10001` — the very
+    // example he had asked for the day before — had no `1` and no `0` on it
+    // (`D-252`). What a manager can issue, a cashier has to be able to type.
+    const view = dialog();
+
+    for (const key of ["1", "0", "0", "0", "1"]) await tap(view, key);
+
+    expect((view.find("input").element as HTMLInputElement).value).toBe("10001");
+  });
+
   it("names the code already on the bill, and takes it back off", async () => {
     const view = dialog({ name: "SAVE10", code: "SAVE10", campaign: "RPOS Influencer" });
 

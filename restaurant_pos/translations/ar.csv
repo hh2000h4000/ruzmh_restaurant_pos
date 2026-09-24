@@ -1029,3 +1029,14 @@ Valid from {0},صالح من {0}
 Valid {0} to {1},صالح من {0} إلى {1}
 "{0} coupons, {1} to a page. Choose Save as PDF in the print dialog.",{0} كوبون، {1} في الصفحة. اختر «حفظ كـ PDF» في نافذة الطباعة.
 Only the first {0} are on this sheet.,أول {0} بس في هذي الورقة.
+Code Pattern,نمط الرمز
+Random — cannot be guessed,عشوائي — ما ينتوقّع
+"Numbered — 10001, 10002, 10003",مرقّم — 10001، 10002، 10003
+Start At,يبدأ من
+"Leading zeros are kept: 0001 gives 0001, 0002, 0003.",الأصفار اللي بالبداية تنحفظ: 0001 يعطيك 0001 و0002 و0003.
+Prefix,بادئة
+"Optional, in front of every number. Letters, digits and dashes.",اختيارية، تجي قبل كل رقم. حروف وأرقام وشرطات.
+"Anyone holding a numbered code can guess the next one. Use numbering for cards you hand out by name, and random codes for anything posted in public.",أي أحد معه رقم يقدر يتوقّع اللي بعده. استخدم الترقيم للبطاقات اللي توزّعها بالاسم، والعشوائي لأي شي ينتشر للناس.
+"A prefix may hold letters, digits and dashes only, up to 12 of them.",البادئة حروف وأرقام وشرطات بس، وما تزيد عن ١٢.
+"Start the numbering at a number, such as 10001.",ابدأ الترقيم برقم، مثلاً 10001.
+Coupon {0} exists already. Start the numbering somewhere else.,الكوبون {0} موجود من قبل. ابدأ الترقيم من مكان ثاني.

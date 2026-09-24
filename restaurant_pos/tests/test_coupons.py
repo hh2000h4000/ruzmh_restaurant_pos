@@ -13,7 +13,9 @@ Refs: FR-11.1, D-163, D-248
 """
 
 import frappe
+from frappe.tests.utils import FrappeTestCase
 
+from restaurant_pos.api import coupons as issuing
 from restaurant_pos.restaurant_pos.report.coupon_sales import coupon_sales as report
 from restaurant_pos.tests.test_order import ITEM
 from restaurant_pos.tests.test_payment import PaymentTestBase
@@ -21,6 +23,8 @@ from restaurant_pos.utils import coupons
 from restaurant_pos.utils import order as orders
 
 PROMOTION = "RPOS test coupon offer"
+BATCH_PROMOTION = "RPOS batch offer"
+UPLOAD_PROMOTION = "RPOS upload offer"
 
 
 class CouponTestBase(PaymentTestBase):
@@ -262,3 +266,174 @@ class TheCampaignCanBeMeasured(CouponTestBase):
 		self._pay(self._bill())
 
 		self.assertEqual(sum(row["bills"] for row in self._report()), before)
+
+
+class IssuingABatch(FrappeTestCase):
+	"""Making the codes in the first place (`D-250`, `D-251`).
+
+	**The generator had no test at all** until the day the button that calls it
+	was built — it was written, shipped, and never run by anything. What is
+	asserted here is what a batch has to be right about: the codes are the ones
+	asked for, a numbered run is a run rather than a set of numbers, and the run
+	is refused outright rather than printed with a hole in it.
+	"""
+
+	def setUp(self):
+		super().setUp()
+		self._clear()
+		self.promotion = frappe.get_doc(
+			{
+				"doctype": "Restaurant Promotion",
+				"title": BATCH_PROMOTION,
+				"title_ar": "عرض الدفعة",
+				"is_active": 1,
+				"requires_coupon": 1,
+				"promotion_type": "percentage",
+				"discount_value": 5,
+				"apply_to": "all",
+				"item_scope": "all",
+			}
+		).insert(ignore_permissions=True)
+
+	def tearDown(self):
+		self._clear()
+		super().tearDown()
+
+	def _clear(self) -> None:
+		offers = frappe.get_all("Restaurant Promotion", filters={"title": BATCH_PROMOTION}, pluck="name")
+		for code in frappe.get_all("POS Coupon", filters={"promotion": ("in", offers)}, pluck="name"):
+			frappe.delete_doc("POS Coupon", code, force=True, ignore_permissions=True)
+		for name in offers:
+			frappe.delete_doc("Restaurant Promotion", name, force=True, ignore_permissions=True)
+
+	def _make(self, **fields) -> list[str]:
+		return issuing.generate(promotion=self.promotion.name, **fields)["codes"]
+
+	def test_a_drawn_batch_is_as_many_codes_as_were_asked_for(self):
+		codes = self._make(count=5)
+
+		self.assertEqual(len(set(codes)), 5)
+		self.assertTrue(all(frappe.db.exists("POS Coupon", code) for code in codes))
+
+	def test_drawn_codes_avoid_the_letters_people_misread(self):
+		"""`O`/`0` and `1`/`I`/`L` off a card read down a phone."""
+		for code in self._make(count=10):
+			self.assertFalse(set(code) & set("O0I1L"), code)
+
+	def test_a_numbered_batch_counts_up_from_where_it_was_told_to(self):
+		"""The user's own example: 10001, 10002, 10003."""
+		codes = self._make(count=3, pattern="sequential", start="10001")
+
+		self.assertEqual(codes, ["10001", "10002", "10003"])
+
+	def test_leading_zeros_are_the_width_that_was_asked_for(self):
+		"""Read as an integer, `0001` would come back as `1` and the run breaks."""
+		codes = self._make(count=2, pattern="sequential", start="0009")
+
+		self.assertEqual(codes, ["0009", "0010"])
+
+	def test_a_prefix_rides_in_front_of_every_number(self):
+		codes = self._make(count=2, pattern="sequential", start="100", prefix="rm-")
+
+		self.assertEqual(codes, ["RM-100", "RM-101"])
+
+	def test_a_run_that_would_collide_is_refused_whole(self):
+		"""A gap in a numbered run cannot be told from a card that went missing."""
+		self._make(count=2, pattern="sequential", start="500")
+
+		with self.assertRaises(frappe.ValidationError) as refusal:
+			self._make(count=3, pattern="sequential", start="499")
+
+		self.assertIn("500", str(refusal.exception))
+		self.assertFalse(frappe.db.exists("POS Coupon", "499"), "nothing was written")
+
+	def test_a_start_that_is_not_a_number_is_said_out_loud(self):
+		with self.assertRaises(frappe.ValidationError):
+			self._make(count=1, pattern="sequential", start="SUMMER")
+
+	def test_a_prefix_that_would_break_a_url_is_refused(self):
+		with self.assertRaises(frappe.ValidationError):
+			self._make(count=1, pattern="sequential", start="1", prefix="SUMMER 50%")
+
+	def test_a_batch_bigger_than_the_ceiling_is_refused(self):
+		with self.assertRaises(frappe.ValidationError):
+			self._make(count=issuing.MAX_BATCH + 1)
+
+
+class TheCodesCanBeUploadedInstead(FrappeTestCase):
+	"""A spreadsheet of codes the restaurant already printed (`D-251`).
+
+	**Nothing here is ours.** Frappe ships a Data Import that reads `.csv` and
+	`.xlsx`, matches columns by their labels, and reports the rows it could not
+	take. Writing a second uploader beside it would be a screen to maintain and
+	a second set of error messages for the same job (§5.5). What was missing was
+	only permission to reach it.
+
+	So the test does the thing rather than assert the flags: it uploads a file
+	and checks that coupons came out of it.
+	"""
+
+	def setUp(self):
+		super().setUp()
+		self.promotion = frappe.get_doc(
+			{
+				"doctype": "Restaurant Promotion",
+				"title": UPLOAD_PROMOTION,
+				"title_ar": "عرض الرفع",
+				"is_active": 1,
+				"requires_coupon": 1,
+				"promotion_type": "percentage",
+				"discount_value": 5,
+				"apply_to": "all",
+				"item_scope": "all",
+			}
+		).insert(ignore_permissions=True)
+
+	def test_a_spreadsheet_of_codes_becomes_coupons(self):
+		from frappe.core.doctype.data_import.importer import Importer
+
+		sheet = frappe.get_doc(
+			doctype="File",
+			file_name="rpos_coupon_upload.csv",
+			is_private=1,
+			content="\n".join(
+				(
+					"Coupon Code,Promotion,Campaign,Maximum Uses",
+					f"RPOSUP1,{self.promotion.name},RPOS Upload,1",
+					f"RPOSUP2,{self.promotion.name},RPOS Upload,1",
+				)
+			),
+		).save(ignore_permissions=True)
+
+		upload = frappe.get_doc(
+			{
+				"doctype": "Data Import",
+				"reference_doctype": "POS Coupon",
+				"import_type": "Insert New Records",
+				"import_file": sheet.file_url,
+			}
+		).insert(ignore_permissions=True)
+
+		# Driven directly rather than through `start_import`, which swallows a
+		# failure into a status field — a test that reads "Error" as silence is
+		# a test that passes while the feature is broken.
+		Importer("POS Coupon", data_import=upload).import_data()
+
+		for code in ("RPOSUP1", "RPOSUP2"):
+			self.assertTrue(frappe.db.exists("POS Coupon", code), f"{code} was not imported")
+			self.assertEqual(frappe.db.get_value("POS Coupon", code, "campaign"), "RPOS Upload")
+
+	def test_the_list_offers_frappes_own_import(self):
+		"""**Two flags, and the menu entry needs both** (`D-251`).
+
+		`allow_import` alone leaves the manager with no way in — the Import item
+		is drawn from the role's own `import` right — and the right alone fails
+		at the Data Import document's validation. Nothing warns about either
+		half, so both are asserted rather than remembered.
+		"""
+		meta = frappe.get_meta("POS Coupon")
+
+		self.assertTrue(meta.allow_import)
+
+		importers = {perm.role for perm in meta.permissions if perm.get("import")}
+		self.assertIn("Restaurant Manager", importers)

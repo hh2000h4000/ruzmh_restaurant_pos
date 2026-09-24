@@ -37,6 +37,12 @@ function explain_the_scope(frm) {
  * On the promotion rather than on the coupon list, because a batch belongs to
  * one offer: starting from the offer, the field that would be typed wrong is
  * already filled.
+ *
+ * **Drawn or numbered** (`D-251`). Some restaurants want `10001`, `10002` — a
+ * run they can file and tick off against a list they already keep. That is one
+ * more field in this dialog, not a second dialog: the question is the same one,
+ * *make me some codes*, and only the shape of the answer differs (§5.5). The
+ * warning under it is the price of the run — a number tells you the next one.
  */
 function generate_coupons(frm) {
 	const dialog = new frappe.ui.Dialog({
@@ -64,6 +70,41 @@ function generate_coupons(frm) {
 					{ value: 0, label: __("No limit") },
 				],
 				default: 1,
+			},
+			{ fieldtype: "Section Break" },
+			{
+				fieldtype: "Select",
+				fieldname: "pattern",
+				label: __("Code Pattern"),
+				options: [
+					{ value: "random", label: __("Random — cannot be guessed") },
+					{ value: "sequential", label: __("Numbered — 10001, 10002, 10003") },
+				],
+				default: "random",
+			},
+			{
+				fieldtype: "Data",
+				fieldname: "start",
+				label: __("Start At"),
+				default: "10001",
+				depends_on: "eval:doc.pattern=='sequential'",
+				mandatory_depends_on: "eval:doc.pattern=='sequential'",
+				description: __("Leading zeros are kept: 0001 gives 0001, 0002, 0003."),
+			},
+			{
+				fieldtype: "Data",
+				fieldname: "prefix",
+				label: __("Prefix"),
+				depends_on: "eval:doc.pattern=='sequential'",
+				description: __("Optional, in front of every number. Letters, digits and dashes."),
+			},
+			{
+				fieldtype: "HTML",
+				fieldname: "warning",
+				depends_on: "eval:doc.pattern=='sequential'",
+				options: `<p class="text-muted small">${__(
+					"Anyone holding a numbered code can guess the next one. Use numbering for cards you hand out by name, and random codes for anything posted in public."
+				)}</p>`,
 			},
 		],
 		primary_action_label: __("Generate"),

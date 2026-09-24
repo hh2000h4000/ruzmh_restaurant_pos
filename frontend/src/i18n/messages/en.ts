@@ -177,6 +177,11 @@ export const messages = {
   "tables.joinEmpty": "No free table in this hall to join.",
   "tables.joinHasBill": "Has a bill",
   "tables.joinConfirm": "Join {count}",
+  "coupon.title": "Coupon code",
+  "coupon.body": "The code the guest was given. It unlocks an offer, and the offer works out the discount.",
+  "coupon.placeholder": "Type the code",
+  "coupon.apply": "Apply",
+  "coupon.add": "Add a coupon",
   "tables.readyTitle": "Table {number} is ready?",
   "tables.readyBody":
     "A table waits on Cleaning after its last bill is paid. Say it is wiped down and it goes back to free.",

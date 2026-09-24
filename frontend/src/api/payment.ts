@@ -178,3 +178,22 @@ export function validateManagerOverride(payload: {
   // POST, never GET: the PIN must not reach a URL (04 §7, CLAUDE.md §5.4).
   return command("permissions.validate_manager_override", payload);
 }
+
+/**
+ * Put a guest's coupon on the bill, or take it back off (`D-248`).
+ *
+ * `command`, not `mutate`: the code is a condition on the bill rather than a
+ * movement of money, and re-sending it is harmless — the same code on the same
+ * order leaves it exactly where it was.
+ */
+export function applyCoupon(payload: {
+  order_name: string;
+  code: string;
+}): Promise<{ coupon: { name: string; coupon_code: string; campaign: string | null } } & PromotionOnBill> {
+  return command("payment.apply_coupon", payload);
+}
+
+export function removeCoupon(orderName: string): Promise<PromotionOnBill> {
+  return command("payment.remove_coupon", { order_name: orderName });
+}
+

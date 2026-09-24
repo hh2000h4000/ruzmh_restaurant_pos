@@ -10,7 +10,9 @@ import type {
   PaymentSummary,
   TotalsPreview,
 } from "@/api/payment";
+import AppIcon from "@/components/AppIcon.vue";
 import ManagerPinDialog from "@/components/ManagerPinDialog.vue";
+import CouponDialog from "@/components/order/CouponDialog.vue";
 import TenderSheet from "@/components/order/TenderSheet.vue";
 import { formatNumber, pick, t } from "@/i18n";
 import { useOrderStore } from "@/stores/order";
@@ -38,6 +40,7 @@ const orders = useOrderStore();
 const orderName = route.params.orderName as string;
 
 const summary = ref<PaymentSummary | null>(null);
+const enteringCoupon = ref(false);
 const preview = ref<TotalsPreview | null>(null);
 const lines = ref<PaymentLine[]>([]);
 
@@ -303,6 +306,22 @@ onMounted(async () => {
     return;
   }
 
+  await refresh();
+});
+
+/**
+ * Read the bill and what it is offered, from the server.
+ *
+ * Split out of `onMounted` so a coupon can re-run it (`D-248`): a code both
+ * changes the figures and can bring an offer into the list, so refetching one
+ * without the other would leave the screen half true.
+ */
+async function refresh(): Promise<void> {
+  // `orderName` is the route's, set at the top of this file. Reading it off the
+  // store instead shadowed it with a value that is null until the bill loads,
+  // and the screen sat on "loading" for ever.
+  if (offline.value) return;
+
   try {
     summary.value = await paymentApi.getPaymentSummary(orderName);
     if (summary.value.already_paid) {
@@ -325,7 +344,7 @@ onMounted(async () => {
     // No list, and the automatic promotions still apply themselves.
     offers.value = [];
   }
-});
+}
 
 /**
  * What the bill comes to with whatever has been chosen (FR-10.4, `D-165`).
@@ -937,6 +956,26 @@ async function confirm(): Promise<void> {
           </p>
         </div>
 
+        <!-- `D-248` — the guest often produces the code here rather than while
+             ordering, so the same dialog the order screen opens is reachable
+             from beside the offers it unlocks. -->
+        <button
+          type="button"
+          class="flex min-h-[3.375rem] items-center justify-between gap-3 rounded-rpos border border-line bg-background px-[18px] text-start text-sm transition duration-200 ease-rpos hover:border-primary"
+          @click="enteringCoupon = true"
+        >
+          <span class="flex min-w-0 items-center gap-2">
+            <AppIcon name="tag" />
+            <span class="truncate">{{ summary?.coupon ? summary.coupon.code : t("coupon.add") }}</span>
+          </span>
+          <span
+            v-if="summary?.coupon?.campaign"
+            class="shrink-0 truncate text-xs text-subtle"
+          >
+            {{ summary.coupon.campaign }}
+          </span>
+        </button>
+
         <!-- Three of equal width, because they are three answers to one
              question and a row of different sizes reads as a hierarchy that
              is not there. -->
@@ -1171,6 +1210,14 @@ async function confirm(): Promise<void> {
       :is-cash="Boolean(tendering?.is_cash)"
       @pick="takeTender"
       @close="tendering = null"
+    />
+
+    <CouponDialog
+      :open="enteringCoupon"
+      :order-name="orders.order?.order_name ?? null"
+      :applied="summary?.coupon ?? null"
+      @changed="void refresh()"
+      @close="enteringCoupon = false"
     />
 
     <ManagerPinDialog

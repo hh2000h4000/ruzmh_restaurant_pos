@@ -15,6 +15,7 @@
   "is_active",
   "is_auto_apply",
   "is_exclusive",
+  "requires_coupon",
   "priority",
   "validity_section",
   "valid_from",
@@ -46,6 +47,7 @@
   "applicable_order_types",
   "applicable_branches",
   "applicable_sections",
+  "applicable_customer_groups",
   "item_scope_section",
   "item_scope",
   "min_order_amount",
@@ -105,6 +107,13 @@
    "fieldname": "is_exclusive",
    "fieldtype": "Check",
    "label": "Exclusive"
+  },
+  {
+   "default": "0",
+   "description": "Off, this offer applies to anyone who qualifies. On, it applies only to a bill carrying one of its coupon codes — an influencer's code, or a batch of single-use ones.",
+   "fieldname": "requires_coupon",
+   "fieldtype": "Check",
+   "label": "Needs a Coupon"
   },
   {
    "fieldname": "priority",
@@ -267,7 +276,7 @@
    "fieldname": "apply_to",
    "fieldtype": "Select",
    "label": "Apply To",
-   "options": "all\nby_order_type\nby_branch\nby_section",
+   "options": "all\nby_order_type\nby_branch\nby_section\nby_customer_group",
    "reqd": 1
   },
   {
@@ -290,6 +299,14 @@
    "fieldtype": "Table",
    "label": "Applicable Sections",
    "options": "Promotion Section"
+  },
+  {
+   "depends_on": "eval:doc.apply_to==\"by_customer_group\"",
+   "description": "Any customer in these groups gets it — a company's staff, a loyalty tier, a delivery platform's own customers. Child groups count too.",
+   "fieldname": "applicable_customer_groups",
+   "fieldtype": "Table",
+   "label": "Applicable Customer Groups",
+   "options": "Promotion Customer Group"
   },
   {
    "fieldname": "item_scope_section",
@@ -328,7 +345,7 @@
  "index_web_pages_for_search": 1,
  "istable": 0,
  "links": [],
- "modified": "2026-09-08 12:00:00.000000",
+ "modified": "2026-09-24 01:00:00.000000",
  "modified_by": "Administrator",
  "module": "Restaurant POS",
  "name": "Restaurant Promotion",

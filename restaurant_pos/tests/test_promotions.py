@@ -1397,3 +1397,90 @@ class TwoOffersOnOneBill(BuyTwoGetTheThirdFree):
 
 		self.assertEqual(order.promotion_amount, 2.0, "only what the discount left")
 		self.assertEqual(flt(sum(promotions.per_line(order).values()), 2), 2.0)
+
+
+class AnOfferMadeToNamedPeople(PromotionTestBase):
+	"""A company's staff discount (`D-248`).
+
+	The user asked for it in the words a restaurant uses: *"add a customer group
+	called United Company Staff, and any customer under it gets a discount."*
+	"""
+
+	@classmethod
+	def setUpClass(cls):
+		super().setUpClass()
+		cls.parent_group = _customer_group("RPOS Test United Co", is_group=True)
+		cls.child_group = _customer_group("RPOS Test United Co Riyadh", parent=cls.parent_group)
+		cls.staff = _customer("RPOS Test Staff Member", cls.child_group)
+		cls.walk_in = _customer("RPOS Test Walk In", _customer_group("RPOS Test Public"))
+
+	def _staff_offer(self, group: str | None = None):
+		return self._promotion(
+			title="RPOS test staff discount",
+			apply_to="by_customer_group",
+			applicable_customer_groups=[{"customer_group": group or self.parent_group}],
+			discount_value=10,
+		)
+
+	def _bill_for(self, customer: str | None):
+		order = self._order()
+		if customer:
+			order.customer = customer
+			order.save(ignore_permissions=True)
+		orders.add_item(order, item=ITEM, qty=1)
+		order.reload()
+		return order
+
+	def test_a_customer_in_the_group_gets_it(self):
+		self._staff_offer()
+
+		self.assertEqual(self._bill_for(self.staff).promotion_amount, 2.5)
+
+	def test_a_customer_outside_it_does_not(self):
+		self._staff_offer()
+
+		self.assertEqual(self._bill_for(self.walk_in).promotion_amount, 0.0)
+
+	def test_naming_the_parent_company_covers_its_branches(self):
+		"""`Customer Group` is a tree, and the staff member sits on a child of it."""
+		self._staff_offer(group=self.parent_group)
+
+		self.assertEqual(self._bill_for(self.staff).promotion_amount, 2.5)
+
+	def test_a_bill_with_nobody_on_it_is_not_everybody(self):
+		"""An offer *for* a group is a promise to named people, not to the shop."""
+		self._staff_offer()
+
+		self.assertEqual(self._bill_for(None).promotion_amount, 0.0)
+
+	def test_a_promotion_scoped_to_no_group_at_all_gives_nothing(self):
+		"""Unlike the other scopes, an empty list here is a mistake, not "everywhere"."""
+		self._promotion(
+			title="RPOS test empty group scope",
+			apply_to="by_customer_group",
+			discount_value=10,
+		)
+
+		self.assertEqual(self._bill_for(self.staff).promotion_amount, 0.0)
+
+
+def _customer_group(name: str, parent: str | None = None, *, is_group: bool = False) -> str:
+	"""A group, and a customer can only sit on a leaf of the tree."""
+	if not frappe.db.exists("Customer Group", name):
+		frappe.get_doc(
+			{
+				"doctype": "Customer Group",
+				"customer_group_name": name,
+				"parent_customer_group": parent or "All Customer Groups",
+				"is_group": 1 if is_group else 0,
+			}
+		).insert(ignore_permissions=True)
+	return name
+
+
+def _customer(name: str, group: str) -> str:
+	if not frappe.db.exists("Customer", name):
+		frappe.get_doc({"doctype": "Customer", "customer_name": name, "customer_group": group}).insert(
+			ignore_permissions=True
+		)
+	return name

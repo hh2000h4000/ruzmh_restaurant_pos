@@ -1,0 +1,165 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "field:coupon_code",
+ "creation": "2026-09-24 00:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 0,
+ "engine": "InnoDB",
+ "field_order": [
+  "identity_section",
+  "coupon_code",
+  "promotion",
+  "identity_cb",
+  "campaign",
+  "is_active",
+  "limits_section",
+  "max_uses",
+  "used",
+  "limits_cb",
+  "valid_from",
+  "valid_to"
+ ],
+ "fields": [
+  {
+   "fieldname": "identity_section",
+   "fieldtype": "Section Break",
+   "label": "Identity"
+  },
+  {
+   "description": "What the guest reads out. Case does not matter — it is matched in upper case.",
+   "fieldname": "coupon_code",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Coupon Code",
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "description": "The offer this code unlocks. The coupon carries no discount of its own — it is a key, and the promotion is the door.",
+   "fieldname": "promotion",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Promotion",
+   "options": "Restaurant Promotion",
+   "reqd": 1
+  },
+  {
+   "fieldname": "identity_cb",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "Who the codes were given to — an influencer, a campaign, a company. Codes sharing a campaign are counted together in the coupon report.",
+   "fieldname": "campaign",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Campaign"
+  },
+  {
+   "default": "1",
+   "fieldname": "is_active",
+   "fieldtype": "Check",
+   "label": "Is Active"
+  },
+  {
+   "fieldname": "limits_section",
+   "fieldtype": "Section Break",
+   "label": "Limits"
+  },
+  {
+   "default": "0",
+   "description": "Zero means no limit — one shared code an influencer gives to everybody. Set it to 1 and generate a batch instead, and each guest gets a code only they can use.",
+   "fieldname": "max_uses",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "Maximum Uses"
+  },
+  {
+   "default": "0",
+   "fieldname": "used",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "Used",
+   "read_only": 1
+  },
+  {
+   "fieldname": "limits_cb",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "Leave both empty and the promotion's own dates decide.",
+   "fieldname": "valid_from",
+   "fieldtype": "Date",
+   "label": "Valid From"
+  },
+  {
+   "fieldname": "valid_to",
+   "fieldtype": "Date",
+   "label": "Valid To"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-09-24 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Restaurant POS",
+ "name": "POS Coupon",
+ "naming_rule": "By fieldname",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Restaurant Admin",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Restaurant Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 0,
+   "delete": 0,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "POS Manager",
+   "share": 1,
+   "write": 0
+  },
+  {
+   "create": 0,
+   "delete": 0,
+   "email": 0,
+   "export": 0,
+   "print": 0,
+   "read": 1,
+   "report": 0,
+   "role": "POS Cashier",
+   "share": 0,
+   "write": 0
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

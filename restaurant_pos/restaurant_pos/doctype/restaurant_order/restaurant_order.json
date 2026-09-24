@@ -35,6 +35,8 @@
   "discount_type",
   "discount_value",
   "chosen_promotion",
+  "coupon",
+  "coupon_spent",
   "discount_amount",
   "promotion",
   "promotion_amount",
@@ -254,6 +256,22 @@
    "options": "Restaurant Promotion"
   },
   {
+   "description": "The code the guest presented (D-248). Input, like `chosen_promotion`: it unlocks the promotion it names, and that promotion does the discounting.",
+   "fieldname": "coupon",
+   "fieldtype": "Link",
+   "label": "Coupon",
+   "options": "POS Coupon"
+  },
+  {
+   "default": "0",
+   "description": "Whether this bill has already counted against the coupon's uses. Settling twice must not spend it twice.",
+   "fieldname": "coupon_spent",
+   "fieldtype": "Check",
+   "hidden": 1,
+   "label": "Coupon Spent",
+   "read_only": 1
+  },
+  {
    "default": "0",
    "fieldname": "discount_amount",
    "fieldtype": "Currency",
@@ -442,7 +460,7 @@
  "index_web_pages_for_search": 1,
  "istable": 0,
  "links": [],
- "modified": "2026-09-18 12:00:00.000000",
+ "modified": "2026-09-24 01:00:00.000000",
  "modified_by": "Administrator",
  "module": "Restaurant POS",
  "name": "Restaurant Order",

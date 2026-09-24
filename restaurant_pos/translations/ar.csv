@@ -371,6 +371,32 @@ Item Sales,مبيعات الأصناف
 Daily Sales,مبيعات الأيام
 Hourly Sales,مبيعات الساعات
 Sales Exceptions,الخصومات والإلغاءات
+Coupon Sales,مبيعات الكوبونات
+POS Coupon,كوبون
+Coupons,الكوبونات
+Coupon,الكوبون
+Coupon Code,رمز الكوبون
+Campaign,الحملة
+Maximum Uses,أكثر عدد استخدامات
+Used,المستخدم
+Limits,الحدود
+Needs a Coupon,يحتاج كوبون
+Applicable Customer Groups,مجموعات العملاء المشمولة
+Promotion Customer Group,مجموعة عملاء العرض
+by_customer_group,حسب مجموعة العملاء,Restaurant Promotion
+Given Away,اللي انعطى
+No campaign,بلا حملة
+"One row per code, not per campaign",صف لكل رمز بدل كل حملة
+A coupon needs a code.,الكوبون يحتاج رمزاً.
+Maximum Uses cannot be negative.,أكثر عدد استخدامات ما يكون بالسالب.
+No coupon with that code.,ما فيه كوبون بهذا الرمز.
+This coupon is switched off.,هذا الكوبون موقوف.
+This coupon does not start until {0}.,هذا الكوبون يبدأ من {0}.
+This coupon expired on {0}.,هذا الكوبون انتهى في {0}.
+This coupon has been used already.,هذا الكوبون استُخدم من قبل.
+The offer behind this coupon is not running.,العرض اللي وراء هذا الكوبون موقوف.
+Generate between 1 and {0} coupons.,ولّد من 1 إلى {0} كوبون.
+Promotion {0} does not exist.,العرض {0} غير موجود.
 Staff Sales,مبيعات الموظفين
 Payment Types,طرق الدفع
 "One row per person, not per act",صف لكل موظف بدل كل حركة

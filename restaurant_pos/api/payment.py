@@ -13,7 +13,8 @@ import frappe
 from frappe import _
 from frappe.utils import cint, flt
 
-from restaurant_pos.utils import idempotency, loyalty, promotions, totals
+from restaurant_pos.utils import coupons, idempotency, loyalty, promotions, totals
+from restaurant_pos.utils import order as orders
 from restaurant_pos.utils import payment as service
 from restaurant_pos.utils.permissions import get_pos_permission_set, validate_branch_access
 
@@ -203,3 +204,34 @@ def get_payment_summary(order_name: str) -> dict:
 		# been handed over (`D-125`).
 		"blocker": service.invoice_blocker(order),
 	}
+
+
+@frappe.whitelist(methods=["POST"])
+def apply_coupon(order_name: str, code: str) -> dict:
+	"""Put a guest's coupon on the bill, or say plainly why it will not go on (`D-248`).
+
+	**POST, because it writes.** The code lands on the order, which is what the
+	totals then read — the promotion behind it is priced by the same engine as
+	every other offer, so the screen and the invoice cannot disagree.
+	"""
+	order = frappe.get_doc("Restaurant Order", order_name)
+	validate_branch_access(order.branch)
+	orders.assert_mutable(order)
+
+	accepted = coupons.attach(order, code)
+	totals.calculate(order)
+
+	return {"coupon": accepted, **promotions.on_the_bill(order), "total_amount": order.total_amount}
+
+
+@frappe.whitelist(methods=["POST"])
+def remove_coupon(order_name: str) -> dict:
+	"""Take it back off — a guest who produced the wrong code, or changed their mind."""
+	order = frappe.get_doc("Restaurant Order", order_name)
+	validate_branch_access(order.branch)
+	orders.assert_mutable(order)
+
+	coupons.detach(order)
+	totals.calculate(order)
+
+	return {"coupon": None, **promotions.on_the_bill(order), "total_amount": order.total_amount}

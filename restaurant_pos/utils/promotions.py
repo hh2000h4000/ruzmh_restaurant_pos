@@ -59,6 +59,7 @@ FIELDS = (
 	"free_qty",
 	"apply_to",
 	"item_scope",
+	"requires_coupon",
 )
 
 #: The weekday checkboxes, in `datetime.weekday()` order.
@@ -545,10 +546,25 @@ def on_the_bill(order) -> dict:
 	# offer never touched. The screens draw the first and can list the rest.
 	applied = applied_to(order) if flt(order.promotion_amount) else []
 
+	# **And the code that unlocked it, when one did** (`D-248`). A guest asks why
+	# the discount is there and the cashier has to be able to point at the coupon
+	# rather than at a figure — and the badge that names it is also where it comes
+	# back off.
+	coupon = (
+		frappe.db.get_value("POS Coupon", order.coupon, ["coupon_code", "campaign"], as_dict=True)
+		if order.get("coupon")
+		else None
+	)
+
 	return {
 		"promotion_amount": flt(order.promotion_amount),
 		"promotion_title": (titles[0] if titles else "") or "",
 		"promotion_title_ar": (titles[1] if titles else "") or "",
+		"coupon": (
+			{"name": order.coupon, "code": coupon.coupon_code, "campaign": coupon.campaign or ""}
+			if coupon
+			else None
+		),
 		"promotions": [
 			{
 				"name": row.name,
@@ -569,13 +585,29 @@ def on_the_bill(order) -> dict:
 def _applies(promotion, order, total: float, moment) -> bool:
 	"""Every condition, in the order that rejects most cheaply."""
 	return (
-		_within_dates(promotion, moment)
+		_unlocked(promotion, order)
+		and _within_dates(promotion, moment)
 		and _on_this_weekday(promotion, moment)
 		and _within_hours(promotion)
 		and _meets_minimum(promotion, total)
 		and _in_scope(promotion, order)
 		and _eligible_amount(promotion, order) > 0
 	)
+
+
+def _unlocked(promotion, order) -> bool:
+	"""An offer that needs a code is off until the guest presents one (`D-248`).
+
+	First in the chain because it is the cheapest rejection there is — a field on
+	the bill against a field on the promotion — and because a coupon offer is off
+	for almost every bill in the shop.
+	"""
+	if not promotion.get("requires_coupon"):
+		return True
+
+	from restaurant_pos.utils import coupons
+
+	return coupons.unlocks(order, promotion.name)
 
 
 def _within_dates(promotion, moment) -> bool:
@@ -661,6 +693,9 @@ def _in_scope(promotion, order) -> bool:
 	An empty list means "everywhere", the same convention the order types use:
 	a promotion nobody has scoped is on for the whole shop, not off everywhere.
 	"""
+	if promotion.apply_to == "by_customer_group":
+		return _for_this_customer(promotion, order)
+
 	scopes = {
 		"by_order_type": ("Promotion Order Type", "order_type", order.order_type),
 		"by_branch": ("Promotion Branch", "branch", order.branch),
@@ -672,6 +707,28 @@ def _in_scope(promotion, order) -> bool:
 	doctype, column, value = scopes[promotion.apply_to]
 	allowed = frappe.get_all(doctype, filters={"parent": promotion.name}, pluck=column)
 	return not allowed or value in allowed
+
+
+def _for_this_customer(promotion, order) -> bool:
+	"""A company's staff discount, and anything else keyed to who is buying (`D-248`).
+
+	**A bill with no customer on it does not qualify**, unlike every other scope
+	here where an empty list means "everywhere". The difference is deliberate: an
+	unscoped promotion is on for the whole shop, but a promotion *for* a group is
+	a promise made to named people, and a walk-in is not one of them. Giving it to
+	an anonymous bill would be giving it to everybody, which is the opposite of
+	what the manager asked for.
+
+	Groups are a tree, so naming the parent company covers its branches.
+	"""
+	allowed = frappe.get_all(
+		"Promotion Customer Group", filters={"parent": promotion.name}, pluck="customer_group"
+	)
+	if not allowed or not order.customer:
+		return False
+
+	group = frappe.get_cached_value("Customer", order.customer, "customer_group")
+	return bool(group) and group in _groups_under(allowed, "Customer Group")
 
 
 def _eligible_amount(promotion, order) -> float:
@@ -703,8 +760,8 @@ def _covered_lines(promotion, order) -> list:
 	return lines
 
 
-def _groups_under(chosen: list[str]) -> set[str]:
-	"""The chosen item groups **and everything beneath them** (`D-169`).
+def _groups_under(chosen: list[str], doctype: str = "Item Group") -> set[str]:
+	"""The chosen groups **and everything beneath them** (`D-169`).
 
 	`Item Group` is a tree, and an item hangs off a leaf of it. A manager who
 	picks *Drinks* means every drink — the hot ones and the cold ones — and a
@@ -718,12 +775,16 @@ def _groups_under(chosen: list[str]) -> set[str]:
 
 	Frappe keeps the tree as a nested set, so each group's descendants are one
 	range query rather than a walk.
+
+	**Customer Group is the same shape and the same trap** (`D-248`): a manager
+	who names a parent company means its branches too, so the walk is shared
+	rather than written twice (§5.5).
 	"""
 	from frappe.utils.nestedset import get_descendants_of
 
 	under = set(chosen)
 	for group in chosen:
-		under.update(get_descendants_of("Item Group", group, ignore_permissions=True))
+		under.update(get_descendants_of(doctype, group, ignore_permissions=True))
 
 	return under
 

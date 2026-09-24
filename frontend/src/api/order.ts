@@ -39,6 +39,14 @@ export interface PromotionOnBill {
    * send it — in both cases the single title above still stands.
    */
   promotions?: { name: string; title: string; title_ar: string; amount: number }[];
+  /**
+   * The code that unlocked an offer, when one did (`D-248`).
+   *
+   * Carried on the bill rather than held by whichever screen typed it: the
+   * guest may present it at the order screen and ask about it at the payment
+   * screen, and both have to be able to name it and take it back off.
+   */
+  coupon?: { name: string; code: string; campaign: string } | null;
 }
 
 /**

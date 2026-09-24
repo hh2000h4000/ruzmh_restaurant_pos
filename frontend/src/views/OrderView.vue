@@ -8,6 +8,7 @@ import { reprintReceipt } from "@/api/printing";
 import AppIcon from "@/components/AppIcon.vue";
 import AppToast from "@/components/AppToast.vue";
 import BaseDialog from "@/components/BaseDialog.vue";
+import CouponDialog from "@/components/order/CouponDialog.vue";
 import CustomerDialog from "@/components/order/CustomerDialog.vue";
 import ItemPicker from "@/components/order/ItemPicker.vue";
 import LineDetailDialog from "@/components/order/LineDetailDialog.vue";
@@ -500,6 +501,7 @@ async function openBill(payload: Parameters<typeof orders.create>[0]): Promise<v
 // --------------------------------------------------------------------------
 
 const pickingCustomer = ref(false);
+const enteringCoupon = ref(false);
 
 /**
  * The type waiting for a customer, when it cannot be opened without one.
@@ -1102,6 +1104,15 @@ const moreActions = computed<OrderAction[]>(() => {
     });
   }
 
+  // `D-248` — the guest mentions the code while ordering as often as at the
+  // till, so it is reachable from both. One dialog answers it either way.
+  entries.push({
+    key: "coupon",
+    label: "coupon.add",
+    icon: "tag",
+    disabled: locked.value,
+  });
+
   // FR-2.12 — both move food between bills, so both live here rather than in
   // the row: a hand that lands without looking must not rearrange two bills.
   // Foodics keeps them in the same menu, next to Assign Table (`D-120`).
@@ -1144,6 +1155,7 @@ function onAction(action: OrderAction): void {
   else if (action.key === "notes") openNotes();
   else if (action.key === "callName") openCallName();
   else if (action.key === "customer") pickingCustomer.value = true;
+  else if (action.key === "coupon") enteringCoupon.value = maySell();
   // BR-044 — both change the bill: one re-prices every line, the other ends it.
   else if (action.key === "convert") converting.value = maySell();
   else if (action.key === "cancel") cancelling.value = maySell();
@@ -1883,6 +1895,14 @@ async function send(): Promise<void> {
     />
 
     <!-- FR-2.1 step 4 — found by number, created from the same box (D-050). -->
+    <CouponDialog
+      :open="enteringCoupon"
+      :order-name="orders.order?.order_name ?? null"
+      :applied="orders.order?.coupon ?? null"
+      @changed="void reload()"
+      @close="enteringCoupon = false"
+    />
+
     <CustomerDialog
       :open="pickingCustomer"
       :customer="orders.order?.customer ?? null"

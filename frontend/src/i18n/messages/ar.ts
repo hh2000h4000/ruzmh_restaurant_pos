@@ -162,6 +162,11 @@ const messages: Catalogue["messages"] = {
   "tables.joinEmpty": "لا توجد طاولة فاضية في هذه الصالة للضمّ.",
   "tables.joinHasBill": "عليها فاتورة",
   "tables.joinConfirm": "ضمّ {count}",
+  "coupon.title": "رمز الكوبون",
+  "coupon.body": "الرمز اللي معه الزبون. يفتح عرضاً، والعرض هو اللي يحسب الخصم.",
+  "coupon.placeholder": "اكتب الرمز",
+  "coupon.apply": "تطبيق",
+  "coupon.add": "إضافة كوبون",
   "tables.readyTitle": "الطاولة {number} جاهزة؟",
   "tables.readyBody":
     "الطاولة تبقى على «تنظيف» بعد ما تنحاسب آخر فاتورة فيها. أكّد إنها انظّفت وترجع فاضية.",

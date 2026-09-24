@@ -22,7 +22,7 @@ import frappe
 from frappe import _
 from frappe.utils import cint, flt, now_datetime
 
-from restaurant_pos.utils import activity, kitchen, loyalty, printing, promotions, totals
+from restaurant_pos.utils import activity, coupons, kitchen, loyalty, printing, promotions, totals
 from restaurant_pos.utils.audit import log_audit
 from restaurant_pos.utils.order import (
 	assert_mutable,
@@ -94,6 +94,10 @@ def process_payment(
 	# D-189 — after the invoice and inside its transaction: points move only if
 	# the sale posts, and a refused sale leaves the balance where it was.
 	points = loyalty.settle(order, invoice)
+
+	# `D-248` — and the coupon is spent here for the same reason: a code typed
+	# onto a bill that was then cancelled was never used.
+	coupons.consume(order)
 
 	# **The bill is filed under whoever took the money** (`D-188`).
 	#

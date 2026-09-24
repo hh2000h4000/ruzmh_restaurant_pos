@@ -11,7 +11,6 @@ Refs: FR-7.5, D-092
 """
 
 import base64
-import io
 from unittest.mock import patch
 
 import frappe
@@ -99,33 +98,6 @@ class TestThePayload(FrappeTestCase):
 
 	def test_it_is_valid_base64(self):
 		base64.b64decode(self._payload(), validate=True)
-
-
-class TestTheImage(FrappeTestCase):
-	def test_it_is_a_png_of_whole_modules(self):
-		"""Fractional modules print grey on thermal paper and misread."""
-		payload = zatca.qr_payload(
-			seller_name="مطعم",
-			vat_number="300000000000003",
-			timestamp=get_datetime("2026-09-01 15:30:00"),
-			invoice_total=32.0,
-			vat_total=4.17,
-		)
-		png = zatca.qr_png(payload)
-
-		self.assertTrue(png.startswith(b"\x89PNG"))
-
-		from PIL import Image
-
-		image = Image.open(io.BytesIO(png))
-		self.assertEqual(image.size[0], image.size[1])
-		self.assertEqual(image.size[0] % zatca.MODULE_SCALE, 0)
-
-	def test_the_data_uri_is_what_an_img_tag_wants(self):
-		uri = zatca.qr_data_uri("test")
-
-		self.assertTrue(uri.startswith("data:image/png;base64,"))
-		base64.b64decode(uri.split(",", 1)[1], validate=True)
 
 
 class TestAnInvoiceWithoutAVatNumber(FrappeTestCase):

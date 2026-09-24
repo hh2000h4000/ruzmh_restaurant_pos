@@ -52,14 +52,24 @@ describe("entering a coupon", () => {
     expect(applyCoupon).not.toHaveBeenCalled();
   });
 
-  it("sends the code as it was typed", async () => {
+  it("sends the code in the case the codes are actually issued in", async () => {
+    // Uppercased as it is typed, so the box shows what the card shows — the
+    // server matches in upper case either way.
     const view = dialog();
 
     await view.find("input").setValue("  save10 ");
     await tap(view, "تطبيق");
 
-    expect(applyCoupon).toHaveBeenCalledWith({ order_name: "RO-1", code: "save10" });
+    expect(applyCoupon).toHaveBeenCalledWith({ order_name: "RO-1", code: "SAVE10" });
     expect(view.emitted("changed")).toHaveLength(1);
+  });
+
+  it("fills the field from the on-screen keys, for a till with no keyboard", async () => {
+    const view = dialog();
+
+    for (const key of ["S", "A", "V"]) await tap(view, key);
+
+    expect((view.find("input").element as HTMLInputElement).value).toBe("SAV");
   });
 
   it("names the code already on the bill, and takes it back off", async () => {

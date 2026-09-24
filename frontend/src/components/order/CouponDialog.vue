@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed, nextTick, ref, watch } from "vue";
 
 import { applyCoupon, removeCoupon } from "@/api/payment";
 import BaseDialog from "@/components/BaseDialog.vue";
+import CodePad from "@/components/order/CodePad.vue";
 import { t } from "@/i18n";
 
 /**
@@ -20,6 +21,11 @@ import { t } from "@/i18n";
  *
  * **And the discount is the promotion's, not the coupon's.** The code unlocks an
  * offer and the offer prices the bill, so nothing here computes money.
+ *
+ * **Typed on screen, or scanned** (`D-250`). A till in kiosk mode raises no soft
+ * keyboard, so the keys are drawn — and the field still takes focus and still
+ * applies on Enter, which is all a keyboard-wedge scanner needs to work here
+ * with no integration at all.
  */
 const props = defineProps<{
   open: boolean;
@@ -33,15 +39,22 @@ const emit = defineEmits<{ close: []; changed: [] }>();
 const code = ref("");
 const busy = ref(false);
 const error = ref<string | null>(null);
+const field = ref<HTMLInputElement | null>(null);
 
 const canSend = computed(() => code.value.trim().length > 0 && !busy.value);
 
 watch(
   () => props.open,
-  (isOpen) => {
+  async (isOpen) => {
     if (!isOpen) return;
     code.value = "";
     error.value = null;
+
+    // **Focused on open, for the scanner's sake.** A keyboard-wedge reader types
+    // into whatever holds focus; without this the scan lands nowhere and the
+    // cashier sees a dead trigger rather than a filled field.
+    await nextTick();
+    field.value?.focus();
   },
 );
 
@@ -114,14 +127,22 @@ async function remove(): Promise<void> {
     </div>
 
     <input
-      v-model="code"
+      ref="field"
+      :value="code"
       type="text"
       autocapitalize="characters"
       autocomplete="off"
       class="mb-3 w-full rounded-rpos border border-line bg-background p-3 text-center text-lg tracking-widest"
       :placeholder="t('coupon.placeholder')"
+      @input="code = ($event.target as HTMLInputElement).value.toUpperCase()"
       @keyup.enter="apply"
     >
+
+    <CodePad
+      class="mb-3"
+      :value="code"
+      @update="code = $event"
+    />
 
     <p
       v-if="error"

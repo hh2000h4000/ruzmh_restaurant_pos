@@ -1014,3 +1014,18 @@ Day {0},يوم {0}
 POS Profile {0} has no payment method configured.,جهاز الكاشير {0} ما له طريقة دفع.
 A bill is split between one person or more.,الفاتورة تنقسم على شخص أو أكثر.
 An offline order needs its queue id.,الطلب اللي انباع بلا اتصال لازم معه رقم الطابور.
+Generate coupons,توليد كوبونات
+How many,كم عدد
+One use each,كل كود مرة وحدة
+No limit,بلا حد
+Generate,توليد
+{0} coupons generated.,انولد {0} كوبون.
+Codes sharing a campaign are counted together in the coupon report.,الأكواد اللي في نفس الحملة تتجمع مع بعض في تقرير الكوبونات.
+Print coupon sheet,طباعة ورقة الكوبونات
+Select the coupons to print first.,اختر الكوبونات اللي تبي تطبعها أول.
+One use only,يُستخدم مرة وحدة
+Valid until {0},صالح حتى {0}
+Valid from {0},صالح من {0}
+Valid {0} to {1},صالح من {0} إلى {1}
+"{0} coupons, {1} to a page. Choose Save as PDF in the print dialog.",{0} كوبون، {1} في الصفحة. اختر «حفظ كـ PDF» في نافذة الطباعة.
+Only the first {0} are on this sheet.,أول {0} بس في هذي الورقة.

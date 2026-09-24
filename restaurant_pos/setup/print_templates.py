@@ -304,7 +304,7 @@ CUSTOMER_RECEIPT = """
 	{{% endif %}}
 	{{% if zatca_qr %}}
 	<hr>
-	{{# ZATCA Phase 1. Drawn at whole dots per module by `utils/zatca`, so it must
+	{{# ZATCA Phase 1. Drawn at whole dots per module by `utils/barcodes`, so it must
 	    not be resized here — a scaled QR prints with grey edges on thermal paper
 	    and scanners misread it. #}}
 	<div class="c"><img src="{{{{ zatca_qr }}}}" alt=""></div>

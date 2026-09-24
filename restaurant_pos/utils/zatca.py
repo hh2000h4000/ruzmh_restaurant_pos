@@ -23,11 +23,12 @@ Refs: FR-7.5, D-092
 from __future__ import annotations
 
 import base64
-import io
 from datetime import datetime
 
 import frappe
 from frappe.utils import flt, get_datetime, get_system_timezone
+
+from restaurant_pos.utils.barcodes import qr_data_uri
 
 #: Tag numbers, in the order ZATCA specifies. The order is part of the format.
 SELLER_NAME = 1
@@ -39,14 +40,6 @@ VAT_TOTAL = 5
 #: A TLV length is one byte, so no value may exceed 255 **bytes**. Arabic is
 #: two bytes a letter in UTF-8, which halves how long a seller name may be.
 MAX_VALUE_BYTES = 255
-
-#: Dots per QR module. Four keeps the code about 200 dots across on 80mm paper —
-#: large enough for a phone camera, small enough to leave room for the total.
-MODULE_SCALE = 4
-
-#: Modules of blank margin. The specification for QR codes calls for four, and a
-#: code printed without it is one a scanner may refuse at an angle.
-QUIET_ZONE = 4
 
 
 def tlv(tag: int, value: str) -> bytes:
@@ -102,45 +95,6 @@ def _iso_utc(moment: datetime) -> str:
 		moment = pytz.timezone(get_system_timezone()).localize(moment)
 
 	return moment.astimezone(pytz.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-
-
-def qr_png(payload: str, *, scale: int = MODULE_SCALE, quiet: int = QUIET_ZONE) -> bytes:
-	"""Draw the QR as a bitmap at exact module size.
-
-	Drawn from the module matrix rather than asked for as a scaled image: the
-	receipt is printed at 203 dpi in one-bit black, and a QR resampled to a
-	fractional module size prints with grey edges that scanners misread. Whole
-	dots per module is the whole point.
-	"""
-	import pyqrcode
-	from PIL import Image
-
-	# `M` recovers from about 15% damage — the right trade for thermal paper,
-	# which smudges and fades, against a payload this small.
-	matrix = pyqrcode.create(payload, error="M").code
-
-	modules = len(matrix)
-	side = (modules + quiet * 2) * scale
-	image = Image.new("1", (side, side), 1)
-	pixels = image.load()
-
-	for row, line in enumerate(matrix):
-		for column, module in enumerate(line):
-			if not module:
-				continue
-			for y in range((row + quiet) * scale, (row + quiet + 1) * scale):
-				for x in range((column + quiet) * scale, (column + quiet + 1) * scale):
-					pixels[x, y] = 0
-
-	out = io.BytesIO()
-	image.save(out, format="PNG")
-	return out.getvalue()
-
-
-def qr_data_uri(payload: str, **kwargs) -> str:
-	"""The QR as a `data:` URI, so the template needs no file and no server."""
-	encoded = base64.b64encode(qr_png(payload, **kwargs)).decode("ascii")
-	return f"data:image/png;base64,{encoded}"
 
 
 #: The ZATCA integration, when the restaurant has one installed.

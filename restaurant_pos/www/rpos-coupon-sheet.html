@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="{{ lang }}" dir="{{ text_direction }}">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>{{ title }}</title>
+	<style>
+		/* A4 with a 10mm margin leaves 190 × 277mm to draw in, and the grid below
+		   is sized to fit inside that. Chrome's own "Save as PDF" honours this,
+		   which is the whole delivery route — no PDF engine on the server
+		   (`rpos_coupon_sheet.py` says why). */
+		@page { size: A4 portrait; margin: 10mm; }
+
+		:root { --line: #d7d7d7; --ink: #1a1a1a; --muted: #6b6b6b; }
+
+		* { box-sizing: border-box; }
+
+		body {
+			margin: 0;
+			background: #eceff1;
+			color: var(--ink);
+			font-family: "Noto Sans Arabic", "Segoe UI", Tahoma, system-ui, sans-serif;
+		}
+
+		.toolbar {
+			position: sticky;
+			top: 0;
+			display: flex;
+			gap: 12px;
+			align-items: center;
+			padding: 12px 16px;
+			background: #fff;
+			border-bottom: 1px solid var(--line);
+		}
+
+		.toolbar button {
+			padding: 8px 20px;
+			font: inherit;
+			font-weight: 600;
+			color: #fff;
+			background: #1f7a5a;
+			border: 0;
+			border-radius: 6px;
+			cursor: pointer;
+		}
+
+		.toolbar .hint { color: var(--muted); font-size: 13px; }
+
+		.sheet {
+			width: 190mm;
+			margin: 12px auto;
+			padding: 0;
+			background: #fff;
+			display: grid;
+			grid-template-columns: repeat(2, 92mm);
+			grid-auto-rows: 52mm;
+			gap: 3mm 6mm;
+			justify-content: space-between;
+		}
+
+		.card {
+			display: flex;
+			align-items: center;
+			gap: 4mm;
+			padding: 4mm;
+			/* Dashed, because the sheet is cut up by hand and the line is the
+			   guide for the scissors. */
+			border: 1px dashed var(--line);
+			border-radius: 2mm;
+			/* A card split across two pages is a card in the bin. */
+			break-inside: avoid;
+			page-break-inside: avoid;
+			overflow: hidden;
+		}
+
+		.card img { width: 26mm; height: 26mm; flex: none; }
+
+		.card .text { min-width: 0; flex: 1; }
+
+		.offer {
+			font-size: 11pt;
+			font-weight: 600;
+			line-height: 1.3;
+			/* Two lines of an offer name, then stop: a long title must not push
+			   the code off its own card. */
+			display: -webkit-box;
+			-webkit-line-clamp: 2;
+			-webkit-box-orient: vertical;
+			overflow: hidden;
+		}
+
+		/* The code is Latin and read out loud, so it is set left-to-right and
+		   wide-spaced whatever the page direction. */
+		.code {
+			direction: ltr;
+			unicode-bidi: isolate;
+			margin: 1.5mm 0;
+			font-family: "Courier New", monospace;
+			font-size: 19pt;
+			font-weight: 700;
+			letter-spacing: 1.2pt;
+			white-space: nowrap;
+		}
+
+		.small { font-size: 8pt; color: var(--muted); line-height: 1.5; }
+
+		.campaign { font-weight: 600; }
+
+		@media print {
+			body { background: #fff; }
+			.toolbar { display: none; }
+			.sheet {
+				width: auto;
+				margin: 0;
+				/* Every sheet but the last starts a new page. `page-break-after`
+				   on the last one leaves a blank sheet in the tray. */
+				break-after: page;
+				page-break-after: always;
+			}
+			.sheet:last-child { break-after: auto; page-break-after: auto; }
+		}
+	</style>
+</head>
+<body>
+	<div class="toolbar">
+		<button type="button" onclick="window.print()">{{ _("Print") }}</button>
+		<span class="hint">
+			{{ _("{0} coupons, {1} to a page. Choose Save as PDF in the print dialog.").format(coupons | length, per_sheet) }}
+			{% if capped %}<b>{{ _("Only the first {0} are on this sheet.").format(coupons | length) }}</b>{% endif %}
+		</span>
+	</div>
+
+	{% for page in coupons | batch(per_sheet) %}
+	<section class="sheet">
+		{% for coupon in page %}
+		<article class="card">
+			<img src="{{ coupon.qr }}" alt="{{ coupon.coupon_code }}">
+			<div class="text">
+				<div class="offer">{{ coupon.offer }}</div>
+				<div class="code">{{ coupon.coupon_code }}</div>
+				<div class="small">
+					{% if coupon.campaign %}<span class="campaign">{{ coupon.campaign }}</span><br>{% endif %}
+					{% if coupon.valid %}{{ coupon.valid }}<br>{% endif %}
+					{% if coupon.one_use %}{{ _("One use only") }}{% endif %}
+				</div>
+			</div>
+		</article>
+		{% endfor %}
+	</section>
+	{% endfor %}
+</body>
+</html>

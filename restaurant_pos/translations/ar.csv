@@ -1068,3 +1068,60 @@ Issued from the office,إصدار من المكتب
 "Say where the money came from: a customer's account, or an account.",قل من وين جاء المبلغ: ذمة عميل، أو حساب.
 Generate between 1 and {0} at a time.,ولّد بين 1 و{0} في المرة.
 {0} exists already. Start the numbering somewhere else.,{0} موجود من قبل. ابدأ الترقيم من مكان ثاني.
+What the guest reads out. Case does not matter — it is matched in upper case.,اللي يقوله الزبون. الحروف الكبيرة والصغيرة سواء.
+"The offer this code unlocks. The coupon carries no discount of its own — it is a key, and the promotion is the door.",العرض اللي يفتحه هذا الرمز. الكوبون ما فيه خصم بنفسه — هو مفتاح، والعرض هو الباب.
+"Who the codes were given to — an influencer, a campaign, a company. Codes sharing a campaign are counted together in the coupon report.",لمن انعطت الأكواد: مشهور، حملة، شركة. الأكواد اللي لها نفس الحملة تنجمع في تقرير الكوبونات.
+"Zero means no limit — one shared code an influencer gives to everybody. Set it to 1 and generate a batch instead, and each guest gets a code only they can use.",صفر يعني بلا حد — كود واحد يعطيه المشهور للكل. وحطه 1 وولّد دفعة، فكل زبون له كود ما يستخدمه غيره.
+Leave both empty and the promotion's own dates decide.,اتركهم فاضيين، وتواريخ العرض نفسه هي اللي تحكم.
+Identity,البيانات,POS Coupon
+Promotion,العرض,POS Coupon
+Valid From,من تاريخ,POS Coupon
+Valid To,إلى تاريخ,POS Coupon
+"Off, this offer applies to anyone who qualifies. On, it applies only to a bill carrying one of its coupon codes — an influencer's code, or a batch of single-use ones.",لو ما علّمتها، العرض لأي أحد تنطبق عليه الشروط. ولو علّمتها، ما ينطبق إلا على فاتورة فيها واحد من أكواده — كود مشهور، أو دفعة أكواد كل واحد لمرة.
+"How many come free. The cheapest qualifying lines on the bill are the ones discounted, and no line is ever added — the guest orders the reward and the offer takes its price off (D-175).",كم واحد مجاناً. الأرخص من الأصناف المشمولة هو اللي ينخصم، وما ينضاف سطر أبداً — الزبون يطلب الهدية والعرض يشيل سعرها.
+"Any customer in these groups gets it — a company's staff, a loyalty tier, a delivery platform's own customers. Child groups count too.",أي عميل في هذي المجموعات ياخذه — موظفين شركة، فئة ولاء، عملاء تطبيق توصيل. والمجموعات اللي تحتها تنحسب بعد.
+"Child groups count too, so naming Drinks covers the hot ones and the cold ones.",المجموعات اللي تحتها تنحسب بعد، فلو اخترت المشروبات تشمل الحارة والباردة.
+What is printed on the card. Uppercased on save and matched however it is typed.,الرقم المطبوع على البطاقة. ينحفظ بالحروف الكبيرة ويتطابق مهما انكتب.
+"Optional. A card bought for somebody in particular, so a lost number can still be found.",اختياري. لبطاقة انشرت لشخص معيّن، عشان لو ضاع الرقم تلقاها باسمه.
+"Leave empty for a card that never expires, which is what ships.",اتركه فاضي والبطاقة ما تنتهي — وهذا الافتراضي.
+Kept in step with the entries below it; the entries are the record.,يمشي مع القيود اللي تحته؛ القيود هي الأصل.
+Money,المبلغ,POS Gift Card
+Initial Value,المبلغ الأول,POS Gift Card
+Balance,الرصيد
+Issued Terminal,الجهاز اللي أصدرها,POS Gift Card
+Issued By,أصدرها,POS Gift Card
+Issued At,وقت الإصدار,POS Gift Card
+Gift Card,بطاقة الهدايا
+Entry Type,نوع الحركة,POS Gift Card Entry
+issue,إصدار,POS Gift Card Entry
+top_up,شحن,POS Gift Card Entry
+redeem,استخدام,POS Gift Card Entry
+refund,استرجاع,POS Gift Card Entry
+Always positive. What it does to the balance is the entry type's job.,دايماً موجب. نوع الحركة هو اللي يقول يزيد الرصيد ولا ينقصه.
+Balance After,الرصيد بعدها,POS Gift Card Entry
+Where,وين,POS Gift Card Entry
+The entry that moved the money into the books. Issues have one; redemptions are posted by the invoice itself.,القيد اللي دخّل المبلغ في الدفاتر.
+Terminal,الجهاز,POS Gift Card Entry
+"The drawer this landed in. A card sold puts real money in one, so the count has to know.",الدرج اللي دخلت فيه. بيع البطاقة يدخّل فلوس حقيقية في الدرج، فالعدّ لازم يعرف.
+How the card itself was paid for. Empty on a redemption: nothing changed hands there.,كيف انشرت البطاقة نفسها. فاضي في الاستخدام: ما تحرّكت فلوس هناك.
+Who,مين,POS Gift Card Entry
+Recorded By,سجّلها,POS Gift Card Entry
+Recorded At,وقت التسجيل,POS Gift Card Entry
+Queue Id,رقم الطابور,POS Gift Card Entry
+"The offline queue's id, so one replayed request cannot spend a card twice.",رقم طابور الأوفلاين، عشان الطلب اللي ينعاد ما يصرف البطاقة مرتين.
+A gift card cannot hold less than nothing.,رصيد البطاقة ما ينزل تحت الصفر.
+A gift card cannot be deleted. Switch it off instead.,البطاقة ما تنحذف. شِل علامة «مفعّل» بدالها.
+A gift card entry cannot be deleted.,حركة البطاقة ما تنحذف.
+Enter the gift card number.,اكتب رقم البطاقة.
+No gift card with that number.,ما فيه بطاقة بهذا الرقم.
+This gift card is switched off.,هذي البطاقة موقوفة.
+This gift card expired on {0}.,هذي البطاقة انتهت في {0}.
+A gift card is loaded with between 0.01 and {0}.,البطاقة تنشحن بين 0.01 و{0}.
+Gift card {0} exists already.,البطاقة {0} موجودة من قبل.
+Gift cards taxed at issue are not built yet.,بطاقات الضريبة عند البيع ما انبنت بعد.
+Not posted to the ledger: {0} has no account on this company.,ما انقيّد في الدفتر: {0} ما له حساب في هذي الشركة.
+Gift card {0} sold,انباعت البطاقة {0}
+Not posted to the ledger.,ما انقيّد في الدفتر.
+Gift card {0} has {1} left.,البطاقة {0} فيها {1} بس.
+Returned from {0},مسترجع من {0}
+Which gift card? Enter the number printed on it.,أي بطاقة؟ اكتب الرقم المطبوع عليها.

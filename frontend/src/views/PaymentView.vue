@@ -13,6 +13,7 @@ import type {
 import AppIcon from "@/components/AppIcon.vue";
 import ManagerPinDialog from "@/components/ManagerPinDialog.vue";
 import CouponDialog from "@/components/order/CouponDialog.vue";
+import GiftCardPayDialog from "@/components/order/GiftCardPayDialog.vue";
 import TenderSheet from "@/components/order/TenderSheet.vue";
 import { formatNumber, pick, t } from "@/i18n";
 import { useOrderStore } from "@/stores/order";
@@ -430,6 +431,34 @@ function setQuickDiscount(percentage: number): void {
 /** The method whose amount is being chosen, or `null` while the sheet is shut. */
 const tendering = ref<PaymentMethodOption | null>(null);
 
+/**
+ * `D-256` — the card a gift-card tender will come off, and the method waiting
+ * for it. A card is the one method whose limit the cashier cannot see, so it is
+ * looked up before the amount is taken rather than refused afterwards.
+ */
+const askingForCard = ref<PaymentMethodOption | null>(null);
+const heldCard = ref<{ number: string; balance: number } | null>(null);
+
+/** What this tender may be, which for a card is capped by what is on it. */
+const tenderCeiling = computed(() =>
+  heldCard.value ? Math.min(nextDue.value, heldCard.value.balance) : nextDue.value,
+);
+
+function chooseMethod(method: PaymentMethodOption): void {
+  if (method.is_gift_card) {
+    askingForCard.value = method;
+    return;
+  }
+
+  tendering.value = method;
+}
+
+function cardChosen(card: { number: string; balance: number }): void {
+  heldCard.value = card;
+  tendering.value = askingForCard.value;
+  askingForCard.value = null;
+}
+
 /** What the sheet offers first: this person's share, or the whole balance. */
 const nextDue = computed(() =>
   splitting.value ? shares.value[settled.value] : Math.max(remaining.value, 0),
@@ -447,10 +476,16 @@ function takeTender(chosen: number): void {
   const method = tendering.value;
   if (!method) return;
 
-  const amount = round(Math.min(chosen, nextDue.value));
+  const amount = round(Math.min(chosen, tenderCeiling.value));
   const tendered = method.is_cash ? chosen : amount;
 
-  const existing = lines.value.find((line) => line.method === method.payment_method);
+  const card = heldCard.value;
+  // **Two cards on one bill are two lines.** Every other method merges — four
+  // people paying cash are one cash line — but a gift-card line names the card
+  // it comes off, and merging them would spend one number for both.
+  const existing = card
+    ? undefined
+    : lines.value.find((line) => line.method === method.payment_method);
   if (existing) {
     // Four people paying cash are one cash line: the invoice records what the
     // drawer holds, not who handed over which note. Without this a split would
@@ -459,8 +494,15 @@ function takeTender(chosen: number): void {
     existing.amount = round(existing.amount + amount);
     existing.tendered = round((existing.tendered ?? existing.amount) + tendered);
   } else {
-    lines.value.push({ method: method.payment_method, amount, tendered });
+    lines.value.push({
+      method: method.payment_method,
+      amount,
+      tendered,
+      ...(card ? { gift_card: card.number } : {}),
+    });
   }
+
+  heldCard.value = null;
 
   if (splitting.value) settled.value += 1;
   tendering.value = null;
@@ -823,7 +865,7 @@ async function confirm(): Promise<void> {
                 isForbidden(method) ||
                 mixesSettlement(method)
             "
-            @click="tendering = method"
+            @click="chooseMethod(method)"
           >
             <!-- A method's name is a brand — Cash, mada, Jahez — and it is
                  written the way it is written, not reordered by the paragraph
@@ -1206,10 +1248,20 @@ async function confirm(): Promise<void> {
     <!-- Screen 9 — manager authorisation -->
     <TenderSheet
       :method="tendering?.payment_method ?? null"
-      :due="nextDue"
+      :due="tenderCeiling"
       :is-cash="Boolean(tendering?.is_cash)"
       @pick="takeTender"
-      @close="tendering = null"
+      @close="
+        tendering = null;
+        heldCard = null;
+      "
+    />
+
+    <!-- `D-256` — which card, and what is on it, before any amount is taken. -->
+    <GiftCardPayDialog
+      :open="Boolean(askingForCard)"
+      @found="cardChosen"
+      @close="askingForCard = null"
     />
 
     <CouponDialog

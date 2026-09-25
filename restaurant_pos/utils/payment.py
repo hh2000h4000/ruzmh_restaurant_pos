@@ -23,6 +23,7 @@ from frappe import _
 from frappe.utils import cint, flt, now_datetime
 
 from restaurant_pos.utils import activity, coupons, kitchen, loyalty, printing, promotions, totals
+from restaurant_pos.utils import gift_card as gift_cards
 from restaurant_pos.utils.audit import log_audit
 from restaurant_pos.utils.order import (
 	assert_mutable,
@@ -79,6 +80,10 @@ def process_payment(
 	order.save(ignore_permissions=True)
 
 	_validate_methods(order, payments)
+	# `D-256` — before the invoice, not after: a bill posted against an empty
+	# card is a sale with no money behind it, and undoing one is a credit note
+	# somebody has to explain.
+	gift_cards.assert_spendable(payments)
 	settlement = _settlement_of(payments)
 	change = _validate_amounts(order, payments) if settlement == "till" else 0.0
 
@@ -98,6 +103,9 @@ def process_payment(
 	# `D-248` — and the coupon is spent here for the same reason: a code typed
 	# onto a bill that was then cancelled was never used.
 	coupons.consume(order)
+
+	# `D-256` — and the cards, for the third time the same reason.
+	gift_cards.settle(order, invoice, payments)
 
 	# **The bill is filed under whoever took the money** (`D-188`).
 	#
@@ -285,6 +293,10 @@ def _normalise(payments) -> list[dict]:
 				"amount": amount,
 				# FR-10.3 — what the customer handed over, for change.
 				"tendered": flt(row.get("tendered") or amount),
+				# `D-256` — which card this row spends. Every other method takes
+				# money from somewhere the row need not name; a gift card names
+				# the exact balance it comes off.
+				"gift_card": (row.get("gift_card") or "").strip().upper() or None,
 			}
 		)
 

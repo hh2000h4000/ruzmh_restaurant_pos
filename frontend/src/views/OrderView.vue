@@ -28,6 +28,7 @@ import ReturnDialog from "@/components/order/ReturnDialog.vue";
 import CloseDayDialog from "@/components/shift/CloseDayDialog.vue";
 import CloseTillDialog from "@/components/shift/CloseTillDialog.vue";
 import DrawerCashDialog from "@/components/shift/DrawerCashDialog.vue";
+import GiftCardSellDialog from "@/components/shift/GiftCardSellDialog.vue";
 import TillReportDialog from "@/components/shift/TillReportDialog.vue";
 import OpenTillDialog from "@/components/shift/OpenTillDialog.vue";
 import RosterDialog from "@/components/shift/RosterDialog.vue";
@@ -318,6 +319,7 @@ const closingTill = ref(false);
 /** The X report on screen; printing it is a button inside (`D-237`). */
 const viewingReport = ref(false);
 const movingCash = ref(false);
+const sellingGiftCard = ref(false);
 const closingDay = ref(false);
 
 function onMenu(key: string): void {
@@ -332,6 +334,7 @@ function onMenu(key: string): void {
   else if (key === "customerDisplay") openCustomerDisplay();
   else if (key === "viewReport") viewingReport.value = true;
   else if (key === "drawerCash") movingCash.value = true;
+  else if (key === "sellGiftCard") sellingGiftCard.value = true;
   // D-191 — a pane like the bar's own, reached from the menu because the bar
   // had no room for a sixth. Through `onNavigate`, so walking to it cancels a
   // table or a booking waiting for its order type, exactly as the bar does.
@@ -1930,6 +1933,14 @@ async function send(): Promise<void> {
         void shift.refresh();
       "
       @close="movingCash = false"
+    />
+
+    <!-- `D-256` — the money lands in the open drawer, so the count is refreshed
+         behind it exactly as a cash movement does. -->
+    <GiftCardSellDialog
+      :open="sellingGiftCard"
+      @done="void shift.refresh()"
+      @close="sellingGiftCard = false"
     />
 
     <CloseTillDialog

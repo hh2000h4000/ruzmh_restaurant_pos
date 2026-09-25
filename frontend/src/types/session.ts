@@ -227,6 +227,8 @@ export interface PosSession {
     default: 0 | 1;
     is_cash: 0 | 1;
     is_credit: 0 | 1;
+    /** Spends a gift card rather than taking money (`D-256`). */
+    is_gift_card?: 0 | 1;
   }[];
   active_shift: Shift | null;
   /**

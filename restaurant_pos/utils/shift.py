@@ -37,7 +37,7 @@ import frappe
 from frappe import _
 from frappe.utils import cint, flt, format_datetime, now_datetime, nowdate, nowtime
 
-from restaurant_pos.utils import cash_movement, printing
+from restaurant_pos.utils import cash_movement, gift_card, printing
 from restaurant_pos.utils.order import profiles_in, table_section_branch
 from restaurant_pos.utils.payment import is_credit_method
 from restaurant_pos.utils.permissions import (
@@ -568,6 +568,7 @@ def summarise_till(opening_entry: str) -> dict:
 		opening,
 		refunds=refunds,
 		moved=cash_movement.totals_of(entry.name),
+		cards_sold=gift_card.takings_of(entry.name),
 	)
 	report["movements"] = _movements_of(entry.name)
 	report["entry"] = entry.name
@@ -627,11 +628,19 @@ def _refunds_in(window: list, **filters) -> list[str]:
 	)
 
 
-def _report(day, orders: list, opening: dict, *, refunds: list[str], moved: dict | None = None) -> dict:
+def _report(
+	day,
+	orders: list,
+	opening: dict,
+	*,
+	refunds: list[str],
+	moved: dict | None = None,
+	cards_sold: dict | None = None,
+) -> dict:
 	closed = [row for row in orders if row.status == "closed"]
 	still_open = [row for row in orders if row.status in OPEN_ORDER_STATUSES]
 	sold = [row.sales_invoice for row in closed if row.sales_invoice]
-	methods = _by_method(sold, refunds, opening, moved or {})
+	methods = _by_method(sold, refunds, opening, moved or {}, cards_sold or {})
 	refund_rows = (
 		frappe.get_all("Sales Invoice", filters={"name": ("in", refunds)}, fields=["owner", "grand_total"])
 		if refunds
@@ -728,7 +737,9 @@ def _by_order_type(closed: list) -> list[dict]:
 	return sorted(tally.values(), key=lambda entry: -entry["sales"])
 
 
-def _by_method(invoices: list[str], refunds: list[str], opening: dict, moved: dict) -> list[dict]:
+def _by_method(
+	invoices: list[str], refunds: list[str], opening: dict, moved: dict, cards_sold: dict
+) -> list[dict]:
 	"""FR-8.3 — takings per payment method, and what each one means.
 
 	Read from the **Sales Invoice**, which is where a payment is recorded: the
@@ -783,6 +794,7 @@ def _by_method(invoices: list[str], refunds: list[str], opening: dict, moved: di
 				"opening": 0.0,
 				"moved_in": 0.0,
 				"moved_out": 0.0,
+				"cards_sold": 0.0,
 			},
 		)
 
@@ -806,14 +818,27 @@ def _by_method(invoices: list[str], refunds: list[str], opening: dict, moved: di
 		entry["moved_in"] = flt(movement.get("in"))
 		entry["moved_out"] = flt(movement.get("out"))
 
+	# **And what selling a gift card put in** (`D-256`). A card is not a sale and
+	# deliberately has no invoice, so it reaches none of the rows above — while
+	# the notes are very much in the box. Without this line the cashier counts
+	# more than the screen ever asked for, every time somebody buys one.
+	for method, amount in cards_sold.items():
+		line(method)["cards_sold"] = flt(amount)
+
 	for entry in tally.values():
-		for figure in ("sales", "taken", "refunded", "opening", "moved_in", "moved_out"):
+		for figure in ("sales", "taken", "refunded", "opening", "moved_in", "moved_out", "cards_sold"):
 			entry[figure] = money(entry[figure])
 		# Nothing is expected in a drawer for credit: the money is not there.
 		entry["expected"] = (
 			0.0
 			if entry["kind"] == "credit"
-			else money(entry["opening"] + entry["sales"] + entry["moved_in"] - entry["moved_out"])
+			else money(
+				entry["opening"]
+				+ entry["sales"]
+				+ entry["moved_in"]
+				+ entry["cards_sold"]
+				- entry["moved_out"]
+			)
 		)
 
 	return sorted(tally.values(), key=lambda entry: (entry["kind"], -entry["sales"]))

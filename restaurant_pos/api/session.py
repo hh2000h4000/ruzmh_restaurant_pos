@@ -25,6 +25,7 @@ import frappe.sessions
 from frappe import _
 from frappe.utils import cint, flt, now_datetime
 
+from restaurant_pos.setup.gift_card_accounts import MODE_OF_PAYMENT as GIFT_CARD_METHOD
 from restaurant_pos.utils import device
 from restaurant_pos.utils import theme as theme_service
 from restaurant_pos.utils import totals as totals_service
@@ -434,6 +435,9 @@ def _payment_methods(pos_profile: str) -> list[dict]:
 	for row in rows:
 		row["is_cash"] = 1 if is_cash(row["mode_of_payment"]) else 0
 		row["is_credit"] = 1 if is_credit_method(row["mode_of_payment"]) else 0
+		# `D-256` — the method that spends a gift card, named by the server for
+		# the reason the others are: a renamed method must not stop working.
+		row["is_gift_card"] = 1 if row["mode_of_payment"] == GIFT_CARD_METHOD else 0
 
 	return rows
 

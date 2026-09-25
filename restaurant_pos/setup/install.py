@@ -13,7 +13,7 @@ modified - every extension is a ``Custom Field``.
 import frappe
 from frappe.custom.doctype.custom_field.custom_field import create_custom_fields
 
-from restaurant_pos.setup import cash_accounts
+from restaurant_pos.setup import cash_accounts, gift_card_accounts
 from restaurant_pos.setup.defaults import create_default_data
 from restaurant_pos.setup.print_templates import create_default_templates
 
@@ -699,3 +699,9 @@ def after_migrate():
 	# had the app before Phase 3 has no templates at all — which is a site that
 	# cannot print.
 	create_default_templates()
+
+	# `D-256` — and on migrate rather than install alone, for the same reason:
+	# every site that had this app before gift cards existed needs the liability
+	# account and the payment mode, or the feature is simply absent there. It
+	# creates nothing that is already present and overwrites nothing at all.
+	gift_card_accounts.setup()

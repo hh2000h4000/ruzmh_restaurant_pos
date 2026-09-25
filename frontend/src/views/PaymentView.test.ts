@@ -19,6 +19,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { LoyaltyOffer } from "@/api/order";
 import type { PaymentMethodOption, PaymentSummary } from "@/api/payment";
+import * as giftCardApi from "@/api/giftCard";
 import * as paymentApi from "@/api/payment";
 import { useSessionStore } from "@/stores/session";
 import type { PosSession } from "@/types/session";
@@ -26,6 +27,7 @@ import PaymentView from "@/views/PaymentView.vue";
 
 const ORDER = "RO-2026-09-00001";
 
+vi.mock("@/api/giftCard");
 vi.mock("@/api/payment", () => ({
   getPaymentSummary: vi.fn(),
   previewTotals: vi.fn(),
@@ -528,5 +530,27 @@ describe("loyalty points on the bill", () => {
 
     expect(pointsButton(wrapper).exists()).toBe(false);
     expect(wrapper.text()).toContain("تُستخدم النقاط من");
+  });
+});
+
+describe("paying with a gift card", () => {
+  it("asks which card before offering an amount to take", async () => {
+    // `D-256` — a card is the one method whose limit the cashier cannot see.
+    // Tapping it must open the lookup, not the tender keypad: an amount taken
+    // first would be refused at Confirm, after the guest was told a figure.
+    vi.mocked(giftCardApi.lookupGiftCard).mockResolvedValue({
+      gift_card: "GC-1",
+      card_number: "GC1",
+      balance: 40,
+      expires_on: null,
+    });
+    const wrapper = await open(
+      summary({ payment_methods: [method("بطاقة هدايا", { is_gift_card: 1 })] }),
+    );
+
+    await methodButton(wrapper, "بطاقة هدايا").trigger("click");
+    await flushPromises();
+
+    expect(wrapper.text()).toContain("رقم البطاقة");
   });
 });

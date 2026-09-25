@@ -1,0 +1,234 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "hash",
+ "creation": "2026-09-25 00:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 0,
+ "engine": "InnoDB",
+ "field_order": [
+  "movement_section",
+  "gift_card",
+  "entry_type",
+  "movement_cb",
+  "amount",
+  "balance_after",
+  "where_section",
+  "restaurant_order",
+  "sales_invoice",
+  "journal_entry",
+  "where_cb",
+  "branch",
+  "pos_profile",
+  "pos_opening_entry",
+  "mode_of_payment",
+  "who_section",
+  "recorded_by",
+  "recorded_at",
+  "who_cb",
+  "queue_id",
+  "reason"
+ ],
+ "fields": [
+  {
+   "fieldname": "movement_section",
+   "fieldtype": "Section Break",
+   "label": "Movement"
+  },
+  {
+   "fieldname": "gift_card",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Gift Card",
+   "options": "POS Gift Card",
+   "reqd": 1
+  },
+  {
+   "fieldname": "entry_type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Entry Type",
+   "options": "issue\ntop_up\nredeem\nrefund",
+   "reqd": 1
+  },
+  {
+   "fieldname": "movement_cb",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "Always positive. What it does to the balance is the entry type's job.",
+   "fieldname": "amount",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Amount",
+   "reqd": 1
+  },
+  {
+   "fieldname": "balance_after",
+   "fieldtype": "Currency",
+   "label": "Balance After",
+   "read_only": 1
+  },
+  {
+   "fieldname": "where_section",
+   "fieldtype": "Section Break",
+   "label": "Where"
+  },
+  {
+   "fieldname": "restaurant_order",
+   "fieldtype": "Link",
+   "label": "Restaurant Order",
+   "options": "Restaurant Order",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sales_invoice",
+   "fieldtype": "Link",
+   "label": "Sales Invoice",
+   "options": "Sales Invoice",
+   "read_only": 1
+  },
+  {
+   "description": "The entry that moved the money into the books. Issues have one; redemptions are posted by the invoice itself.",
+   "fieldname": "journal_entry",
+   "fieldtype": "Link",
+   "label": "Journal Entry",
+   "options": "Journal Entry",
+   "read_only": 1
+  },
+  {
+   "fieldname": "where_cb",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "branch",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "Branch",
+   "options": "Branch",
+   "read_only": 1
+  },
+  {
+   "fieldname": "pos_profile",
+   "fieldtype": "Link",
+   "label": "Terminal",
+   "options": "POS Profile",
+   "read_only": 1
+  },
+  {
+   "description": "The drawer this landed in. A card sold puts real money in one, so the count has to know.",
+   "fieldname": "pos_opening_entry",
+   "fieldtype": "Link",
+   "label": "Drawer",
+   "options": "POS Opening Entry",
+   "read_only": 1
+  },
+  {
+   "description": "How the card itself was paid for. Empty on a redemption: nothing changed hands there.",
+   "fieldname": "mode_of_payment",
+   "fieldtype": "Link",
+   "label": "Mode of Payment",
+   "options": "Mode of Payment",
+   "read_only": 1
+  },
+  {
+   "fieldname": "who_section",
+   "fieldtype": "Section Break",
+   "label": "Who"
+  },
+  {
+   "fieldname": "recorded_by",
+   "fieldtype": "Link",
+   "label": "Recorded By",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "recorded_at",
+   "fieldtype": "Datetime",
+   "label": "Recorded At",
+   "read_only": 1
+  },
+  {
+   "fieldname": "who_cb",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "The offline queue's id, so one replayed request cannot spend a card twice.",
+   "fieldname": "queue_id",
+   "fieldtype": "Data",
+   "label": "Queue Id",
+   "read_only": 1,
+   "unique": 1
+  },
+  {
+   "fieldname": "reason",
+   "fieldtype": "Small Text",
+   "label": "Reason",
+   "read_only": 1
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-09-25 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Restaurant POS",
+ "name": "POS Gift Card Entry",
+ "naming_rule": "Random",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 0,
+   "delete": 0,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Restaurant Admin",
+   "share": 1,
+   "write": 0
+  },
+  {
+   "create": 0,
+   "delete": 0,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Restaurant Manager",
+   "share": 1,
+   "write": 0
+  },
+  {
+   "create": 0,
+   "delete": 0,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "POS Manager",
+   "share": 1,
+   "write": 0
+  },
+  {
+   "create": 0,
+   "delete": 0,
+   "email": 0,
+   "export": 0,
+   "print": 0,
+   "read": 1,
+   "report": 0,
+   "role": "POS Cashier",
+   "share": 0,
+   "write": 0
+  }
+ ],
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 0
+}

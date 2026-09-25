@@ -16,6 +16,8 @@ export interface PaymentMethodOption {
   is_cash: 0 | 1;
   /** Leaves the money owed rather than collected — a platform or an account. */
   is_credit: 0 | 1;
+  /** Spends a gift card, so the screen asks *which* before taking anything. */
+  is_gift_card?: 0 | 1;
 }
 
 export interface PaymentSummary extends PromotionOnBill, LoyaltyOnBill {
@@ -51,6 +53,8 @@ export interface PaymentLine {
   amount: number;
   /** What the customer handed over, for change (FR-10.3). */
   tendered?: number;
+  /** Which gift card this line spends (`D-256`). Only a gift-card line has one. */
+  gift_card?: string;
 }
 
 export interface PaymentResult {

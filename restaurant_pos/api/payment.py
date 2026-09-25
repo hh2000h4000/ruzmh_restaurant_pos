@@ -13,6 +13,7 @@ import frappe
 from frappe import _
 from frappe.utils import cint, flt
 
+from restaurant_pos.setup.gift_card_accounts import MODE_OF_PAYMENT as GIFT_CARD_METHOD
 from restaurant_pos.utils import coupons, idempotency, loyalty, promotions, totals
 from restaurant_pos.utils import order as orders
 from restaurant_pos.utils import payment as service
@@ -187,6 +188,11 @@ def get_payment_summary(order_name: str) -> dict:
 		# and the screen has to stop the mix at the tap rather than let the
 		# server refuse it after the cashier has taken two tenders (`D-125`).
 		row["is_credit"] = 1 if service.is_credit_method(row["payment_method"]) else 0
+		# `D-256` — and which one spends a gift card, so the screen knows to ask
+		# *which* card before taking anything. Marked by the server rather than
+		# matched by name on the device: a manager may rename the method, and a
+		# till comparing strings would quietly stop asking.
+		row["is_gift_card"] = 1 if row["payment_method"] == GIFT_CARD_METHOD else 0
 
 	return {
 		"order_name": order.name,

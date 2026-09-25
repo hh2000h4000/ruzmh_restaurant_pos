@@ -35,6 +35,7 @@
   "shift_cb",
   "can_close_others_shift",
   "can_move_drawer_cash",
+  "can_sell_gift_card",
   "can_close_day_with_open_orders",
   "can_view_all_orders",
   "can_access_reports"
@@ -187,6 +188,13 @@
    "fieldname": "can_move_drawer_cash",
    "fieldtype": "Check",
    "label": "Can Move Cash In or Out of the Drawer"
+  },
+  {
+   "default": "1",
+   "description": "Sell a gift card at the till. On for a cashier: selling one takes money in, which is the ordinary direction and the safe one — unlike a pay-out, nobody can walk off with the drawer this way.",
+   "fieldname": "can_sell_gift_card",
+   "fieldtype": "Check",
+   "label": "Can Sell a Gift Card"
   },
   {
    "fieldname": "can_close_day_with_open_orders",

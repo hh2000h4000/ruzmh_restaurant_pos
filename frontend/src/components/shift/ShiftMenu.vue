@@ -138,6 +138,9 @@ const entries = computed<MenuEntry[]>(() => {
     // cashier: without the permission the screen asks for a manager's PIN, which
     // is the same shape a discount over their ceiling takes.
     rows.push({ key: "drawerCash", label: "drawerCash.title", icon: "card" });
+    // `D-256` — selling a card takes money in without a bill, so it belongs
+    // with the drawer rather than on an order: there is no order to put it on.
+    rows.push({ key: "sellGiftCard", label: "giftCard.sellTitle", icon: "card" });
   }
 
   rows.push(BOOKINGS);

@@ -28,6 +28,12 @@ const REPORT = {
     { method: "HungerStation", kind: "credit", sales: 120, refunds: 0, opening: 0, expected: 0 },
   ],
   voids: 2,
+  removals: 3,
+  removal_amount: 45,
+  top_items: [
+    { item: "BURGER", item_name: "برغر", qty: 12, amount: 300 },
+    { item: "SOUP", item_name: "شوربة", qty: 4, amount: 28 },
+  ],
   sales: 420,
   discounts: 15,
   till_expected: 300,
@@ -58,6 +64,23 @@ describe("the X report on screen", () => {
     expect(view.text()).toContain("300");
     expect(view.text()).toContain("Cash");
     expect(view.text()).toContain("محلي");
+  });
+
+  it("still draws a report that predates the best-seller list", async () => {
+    // The gate caught this as two red tests and a dialog frozen on "loading":
+    // reading `.length` off a field an older payload does not carry throws
+    // during render and takes the whole screen with it, leaving no figures and
+    // no error (`CLAUDE.md` §5.5). A shift report is worth reading even when
+    // part of it is missing.
+    const shift = useShiftStore();
+    const { top_items, ...older } = REPORT as unknown as Record<string, unknown>;
+    void top_items;
+    vi.spyOn(shift, "tillSummary").mockResolvedValue(older as never);
+
+    const view = dialog();
+    await flushPromises();
+
+    expect(view.text()).toContain("300");
   });
 
   it("prints the same report on demand", async () => {

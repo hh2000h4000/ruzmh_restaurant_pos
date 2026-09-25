@@ -62,6 +62,12 @@ export interface ShiftReport {
   on_duty?: number;
   by_order_type: { order_type: string; title_ar: string; count: number; sales: number }[];
   /**
+   * The five dishes that took the most (`FR-8.3`) — ranked by money like the
+   * weekly product mix, with the quantity beside it because twenty at five is a
+   * different evening from one at a hundred.
+   */
+  top_items: { item: string; item_name: string; qty: number; amount: number }[];
+  /**
    * What each person took and refunded (FR-8.3, `D-218`) — a shared drawer is
    * counted once for everybody on it, and this is where it is traced to a name.
    */

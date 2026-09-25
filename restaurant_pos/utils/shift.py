@@ -656,6 +656,8 @@ def _report(day, orders: list, opening: dict, *, refunds: list[str], moved: dict
 			"still_open": len(still_open),
 		},
 		"by_order_type": _by_order_type(closed),
+		# FR-8.3 — the last figure that requirement asked for and the page lacked.
+		"top_items": _top_items([row.name for row in closed]),
 		"by_method": methods,
 		"voids": voids,
 		# D-219 — by amount as well as count: one plate at two hundred is not five
@@ -815,6 +817,55 @@ def _by_method(invoices: list[str], refunds: list[str], opening: dict, moved: di
 		)
 
 	return sorted(tally.values(), key=lambda entry: (entry["kind"], -entry["sales"]))
+
+
+#: How many dishes the report names. Five is what `FR-8.3` asks for and what the
+#: professional tills print: enough to see the evening's shape, short enough that
+#: it stays a glance rather than a second product-mix report on 80mm paper.
+TOP_ITEMS = 5
+
+
+def _top_items(order_names: list[str], limit: int = TOP_ITEMS) -> list[dict]:
+	"""The dishes that took the most money, biggest first (`FR-8.3`, `D-254`).
+
+	**Ranked by money, not by count**, the same way `Item Sales` ranks (`D-243`) —
+	two reports that answer *what sold best* and disagree about the order are two
+	reports somebody has to reconcile. The quantity is printed beside it, because
+	twenty at five is a different evening from one at a hundred.
+
+	**Read from the order lines, like every other figure on this page**, rather
+	than from the invoices the way `Item Sales` does. The page's own sales figure
+	is the orders' total, so a column drawn from a different basis would not add
+	up against the lines beside it. It is a glance at one shift; the weekly
+	product mix is where the ex-VAT, cost-aware numbers live.
+
+	Voided lines are not sales and are counted above, on their own line.
+	"""
+	if not order_names:
+		return []
+
+	rows = frappe.get_all(
+		"Restaurant Order Item",
+		filters={
+			"parent": ("in", order_names),
+			"parenttype": "Restaurant Order",
+			"status": ("!=", "void"),
+		},
+		fields=["item", "item_name", "qty", "amount"],
+	)
+
+	tally: dict[str, dict] = {}
+	for row in rows:
+		dish = tally.setdefault(
+			row.item, {"item": row.item, "item_name": row.item_name, "qty": 0.0, "amount": 0.0}
+		)
+		dish["qty"] += flt(row.qty)
+		dish["amount"] += flt(row.amount)
+
+	ranked = sorted(tally.values(), key=lambda dish: dish["amount"], reverse=True)[:limit]
+	for dish in ranked:
+		dish["amount"] = money(dish["amount"])
+	return ranked
 
 
 def _next_z_number(branch: str) -> int:

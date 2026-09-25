@@ -32,6 +32,51 @@ from restaurant_pos.utils import shift as service
 SECOND_CASHIER = "rpos-second-cashier@example.com"
 
 
+#: A second dish, priced under the first, so *ranked by money* can be told from
+#: *ranked any other way*. The suite ships one item (`setup/test_fixtures`), and
+#: one item cannot show an order.
+SECOND_DISH = "RPOS-TEST-SOUP"
+SECOND_DISH_RATE = 7
+
+
+def _a_second_dish() -> str:
+	"""Create it once, and price it on the list the suite sells from."""
+	from restaurant_pos.tests.test_order import TEST_PRICE_LIST
+
+	if not frappe.db.exists("Item", SECOND_DISH):
+		frappe.get_doc(
+			{
+				"doctype": "Item",
+				"item_code": SECOND_DISH,
+				"item_name": "RPOS Test Soup",
+				"pos_display_name_ar": "شوربة الاختبار",
+				"item_group": frappe.db.get_value("Item Group", {"is_group": 0}, "name"),
+				"stock_uom": "Nos",
+				"is_stock_item": 0,
+				"is_sales_item": 1,
+				"include_item_in_manufacturing": 0,
+			}
+		).insert(ignore_permissions=True)
+
+	priced = frappe.db.get_value(
+		"Item Price", {"item_code": SECOND_DISH, "price_list": TEST_PRICE_LIST}, "name"
+	)
+	if priced:
+		frappe.db.set_value("Item Price", priced, "price_list_rate", SECOND_DISH_RATE)
+	else:
+		frappe.get_doc(
+			{
+				"doctype": "Item Price",
+				"item_code": SECOND_DISH,
+				"price_list": TEST_PRICE_LIST,
+				"selling": 1,
+				"price_list_rate": SECOND_DISH_RATE,
+			}
+		).insert(ignore_permissions=True)
+
+	return SECOND_DISH
+
+
 class ShiftTestBase(OrderTestBase):
 	def setUp(self):
 		self.settlement = frappe.db.get_value("Branch", BRANCH, "settlement_required")
@@ -533,6 +578,58 @@ class TestTheZNumber(ShiftTestBase):
 			frappe.db.get_value("Restaurant Shift", outcome["shift"], "z_number"),
 		)
 		self.assertGreater(report["z_number"], 0)
+
+
+class TestTheDishesThatSoldBest(ShiftTestBase):
+	"""`FR-8.3`, `D-254` — the last figure that requirement asked for.
+
+	Ranked by money, like the weekly product mix: two reports that answer *what
+	sold best* and put them in different orders are two reports somebody has to
+	reconcile.
+	"""
+
+	def test_the_dish_that_took_more_is_first(self):
+		"""**Two dishes, deliberately.**
+
+		The first version of this test sold one dish and asserted the list was in
+		descending order — which one row satisfies whichever way it is sorted. A
+		mutation that reversed the ranking passed it, and the test was worth
+		nothing until a second dish was on the bill.
+		"""
+		entry = self._opened("multi")
+		cheap = _a_second_dish()
+		order = self._order()
+		orders.add_item(order, item=ITEM, qty=4)
+		orders.add_item(order, item=cheap, qty=1)
+		order.reload()
+		payment.process_payment(order, payments=[{"method": CASH, "amount": order.total_amount}])
+
+		top = service.summarise_till(entry)["top_items"]
+
+		self.assertEqual([row["item"] for row in top][:2], [ITEM, cheap])
+		self.assertLessEqual(len(top), service.TOP_ITEMS)
+
+	def test_a_withdrawn_plate_is_not_a_sale(self):
+		entry = self._opened("multi")
+		order = self._sold_by(frappe.session.user)
+		before = sum(row["amount"] for row in service.summarise_till(entry)["top_items"])
+
+		line = order.items[0]
+		frappe.db.set_value("Restaurant Order Item", line.name, "status", "void", update_modified=False)
+
+		after = sum(row["amount"] for row in service.summarise_till(entry)["top_items"])
+		self.assertLess(after, before, "a void is counted on its own line, not among the sales")
+
+	def test_the_same_dish_on_two_bills_is_one_line(self):
+		entry = self._opened("multi")
+		self._sold_by(frappe.session.user)
+		first = service.summarise_till(entry)["top_items"]
+		self._sold_by(frappe.session.user)
+
+		second = service.summarise_till(entry)["top_items"]
+
+		self.assertEqual(len(second), len(first), "a second bill of the same dish adds no row")
+		self.assertGreater(second[0]["qty"], first[0]["qty"])
 
 
 class TestLinesTakenOffBeforeTheKitchenSawThem(ShiftTestBase):

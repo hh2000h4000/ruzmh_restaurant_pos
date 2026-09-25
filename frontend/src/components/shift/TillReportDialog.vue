@@ -144,6 +144,33 @@ function money(value: number): string {
 
       <CashierTakings :rows="report.by_cashier" />
 
+      <!-- The five that took the most (FR-8.3) — the block a manager reads to
+           know what the evening actually was.
+
+           Guarded with `?.` and not merely `.length`: this dialog is opened
+           against whatever report it was handed, and a payload written before
+           this field existed would throw here and take the **whole dialog**
+           down to a permanent "loading" — no figures, no error, nothing to act
+           on (`CLAUDE.md` §5.5, `D-074`). The gate caught exactly that. -->
+      <div
+        v-if="report.top_items?.length"
+        class="mb-4 rounded-rpos bg-background p-3"
+      >
+        <p class="mb-2 text-xs font-semibold text-muted">
+          {{ t("shift.topItems") }}
+        </p>
+        <div
+          v-for="row in report.top_items"
+          :key="row.item"
+          class="flex items-center justify-between gap-3 text-sm"
+        >
+          <span class="min-w-0 truncate">{{ row.item_name }}</span>
+          <span class="rpos-numeric shrink-0 text-muted">
+            {{ formatNumber(row.qty) }} · {{ money(row.amount) }}
+          </span>
+        </div>
+      </div>
+
       <!-- What was sold, by the kind of order it was (FR-8.3). -->
       <div
         v-if="report.by_order_type.length"

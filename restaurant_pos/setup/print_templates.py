@@ -484,6 +484,14 @@ SHIFT_REPORT = """
 	<div class="row"><span>طلبات ملغاة</span><span class="amt">{{{{ report.orders.cancelled }}}}</span></div>
 	{{% if report.orders.still_open %}}<div class="row"><span>فواتير مفتوحة</span><span class="amt">{{{{ report.orders.still_open }}}} / {{{{ "%.2f" | format(report.open_amount) }}}}</span></div>{{% endif %}}
 
+	{{% if report.top_items %}}
+	<hr>
+	<div class="line head"><span class="name">أكثر الأصناف مبيعاً</span><span class="col">كمية</span><span class="col">مبلغ</span></div>
+	{{% for row in report.top_items %}}
+	<div class="line"><span class="name">{{{{ row.item_name | rtl }}}}</span><span class="col">{{{{ "%g" | format(row.qty) }}}}</span><span class="col">{{{{ "%.2f" | format(row.amount) }}}}</span></div>
+	{{% endfor %}}
+	{{% endif %}}
+
 	{{% if report.by_order_type %}}
 	<hr>
 	<div class="b">حسب نوع الطلب</div>

@@ -365,6 +365,7 @@ const messages: Catalogue["messages"] = {
   "shift.cashierReturns": "مرتجع {amount}",
   "shift.voids": "أصناف ملغاة",
   "shift.removals": "أصناف شيلت قبل المطبخ",
+  "shift.topItems": "أكثر الأصناف مبيعاً",
   "shift.tillExpected": "المتوقَّع في الصندوق",
   "shift.creditTotal": "مستحق على الحساب",
   "shift.creditNote": "على حساب طرف آخر — ليس في الصندوق",

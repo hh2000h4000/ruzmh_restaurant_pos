@@ -762,6 +762,10 @@ def remove_item(order, *, item_idx: int) -> dict:
 
 	removed_name = row.item_name
 	removed_item = row.item
+	# Read before the row goes: what it was worth is the one thing the report
+	# cannot work out afterwards, because nothing else keeps a trace of a line
+	# the kitchen never saw (`D-253`).
+	removed_amount = flt(row.amount)
 	order.remove(row)
 	totals.calculate(order)
 	order.save(ignore_permissions=True)
@@ -770,7 +774,7 @@ def remove_item(order, *, item_idx: int) -> dict:
 		order,
 		"item_removed",
 		subject=removed_name,
-		details={"item": removed_item, "row": cint(item_idx)},
+		details={"item": removed_item, "row": cint(item_idx), "amount": removed_amount},
 	)
 
 	return {"removed": cint(item_idx)}

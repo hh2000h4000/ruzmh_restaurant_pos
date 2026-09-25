@@ -249,6 +249,32 @@ class TestTheZReportPrintsItself(ShiftTestBase):
 
 		queued.assert_called_once_with("print_shift_report", pos_profile=self.profile, shift=outcome["shift"])
 
+	def test_the_paper_carries_the_z_number_and_both_kinds_of_cancellation(self):
+		"""Rendered, not asserted about (`D-253`).
+
+		A key the template names and the report does not carry is not a blank on
+		the page — `format` raises on it, and the one thing the Z must never do is
+		fail to come out after the money has been counted. So the page is built.
+		"""
+		from restaurant_pos.utils import printing
+
+		outcome = service.open_till(pos_profile=self.profile)
+		order = self._order()
+		orders.add_item(order, item=ITEM, qty=1)
+		order.reload()
+		orders.remove_item(order, item_idx=order.items[0].idx)
+		service.close_day(shift_name=outcome["shift"], force=True)
+
+		context = printing.shift_report_context(pos_profile=self.profile, shift=outcome["shift"])
+		template = frappe.db.get_value(
+			"POS Print Template", {"template_type": "shift_report", "is_default": 1}, "name"
+		)
+		html = printing.render_html(template, context)
+
+		self.assertIn("إلغاء قبل المطبخ", html)
+		self.assertIn(str(context["report"]["z_number"]), html)
+		self.assertEqual(context["kind"], "Z")
+
 	def test_a_closed_drawer_s_report_carries_its_count(self):
 		entry = service.open_till(pos_profile=self.profile, opening_floats={CASH: 100})["entry"]
 		expected = service.summarise_till(entry)["till_expected"]
@@ -467,6 +493,84 @@ class TestTheDrawer(ShiftTestBase):
 
 		self.assertFalse(closed["settlement"]["settlement_required"])
 		self.assertEqual(closed["settlement"]["variance"], 0.0)
+
+
+class TestTheZNumber(ShiftTestBase):
+	"""An unbroken run of closes, per branch (`D-253`).
+
+	A Z number's whole job is that the days form a run with no holes in it: a
+	missing number is a close somebody may have removed, and a repeated one is two
+	days that cannot be told apart. So what is asserted is the run — not that any
+	one day got any one number, which depends on what the site closed before.
+	"""
+
+	def test_each_close_takes_the_next_number(self):
+		first = service.open_till(pos_profile=self.profile)
+		service.close_day(shift_name=first["shift"])
+		second = service.open_till(pos_profile=self.profile)
+		service.close_day(shift_name=second["shift"])
+
+		numbers = [
+			frappe.db.get_value("Restaurant Shift", day["shift"], "z_number") for day in (first, second)
+		]
+
+		self.assertEqual(numbers[1], numbers[0] + 1)
+
+	def test_a_day_still_open_has_none(self):
+		"""Which is what an X report is: figures taken before a number exists."""
+		outcome = service.open_till(pos_profile=self.profile)
+
+		self.assertFalse(service.summarise(outcome["shift"])["z_number"])
+
+	def test_the_closed_day_carries_it_onto_the_report(self):
+		outcome = service.open_till(pos_profile=self.profile)
+		service.close_day(shift_name=outcome["shift"])
+
+		report = service.summarise(outcome["shift"])
+
+		self.assertEqual(
+			report["z_number"],
+			frappe.db.get_value("Restaurant Shift", outcome["shift"], "z_number"),
+		)
+		self.assertGreater(report["z_number"], 0)
+
+
+class TestLinesTakenOffBeforeTheKitchenSawThem(ShiftTestBase):
+	"""`D-253` — a pattern worth printing, not a loss worth subtracting.
+
+	Removing a line before the ticket prints asks for no reason and no permission
+	on purpose (`utils/order.remove_item`); nothing was cooked and no money moved.
+	It is still on the report, because a cashier who builds and wipes bills all
+	day is something a manager has to be able to see.
+	"""
+
+	def test_it_is_counted_by_what_the_line_was_worth(self):
+		outcome = service.open_till(pos_profile=self.profile)
+		before = service.summarise(outcome["shift"])
+		order = self._order()
+		orders.add_item(order, item=ITEM, qty=2)
+		order.reload()
+		amount = flt(order.items[0].amount)
+
+		orders.remove_item(order, item_idx=order.items[0].idx)
+
+		after = service.summarise(outcome["shift"])
+		self.assertEqual(after["removals"] - before["removals"], 1)
+		self.assertAlmostEqual(after["removal_amount"] - before["removal_amount"], amount, places=2)
+
+	def test_it_is_never_added_to_the_voids(self):
+		"""Summed together they would report a loss that never happened."""
+		outcome = service.open_till(pos_profile=self.profile)
+		before = service.summarise(outcome["shift"])
+		order = self._order()
+		orders.add_item(order, item=ITEM, qty=1)
+		order.reload()
+
+		orders.remove_item(order, item_idx=order.items[0].idx)
+
+		after = service.summarise(outcome["shift"])
+		self.assertEqual(after["voids"], before["voids"])
+		self.assertAlmostEqual(after["void_amount"], before["void_amount"], places=2)
 
 
 class TestEndOfDay(ShiftTestBase):

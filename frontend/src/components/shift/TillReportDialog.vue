@@ -105,6 +105,12 @@ function money(value: number): string {
         <dd class="rpos-numeric text-end">
           {{ formatNumber(report.voids) }}
         </dd>
+        <dt class="text-muted">
+          {{ t("shift.removals") }}
+        </dt>
+        <dd class="rpos-numeric text-end">
+          {{ formatNumber(report.removals) }}
+        </dd>
         <dt class="font-semibold">
           {{ t("shift.expected") }}
         </dt>

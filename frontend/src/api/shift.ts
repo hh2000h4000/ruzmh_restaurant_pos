@@ -68,6 +68,13 @@ export interface ShiftReport {
   by_cashier: { user: string; name: string; count: number; sales: number; returns: number }[];
   by_method: MethodLine[];
   voids: number;
+  /**
+   * Lines taken off before the ticket printed (`D-253`) — a count of taps, not a
+   * loss: nothing was cooked and no money moved. Kept apart from `voids` for
+   * that reason, and read as a pattern rather than a figure to subtract.
+   */
+  removals: number;
+  removal_amount: number;
   sales: number;
   discounts: number;
   till_expected: number;

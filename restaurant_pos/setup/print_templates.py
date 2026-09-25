@@ -424,7 +424,10 @@ SHIFT_REPORT = """
 	<div class="c big">{{{{ (company.company_name or company.name) | rtl }}}}</div>
 	{{% if branch %}}<div class="c">{{{{ branch | rtl }}}}</div>{{% endif %}}
 	{{% if company.tax_id %}}<div class="c muted">الرقم الضريبي <span class="amt">{{{{ company.tax_id }}}}</span></div>{{% endif %}}
-	<div class="banner">{{{{ "تقرير مالي نهائي" if kind == "Z" else "تقرير مالي مؤقت" }}}} <span class="amt">{{{{ kind }}}}</span></div>
+	{{# `D-253` — the Z number goes in the banner, where a person filing the paper
+	    looks for it. An X has none: the day has not closed, so no number has been
+	    given out. #}}
+	<div class="banner">{{{{ "تقرير مالي نهائي" if kind == "Z" else "تقرير مالي مؤقت" }}}} <span class="amt">{{{{ kind }}}}{{% if report.z_number %}}{{{{ report.z_number }}}}{{% endif %}}</span></div>
 	<div class="row meta"><span>من</span><span class="amt">{{{{ opened }}}}</span></div>
 	<div class="row meta"><span>إلى</span><span class="amt">{{{{ closed }}}}</span></div>
 	{{% if who %}}<div class="row meta"><span>الموظف</span><span>{{{{ who | rtl }}}}</span></div>{{% endif %}}
@@ -474,6 +477,10 @@ SHIFT_REPORT = """
 	<div class="b">الاستثناءات</div>
 	<div class="row"><span>فواتير مدفوعة</span><span class="amt">{{{{ report.orders.closed }}}}</span></div>
 	<div class="row"><span>إلغاء بعد المطبخ</span><span class="amt">{{{{ report.voids }}}} / {{{{ "%.2f" | format(report.void_amount) }}}}</span></div>
+	{{# `D-253` — on its own line and never added to the one above: nothing was
+	    cooked and no money moved, so a sum of the two would report a loss that
+	    never happened. It is a pattern to notice, not a figure to subtract. #}}
+	<div class="row"><span>إلغاء قبل المطبخ</span><span class="amt">{{{{ report.removals }}}} / {{{{ "%.2f" | format(report.removal_amount) }}}}</span></div>
 	<div class="row"><span>طلبات ملغاة</span><span class="amt">{{{{ report.orders.cancelled }}}}</span></div>
 	{{% if report.orders.still_open %}}<div class="row"><span>فواتير مفتوحة</span><span class="amt">{{{{ report.orders.still_open }}}} / {{{{ "%.2f" | format(report.open_amount) }}}}</span></div>{{% endif %}}
 

@@ -21,6 +21,7 @@
   "open_cb",
   "closed_by",
   "closed_at",
+  "z_number",
   "totals_section",
   "total_sales",
   "total_returns",
@@ -129,6 +130,13 @@
    "fieldname": "closed_at",
    "fieldtype": "Datetime",
    "label": "Closed At",
+   "read_only": 1
+  },
+  {
+   "description": "The branch's own counter, given when the day is closed. Gaps and repeats are both faults.",
+   "fieldname": "z_number",
+   "fieldtype": "Int",
+   "label": "Z Number",
    "read_only": 1
   },
   {

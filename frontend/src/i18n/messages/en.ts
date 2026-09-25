@@ -383,6 +383,7 @@ export const messages = {
   "shift.byCashier": "By cashier",
   "shift.cashierReturns": "refunded {amount}",
   "shift.voids": "Voided items",
+  "shift.removals": "Removed before the kitchen",
   "shift.tillExpected": "Expected in the till",
   "shift.creditTotal": "Owed on account",
   "shift.creditNote": "Settled on account — not in the till",

@@ -213,6 +213,7 @@ def close_day(*, shift_name: str, force: bool = False, pos_profile: str | None =
 	day.status = "closed"
 	day.closed_by = frappe.session.user
 	day.closed_at = now_datetime()
+	day.z_number = _next_z_number(day.branch)
 	day.total_sales = report["sales"]
 	day.total_orders = report["orders"]["closed"]
 	day.total_voids = report["voids"]
@@ -639,11 +640,15 @@ def _report(day, orders: list, opening: dict, *, refunds: list[str], moved: dict
 	sales = sum(flt(row.total_amount) for row in closed)
 	discounts = sum(flt(row.discount_amount) for row in closed)
 	voids, void_amount = _voids([row.name for row in closed])
+	removals, removal_amount = _removed_before_kitchen([row.name for row in orders])
 
 	return {
 		"shift": day.name,
 		"branch": day.branch,
 		"status": day.status,
+		# D-253 — zero until the day closes, which is exactly what an X report is:
+		# a figure taken while the day is still running has no Z number yet.
+		"z_number": cint(day.z_number),
 		"orders": {
 			"total": len(orders),
 			"closed": len(closed),
@@ -656,6 +661,10 @@ def _report(day, orders: list, opening: dict, *, refunds: list[str], moved: dict
 		# D-219 — by amount as well as count: one plate at two hundred is not five
 		# at ten, and a count alone reads them the same.
 		"void_amount": money(void_amount),
+		# D-253 — its own pair, never added to the voids above: nothing was cooked
+		# and no money moved, so summing them would report a loss that never was.
+		"removals": removals,
+		"removal_amount": money(removal_amount),
 		"sales": money(sales),
 		# D-219 — before the discounts came off, so the page shows how the takings
 		# were reached rather than only where they ended.
@@ -806,6 +815,73 @@ def _by_method(invoices: list[str], refunds: list[str], opening: dict, moved: di
 		)
 
 	return sorted(tally.values(), key=lambda entry: (entry["kind"], -entry["sales"]))
+
+
+def _next_z_number(branch: str) -> int:
+	"""The next number in this branch's Z run — no gaps, no repeats (`D-253`).
+
+	**A Z number is what an auditor counts with.** Its whole job is that the
+	closes form an unbroken run: a missing number is a day somebody may have
+	removed, and a repeated one is two days that cannot be told apart. Every till
+	that is taken seriously prints one, and ours did not.
+
+	**Counted per branch**, because that is the ledger a branch's paperwork is
+	filed in; two restaurants sharing one run would each read the other's gaps.
+
+	**Not a naming series.** A series increments outside the transaction, so a
+	close that fails afterwards burns its number and leaves exactly the gap this
+	is for. Reading the last number back under a lock ties the number to the
+	close: they commit together or neither happens.
+
+	The lock is on the branch row, which serialises the closes of one branch and
+	nothing else. Without it two managers closing two days in the same second
+	both read the same last number and both write the next one.
+	"""
+	frappe.db.get_value("Branch", branch, "name", for_update=True)
+
+	last = frappe.db.get_value(
+		"Restaurant Shift",
+		{"branch": branch, "z_number": (">", 0)},
+		"z_number",
+		order_by="z_number desc",
+	)
+	return cint(last) + 1
+
+
+def _removed_before_kitchen(order_names: list[str]) -> tuple[int, float]:
+	"""Lines taken off a bill the kitchen never saw: how many, and what they were worth.
+
+	**Not voids, and not counted with them** (`D-253`). Removing a line before the
+	ticket prints asks for no reason and no permission, on purpose — until the
+	kitchen has it, a mis-tap is composing an order, not withdrawing one
+	(`utils/order.remove_item`). Nothing was cooked and no money moved.
+
+	It is still worth a line on the report, which is why every professional till
+	prints it: the figure is not a loss, it is a **pattern**. A cashier who builds
+	and wipes twenty bills a day is either being trained or is being watched.
+
+	**Every order of the day, not only the settled ones**, unlike the voids above.
+	A removal leaves no mark on any invoice, so counting only bills that ended in
+	money would hide precisely the behaviour this line exists to show.
+
+	Rows written before this was recorded carry no amount and count as zero — the
+	count is still right, and inventing a figure for them would be worse.
+	"""
+	if not order_names:
+		return 0, 0.0
+
+	rows = frappe.get_all(
+		"POS Order Activity",
+		filters={"restaurant_order": ("in", order_names), "action": "item_removed"},
+		fields=["details"],
+	)
+
+	total = 0.0
+	for row in rows:
+		details = frappe.parse_json(row.details) or {}
+		total += flt(details.get("amount"))
+
+	return len(rows), total
 
 
 def _voids(order_names: list[str]) -> tuple[int, float]:

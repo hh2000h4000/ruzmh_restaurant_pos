@@ -37,6 +37,7 @@ import frappe
 from frappe import _
 from frappe.utils import cint, flt, format_datetime, now_datetime, nowdate, nowtime
 
+from restaurant_pos.setup.gift_card_accounts import MODE_OF_PAYMENT as GIFT_CARD_METHOD
 from restaurant_pos.utils import cash_movement, gift_card, printing
 from restaurant_pos.utils.order import profiles_in, table_section_branch
 from restaurant_pos.utils.payment import is_credit_method
@@ -737,6 +738,21 @@ def _by_order_type(closed: list) -> list[dict]:
 	return sorted(tally.values(), key=lambda entry: -entry["sales"])
 
 
+def _kind_of(method: str) -> str:
+	"""Whether this method's money is in the drawer, owed, or already taken.
+
+	Three answers, not two (`D-257`). `till` is notes and card slips to count;
+	`credit` is money a platform or a company still owes; and `gift` is money the
+	restaurant **already has** — it came in when the card was sold and was
+	counted into that drawer then. Only `till` is expected at the close, and the
+	Z report lists the other two apart so the figures explain themselves.
+	"""
+	if method == GIFT_CARD_METHOD:
+		return "gift"
+
+	return "credit" if is_credit_method(method) else "till"
+
+
 def _by_method(
 	invoices: list[str], refunds: list[str], opening: dict, moved: dict, cards_sold: dict
 ) -> list[dict]:
@@ -787,7 +803,7 @@ def _by_method(
 			method,
 			{
 				"method": method,
-				"kind": "credit" if is_credit_method(method) else "till",
+				"kind": _kind_of(method),
 				"sales": 0.0,
 				"taken": 0.0,
 				"refunded": 0.0,
@@ -828,17 +844,20 @@ def _by_method(
 	for entry in tally.values():
 		for figure in ("sales", "taken", "refunded", "opening", "moved_in", "moved_out", "cards_sold"):
 			entry[figure] = money(entry[figure])
-		# Nothing is expected in a drawer for credit: the money is not there.
+		# **Only a till method is counted.** Credit was never in the drawer, and a
+		# gift card's money arrived the day the card was sold and was counted
+		# then (`D-257`) — asking for it again shows a drawer holding notes
+		# nobody put there.
 		entry["expected"] = (
-			0.0
-			if entry["kind"] == "credit"
-			else money(
+			money(
 				entry["opening"]
 				+ entry["sales"]
 				+ entry["moved_in"]
 				+ entry["cards_sold"]
 				- entry["moved_out"]
 			)
+			if entry["kind"] == "till"
+			else 0.0
 		)
 
 	return sorted(tally.values(), key=lambda entry: (entry["kind"], -entry["sales"]))

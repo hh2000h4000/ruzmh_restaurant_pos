@@ -106,12 +106,18 @@ def _ensure_mode(company: str, account: str | None) -> str | None:
 				"mode_of_payment": MODE_OF_PAYMENT,
 				"enabled": 1,
 				"type": "General",
-				# **Not a till method** (`D-029`). The cash came in when the card
-				# was sold and was counted then; expecting it again at the close
-				# would show every drawer holding money nobody ever put there.
-				"rpos_is_credit": 1,
 			}
 		).insert(ignore_permissions=True)
+
+	# **Not credit, and this is enforced rather than left to whoever edited it**
+	# (`D-257`). `rpos_is_credit` means *the money is still owed* — a delivery
+	# platform, a company account — and it makes the invoice `is_pos = 0` with no
+	# payment rows at all. Marked credit, a card-paid bill never touched the
+	# liability account and left a receivable against a guest who owed nothing.
+	# A card **is** settled; it simply settles from a balance instead of from the
+	# drawer, and the drawer's own exclusion is `kind` in `utils/shift`.
+	if frappe.db.get_value("Mode of Payment", MODE_OF_PAYMENT, "rpos_is_credit"):
+		frappe.db.set_value("Mode of Payment", MODE_OF_PAYMENT, "rpos_is_credit", 0)
 
 	if not account:
 		return MODE_OF_PAYMENT

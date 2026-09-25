@@ -20,7 +20,7 @@ from restaurant_pos.tests.test_order import ITEM
 from restaurant_pos.tests.test_payment import CASH, PaymentTestBase
 from restaurant_pos.utils import gift_card as cards
 from restaurant_pos.utils import order as orders
-from restaurant_pos.utils import payment
+from restaurant_pos.utils import payment, returns
 from restaurant_pos.utils import shift as service
 
 PREFIX = "RPOSGC"
@@ -236,3 +236,133 @@ class WhatTheDrawerExpects(GiftCardTestBase):
 
 		after = service.summarise_till(entry)["till_expected"]
 		self.assertAlmostEqual(after, before, places=2)
+
+
+class TheLedgerActuallyMoves(GiftCardTestBase):
+	"""**The claim the whole design rests on** (`D-257`).
+
+	Selling a card credits the liability; spending one must debit it. If it does
+	not, the account's balance stops being the outstanding gift-card liability,
+	the "it reconciles against itself" promise is empty, and every card-paid bill
+	quietly leaves a receivable against the walk-in customer instead.
+
+	Asserted against the general ledger rather than against our own entries: our
+	rows could be perfect while the books say something else entirely.
+	"""
+
+	def _liability(self) -> str:
+		return frappe.db.get_value("Mode of Payment Account", {"parent": MODE_OF_PAYMENT}, "default_account")
+
+	def test_spending_a_card_debits_the_liability_account(self):
+		self._sell(amount=200)
+		order = self._bill()
+		due = flt(order.total_amount)
+
+		payment.process_payment(
+			order,
+			payments=[{"method": MODE_OF_PAYMENT, "amount": due, "gift_card": f"{PREFIX}1"}],
+		)
+
+		order.reload()
+		posted = frappe.get_all(
+			"GL Entry",
+			filters={"voucher_no": order.sales_invoice, "account": self._liability()},
+			fields=["debit", "credit"],
+		)
+
+		self.assertTrue(posted, "the liability account is not in this invoice's ledger at all")
+		self.assertAlmostEqual(sum(flt(row.debit) for row in posted), due, places=2)
+
+	def test_a_card_paid_bill_leaves_nothing_outstanding(self):
+		"""It was paid. A receivable here is a debt against a guest who owes nothing."""
+		self._sell(amount=200)
+		order = self._bill()
+
+		payment.process_payment(
+			order,
+			payments=[
+				{"method": MODE_OF_PAYMENT, "amount": flt(order.total_amount), "gift_card": f"{PREFIX}1"}
+			],
+		)
+
+		order.reload()
+		self.assertAlmostEqual(
+			flt(frappe.db.get_value("Sales Invoice", order.sales_invoice, "outstanding_amount")),
+			0,
+			places=2,
+		)
+
+	def test_a_card_can_pay_part_of_a_bill_and_cash_the_rest(self):
+		"""The guide says this works, so it has to (`D-256`)."""
+		self._sell(amount=5)
+		order = self._bill()
+		due = flt(order.total_amount)
+
+		payment.process_payment(
+			order,
+			payments=[
+				{"method": MODE_OF_PAYMENT, "amount": 5, "gift_card": f"{PREFIX}1"},
+				{"method": CASH, "amount": due - 5},
+			],
+		)
+
+		order.reload()
+		self.assertEqual(order.status, "closed")
+		self.assertAlmostEqual(cards.balance_of(f"{PREFIX}1"), 0, places=2)
+
+
+class ReturningABillACardPaid(GiftCardTestBase):
+	"""Back to the card it came off (`D-258`).
+
+	Square refunds to the original tender and Toast refuses anything else on a
+	card payment. The reason is a fraud path, not tidiness: notes handed back for
+	a card-settled bill turn prepaid credit into cash — how a card bought with a
+	stolen payment card gets emptied.
+	"""
+
+	def _row(self, order) -> str:
+		return frappe.db.get_value("Sales Invoice Item", {"parent": order.sales_invoice}, "name")
+
+	def _paid_by_card(self, loaded: float = 200):
+		self._sell(amount=loaded)
+		order = self._bill()
+		payment.process_payment(
+			order,
+			payments=[
+				{"method": MODE_OF_PAYMENT, "amount": flt(order.total_amount), "gift_card": f"{PREFIX}1"}
+			],
+		)
+		order.reload()
+		return order
+
+	def test_the_money_goes_back_onto_the_card(self):
+		order = self._paid_by_card()
+		spent = flt(order.total_amount)
+		self.assertAlmostEqual(cards.balance_of(f"{PREFIX}1"), 200 - spent, places=2)
+
+		returns.create_return(
+			order,
+			items=[{"row": self._row(order), "qty": 1}],
+			reason_code="goods_returned",
+			refund_method=MODE_OF_PAYMENT,
+		)
+
+		# The whole bill was one line of one, so the card is whole again.
+		self.assertAlmostEqual(cards.balance_of(f"{PREFIX}1"), 200, places=2)
+
+	def test_cash_cannot_be_handed_back_for_money_that_came_off_a_card(self):
+		"""The whole point of the rule: no cashing a card out through the till."""
+		order = self._paid_by_card()
+
+		with self.assertRaises(frappe.ValidationError) as refusal:
+			returns.create_return(
+				order,
+				items=[{"row": self._row(order), "qty": 1}],
+				reason_code="goods_returned",
+				refund_method=CASH,
+			)
+
+		self.assertIn(CASH, str(refusal.exception))
+		self.assertAlmostEqual(
+			cards.balance_of(f"{PREFIX}1"), 200 - flt(order.total_amount), places=2, msg="nothing moved"
+		)

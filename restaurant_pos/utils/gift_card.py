@@ -365,6 +365,68 @@ def settle(order, invoice, payments: list[dict]) -> list[str]:
 	return spent
 
 
+def refund(credit) -> list[str]:
+	"""Put a refunded amount back on the card it came off (`D-258`).
+
+	**Back to the card, which is what every professional till does.** Square
+	refunds to the original tender and Toast refuses anything else on a card
+	payment, and the reason is a fraud path rather than neatness: cash handed
+	back for a card-settled bill turns prepaid credit into notes — the way a card
+	bought with a stolen payment card is emptied. `utils/returns` refuses that at
+	the door; this is the other half, the money actually going home.
+
+	**Which card is not guessed.** It is read from the redemption entries of the
+	invoice being reversed, so a bill that spent two cards puts each amount back
+	on the card it left. A refund larger than one card's share is refused before
+	it reaches here.
+
+	The ledger needs nothing from us: the credit note carries a payment row
+	against the liability account, so the books raise the liability at the same
+	moment these rows raise the balance.
+	"""
+	paid_back = [
+		row
+		for row in credit.get("payments") or []
+		if row.mode_of_payment == MODE_OF_PAYMENT and flt(row.amount)
+	]
+	if not paid_back:
+		return []
+
+	spent = frappe.get_all(
+		"POS Gift Card Entry",
+		filters={"sales_invoice": credit.return_against, "entry_type": "redeem"},
+		fields=["gift_card", "amount", "branch"],
+		order_by="creation asc",
+	)
+	if not spent:
+		return []
+
+	left = sum(abs(flt(row.amount)) for row in paid_back)
+	written = []
+
+	for row in spent:
+		if left <= 0:
+			break
+
+		back = min(left, flt(row.amount))
+		card = frappe.get_doc("POS Gift Card", row.gift_card)
+		entry = _write_entry(
+			card,
+			entry_type="refund",
+			amount=back,
+			# Read off the entry being reversed rather than worked out again: it
+			# is the same card on the same bill, and it already knows.
+			branch=row.branch,
+			pos_profile=credit.pos_profile,
+			sales_invoice=credit.name,
+			reason=_("Returned from {0}").format(credit.return_against),
+		)
+		written.append(entry.name)
+		left -= back
+
+	return written
+
+
 def card_rows(payments: list[dict]) -> list[dict]:
 	"""The payment rows that spend a card, with the number they name."""
 	rows = []

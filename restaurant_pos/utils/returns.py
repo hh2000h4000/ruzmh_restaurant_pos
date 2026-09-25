@@ -22,9 +22,11 @@ import frappe
 from frappe import _
 from frappe.utils import flt, now_datetime
 
+from restaurant_pos.setup.gift_card_accounts import MODE_OF_PAYMENT as GIFT_CARD_METHOD
+from restaurant_pos.utils import gift_card as gift_cards
 from restaurant_pos.utils import loyalty, numbering, payment, printing
 from restaurant_pos.utils.audit import log_audit
-from restaurant_pos.utils.payment import is_credit_method, terminal_methods
+from restaurant_pos.utils.payment import TOLERANCE, is_credit_method, terminal_methods
 from restaurant_pos.utils.permissions import (
 	consume_override_token,
 	get_pos_permission_set,
@@ -32,6 +34,7 @@ from restaurant_pos.utils.permissions import (
 	validate_branch_access,
 )
 from restaurant_pos.utils.shift import assert_may_sell, selling_till
+from restaurant_pos.utils.totals import money
 
 #: Why a bill is being reversed, and what ZATCA calls that (D-065).
 #:
@@ -440,6 +443,11 @@ def _build_credit_note(order, invoice: str, wanted: dict[str, float], reason: st
 	credit.flags.ignore_permissions = True
 	credit.insert()
 	credit.submit()
+
+	# `D-258` — and the money goes back where it came from. After the submit for
+	# the reason the sale's own card entries come after the invoice (`D-256`): a
+	# credit note that failed to post refunded nothing.
+	gift_cards.refund(credit)
 	return credit
 
 
@@ -468,6 +476,8 @@ def _apply_refund(credit, refund_method: str | None) -> None:
 	if allowed and method not in allowed:
 		frappe.throw(_("{0} is not a payment method on this terminal.").format(method))
 
+	_assert_within_what_that_method_paid(credit, method, due, original)
+
 	# D-029 — money that never entered a drawer does not come out of one. A
 	# platform's order is settled on a statement, and so is its reversal.
 	credit.is_pos = 0 if is_credit_method(method) else 1
@@ -485,6 +495,55 @@ def _apply_refund(credit, refund_method: str | None) -> None:
 	# the decision about which method it is.
 	if credit.is_pos and payment.is_cash(method):
 		printing.open_drawer(credit.pos_profile, reason=f"cash refund on {credit.return_against}")
+
+
+def _assert_within_what_that_method_paid(credit, method: str, due: float, original: list[dict]) -> None:
+	"""A method may give back at most what it took (`D-258`).
+
+	**The rule every professional till applies**, and the reason is a fraud path
+	rather than tidiness: refunding cash for a bill settled by a gift card turns
+	prepaid credit into notes, which is exactly how a card bought with a stolen
+	payment card is cashed out. Toast refuses it outright on third-party cards;
+	Square refunds to the original tender. So does this.
+
+	**Only bills a card touched are held to it.** Everywhere else `D-066` still
+	stands: the cashier chooses, because a dead card terminal or a guest who
+	would rather have the notes is an ordinary evening. The cap exists where the
+	money was never in the drawer to begin with.
+	"""
+	if not any(row["method"] == GIFT_CARD_METHOD for row in original):
+		return
+
+	paid = sum(flt(row["amount"]) for row in original if row["method"] == method)
+	refunded = _already_refunded_to(credit.return_against, method)
+
+	# **`abs`, because a credit note's total is negative** — it is a reversal.
+	# Without it the comparison is a negative number against a positive cap and
+	# passes whatever the figures are, which is how the first version of this
+	# guard let a cash refund straight through its own test.
+	if abs(flt(due)) > paid - refunded + TOLERANCE:
+		frappe.throw(
+			_(
+				"{0} paid {1} on this bill. Refund that much to it, and the rest to what paid the rest."
+			).format(method, money(paid - refunded)),
+			frappe.ValidationError,
+		)
+
+
+def _already_refunded_to(invoice: str, method: str) -> float:
+	"""What earlier credit notes against this bill already gave back that way."""
+	credits = frappe.get_all(
+		"Sales Invoice", filters={"return_against": invoice, "docstatus": 1}, pluck="name"
+	)
+	if not credits:
+		return 0.0
+
+	rows = frappe.get_all(
+		"Sales Invoice Payment",
+		filters={"parent": ("in", credits), "parenttype": "Sales Invoice", "mode_of_payment": method},
+		fields=["amount"],
+	)
+	return abs(sum(flt(row.amount) for row in rows))
 
 
 def refund_detail(credit_note: str) -> dict:

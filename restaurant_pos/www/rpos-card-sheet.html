@@ -8,7 +8,7 @@
 		/* A4 with a 10mm margin leaves 190 × 277mm to draw in, and the grid below
 		   is sized to fit inside that. Chrome's own "Save as PDF" honours this,
 		   which is the whole delivery route — no PDF engine on the server
-		   (`rpos_coupon_sheet.py` says why). */
+		   (`rpos_card_sheet.py` says why). */
 		@page { size: A4 portrait; margin: 10mm; }
 
 		:root { --line: #d7d7d7; --ink: #1a1a1a; --muted: #6b6b6b; }
@@ -125,23 +125,23 @@
 	<div class="toolbar">
 		<button type="button" onclick="window.print()">{{ _("Print") }}</button>
 		<span class="hint">
-			{{ _("{0} coupons, {1} to a page. Choose Save as PDF in the print dialog.").format(coupons | length, per_sheet) }}
-			{% if capped %}<b>{{ _("Only the first {0} are on this sheet.").format(coupons | length) }}</b>{% endif %}
+			{{ _("{0} cards, {1} to a page. Choose Save as PDF in the print dialog.").format(cards | length, per_sheet) }}
+			{% if capped %}<b>{{ _("Only the first {0} are on this sheet.").format(cards | length) }}</b>{% endif %}
 		</span>
 	</div>
 
-	{% for page in coupons | batch(per_sheet) %}
+	{% for page in cards | batch(per_sheet) %}
 	<section class="sheet">
-		{% for coupon in page %}
+		{% for card in page %}
 		<article class="card">
-			<img src="{{ coupon.qr }}" alt="{{ coupon.coupon_code }}">
+			<img src="{{ card.qr }}" alt="{{ card.code }}">
 			<div class="text">
-				<div class="offer">{{ coupon.offer }}</div>
-				<div class="code">{{ coupon.coupon_code }}</div>
+				<div class="offer">{{ card.title }}</div>
+				<div class="code">{{ card.code }}</div>
 				<div class="small">
-					{% if coupon.campaign %}<span class="campaign">{{ coupon.campaign }}</span><br>{% endif %}
-					{% if coupon.valid %}{{ coupon.valid }}<br>{% endif %}
-					{% if coupon.one_use %}{{ _("One use only") }}{% endif %}
+					{%- for line in card.lines %}
+					{% if not loop.first %}<br>{% endif %}<span{% if loop.first %} class="campaign"{% endif %}>{{ line }}</span>
+					{%- endfor %}
 				</div>
 			</div>
 		</article>

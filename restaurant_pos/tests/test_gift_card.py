@@ -366,3 +366,56 @@ class ReturningABillACardPaid(GiftCardTestBase):
 		self.assertAlmostEqual(
 			cards.balance_of(f"{PREFIX}1"), 200 - flt(order.total_amount), places=2, msg="nothing moved"
 		)
+
+
+class WhatTheAccountantReads(GiftCardTestBase):
+	"""The liability, card by card, on a chosen day (`D-259`).
+
+	The point of the report is that its total can be held against the liability
+	account's balance. So what is asserted is that it counts the same money the
+	ledger does — and that it answers for a **date**, because a month-end entry is
+	made in the second week of the month after it.
+	"""
+
+	def _rows(self, **filters) -> list[dict]:
+		from restaurant_pos.restaurant_pos.report.gift_card_balances import gift_card_balances as report
+
+		_columns, rows = report.execute(filters)
+		return [row for row in rows if row["card_number"].startswith(PREFIX)]
+
+	def test_an_unspent_card_is_owed_in_full(self):
+		self._sell(amount=200)
+
+		(row,) = self._rows(on=frappe.utils.today())
+
+		self.assertAlmostEqual(row["balance"], 200, places=2)
+		self.assertAlmostEqual(row["initial_value"], 200, places=2)
+
+	def test_spending_takes_it_off_what_is_owed(self):
+		self._sell(amount=200)
+		order = self._bill()
+		spent = flt(order.total_amount)
+		payment.process_payment(
+			order,
+			payments=[{"method": MODE_OF_PAYMENT, "amount": spent, "gift_card": f"{PREFIX}1"}],
+		)
+
+		(row,) = self._rows(on=frappe.utils.today())
+
+		self.assertAlmostEqual(row["balance"], 200 - spent, places=2)
+
+	def test_a_card_sold_after_the_date_is_not_owed_on_it(self):
+		"""Yesterday's books do not carry today's cards."""
+		self._sell(amount=200)
+
+		self.assertFalse(self._rows(on=frappe.utils.add_days(frappe.utils.today(), -1)))
+
+	def test_a_switched_off_card_is_listed_and_marked_rather_than_dropped(self):
+		"""Whether it is still owed is the accountant's call, not a report's."""
+		self._sell(amount=200)
+		frappe.db.set_value("POS Gift Card", f"{PREFIX}1", "is_active", 0)
+
+		(row,) = self._rows(on=frappe.utils.today())
+
+		self.assertAlmostEqual(row["balance"], 200, places=2)
+		self.assertTrue(row["note"])

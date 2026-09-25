@@ -1040,3 +1040,18 @@ Prefix,بادئة
 "A prefix may hold letters, digits and dashes only, up to 12 of them.",البادئة حروف وأرقام وشرطات بس، وما تزيد عن ١٢.
 "Start the numbering at a number, such as 10001.",ابدأ الترقيم برقم، مثلاً 10001.
 Coupon {0} exists already. Start the numbering somewhere else.,الكوبون {0} موجود من قبل. ابدأ الترقيم من مكان ثاني.
+Print card sheet,طباعة ورقة البطاقات
+Gift cards,بطاقات الهدايا
+Gift card,بطاقة هدايا
+Select what to print first.,اختر اللي تبي تطبعه أول.
+There is no such card sheet.,ما فيه ورقة بطاقات بهذا الشكل.
+"{0} cards, {1} to a page. Choose Save as PDF in the print dialog.",{0} بطاقة، {1} في الصفحة. اختر «حفظ كـ PDF» في نافذة الطباعة.
+Balance {0},الرصيد {0}
+Issued Branch,فرع الإصدار
+Hide cards with nothing left,أخفِ البطاقات الفاضية
+Card Number,رقم البطاقة
+Sold For,انباعت بـ
+Switched off,موقوفة
+Expired {0},انتهت في {0}
+Issued,صدرت
+Note,ملاحظة

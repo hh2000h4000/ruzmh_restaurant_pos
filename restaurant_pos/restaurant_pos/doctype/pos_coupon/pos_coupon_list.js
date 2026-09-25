@@ -11,7 +11,7 @@
  * what they are about to hand out.
  *
  * Opened as a page rather than fetched as a PDF because the cards carry Arabic
- * campaign names; `www/rpos_coupon_sheet.py` records why that matters.
+ * campaign names; `www/rpos_card_sheet.py` records why that matters.
  */
 frappe.listview_settings["POS Coupon"] = {
 	onload(listview) {
@@ -22,7 +22,7 @@ frappe.listview_settings["POS Coupon"] = {
 				if (!names.length) return;
 
 				const query = encodeURIComponent(JSON.stringify(names));
-				window.open("/rpos-coupon-sheet?names=" + query, "_blank");
+				window.open("/rpos-card-sheet?kind=coupon&names=" + query, "_blank");
 			},
 			false
 		);

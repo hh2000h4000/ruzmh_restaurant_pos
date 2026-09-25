@@ -23,7 +23,7 @@ from frappe.utils import set_request
 from frappe.website.serve import get_response_content
 
 from restaurant_pos.utils.barcodes import qr_data_uri
-from restaurant_pos.www import rpos_coupon_sheet as sheet
+from restaurant_pos.www import rpos_card_sheet as sheet
 
 PROMOTION = "RPOS sheet offer"
 PREFIX = "RPOSSHEET"
@@ -51,6 +51,7 @@ class SheetTestBase(FrappeTestCase):
 
 	def tearDown(self):
 		frappe.form_dict.pop("names", None)
+		frappe.form_dict.pop("kind", None)
 		frappe.local.request = None
 		self._clear()
 		super().tearDown()
@@ -80,13 +81,14 @@ class SheetTestBase(FrappeTestCase):
 
 	def _context(self, names: list[str]) -> frappe._dict:
 		frappe.form_dict.names = json.dumps(names)
+		frappe.form_dict.kind = "coupon"
 		return sheet.get_context(frappe._dict())
 
 	def _html(self, names: list[str]) -> str:
 		context = self._context(names)
 		# Joined by hand: `get_app_path` scrubs its parts, and the hyphen in the
 		# page's name would come back as an underscore and find nothing.
-		page = os.path.join(frappe.get_app_path("restaurant_pos"), "www", "rpos-coupon-sheet.html")
+		page = os.path.join(frappe.get_app_path("restaurant_pos"), "www", "rpos-card-sheet.html")
 		source = frappe.read_file(page)
 		self.assertTrue(source, f"no template at {page}")
 		return frappe.render_template(source, context)
@@ -97,42 +99,46 @@ class TestWhatIsOnACard(SheetTestBase):
 		"""A wedge scanner types what it reads into the field that has focus."""
 		name = self._coupon()
 
-		(card,) = self._context([name]).coupons
+		(card,) = self._context([name]).cards
 
 		self.assertEqual(card["qr"], qr_data_uri(f"{PREFIX}1"))
 
 	def test_the_offer_is_named_in_arabic(self):
 		name = self._coupon()
 
-		(card,) = self._context([name]).coupons
+		(card,) = self._context([name]).cards
 
-		self.assertEqual(card["offer"], "عرض الورقة")
+		self.assertEqual(card["title"], "عرض الورقة")
 
 	def test_the_offers_dates_show_when_the_coupon_carries_none(self):
 		"""Blank on the coupon means "whatever the offer says", so say it."""
 		name = self._coupon()
 
-		(card,) = self._context([name]).coupons
+		(card,) = self._context([name]).cards
 
-		self.assertIn("2026", card["valid"])
-		self.assertIn("12", card["valid"])
+		self.assertIn("2026", card["lines"][1])
+		self.assertIn("12", card["lines"][1])
 
 	def test_the_coupons_own_dates_win(self):
 		name = self._coupon(valid_to="2026-03-05")
 
-		(card,) = self._context([name]).coupons
+		(card,) = self._context([name]).cards
 
-		self.assertIn("05", card["valid"])
-		self.assertNotIn("31", card["valid"])
+		self.assertIn("05", card["lines"][1])
+		self.assertNotIn("31", card["lines"][1])
 
 	def test_only_a_single_use_code_says_so(self):
 		once = self._coupon("1", max_uses=1)
 		shared = self._coupon("2", max_uses=0)
 
-		cards = {card["name"]: card for card in self._context([once, shared]).coupons}
+		cards = {card["code"]: card for card in self._context([once, shared]).cards}
 
-		self.assertTrue(cards[once]["one_use"])
-		self.assertFalse(cards[shared]["one_use"])
+		# Compared against each other rather than against a sentence: the wording
+		# is translated, and a test that matches the Arabic passes only on a site
+		# running in Arabic.
+		extra = set(cards[f"{PREFIX}1"]["lines"]) - set(cards[f"{PREFIX}2"]["lines"])
+
+		self.assertTrue(extra, "a single-use card says so, and a shared one has nothing to say")
 
 
 class TestTheSheet(SheetTestBase):
@@ -168,9 +174,10 @@ class TestTheSheet(SheetTestBase):
 		hand.
 		"""
 		frappe.form_dict.names = json.dumps([self._coupon()])
-		set_request(method="GET", path="/rpos-coupon-sheet")
+		frappe.form_dict.kind = "coupon"
+		set_request(method="GET", path="/rpos-card-sheet")
 
-		html = get_response_content("/rpos-coupon-sheet")
+		html = get_response_content("/rpos-card-sheet")
 
 		self.assertIn(f"{PREFIX}1", html)
 		self.assertIn("@page", html)

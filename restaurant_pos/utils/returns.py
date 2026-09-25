@@ -20,7 +20,7 @@ Refs: FR-9.1..FR-9.3, BR-050..BR-055, D-064
 
 import frappe
 from frappe import _
-from frappe.utils import flt, now_datetime
+from frappe.utils import flt, get_datetime, now_datetime
 
 from restaurant_pos.setup.gift_card_accounts import MODE_OF_PAYMENT as GIFT_CARD_METHOD
 from restaurant_pos.utils import gift_card as gift_cards
@@ -492,7 +492,12 @@ def _apply_refund(credit, refund_method: str | None) -> None:
 	# moment and time it from another — and on this machine the clock steps back
 	# a second or so under load, measured. A single stamp cannot disagree with
 	# itself.
-	stamp = now_datetime()
+	#
+	# **And never before the sale it reverses.** ERPNext refuses a return dated
+	# earlier than its invoice, so a step back landing between the sale and a
+	# refund taken the same second refused the refund — the gate caught it.
+	sold = frappe.db.get_value("Sales Invoice", credit.return_against, ["posting_date", "posting_time"])
+	stamp = max(now_datetime(), get_datetime(f"{sold[0]} {sold[1]}"))
 	credit.posting_date = stamp.date()
 	credit.posting_time = stamp.time()
 

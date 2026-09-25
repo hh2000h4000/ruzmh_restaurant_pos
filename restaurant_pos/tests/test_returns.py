@@ -13,7 +13,7 @@ Refs: FR-9.1..FR-9.3, BR-050..BR-055, D-064
 from unittest.mock import patch
 
 import frappe
-from frappe.utils import flt
+from frappe.utils import add_to_date, flt, get_datetime
 
 from restaurant_pos.api import returns as api_returns
 from restaurant_pos.tests.test_order import ITEM, OrderTestBase
@@ -180,6 +180,26 @@ class TestTheCreditNote(ReturnTestBase):
 
 		result = service.create_return(order, items=[{"row": self._row(order), "qty": 1}], reason_code=REASON)
 		self.assertTrue(result["credit_note"])
+
+	def test_a_clock_that_stepped_back_does_not_refuse_the_refund(self):
+		"""`D-261` — a refund in the second after a step back is not dated before its sale.
+
+		ERPNext refuses a return dated earlier than its invoice. The gate lost a
+		run to exactly this: the clock stepped back between the sale and the refund.
+		"""
+		order = self._paid()
+		sold = frappe.db.get_value("Sales Invoice", order.sales_invoice, ["posting_date", "posting_time"])
+		sold_at = get_datetime(f"{sold[0]} {sold[1]}")
+
+		with patch(
+			"restaurant_pos.utils.returns.now_datetime", return_value=add_to_date(sold_at, seconds=-2)
+		):
+			result = service.create_return(
+				order, items=[{"row": self._row(order), "qty": 1}], reason_code=REASON
+			)
+
+		note = frappe.db.get_value("Sales Invoice", result["credit_note"], ["posting_date", "posting_time"])
+		self.assertEqual(get_datetime(f"{note[0]} {note[1]}"), sold_at)
 
 	def test_the_original_invoice_still_stands(self):
 		"""D-063 — a return reverses a sale; it does not erase it."""

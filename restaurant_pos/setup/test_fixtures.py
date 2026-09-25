@@ -36,20 +36,66 @@ TABLE_COUNT = 6
 TEST_ITEM = "RPOS-TEST-BURGER"
 
 
+#: The only sites this may run against. **An allow-list, because everything
+#: below is destructive by design** — it grants roles to Administrator, rewrites
+#: default data and plants fixture records. Naming the sites it may ruin is the
+#: only safe direction for that list to point.
+DISPOSABLE_SITES = frozenset({"test.localhost"})
+
+
+def refuse_on_a_site_somebody_uses() -> None:
+	"""Stop the suite before it touches a site that holds real data (`D-255`).
+
+	**This was written after it happened.** Two runs went out as
+	``bench --site rpos.localhost run-tests --module …`` — one character's worth
+	of intent, aimed at the demo site instead of the test site — and thirty-two
+	menu prices were gone before anything printed.
+
+	**And the guard cannot save every case, which is the part worth knowing.**
+	Frappe calls ``get_hooks("before_tests", app_name=app)``: with ``--app
+	restaurant_pos`` that resolves to this hook alone, and the refusal below is
+	complete. With ``--module`` there is no app to filter by, so **every**
+	installed app's hook runs, in `apps.txt` order — and this app is last.
+	ERPNext's runs first, and the first thing it does is::
+
+	    frappe.db.sql("delete from `tabItem Price`")
+
+	followed by a commit. By the time this function is reached the prices are
+	already gone. So a `--module` run names its site and destroys it, and no code
+	of ours can object in time. That is why the rule in `CLAUDE.md` §6.1 is to go
+	through `scripts/wsl-check.sh`, which pins the site, rather than to type
+	`bench` and trust the fingers.
+	"""
+	site = frappe.local.site
+	if site in DISPOSABLE_SITES or frappe.conf.get("rpos_disposable_site"):
+		return
+
+	frappe.throw(
+		f"Refusing to run tests on {site}: the suite rewrites default data, grants "
+		f"Administrator every role and plants fixtures, and ERPNext's own hook empties "
+		f"Item Price. Run them on {' or '.join(sorted(DISPOSABLE_SITES))}, or set "
+		f'"rpos_disposable_site": 1 in the site_config.json of a site nobody minds '
+		f"losing."
+	)
+
+
 def before_tests():
 	"""Called by Frappe before the suite runs (``hooks.py``).
 
-	**ERPNext's own hook is not called.** It does two things: run the setup
-	wizard on an empty site, and ``delete from `tabItem Price```. The first is
-	broken on this pairing — Frappe 15.117's wizard stages null ``country`` and
-	``currency`` out of the arguments, and ERPNext 15.119 then fails on
-	``country.replace`` — and the second is what emptied the demo menu every
-	time the suite ran. Neither is worth inheriting.
+	**ERPNext's own hook is not inherited — but it is not always avoided.** It
+	does two things: run the setup wizard on an empty site, and ``delete from
+	`tabItem Price```. The first is broken on this pairing — Frappe 15.117's
+	wizard stages null ``country`` and ``currency`` out of the arguments, and
+	ERPNext 15.119 then fails on ``country.replace`` — and the second is what
+	empties the menu. Neither is worth calling from here. A ``--module`` run
+	calls it anyway, over our heads; `refuse_on_a_site_somebody_uses` says why.
 
 	So the site must have had its setup wizard completed once, in a browser.
 	That is a person's decision anyway: the company name, the chart of accounts
 	and the fiscal year are business data, not fixtures.
 	"""
+	refuse_on_a_site_somebody_uses()
+
 	if not frappe.db.a_row_exists("Company"):
 		frappe.throw(
 			"This site has no Company. Open it in a browser and finish the ERPNext "

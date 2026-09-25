@@ -26,6 +26,27 @@ from restaurant_pos.utils import shift as service
 PREFIX = "RPOSGC"
 
 
+def _a_customer() -> str:
+	"""Somebody for the cards to be issued to — a company, in the real case."""
+	name = "RPOS Gift Card Co"
+	if not frappe.db.exists("Customer", name):
+		# The group and territory are named rather than left to the site's
+		# defaults: this site's default customer group is a group node, which
+		# ERPNext refuses, and a fixture leaning on a site setting breaks on
+		# somebody else's site.
+		frappe.get_doc(
+			{
+				"doctype": "Customer",
+				"customer_name": name,
+				"customer_type": "Company",
+				"customer_group": frappe.db.get_value("Customer Group", {"is_group": 0}, "name"),
+				"territory": frappe.db.get_value("Territory", {"is_group": 0}, "name"),
+			}
+		).insert(ignore_permissions=True)
+
+	return name
+
+
 def _offer_the_card_at_the_till(profile: str) -> None:
 	"""Put the gift-card method on the terminal, as a manager would.
 
@@ -419,3 +440,73 @@ class WhatTheAccountantReads(GiftCardTestBase):
 
 		self.assertAlmostEqual(row["balance"], 200, places=2)
 		self.assertTrue(row["note"])
+
+
+class IssuingFromTheOffice(GiftCardTestBase):
+	"""Cards a company ordered, or one written off as an apology (`D-260`).
+
+	The user asked the question that found this: *should a company not order
+	cards and have them settled from the back office rather than the till?* Both
+	happen, and only the till half was built — and a card typed into the desk by
+	hand showed a balance its ledger did not have.
+	"""
+
+	def _issued(self, **fields) -> dict:
+		from restaurant_pos.api import gift_card as api
+
+		return api.issue_from_the_office(
+			count=fields.pop("count", 2),
+			amount=fields.pop("amount", 100),
+			customer=fields.pop("customer", _a_customer()),
+			**fields,
+		)
+
+	def test_the_cards_carry_what_was_issued_on_them(self):
+		made = self._issued(count=3, amount=100, pattern="sequential", start="1", prefix=PREFIX)
+
+		self.assertEqual(len(made["cards"]), 3)
+		for card in made["cards"]:
+			self.assertAlmostEqual(cards.balance_of(card), 100, places=2)
+
+	def test_they_are_spendable_at_the_till(self):
+		"""The point of the whole thing: the company's staff walk in and eat."""
+		made = self._issued(count=1, amount=200, pattern="sequential", start="1", prefix=PREFIX)
+		order = self._bill()
+
+		payment.process_payment(
+			order,
+			payments=[
+				{
+					"method": MODE_OF_PAYMENT,
+					"amount": flt(order.total_amount),
+					"gift_card": made["cards"][0],
+				}
+			],
+		)
+
+		order.reload()
+		self.assertEqual(order.status, "closed")
+
+	def test_the_money_is_owed_by_the_customer_not_taken_from_a_drawer(self):
+		"""Fifty cards to a company are a receivable, not cash in anybody's till."""
+		entry = service.open_till(pos_profile=self.profile)["entry"]
+		before = service.summarise_till(entry)["till_expected"]
+
+		self._issued(count=2, amount=100, pattern="sequential", start="1", prefix=PREFIX)
+
+		self.assertAlmostEqual(service.summarise_till(entry)["till_expected"], before, places=2)
+
+	def test_a_card_typed_in_by_hand_never_claims_a_balance_it_has_not_got(self):
+		"""Two screens disagreeing about money is the worst shape a defect takes."""
+		card = frappe.get_doc(
+			{
+				"doctype": "POS Gift Card",
+				"card_number": f"{PREFIX}BYHAND",
+				"balance": 200,
+				"initial_value": 200,
+				"is_active": 1,
+			}
+		).insert(ignore_permissions=True)
+
+		self.assertAlmostEqual(flt(card.balance), 0, places=2)
+		self.assertAlmostEqual(cards.balance_of(card.name), 0, places=2)

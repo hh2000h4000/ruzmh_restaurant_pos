@@ -1055,3 +1055,16 @@ Switched off,موقوفة
 Expired {0},انتهت في {0}
 Issued,صدرت
 Note,ملاحظة
+Issue cards,إصدار بطاقات
+Issue,إصدار
+Amount on each,المبلغ على كل بطاقة
+Paid Into,دخلت في حساب
+The account the money arrived in. Leave empty to put it on the customer's account.,الحساب اللي وصل فيه المبلغ. اتركه فاضياً ليتقيّد على ذمة العميل.
+Who the cards are for. Left as the debit when no account is named.,البطاقات لمن. يُقيَّد عليه المبلغ لو ما سمّيت حساباً.
+{0} cards issued.,انصدرت {0} بطاقة.
+Expires On,ينتهي في
+Issued from the office,إصدار من المكتب
+{0} gift cards issued,إصدار {0} بطاقة هدايا
+"Say where the money came from: a customer's account, or an account.",قل من وين جاء المبلغ: ذمة عميل، أو حساب.
+Generate between 1 and {0} at a time.,ولّد بين 1 و{0} في المرة.
+{0} exists already. Start the numbering somewhere else.,{0} موجود من قبل. ابدأ الترقيم من مكان ثاني.

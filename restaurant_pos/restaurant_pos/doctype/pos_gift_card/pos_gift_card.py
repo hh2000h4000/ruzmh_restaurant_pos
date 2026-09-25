@@ -25,6 +25,27 @@ class POSGiftCard(Document):
 		if self.balance and self.balance < 0:
 			frappe.throw(_("A gift card cannot hold less than nothing."))
 
+		self.mirror_the_ledger()
+
+	def mirror_the_ledger(self) -> None:
+		"""**The balance is a copy of the entries, so make it one** (`D-260`).
+
+		It is read-only on the form, which stops a manager editing it and stops
+		nothing else: a card *created* in the desk carries whatever was typed, and
+		the entries behind it are empty. The form then says 200 while the till
+		says the card holds nothing — two screens disagreeing about money, which
+		is the worst shape a defect can take. The user found it by asking how a
+		company would order cards.
+
+		Forced rather than refused, because there is a legitimate way to put a
+		balance on a card and it is not this one: `utils/gift_card.issue`, which
+		writes the entry and posts the liability. What is refused is a number with
+		nothing behind it.
+		"""
+		from restaurant_pos.utils.gift_card import balance_of
+
+		self.balance = balance_of(self.card_number) if not self.is_new() else 0.0
+
 	def on_trash(self):
 		"""**A card is never deleted.** It is money the restaurant owes.
 

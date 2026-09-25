@@ -38,6 +38,7 @@ from frappe import _
 from frappe.utils import flt, getdate, now_datetime, nowdate
 
 from restaurant_pos.setup.gift_card_accounts import MODE_OF_PAYMENT
+from restaurant_pos.utils import codes
 from restaurant_pos.utils.audit import log_audit
 from restaurant_pos.utils.order import table_section_branch
 from restaurant_pos.utils.permissions import assert_permission, validate_branch_access
@@ -292,6 +293,162 @@ def _post_issue(card, amount: float, pos_profile: str, mode_of_payment: str) -> 
 		frappe.log_error(f"Gift card {card.name} did not post", "RPOS gift card")
 		card.db_set("notes", _("Not posted to the ledger."), update_modified=False)
 		return None
+
+
+def issue_batch(
+	*,
+	count: int,
+	amount: float,
+	customer: str | None = None,
+	account: str | None = None,
+	pattern: str = "random",
+	prefix: str | None = None,
+	start: str | None = None,
+	expires_on: str | None = None,
+	company: str | None = None,
+) -> dict:
+	"""Issue cards from the office, where no drawer is involved (`D-260`).
+
+	**The user asked the question that found this:** *"shouldn't a company order
+	cards and have them settled from the back office rather than the till?"* Both
+	happen — a walk-in buys one at the counter, and a company orders fifty and
+	pays by transfer — and only the first was built. Worse, a card typed into the
+	desk by hand showed a balance its ledger did not have and died at the till.
+
+	**The money never touches a drawer**, which is the whole difference. The card
+	sale at the till debits the cash the drawer took; this debits whatever the
+	office says it came from — the bank, or the customer's own account, which is
+	the usual case because the cards go out before the transfer lands. The entry
+	carries the party, so the accountant settles it with a Payment Entry exactly
+	as they settle an invoice.
+
+	**And no `pos_opening_entry`**, so `takings_of` never counts these into a
+	till's expected cash. That is by construction rather than by a rule somebody
+	has to remember.
+	"""
+	frappe.has_permission("POS Gift Card", "create", throw=True)
+
+	amount = flt(amount)
+	if amount <= 0 or amount > MAX_LOAD:
+		frappe.throw(_("A gift card is loaded with between 0.01 and {0}.").format(money(MAX_LOAD)))
+
+	if not account and not customer:
+		frappe.throw(_("Say where the money came from: a customer's account, or an account."))
+
+	numbers = codes.make("POS Gift Card", count=count, pattern=pattern, prefix=prefix, start=start)
+
+	made = []
+	for number in numbers:
+		card = frappe.get_doc(
+			{
+				"doctype": "POS Gift Card",
+				"card_number": number,
+				"customer": customer,
+				"is_active": 1,
+				"expires_on": expires_on,
+				"initial_value": amount,
+				"issued_by": frappe.session.user,
+				"issued_at": now_datetime(),
+			}
+		).insert(ignore_permissions=True)
+
+		_write_entry(
+			card,
+			entry_type="issue",
+			amount=amount,
+			branch=None,
+			pos_profile=None,
+			reason=_("Issued from the office"),
+		)
+		made.append(card.name)
+
+	voucher = _post_office_issue(made, amount * len(made), customer, account, company)
+
+	log_audit(
+		"gift_card_issued",
+		# **Empty on purpose.** This happened in an office, not at a till: there
+		# is no terminal and no branch, and naming one would put the act somewhere
+		# it did not occur.
+		branch=None,
+		pos_profile=None,
+		details={
+			"cards": made,
+			"amount_each": amount,
+			"customer": customer,
+			"account": account,
+			"journal_entry": voucher,
+		},
+	)
+
+	return {"cards": made, "amount": amount, "journal_entry": voucher}
+
+
+def _post_office_issue(
+	cards: list[str], total: float, customer: str | None, account: str | None, company: str | None
+) -> str | None:
+	"""One voucher for the batch: what it came from, against the liability.
+
+	**Against the customer's account when no account is named**, with the party on
+	the line — so a company that has not paid yet owes exactly this, and the
+	transfer is matched against it later like any other receivable. Naming an
+	account instead is the simple case: the money is already in the bank.
+	"""
+	company = company or frappe.defaults.get_global_default("company") or _the_only_company()
+	if not company:
+		return None
+
+	liability = frappe.db.get_value(
+		"Mode of Payment Account",
+		{"parent": MODE_OF_PAYMENT, "company": company},
+		"default_account",
+	)
+	if not liability:
+		return None
+
+	debit = {"credit_in_account_currency": 0.0, "debit_in_account_currency": total}
+	if account:
+		debit["account"] = account
+	else:
+		debit["account"] = frappe.db.get_value("Company", company, "default_receivable_account")
+		debit["party_type"] = "Customer"
+		debit["party"] = customer
+
+	if not debit["account"]:
+		return None
+
+	cost_center = frappe.db.get_value("Company", company, "cost_center")
+	for line in (debit,):
+		line["cost_center"] = cost_center
+
+	try:
+		entry = frappe.get_doc(
+			{
+				"doctype": "Journal Entry",
+				"voucher_type": "Journal Entry",
+				"company": company,
+				"posting_date": getdate(now_datetime()),
+				"user_remark": _("{0} gift cards issued").format(len(cards)),
+				"accounts": [
+					debit,
+					{
+						"account": liability,
+						"credit_in_account_currency": total,
+						"cost_center": cost_center,
+					},
+				],
+			}
+		).insert(ignore_permissions=True)
+		entry.submit()
+		return entry.name
+	except Exception:
+		frappe.log_error(f"Office gift cards {cards[:3]} did not post", "RPOS gift card")
+		return None
+
+
+def _the_only_company() -> str | None:
+	"""The company when a site has exactly one — the same rule the accounts use."""
+	companies = frappe.get_all("Company", pluck="name", limit=2)
+	return companies[0] if len(companies) == 1 else None
 
 
 def takings_of(opening_entry: str) -> dict[str, float]:

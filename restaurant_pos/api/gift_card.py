@@ -40,6 +40,35 @@ def sell(
 	)
 
 
+@frappe.whitelist(methods=["POST"])
+def issue_from_the_office(
+	count: int,
+	amount: float,
+	customer: str | None = None,
+	account: str | None = None,
+	pattern: str = "random",
+	prefix: str | None = None,
+	start: str | None = None,
+	expires_on: str | None = None,
+) -> dict:
+	"""Cards a company ordered, or one written off as an apology (`D-260`).
+
+	**Not `assert_pos_user`**: this is a desk screen, so it is guarded by the
+	`POS Gift Card` form's own create permission inside `issue_batch`, the way
+	the coupon generator is (`D-208`). Nobody is standing at a till.
+	"""
+	return cards.issue_batch(
+		count=count,
+		amount=amount,
+		customer=customer,
+		account=account,
+		pattern=pattern,
+		prefix=prefix,
+		start=start,
+		expires_on=expires_on,
+	)
+
+
 @frappe.whitelist(methods=["GET"])
 def lookup(card_number: str) -> dict:
 	"""What is on a card, for the screen that is about to spend it.

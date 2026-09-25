@@ -487,8 +487,14 @@ def _apply_refund(credit, refund_method: str | None) -> None:
 		credit.append("payments", {"mode_of_payment": method, "amount": -abs(due)})
 
 	credit.set_posting_time = 1
-	credit.posting_date = now_datetime().date()
-	credit.posting_time = now_datetime().time()
+	# **One instant, read once** (`D-261`). These were two calls to the clock, so
+	# a correction landing between them could date the credit note from one
+	# moment and time it from another — and on this machine the clock steps back
+	# a second or so under load, measured. A single stamp cannot disagree with
+	# itself.
+	stamp = now_datetime()
+	credit.posting_date = stamp.date()
+	credit.posting_time = stamp.time()
 
 	# D-093 — a cash refund is money leaving the drawer, so the drawer opens.
 	# The same rule as taking cash, for the same reason and in the same place as

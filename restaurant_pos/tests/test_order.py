@@ -7,10 +7,11 @@ Refs: BR-010..BR-017, BR-024, BR-044, FR-2.1..FR-2.8, FR-10.4
 """
 
 import uuid
+from datetime import timedelta
 
 import frappe
 from frappe.tests.utils import FrappeTestCase
-from frappe.utils import now_datetime
+from frappe.utils import get_datetime, now_datetime
 
 from restaurant_pos.api import order as api
 from restaurant_pos.utils import order as service
@@ -833,3 +834,33 @@ class TestRemovingBeforeTheKitchenSeesIt(OrderTestBase):
 
 		with self.assertRaises(frappe.ValidationError):
 			service.void_item(order, item_idx=1, reason="")
+
+
+class TheClockMayStepBackBetweenOpeningAndPaying(OrderTestBase):
+	"""`D-261` — a correction of a second must not refuse a sale.
+
+	The rule it relaxes is there to catch nonsense: a bill closed yesterday and
+	opened today. It was a strict comparison, which also catches the clock being
+	corrected between the two `now_datetime()` calls that stamp one bill — and
+	that is not a hypothetical. Sampling this machine's clock for twenty seconds
+	caught it stepping **back 1.218 seconds**, and a payment was refused on a bill
+	opened and settled inside the same second.
+	"""
+
+	def test_a_bill_settled_a_second_before_it_opened_still_saves(self):
+		order = self._order()
+		opened = get_datetime(order.opened_at)
+
+		order.closed_at = opened - timedelta(seconds=1)
+		order.save(ignore_permissions=True)
+
+		self.assertTrue(order.closed_at)
+
+	def test_a_bill_closed_before_it_opened_by_any_real_margin_is_still_refused(self):
+		"""The nonsense the rule was written for is still nonsense."""
+		order = self._order()
+
+		order.closed_at = get_datetime(order.opened_at) - timedelta(hours=1)
+
+		with self.assertRaises(frappe.ValidationError):
+			order.save(ignore_permissions=True)

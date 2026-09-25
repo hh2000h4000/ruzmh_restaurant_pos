@@ -1,6 +1,8 @@
 # Copyright (c) 2026, RPOS and contributors
 # For license information, please see license.txt
 
+from datetime import timedelta
+
 import frappe
 from frappe import _
 from frappe.model.document import Document
@@ -14,6 +16,24 @@ def _title_of(promotion: str | None) -> str:
 
 	titles = frappe.get_cached_value("Restaurant Promotion", promotion, ["title_ar", "title"])
 	return (titles[0] or titles[1] or promotion) if titles else promotion
+
+
+#: How far the clock may step backwards between opening a bill and settling it
+#: before that is a fact rather than a fault (`D-261`).
+#:
+#: **This rule is here to catch nonsense** — a bill closed yesterday and opened
+#: today — and it was written as a strict comparison, which also catches a clock
+#: correction landing between two `now_datetime()` calls. Measured, not guessed:
+#: sampling the dev machine's clock for twenty seconds caught it stepping
+#: **back 1.218 seconds** once, and that is exactly how a payment came to be
+#: refused with "Closed At cannot be earlier than Opened At" on a bill opened and
+#: settled in the same second.
+#:
+#: A restaurant server whose time is corrected by NTP can do the same thing, and
+#: the cost there is a cashier who cannot take money while a queue waits. Five
+#: seconds is far more than any correction of that kind and far less than any
+#: mistake worth refusing a sale over.
+CLOCK_SLACK = timedelta(seconds=5)
 
 
 class RestaurantOrder(Document):
@@ -127,5 +147,9 @@ class RestaurantOrder(Document):
 		if self.status == "cancelled" and not (self.cancel_reason or "").strip():
 			frappe.throw(_("Cancel Reason is required when an order is cancelled."))
 
-		if self.closed_at and self.opened_at and get_datetime(self.closed_at) < get_datetime(self.opened_at):
+		if (
+			self.closed_at
+			and self.opened_at
+			and get_datetime(self.opened_at) - get_datetime(self.closed_at) > CLOCK_SLACK
+		):
 			frappe.throw(_("Closed At cannot be earlier than Opened At."))

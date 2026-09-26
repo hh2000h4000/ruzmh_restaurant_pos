@@ -123,6 +123,57 @@ class TestDeleteTransactionsClearsTheTill(OrderTestBase):
 		self.assertEqual({doctype: frappe.db.count(doctype) for doctype in SETUP}, setup)
 		self.assertIsNone(frappe.db.get_value("POS Profile", self.profile, "restaurant_shift"))
 
+	def test_a_gift_card_from_the_office_goes_with_the_books(self):
+		"""`D-268` — no branch and no terminal: found through its journal entry.
+
+		Left behind, it kept 200 of balance after ERPNext deleted the entry that
+		owed it — the user was about to press the button with such a card on the
+		site.
+		"""
+		from restaurant_pos.api import gift_card as api
+		from restaurant_pos.tests.test_gift_card import _a_customer
+
+		made = api.issue_from_the_office(count=1, amount=200, customer=_a_customer(), prefix="RPOSDEL")
+		card = made["cards"][0]
+
+		self._delete_transactions()
+
+		self.assertFalse(frappe.db.exists("POS Gift Card", card))
+		self.assertFalse(frappe.db.exists("POS Gift Card Entry", {"gift_card": card}))
+
+	def test_a_coupon_stays_and_its_uses_in_the_trial_are_given_back(self):
+		"""`D-268` — the code is setup, printed and in guests' pockets; its count is service."""
+		promotion = frappe.get_doc(
+			{
+				"doctype": "Restaurant Promotion",
+				"title": "RPOS deletion coupon offer",
+				"title_ar": "عرض كوبون الحذف",
+				"is_active": 1,
+				"requires_coupon": 1,
+				"promotion_type": "percentage",
+				"discount_value": 10,
+				"apply_to": "all",
+				"item_scope": "all",
+			}
+		).insert(ignore_permissions=True)
+		coupon = frappe.get_doc(
+			{
+				"doctype": "POS Coupon",
+				"coupon_code": "RPOSDELCOUPON",
+				"promotion": promotion.name,
+				"max_uses": 1,
+			}
+		).insert(ignore_permissions=True)
+		order = self._order()
+		frappe.db.set_value("Restaurant Order", order.name, {"coupon": coupon.name, "coupon_spent": 1})
+		# One use from this trial, and one counted somewhere this deletion does not reach.
+		frappe.db.set_value("POS Coupon", coupon.name, "used", 2)
+
+		self._delete_transactions()
+
+		self.assertTrue(frappe.db.exists("POS Coupon", coupon.name))
+		self.assertEqual(frappe.db.get_value("POS Coupon", coupon.name, "used"), 1)
+
 	def test_the_floor_is_handed_back_but_a_table_out_of_service_stays_out(self):
 		# Any two in the branch: one section of the test site holds a single table,
 		# and a test that skips on the site it runs on proves nothing.

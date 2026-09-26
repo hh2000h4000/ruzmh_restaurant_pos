@@ -31,7 +31,7 @@ from functools import reduce
 
 import frappe
 from frappe.model.naming import NamingSeries
-from frappe.query_builder.functions import Max
+from frappe.query_builder.functions import Count, Max
 from frappe.utils import cint
 
 from restaurant_pos.utils.order import release_table
@@ -120,6 +120,9 @@ def delete_pos_transactions(company: str) -> dict[str, int]:
 		.run(pluck=True)
 	)
 
+	cards = _gift_cards_of(company, branches)
+	_give_back_coupon_uses(orders_of)
+
 	gone: dict[str, int] = {}
 	for doctype, names in (
 		("POS Order Activity", frappe.get_all("POS Order Activity", filters=in_branches, pluck="name")),
@@ -136,6 +139,12 @@ def delete_pos_transactions(company: str) -> dict[str, int]:
 		# The numbering memory: without it the first real bill carries on from
 		# the trial's last number.
 		("POS Order Counter", frappe.get_all("POS Order Counter", filters=in_branches, pluck="name")),
+		# `D-268` — money documents of our own, each carrying an entry ERPNext is
+		# about to delete. Left behind, a card kept its balance with no liability
+		# under it, and a drawer movement named a journal entry that was gone.
+		("POS Cash Movement", frappe.get_all("POS Cash Movement", filters=in_branches, pluck="name")),
+		("POS Gift Card Entry", _gift_card_entries(cards)),
+		("POS Gift Card", cards),
 	):
 		_delete(doctype, names, gone)
 
@@ -148,6 +157,62 @@ def delete_pos_transactions(company: str) -> dict[str, int]:
 		frappe.db.set_value("POS Profile", profile, "restaurant_shift", None, update_modified=False)
 
 	return gone
+
+
+def _give_back_coupon_uses(orders_of) -> None:
+	"""Take back the uses the deleted orders counted on their coupons (`D-268`).
+
+	**The code is setup; its count is service.** A coupon may be printed and in a
+	guest's pocket, so it stays — but a single-use code tried once in the trial
+	would otherwise read *used* forever. Only what these orders counted is taken
+	back, so another company's uses of a shared code stand.
+	"""
+	order = frappe.qb.DocType("Restaurant Order")
+	spent = (
+		frappe.qb.from_(order)
+		.select(order.coupon, Count("*"))
+		.where(order.name.isin(orders_of) & (order.coupon_spent == 1) & order.coupon.isnotnull())
+		.groupby(order.coupon)
+		.run()
+	)
+	for coupon, uses in spent:
+		used = cint(frappe.db.get_value("POS Coupon", coupon, "used"))
+		frappe.db.set_value("POS Coupon", coupon, "used", max(used - cint(uses), 0), update_modified=False)
+
+
+def _gift_cards_of(company: str, branches: list[str]) -> list[str]:
+	"""Every card this company's trial made (`D-268`).
+
+	**Found through the books, not only the branch.** A card issued from the
+	office has no branch and no terminal: what ties it to the company is the
+	journal entry or invoice on its rows. ERPNext only queues its own deletion on
+	submit (`TransactionDeletionRecord.on_submit`), so those are still here.
+	"""
+	entry = frappe.qb.DocType("POS Gift Card Entry")
+	journal = frappe.qb.DocType("Journal Entry")
+	invoice = frappe.qb.DocType("Sales Invoice")
+	journals = frappe.qb.from_(journal).select(journal.name).where(journal.company == company)
+	invoices = frappe.qb.from_(invoice).select(invoice.name).where(invoice.company == company)
+
+	through_rows = (
+		frappe.qb.from_(entry)
+		.select(entry.gift_card)
+		.where(
+			entry.branch.isin(branches)
+			| entry.journal_entry.isin(journals)
+			| entry.sales_invoice.isin(invoices)
+		)
+		.distinct()
+		.run(pluck=True)
+	)
+	issued_here = frappe.get_all("POS Gift Card", filters={"issued_branch": ("in", branches)}, pluck="name")
+	return sorted(set(through_rows) | set(issued_here))
+
+
+def _gift_card_entries(cards: list[str]) -> list[str]:
+	if not cards:
+		return []
+	return frappe.get_all("POS Gift Card Entry", filters={"gift_card": ("in", cards)}, pluck="name")
 
 
 def _delete(doctype: str, names: list[str], gone: dict[str, int]) -> None:

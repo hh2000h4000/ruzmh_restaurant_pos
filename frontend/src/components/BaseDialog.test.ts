@@ -67,3 +67,22 @@ describe("leaving a dialog", () => {
     expect(wrapper.emitted("close")).toBeFalsy();
   });
 });
+
+describe("the pinned footer", () => {
+  it("holds what answers the dialog, inside the panel that scrolls", () => {
+    const wrapper = mount(BaseDialog, {
+      props: { open: true, title: "طلب" },
+      slots: { default: "<p>body</p>", footer: "<button>تم</button>" },
+      global: { stubs: { teleport: true } },
+    });
+
+    const footer = wrapper.find('[role="dialog"] [data-dialog-footer]');
+    expect(footer.exists()).toBe(true);
+    expect(footer.classes()).toContain("sticky");
+    expect(footer.text()).toBe("تم");
+  });
+
+  it("draws no empty strip when a dialog has no footer", () => {
+    expect(open().find("[data-dialog-footer]").exists()).toBe(false);
+  });
+});

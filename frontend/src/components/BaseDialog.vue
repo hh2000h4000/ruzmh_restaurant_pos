@@ -107,6 +107,18 @@ onUnmounted(() => document.removeEventListener("keydown", onKeydown));
           {{ title }}
         </h2>
         <slot />
+        <!-- What answers the dialog stays in reach however long the body is:
+             a sell sheet with two keypads ran past the screen and hid its own
+             button below the fold. `-bottom-5`, not `bottom-0`: sticky is
+             measured inside the panel's padding, so `bottom-0` lifts it p-5
+             over the body's last row. -->
+        <div
+          v-if="$slots.footer"
+          data-dialog-footer
+          class="sticky -bottom-5 -mx-5 -mb-5 mt-4 border-t border-line bg-surface px-5 pb-5 pt-3"
+        >
+          <slot name="footer" />
+        </div>
       </div>
     </div>
   </Teleport>

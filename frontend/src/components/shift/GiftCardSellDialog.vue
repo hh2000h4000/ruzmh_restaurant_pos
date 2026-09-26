@@ -91,6 +91,7 @@ async function confirm(): Promise<void> {
   <BaseDialog
     :open="open"
     :title="t('giftCard.sellTitle')"
+    :wide="!sold"
     @close="emit('close')"
   >
     <!-- Done: the number and what is on it, to read back across the counter. -->
@@ -123,33 +124,43 @@ async function confirm(): Promise<void> {
         {{ t("giftCard.sellBody") }}
       </p>
 
-      <input
-        ref="field"
-        :value="number"
-        type="text"
-        autocapitalize="characters"
-        autocomplete="off"
-        dir="ltr"
-        class="mb-3 w-full rounded-rpos border border-line bg-background p-3 text-center text-lg tracking-widest"
-        :placeholder="t('giftCard.numberPlaceholder')"
-        @input="number = ($event.target as HTMLInputElement).value.toUpperCase()"
-      >
+      <!-- Two keypads, side by side where the till has the width: stacked,
+           they ran past the screen and hid the button that sells. -->
+      <div class="grid gap-4 lg:grid-cols-2">
+        <div>
+          <input
+            ref="field"
+            :value="number"
+            type="text"
+            autocapitalize="characters"
+            autocomplete="off"
+            dir="ltr"
+            class="mb-3 w-full rounded-rpos border border-line bg-background p-3 text-center text-lg tracking-widest"
+            :placeholder="t('giftCard.numberPlaceholder')"
+            @input="number = ($event.target as HTMLInputElement).value.toUpperCase()"
+          >
 
-      <CodePad
-        class="mb-4"
-        :value="number"
-        @update="number = $event"
-      />
+          <CodePad
+            :value="number"
+            @update="number = $event"
+          />
+        </div>
 
-      <AmountKeypad
-        :value="amount"
-        :label="t('giftCard.amount')"
-        @update="amount = $event"
-      />
+        <AmountKeypad
+          :value="amount"
+          :label="t('giftCard.amount')"
+          @update="amount = $event"
+        />
+      </div>
+    </template>
 
+    <template
+      v-if="!sold"
+      #footer
+    >
       <!-- What the guest paid with. The drawer counts it, so it has to be
            asked rather than assumed. -->
-      <div class="mb-3 mt-4 grid grid-cols-2 gap-2">
+      <div class="mb-3 grid grid-cols-2 gap-2">
         <button
           v-for="row in methods"
           :key="row.mode_of_payment"

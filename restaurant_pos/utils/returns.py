@@ -535,7 +535,7 @@ def _assert_within_what_that_method_paid(credit, method: str, due: float, origin
 		frappe.throw(
 			_(
 				"{0} paid {1} on this bill. Refund that much to it, and the rest to what paid the rest."
-			).format(method, money(paid - refunded)),
+			).format(method, f"{money(paid - refunded):.2f}"),
 			frappe.ValidationError,
 		)
 

@@ -213,7 +213,7 @@ def issue(
 	"""Sell a card: take the money, raise the liability, hand over the number."""
 	amount = flt(amount)
 	if amount <= 0 or amount > MAX_LOAD:
-		frappe.throw(_("A gift card is loaded with between 0.01 and {0}.").format(money(MAX_LOAD)))
+		frappe.throw(_("A gift card is loaded with between 0.01 and {0}.").format(f"{money(MAX_LOAD):.2f}"))
 
 	number = (card_number or "").strip().upper()
 	if not number:
@@ -401,7 +401,7 @@ def issue_batch(
 
 	amount = flt(amount)
 	if amount <= 0 or amount > MAX_LOAD:
-		frappe.throw(_("A gift card is loaded with between 0.01 and {0}.").format(money(MAX_LOAD)))
+		frappe.throw(_("A gift card is loaded with between 0.01 and {0}.").format(f"{money(MAX_LOAD):.2f}"))
 
 	if not account and not customer:
 		frappe.throw(_("Say where the money came from: a customer's account, or an account."))
@@ -727,7 +727,7 @@ def assert_spendable(payments: list[dict]) -> None:
 		balance = _ledger_balance(card.name)
 		if flt(row["amount"]) > balance + 0.001:
 			frappe.throw(
-				_("Gift card {0} has {1} left.").format(card.card_number, money(balance)),
+				_("Gift card {0} has {1} left.").format(card.card_number, f"{money(balance):.2f}"),
 				frappe.ValidationError,
 			)
 

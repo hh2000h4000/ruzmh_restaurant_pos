@@ -109,8 +109,18 @@ export function resetCsrfToken(): void {
   setCsrfToken("");
 }
 
-/** Frappe returns `{"message": ...}` on success and messages in a few shapes on failure. */
-function readError(payload: unknown, status: number): ApiError {
+/**
+ * Frappe returns `{"message": ...}` on success and messages in a few shapes on failure.
+ *
+ * **The refusal, not the first thing said.** `_server_messages` is every
+ * `msgprint` of the request, in order, and ERPNext prints its own notes on the
+ * way — building a credit note announces «Payment methods refreshed» — before
+ * our `frappe.throw` is reached. Taking the first one showed a refund refused
+ * for a reason the cashier could not see (`D-270`). The message Frappe marks
+ * `raise_exception` is the refusal; failing that, the last one that is not a
+ * passing alert.
+ */
+export function readError(payload: unknown, status: number): ApiError {
   const body = payload as {
     exc_type?: string;
     exception?: string;
@@ -122,9 +132,13 @@ function readError(payload: unknown, status: number): ApiError {
 
   if (body?._server_messages) {
     try {
-      const parsed = JSON.parse(body._server_messages) as string[];
-      const first = JSON.parse(parsed[0]) as { message?: string };
-      message = first.message ?? message;
+      const said = (JSON.parse(body._server_messages) as string[]).map(
+        (row) => JSON.parse(row) as { message?: string; raise_exception?: number; alert?: number },
+      );
+      const latest = [...said].reverse();
+      const refusal =
+        latest.find((row) => row.raise_exception) ?? latest.find((row) => !row.alert) ?? latest[0];
+      message = refusal?.message ?? message;
     } catch {
       // Leave whatever we already have.
     }

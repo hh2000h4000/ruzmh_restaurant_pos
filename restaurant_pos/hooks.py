@@ -130,7 +130,11 @@ website_route_rules = [
 # The pairing buttons on ERPNext's own POS Profile form (`D-226`). Our own
 # DocTypes carry their form scripts beside them; this one has nowhere to live
 # except here, because the DocType belongs to ERPNext.
-doctype_js = {"POS Profile": "public/js/pos_profile.js"}
+doctype_js = {
+	"POS Profile": "public/js/pos_profile.js",
+	# D-265 — the gift card method's account list offers liabilities.
+	"Mode of Payment": "public/js/mode_of_payment.js",
+}
 
 # ---------------------------------------------------------------------------
 # Phase 2+ hooks are intentionally left unregistered until the corresponding

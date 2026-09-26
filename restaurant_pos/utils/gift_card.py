@@ -91,6 +91,21 @@ def validate_mode_of_payment(doc, method=None) -> None:
 	if other:
 		frappe.throw(_("{0} is already the gift card method. Only one can be.").format(other))
 
+	# **Its account is what the restaurant owes** (`D-265`). ERPNext's form
+	# offered only cash, bank and receivable accounts, so the first manager to
+	# set this up made a new one under Cash In Hand — and every card spent from
+	# it read as cash in the box while the debt to the guests never appeared.
+	for row in doc.get("accounts") or []:
+		if (
+			row.default_account
+			and frappe.db.get_value("Account", row.default_account, "root_type") != "Liability"
+		):
+			frappe.throw(
+				_(
+					"{0} is not a liability. A gift card method's account is what the restaurant owes the card's holder."
+				).format(row.default_account)
+			)
+
 
 def _liability(company: str) -> str | None:
 	"""The account every card on this company is owed from."""
@@ -276,13 +291,15 @@ def issue(
 	}
 
 
-def _post_issue(card, amount: float, pos_profile: str, mode_of_payment: str) -> str | None:
+def _post_issue(card, amount: float, pos_profile: str, mode_of_payment: str) -> str:
 	"""Cash in, liability up — and **never a Sales Invoice** (Article 19).
 
-	Returns the voucher, or None with the reason written on the card: a
-	restaurant whose chart has no liability account yet must still be able to
-	sell a card, and an unposted one is said out loud rather than swallowed
-	(`D-246`, the rule the drawer's movements already follow).
+	**No entry, no card** (`D-266`). This used to return None and write «not
+	posted» on the card, the rule the drawer's cash movements follow (`D-246`).
+	A card is not a cash movement: it carries a balance the till will pay out,
+	so a card the books do not owe is money promised with no trace. The user's
+	first two cards went out exactly so, before the method had an account. The
+	refusal rolls back the whole request, the card with it.
 	"""
 	if vat_falls_at() != "redemption":
 		# Unreachable while the seam has one answer, and left standing so the day
@@ -299,14 +316,14 @@ def _post_issue(card, amount: float, pos_profile: str, mode_of_payment: str) -> 
 		"default_account",
 	)
 
-	if not liability or not cash_account:
-		missing = (gift_card_method() or _("the gift card method")) if not liability else mode_of_payment
-		card.db_set(
-			"notes",
-			_("Not posted to the ledger: {0} has no account on this company.").format(missing),
-			update_modified=False,
+	if not liability:
+		_refuse_without_liability(terminal.company)
+	if not cash_account:
+		frappe.throw(
+			_("{0} has no account on {1}, so the card's money has nowhere to go.").format(
+				mode_of_payment, terminal.company
+			)
 		)
-		return None
 
 	cost_center = terminal.cost_center or frappe.db.get_value("Company", terminal.company, "cost_center")
 
@@ -336,8 +353,7 @@ def _post_issue(card, amount: float, pos_profile: str, mode_of_payment: str) -> 
 		return entry.name
 	except Exception:
 		frappe.log_error(f"Gift card {card.name} did not post", "RPOS gift card")
-		card.db_set("notes", _("Not posted to the ledger."), update_modified=False)
-		return None
+		_refuse_unposted()
 
 
 def issue_batch(
@@ -430,7 +446,7 @@ def issue_batch(
 
 def _post_office_issue(
 	cards: list[str], total: float, customer: str | None, account: str | None, company: str | None
-) -> str | None:
+) -> str:
 	"""One voucher for the batch: what it came from, against the liability.
 
 	**Against the customer's account when no account is named**, with the party on
@@ -440,11 +456,11 @@ def _post_office_issue(
 	"""
 	company = company or frappe.defaults.get_global_default("company") or _the_only_company()
 	if not company:
-		return None
+		frappe.throw(_("Which company? This site has more than one and none is the default."))
 
 	liability = _liability(company)
 	if not liability:
-		return None
+		_refuse_without_liability(company)
 
 	debit = {"credit_in_account_currency": 0.0, "debit_in_account_currency": total}
 	if account:
@@ -455,7 +471,11 @@ def _post_office_issue(
 		debit["party"] = customer
 
 	if not debit["account"]:
-		return None
+		frappe.throw(
+			_("{0} has no default receivable account, so the customer cannot owe for the cards.").format(
+				company
+			)
+		)
 
 	cost_center = frappe.db.get_value("Company", company, "cost_center")
 	for line in (debit,):
@@ -483,7 +503,20 @@ def _post_office_issue(
 		return entry.name
 	except Exception:
 		frappe.log_error(f"Office gift cards {cards[:3]} did not post", "RPOS gift card")
-		return None
+		_refuse_unposted()
+
+
+def _refuse_without_liability(company: str) -> None:
+	frappe.throw(
+		_(
+			"Gift cards cannot be issued yet: no payment method is marked «Gift Card» with a "
+			"liability account for {0}. The guide's gift card page shows how to set it up."
+		).format(company)
+	)
+
+
+def _refuse_unposted() -> None:
+	frappe.throw(_("The card was not issued: its journal entry could not be posted. The Error Log says why."))
 
 
 def _the_only_company() -> str | None:

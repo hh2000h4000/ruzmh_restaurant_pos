@@ -625,3 +625,43 @@ class TheTickNotTheName(GiftCardTestBase):
 		gift_card_accounts.setup()
 
 		self.assertEqual(cards.gift_card_method(), MODE_OF_PAYMENT)
+
+	def test_a_cash_account_on_the_gift_card_method_is_refused(self):
+		"""`D-265` — the manager who could not pick the liability made a cash one."""
+		mode = frappe.get_doc("Mode of Payment", cards.gift_card_method())
+		company = frappe.db.get_value("POS Profile", self.profile, "company")
+		cash = frappe.db.get_value(
+			"Account", {"account_type": "Cash", "company": company, "is_group": 0}, "name"
+		)
+		next(row for row in mode.accounts if row.company == company).default_account = cash
+
+		with self.assertRaises(frappe.ValidationError):
+			mode.save(ignore_permissions=True)
+
+
+class NoEntryNoCard(GiftCardTestBase):
+	"""`D-266` — a card the books do not owe is not issued at all.
+
+	It used to be issued with «not posted» on it. The user's first two cards went
+	out so — 400 promised to guests, and nothing on the liability account.
+	"""
+
+	def _unmarked(self) -> None:
+		method = cards.gift_card_method()
+		frappe.db.set_value("Mode of Payment", method, "rpos_is_gift_card", 0)
+		self.addCleanup(frappe.db.set_value, "Mode of Payment", method, "rpos_is_gift_card", 1)
+
+	def test_the_till_will_not_sell_a_card_the_books_cannot_owe(self):
+		self._unmarked()
+
+		with self.assertRaises(frappe.ValidationError):
+			self._sell(number=f"{PREFIX}9")
+
+	def test_the_office_will_not_issue_one_either(self):
+		from restaurant_pos.api import gift_card as api
+
+		self._unmarked()
+
+		with self.assertRaises(frappe.ValidationError):
+			api.issue_from_the_office(count=1, amount=100, customer=_a_customer(), prefix=PREFIX)
+

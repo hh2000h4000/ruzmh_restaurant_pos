@@ -1119,9 +1119,7 @@ This gift card expired on {0}.,هذي البطاقة انتهت في {0}.
 A gift card is loaded with between 0.01 and {0}.,البطاقة تنشحن بين 0.01 و{0}.
 Gift card {0} exists already.,البطاقة {0} موجودة من قبل.
 Gift cards taxed at issue are not built yet.,بطاقات الضريبة عند البيع ما انبنت بعد.
-Not posted to the ledger: {0} has no account on this company.,ما انقيّد في الدفتر: {0} ما له حساب في هذي الشركة.
 Gift card {0} sold,انباعت البطاقة {0}
-Not posted to the ledger.,ما انقيّد في الدفتر.
 Gift card {0} has {1} left.,البطاقة {0} فيها {1} بس.
 Returned from {0},مسترجع من {0}
 Which gift card? Enter the number printed on it.,أي بطاقة؟ اكتب الرقم المطبوع عليها.
@@ -1132,8 +1130,13 @@ Gift Cards,بطاقات الهدايا
 POS User Guide,دليل نقاط البيع
 Back to the office,رجوع للمكتب
 There is no such page in the guide.,ما فيه صفحة بهذا الاسم في الدليل.
-the gift card method,طريقة بطاقة الهدايا
 A gift card method is paid from the card's balance, not settled on account.,طريقة بطاقة الهدايا تُدفع من رصيد البطاقة، ما تنسجل على الحساب.
 {0} is already the gift card method. Only one can be.,{0} هي طريقة بطاقة الهدايا من قبل. ما يصير إلا وحدة.
 Gift Card,بطاقة هدايا,Mode of Payment
 The cashier is asked for the card's number and its balance pays. One method only; its account is the gift card liability.,الكاشير يطلب رقم البطاقة، والدفع من رصيدها. طريقة وحدة بس، وحسابها هو حساب بطاقات الهدايا.
+{0} is not a liability. A gift card method's account is what the restaurant owes the card's holder.,{0} مو حساب التزام. حساب طريقة بطاقة الهدايا هو اللي يدين فيه المطعم لصاحب البطاقة.
+"{0} has no account on {1}, so the card's money has nowhere to go.",{0} ما له حساب في {1}، فمبلغ البطاقة ما له مكان يروح له.
+Which company? This site has more than one and none is the default.,أي شركة؟ الموقع فيه أكثر من شركة وما فيه شركة افتراضية.
+"{0} has no default receivable account, so the customer cannot owe for the cards.",{0} ما لها حساب مدينين افتراضي، فما يقدر العميل يتسجّل عليه مبلغ البطاقات.
+Gift cards cannot be issued yet: no payment method is marked «Gift Card» with a liability account for {0}. The guide's gift card page shows how to set it up.,ما تقدر تصدر بطاقات هدايا للحين: ما فيه طريقة دفع عليها علامة «بطاقة هدايا» ولها حساب التزام في {0}. صفحة بطاقة الهدايا في الدليل تشرح الإعداد.
+The card was not issued: its journal entry could not be posted. The Error Log says why.,البطاقة ما انصدرت: قيدها ما انرحّل. السبب مكتوب في Error Log.

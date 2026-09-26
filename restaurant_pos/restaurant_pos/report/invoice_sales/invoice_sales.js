@@ -40,5 +40,11 @@ frappe.query_reports["Invoice Sales"] = {
 			],
 			default: "invoice",
 		},
+		{
+			fieldname: "discounted_only",
+			label: __("Discounted bills only"),
+			fieldtype: "Check",
+			default: 0,
+		},
 	],
 };

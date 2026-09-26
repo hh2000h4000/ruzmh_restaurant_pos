@@ -151,3 +151,21 @@ class TestTheHour(PaymentTestBase):
 		_columns, rows = hourly.execute({"from_date": today(), "to_date": today()})
 
 		self.assertAlmostEqual(rows[-1]["share"], 100.0, places=1)
+
+	def test_a_refund_nets_off_in_the_hours_as_it_does_in_the_days(self):
+		"""The user read 502 here and 481 on the day's report for the same evening."""
+
+		def period() -> dict:
+			_columns, rows = hourly.execute({"from_date": today(), "to_date": today()})
+			return rows[-1] if rows and rows[-1]["slot"] == frappe._("Period Total") else {"returns": 0.0}
+
+		before = period()
+		order = self._payable_order(qty=2)
+		self._pay(order)
+		line = returns.returnable(order)["items"][0]["row"]
+		returns.create_return(order, items=[{"row": line, "qty": 1}], reason_code=REASON)
+
+		after = period()
+		self.assertGreater(after["returns"], before["returns"])
+		self.assertAlmostEqual(after["net"], after["total"] - after["returns"], places=2)
+		self.assertAlmostEqual(after["returns"], _today_row()["returns"], places=2)

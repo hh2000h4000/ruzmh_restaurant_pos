@@ -765,3 +765,28 @@ class CancellingACard(GiftCardTestBase):
 
 		self.assertFalse(frappe.db.exists("POS Gift Card", card.name))
 		self.assertFalse(self._entries(card.name))
+
+
+class WhatMovedInAPeriod(GiftCardTestBase):
+	"""Sold and spent side by side, from the same ledger the balance reads."""
+
+	def _run(self) -> tuple[list[dict], dict]:
+		from restaurant_pos.restaurant_pos.report.gift_card_activity import gift_card_activity as report
+
+		today = frappe.utils.today()
+		_columns, rows, _message, _chart, summary = report.execute({"from_date": today, "to_date": today})
+		return [row for row in rows if row["card_number"].startswith(PREFIX)], summary
+
+	def test_a_card_sold_and_spent_is_two_lines_and_the_owed_change_is_the_balance(self):
+		self._sell(amount=200)
+		order = self._bill()
+		spent = flt(order.total_amount)
+		payment.process_payment(
+			order,
+			payments=[{"method": MODE_OF_PAYMENT, "amount": spent, "gift_card": f"{PREFIX}1"}],
+		)
+
+		rows, _summary = self._run()
+
+		self.assertEqual([row["entry_type"] for row in rows], ["issue", "redeem"])
+		self.assertAlmostEqual(sum(row["owed_change"] for row in rows), 200 - spent, places=2)

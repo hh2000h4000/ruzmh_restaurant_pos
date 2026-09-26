@@ -1202,7 +1202,6 @@ Shortages,النقص
 Overages,الزيادة
 Differences only,الفروقات فقط
 By cashier,حسب الكاشير
-Channel,القناة
 Sales before VAT,المبيعات قبل الضريبة
 Share %,النسبة %
 No.,الرقم
@@ -1212,7 +1211,7 @@ Show,العرض
 One line per invoice,سطر لكل فاتورة
 One line per item,سطر لكل صنف
 Drawer Variances,فروقات الأدراج
-Channel Sales,المبيعات حسب القناة
+Channel Sales,المبيعات حسب نوع الطلب
 Invoice Sales,مبيعات الفواتير
 Turns,مرات الجلوس
 Guests,الضيوف
@@ -1243,3 +1242,20 @@ Oversight,المراقبة
 For the Accountant,للمحاسب
 "<span class=""h4"">POS Reports</span>","<span class=""h4"">التقارير</span>"
 Every report picks its period; most can be narrowed to a branch or an order type. <b>The guide's «التقارير» page</b> says what each one answers.,كل تقرير تختار له الفترة، وأغلبها تقدر تحصرها بفرع أو بنوع طلب. <b>صفحة «التقارير» في الدليل</b> تقول وش يجاوب كل واحد.
+Terminal,نقطة البيع,RPOS report
+Closing,مستند الإقفال,RPOS report
+Gift Card Activity,حركة بطاقات الهدايا
+Cards Sold,بطاقات مُباعة
+Topped Up,الشحن
+Spent,المستخدَم
+Refunded to Cards,المُعاد للبطاقات
+Voided,الملغى
+Change in Owed,التغيّر في المستحق
+Balance After,الرصيد بعدها
+Paid With,طريقة الدفع
+Total Discount,إجمالي الخصم
+Offer Discount,خصم العرض
+Manual Discount,خصم يدوي
+Points Spent,نقاط مصروفة
+Discounted bills only,الفواتير المخصومة فقط
+Approved By,اعتمده

@@ -1484,3 +1484,26 @@ def _customer(name: str, group: str) -> str:
 			ignore_permissions=True
 		)
 	return name
+
+
+class ABillAnOfferMadeFree(PromotionTestBase):
+	"""A free coffee and nothing else: a bill of zero, and it must still close."""
+
+	def test_it_closes_with_no_tender_as_a_zero_invoice(self):
+		self._promotion(title="RPOS test free", discount_value=100, priority=100)
+		order = self._bill()
+
+		payment_service.process_payment(order, payments=[])
+
+		order.reload()
+		self.assertEqual(order.status, "closed")
+		invoice = frappe.get_doc("Sales Invoice", order.sales_invoice)
+		self.assertEqual(invoice.docstatus, 1)
+		self.assertAlmostEqual(flt(invoice.grand_total), 0, places=2)
+		self.assertTrue(invoice.items, "the free item is on the invoice")
+
+	def test_a_bill_that_costs_something_still_needs_a_tender(self):
+		order = self._bill()
+
+		with self.assertRaises(frappe.ValidationError):
+			payment_service.process_payment(order, payments=[])

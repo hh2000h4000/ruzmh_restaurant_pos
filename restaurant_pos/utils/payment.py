@@ -77,6 +77,7 @@ def process_payment(
 
 	totals.calculate(order)
 	loyalty.assert_redeemable(order)
+	_assert_tendered(order, payments)
 	order.save(ignore_permissions=True)
 
 	_validate_methods(order, payments)
@@ -278,9 +279,8 @@ def _normalise(payments) -> list[dict]:
 	if isinstance(payments, str):
 		payments = frappe.parse_json(payments)
 
-	if not payments:
-		frappe.throw(_("Select at least one payment method."))
-
+	# Nothing tendered is not refused here: whether a bill needs a tender is
+	# only known once its offers and discounts are applied (`_assert_tendered`).
 	rows = []
 	for row in payments:
 		amount = flt(row.get("amount"))
@@ -447,6 +447,21 @@ def is_cash(method: str) -> bool:
 	return frappe.db.get_value("Mode of Payment", method, "type") == "Cash"
 
 
+def _assert_tendered(order, payments: list[dict]) -> None:
+	"""A bill that costs something needs a tender; one that costs nothing does not.
+
+	A coupon for a free coffee, with nothing else bought, leaves a bill of zero —
+	and the screen could not close it: there was nothing to pay and it insisted
+	on a payment. Toast closes a fully comped check at zero, and ERPNext's own
+	`validate_pos_paid_amount` refuses a POS invoice without payments **only
+	when its total is above zero**. So the sale still posts, as a zero invoice
+	that carries the item and the discount that took it to nothing — which is
+	what an auditor and the promotion report both need to see.
+	"""
+	if not payments and flt(order.total_amount) > TOLERANCE:
+		frappe.throw(_("Select at least one payment method."))
+
+
 def _settlement_of(payments) -> str:
 	"""``"credit"`` or ``"till"`` — an order is one or the other, never both.
 
@@ -460,7 +475,8 @@ def _settlement_of(payments) -> str:
 	if len(kinds) > 1:
 		frappe.throw(_("An order is either settled at the till or billed to an account, not both."))
 
-	return kinds.pop()
+	# A bill of zero took nothing, so it settles itself at the till.
+	return kinds.pop() if kinds else "till"
 
 
 def terminal_methods(pos_profile: str) -> list[str]:

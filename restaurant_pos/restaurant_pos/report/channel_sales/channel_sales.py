@@ -100,7 +100,7 @@ def _total(rows: list[dict]) -> dict:
 
 def _columns() -> list[dict]:
 	return [
-		{"fieldname": "channel", "label": _("Channel"), "fieldtype": "Data", "width": 170},
+		{"fieldname": "channel", "label": _("Order Type"), "fieldtype": "Data", "width": 170},
 		{"fieldname": "bills", "label": _("Bills"), "fieldtype": "Int", "width": 80},
 		{"fieldname": "sales", "label": _("Sales before VAT"), "fieldtype": "Currency", "width": 130},
 		{"fieldname": "tax", "label": _("VAT"), "fieldtype": "Currency", "width": 100},
@@ -110,7 +110,7 @@ def _columns() -> list[dict]:
 			"fieldtype": "Currency",
 			"width": 120,
 		},
-		{"fieldname": "returns", "label": _("Returns"), "fieldtype": "Currency", "width": 110},
+		{"fieldname": "returns", "label": _("Refunded"), "fieldtype": "Currency", "width": 110},
 		{"fieldname": "net", "label": _("Net"), "fieldtype": "Currency", "width": 120},
 		{"fieldname": "share", "label": _("Share %"), "fieldtype": "Percent", "width": 90},
 		{"fieldname": "average", "label": _("Average Bill"), "fieldtype": "Currency", "width": 110},

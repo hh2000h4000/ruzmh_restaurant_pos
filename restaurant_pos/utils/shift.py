@@ -689,6 +689,13 @@ def _report(
 		"discounts": money(discounts),
 		# D-029 — what the drawer should hold, credit deliberately absent.
 		"till_expected": money(sum(row["expected"] for row in methods if row["kind"] == "till")),
+		# **And how it got there**, so the screen can say it. «Expected 499» under
+		# «takings 399» read as a wrong figure to the user: the float and the cash
+		# taken out were on the printed report and nowhere on the screen.
+		"drawer": {
+			figure: money(sum(row[figure] for row in methods if row["kind"] == "till"))
+			for figure in ("opening", "taken", "refunded", "moved_in", "moved_out", "cards_sold")
+		},
 		"credit_total": money(sum(row["sales"] for row in methods if row["kind"] == "credit")),
 	}
 

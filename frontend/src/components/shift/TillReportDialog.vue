@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { ref, watch } from "vue";
+import { computed, ref, watch } from "vue";
 
 import type { ShiftReport } from "@/api/shift";
 import AppIcon from "@/components/AppIcon.vue";
 import BaseDialog from "@/components/BaseDialog.vue";
 import CashierTakings from "@/components/shift/CashierTakings.vue";
-import { formatNumber, pick, t } from "@/i18n";
+import { formatNumber, type MessageKey, pick, t } from "@/i18n";
 import { useNoticeStore } from "@/stores/notice";
 import { useShiftStore } from "@/stores/shift";
 
@@ -55,6 +55,21 @@ async function print(): Promise<void> {
     printing.value = false;
   }
 }
+
+const drawerLines = computed(() => {
+  const drawer = report.value?.drawer;
+  if (!drawer) return [];
+
+  const lines: { key: MessageKey; amount: number; sign: string }[] = [
+    { key: "shift.drawerOpening", amount: drawer.opening, sign: "" },
+    { key: "shift.drawerTaken", amount: drawer.taken, sign: "+" },
+    { key: "shift.drawerRefunded", amount: drawer.refunded, sign: "−" },
+    { key: "shift.drawerIn", amount: drawer.moved_in, sign: "+" },
+    { key: "shift.drawerOut", amount: drawer.moved_out, sign: "−" },
+    { key: "shift.drawerCards", amount: drawer.cards_sold, sign: "+" },
+  ];
+  return lines.filter((line) => line.amount);
+});
 
 function money(value: number): string {
   return formatNumber(value, 2);
@@ -118,6 +133,29 @@ function money(value: number): string {
           {{ money(report.till_expected) }}
         </dd>
       </dl>
+
+      <!-- How the expected figure was reached. Only the lines that moved: a
+           float of zero on a drawer that keeps none is noise. -->
+      <div
+        v-if="drawerLines.length"
+        class="mb-4 rounded-rpos bg-background p-3"
+      >
+        <p class="mb-2 text-xs font-semibold text-muted">
+          {{ t("shift.drawerTitle") }}
+        </p>
+        <div
+          v-for="line in drawerLines"
+          :key="line.key"
+          class="flex items-center justify-between gap-3 text-sm"
+        >
+          <span class="min-w-0 truncate">{{ t(line.key) }}</span>
+          <span class="rpos-numeric shrink-0">{{ line.sign }}{{ money(line.amount) }}</span>
+        </div>
+        <div class="mt-1 flex items-center justify-between gap-3 border-t border-line pt-1 text-sm font-semibold">
+          <span>{{ t("shift.tillExpected") }}</span>
+          <span class="rpos-numeric">{{ money(report.till_expected) }}</span>
+        </div>
+      </div>
 
       <!-- Every method, and what each took — the line a manager compares the
            card terminal's own total against. -->

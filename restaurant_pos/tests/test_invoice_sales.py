@@ -59,3 +59,21 @@ class TestTheBills(PaymentTestBase):
 		row = next(row for row in self._rows("invoice") if row.get("invoice") == refund["credit_note"])
 		self.assertEqual(row["against"], order.sales_invoice)
 		self.assertLess(row["total"], 0)
+
+	def test_a_bill_says_what_came_off_it_and_why(self):
+		"""The bill's one discount figure, taken apart into the offer and the cashier's own."""
+		discounted = self._sold()
+		plain = self._sold()
+		frappe.db.set_value(
+			"Restaurant Order",
+			discounted.name,
+			{"discount_amount": 10, "promotion": "RPOS report offer", "promotion_amount": 6},
+		)
+
+		_columns, rows = report.execute(
+			{"from_date": today(), "to_date": today(), "view": "invoice", "discounted_only": 1}
+		)
+		row = next(row for row in rows if row.get("invoice") == discounted.sales_invoice)
+		self.assertAlmostEqual(row["offer_amount"], 6, places=2)
+		self.assertAlmostEqual(row["manual_discount"], 4, places=2)
+		self.assertNotIn(plain.sales_invoice, [row.get("invoice") for row in rows])

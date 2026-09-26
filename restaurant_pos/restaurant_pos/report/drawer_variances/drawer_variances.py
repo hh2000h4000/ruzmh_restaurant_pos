@@ -133,7 +133,7 @@ def _columns() -> list[dict]:
 		{"fieldname": "closed_at", "label": _("Closed At"), "fieldtype": "Datetime", "width": 150},
 		{
 			"fieldname": "closing",
-			"label": _("Closing"),
+			"label": _("Closing", context="RPOS report"),
 			"fieldtype": "Link",
 			"options": "POS Closing Entry",
 			"width": 150,
@@ -141,7 +141,7 @@ def _columns() -> list[dict]:
 		{"fieldname": "branch", "label": _("Branch"), "fieldtype": "Link", "options": "Branch", "width": 130},
 		{
 			"fieldname": "pos_profile",
-			"label": _("Terminal"),
+			"label": _("Terminal", context="RPOS report"),
 			"fieldtype": "Link",
 			"options": "POS Profile",
 			"width": 120,

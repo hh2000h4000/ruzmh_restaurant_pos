@@ -84,6 +84,19 @@ export interface ShiftReport {
   sales: number;
   discounts: number;
   till_expected: number;
+  /**
+   * How `till_expected` was reached, summed over the till methods — the float,
+   * what came in and went out. Without it «expected 499» under «takings 399»
+   * reads as a wrong figure. Absent on a payload older than the field.
+   */
+  drawer?: {
+    opening: number;
+    taken: number;
+    refunded: number;
+    moved_in: number;
+    moved_out: number;
+    cards_sold: number;
+  };
   credit_total: number;
 }
 

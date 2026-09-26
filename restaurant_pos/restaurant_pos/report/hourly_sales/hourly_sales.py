@@ -16,16 +16,18 @@ and quarter hours are offered rather than argued about.
 "when is nobody here"; a report that draws only the busy rows makes the empty
 afternoon invisible, which is the thing the rota needs to see (`D-074`).
 
-**Refunds are not here.** A refund happens when the customer comes back, not
-when the trade did, so putting it in an hour would say the wrong thing about
-that hour. The day's report is where the money nets off.
+**A refund sits in the hour it was paid out** (`D-217`), as the day's report
+puts it on its day, and nets off there. The first version left refunds out and
+said the day's report was the place for them — so the user read 502 here and
+481 on every other report of the same evening, and could not tell which was
+wrong. Neither was; the two just did not say the same thing, which is the fault.
 
 Refs: FR-11.2, D-217, D-244
 """
 
 import frappe
 from frappe import _
-from frappe.utils import flt, get_datetime
+from frappe.utils import flt, get_datetime, get_time
 
 from restaurant_pos.restaurant_pos.report.daily_sales.daily_sales import money_of
 from restaurant_pos.utils import reporting
@@ -55,25 +57,45 @@ def execute(filters=None):
 		row["bills"] += 1
 		row["total"] += flt(taken.grand_total)
 
+	for refund in _refunds(filters, from_date, to_date):
+		paid_out = get_time(refund.posting_time)
+		rows[(paid_out.hour * 60 + paid_out.minute) // slot * slot]["returns"] += abs(flt(refund.grand_total))
+
 	listed = list(rows.values())
-	takings = sum(row["total"] for row in listed)
 	for row in listed:
 		row["total"] = flt(row["total"], 2)
+		row["returns"] = flt(row["returns"], 2)
+		row["net"] = flt(row["total"] - row["returns"], 2)
 		row["average"] = flt(row["total"] / row["bills"], 2) if row["bills"] else 0.0
-		row["share"] = flt(row["total"] / takings * 100, 2) if takings else 0.0
+	takings = sum(row["net"] for row in listed)
+	for row in listed:
+		row["share"] = flt(row["net"] / takings * 100, 2) if takings else 0.0
 
-	return _columns(), ([*listed, _total(listed)] if takings else listed)
+	busy = any(row["bills"] or row["returns"] for row in listed)
+	return _columns(), ([*listed, _total(listed)] if busy else listed)
+
+
+def _refunds(filters, from_date: str, to_date: str) -> list:
+	credits = reporting.credit_notes(filters, from_date, to_date)
+	if not credits:
+		return []
+	return frappe.get_all(
+		"Sales Invoice", filters={"name": ("in", credits)}, fields=["posting_time", "grand_total"]
+	)
 
 
 def _total(rows: list[dict]) -> dict:
 	"""Its own, because Frappe's total row would add up the averages (`D-244`)."""
 	bills = sum(row["bills"] for row in rows)
 	total = flt(sum(row["total"] for row in rows), 2)
+	returns = flt(sum(row["returns"] for row in rows), 2)
 
 	return {
 		"slot": _("Period Total"),
 		"bills": bills,
 		"total": total,
+		"returns": returns,
+		"net": flt(total - returns, 2),
 		"average": flt(total / bills, 2) if bills else 0.0,
 		"share": flt(sum(row["share"] for row in rows), 2),
 	}
@@ -92,6 +114,7 @@ def _slot_row(start: int, slot: int) -> dict:
 		"slot": f"{start // 60:02d}:{start % 60:02d} - {end // 60 % 24:02d}:{end % 60:02d}",
 		"bills": 0,
 		"total": 0.0,
+		"returns": 0.0,
 	}
 
 
@@ -99,7 +122,9 @@ def _columns() -> list[dict]:
 	return [
 		{"fieldname": "slot", "label": _("Time Slot"), "fieldtype": "Data", "width": 140},
 		{"fieldname": "bills", "label": _("Bills"), "fieldtype": "Int", "width": 100},
-		{"fieldname": "total", "label": _("Total Taken"), "fieldtype": "Currency", "width": 160},
+		{"fieldname": "total", "label": _("Total Taken"), "fieldtype": "Currency", "width": 140},
+		{"fieldname": "returns", "label": _("Refunded"), "fieldtype": "Currency", "width": 120},
+		{"fieldname": "net", "label": _("Net"), "fieldtype": "Currency", "width": 120},
 		{"fieldname": "average", "label": _("Average Bill"), "fieldtype": "Currency", "width": 140},
 		{"fieldname": "share", "label": _("Share of Sales %"), "fieldtype": "Float", "width": 140},
 	]

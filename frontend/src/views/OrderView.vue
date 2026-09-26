@@ -563,15 +563,27 @@ async function onCustomerCleared(): Promise<void> {
 const countingType = ref<OrderType | null>(null);
 const covers = ref(2);
 
+/**
+ * The table the counted party is about to sit at, when there is one.
+ *
+ * Picking a table used to fill the count in with the table's chairs and never
+ * ask — so a couple at a table for six was six guests in every report that
+ * divides by them. Now the party is counted, from the same guess of two.
+ */
+const countingTable = ref<FloorTable | null>(null);
+
 async function confirmCovers(): Promise<void> {
   const orderType = countingType.value;
   if (!orderType || covers.value < 1) return;
 
+  const table = countingTable.value;
   countingType.value = null;
+  countingTable.value = null;
   await openBill({
     order_type: orderType.name,
     pos_profile: session.profile!.name,
     cover_count: covers.value,
+    ...(table ? { table: table.name } : {}),
   });
 }
 
@@ -698,17 +710,20 @@ async function seatWith(name: string, type: OrderType): Promise<void> {
 
 /** Open an order of this type, seated at this table. */
 async function openAt(table: FloorTable, type: OrderType): Promise<void> {
-  await openBill({
-    order_type: type.name,
-    pos_profile: session.profile!.name,
-    table: table.name,
-    cover_count: type.requires_cover_count ? table.capacity || 2 : null,
-  });
-
-  // Cleared whether the bill opened or not: the question has been answered
+  // Cleared whether the bill opens or not: the question has been answered
   // either way, and a table left "waiting" would seat the next type tapped.
   seatingType.value = null;
   pendingTable.value = null;
+
+  // BR-064 — asked, never assumed from the chairs.
+  if (type.requires_cover_count) {
+    countingTable.value = table;
+    countingType.value = type;
+    covers.value = 2;
+    return;
+  }
+
+  await openBill({ order_type: type.name, pos_profile: session.profile!.name, table: table.name });
 }
 
 /**
@@ -1771,7 +1786,10 @@ async function send(): Promise<void> {
     <BaseDialog
       :open="Boolean(countingType)"
       :title="t('covers.title')"
-      @close="countingType = null"
+      @close="
+        countingType = null;
+        countingTable = null;
+      "
     >
       <p class="mb-4 text-sm text-muted">
         {{ t("covers.body") }}
@@ -1812,7 +1830,10 @@ async function send(): Promise<void> {
         <button
           type="button"
           class="min-h-tap flex-1 rounded-rpos border border-line"
-          @click="countingType = null"
+          @click="
+            countingType = null;
+            countingTable = null;
+          "
         >
           {{ t("action.undo") }}
         </button>

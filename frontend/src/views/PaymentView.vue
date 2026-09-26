@@ -211,11 +211,20 @@ const blocker = computed(() => summary.value?.blocker ?? null);
  */
 const blocked = computed(() => Boolean(blocker.value) || Boolean(summary.value?.already_paid));
 
+/**
+ * A bill an offer took to zero — a free coffee and nothing else — closes with no
+ * tender at all. It used to need a payment row, and none could be added to a
+ * bill with nothing left on it, so the cashier was stuck. The server posts it
+ * as a zero invoice (`_assert_tendered`). Read only once the bill has loaded:
+ * a zero `due` before then is "not known yet", not "free".
+ */
+const nothingToPay = computed(() => Boolean(summary.value) && due.value <= 0.005);
+
 const canConfirm = computed(
   () =>
     !busy.value &&
     !blocked.value &&
-    payable.value.length > 0 &&
+    (payable.value.length > 0 || nothingToPay.value) &&
     remaining.value <= 0.005 &&
     !done.value,
 );

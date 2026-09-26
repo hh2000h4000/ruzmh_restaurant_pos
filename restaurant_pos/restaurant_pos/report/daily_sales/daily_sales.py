@@ -41,14 +41,14 @@ def execute(filters=None):
 	from_date, to_date = reporting.window(filters)
 
 	orders = reporting.settled_orders(filters, from_date, to_date, ["sales_invoice", "closed_at"])
-	invoices = _money_of([row.sales_invoice for row in orders])
-	refunds = _money_of(reporting.credit_notes(filters, from_date, to_date))
+	invoices = money_of([row.sales_invoice for row in orders])
+	refunds = money_of(reporting.credit_notes(filters, from_date, to_date))
 
 	days: dict[str, dict] = {}
 	for order in orders:
 		money = invoices.get(order.sales_invoice)
 		if money:
-			_add_sale(days.setdefault(str(getdate(order.closed_at)), _day(order.closed_at)), money)
+			add_sale(days.setdefault(str(getdate(order.closed_at)), _day(order.closed_at)), money)
 
 	for credit in refunds.values():
 		day = days.setdefault(str(getdate(credit.posting_date)), _day(credit.posting_date))
@@ -56,7 +56,7 @@ def execute(filters=None):
 
 	rows = sorted(days.values(), key=lambda row: row["day"])
 	for row in rows:
-		_finish(row)
+		finish(row)
 
 	return _columns(), ([*rows, _total(rows)] if rows else rows)
 
@@ -74,14 +74,14 @@ def _day(on) -> dict:
 	}
 
 
-def _add_sale(day: dict, money) -> None:
+def add_sale(day: dict, money) -> None:
 	day["bills"] += 1
 	day["sales"] += flt(money.net_total)
 	day["tax"] += flt(money.total_taxes_and_charges)
 	day["total"] += flt(money.grand_total)
 
 
-def _money_of(invoices: list[str]) -> dict[str, frappe._dict]:
+def money_of(invoices: list[str]) -> dict[str, frappe._dict]:
 	if not invoices:
 		return {}
 
@@ -93,7 +93,7 @@ def _money_of(invoices: list[str]) -> dict[str, frappe._dict]:
 	return {row.name: row for row in rows}
 
 
-def _finish(row: dict) -> None:
+def finish(row: dict) -> None:
 	row["net"] = flt(row["total"] - row["returns"], 2)
 	row["average"] = flt(row["total"] / row["bills"], 2) if row["bills"] else 0.0
 	for field in ("sales", "tax", "total", "returns"):
@@ -111,7 +111,7 @@ def _total(rows: list[dict]) -> dict:
 	for field in ("bills", "sales", "tax", "total", "returns"):
 		total[field] = flt(sum(row[field] for row in rows), 2)
 
-	_finish(total)
+	finish(total)
 	return total
 
 

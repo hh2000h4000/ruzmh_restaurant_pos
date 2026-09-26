@@ -39,6 +39,7 @@ from frappe.utils import flt, getdate, now_datetime, nowdate
 
 from restaurant_pos.utils import codes
 from restaurant_pos.utils.audit import log_audit
+from restaurant_pos.utils.company import site_company
 from restaurant_pos.utils.order import table_section_branch
 from restaurant_pos.utils.permissions import assert_permission, validate_branch_access
 from restaurant_pos.utils.totals import money
@@ -469,7 +470,7 @@ def _office_accounts(customer: str | None, account: str | None, company: str | N
 	transfer is matched against it later like any other receivable. Naming an
 	account instead is the simple case: the money is already in the bank.
 	"""
-	company = company or frappe.defaults.get_global_default("company") or _the_only_company()
+	company = site_company(company)
 	if not company:
 		frappe.throw(_("Which company? This site has more than one and none is the default."))
 
@@ -675,12 +676,6 @@ def _refuse_without_liability(company: str) -> None:
 
 def _refuse_unposted() -> None:
 	frappe.throw(_("The card was not issued: its journal entry could not be posted. The Error Log says why."))
-
-
-def _the_only_company() -> str | None:
-	"""The company when a site has exactly one — the same rule the accounts use."""
-	companies = frappe.get_all("Company", pluck="name", limit=2)
-	return companies[0] if len(companies) == 1 else None
 
 
 def takings_of(opening_entry: str) -> dict[str, float]:

@@ -1164,3 +1164,53 @@ PIN Lookup,بحث الرقم السري
 RPOS Daily Number,رقم اليوم
 "The short number the till shows for this document, in the branch's daily sequence.",الرقم القصير اللي يعرضه الكاشير لهذا المستند، في تسلسل الفرع اليومي.
 Identity,البيانات,POS Gift Card
+Not held in this system — enter it yourself if it applies.,ما يحفظه هذا النظام — اكتبه بنفسك إذا ينطبق عليك.
+Sales with no VAT: zero-rated or exempt — the books cannot tell which. Check them and move any exempt amount to box 5.,مبيعات بدون ضريبة: صفرية أو معفاة — الدفاتر ما تفرّق بينهم. راجعها وانقل أي مبلغ معفى للخانة ٥.
+Purchases with no VAT: zero-rated or exempt — check them and move any exempt amount to box 11.,مشتريات بدون ضريبة: صفرية أو معفاة — راجعها وانقل أي مبلغ معفى للخانة ١١.
+VAT accounts in the books for this period,حسابات الضريبة في الدفاتر لهذي الفترة
+Choose the company.,اختر الشركة.
+Standard rated sales,المبيعات الخاضعة للنسبة الأساسية
+"Private healthcare, private education and first home sales to citizens",الرعاية الصحية والتعليم الخاص والمسكن الأول للمواطنين
+Zero rated domestic sales,المبيعات المحلية الخاضعة للنسبة الصفرية
+Exports,الصادرات
+Exempt sales,المبيعات المعفاة
+Total sales,إجمالي المبيعات
+Standard rated domestic purchases,المشتريات المحلية الخاضعة للنسبة الأساسية
+Imports subject to VAT paid at customs,الاستيرادات الخاضعة للضريبة المدفوعة في الجمارك
+Imports subject to VAT accounted for through the reverse charge mechanism,الاستيرادات الخاضعة للضريبة بآلية الاحتساب العكسي
+Zero rated purchases,المشتريات الخاضعة للنسبة الصفرية
+Exempt purchases,المشتريات المعفاة
+Total purchases,إجمالي المشتريات
+"Corrections from previous period (between SAR ±5,000)",تصحيحات الفترة السابقة (بين ±٥٬٠٠٠ ريال)
+VAT credit carried forward from previous period(s),رصيد الضريبة المرحّل من فترات سابقة
+Agrees with box 13.,يطابق الخانة ١٣.
+"Differs from box 13 — look for a journal entry on a VAT account, or a document outside these invoices.",يختلف عن الخانة ١٣ — دوّر على قيد يومية على حساب ضريبة، أو مستند خارج هذي الفواتير.
+Box,الخانة
+Amount (SAR),المبلغ (ريال)
+Adjustment (SAR),التعديلات (ريال)
+VAT Amount (SAR),مبلغ الضريبة (ريال)
+See box 3.,شوف الخانة ٣.
+See box 10.,شوف الخانة ١٠.
+Total VAT due for the current period,إجمالي الضريبة المستحقة للفترة الحالية
+VAT Return,إقرار ضريبة القيمة المضافة
+Closed At,وقت الإقفال
+Counted,المعدود
+Expected,المتوقَّع
+Drawers,الأدراج
+Drawers Short,أدراج فيها نقص
+Shortages,النقص
+Overages,الزيادة
+Differences only,الفروقات فقط
+By cashier,حسب الكاشير
+Channel,القناة
+Sales before VAT,المبيعات قبل الضريبة
+Share %,النسبة %
+No.,الرقم
+Paid By,طريقة الدفع
+{0} bills,{0} فاتورة
+Show,العرض
+One line per invoice,سطر لكل فاتورة
+One line per item,سطر لكل صنف
+Drawer Variances,فروقات الأدراج
+Channel Sales,المبيعات حسب القناة
+Invoice Sales,مبيعات الفواتير

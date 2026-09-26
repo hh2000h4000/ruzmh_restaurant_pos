@@ -21,6 +21,8 @@ Refs: D-245, D-246
 
 import frappe
 
+from restaurant_pos.utils.company import site_company
+
 #: What each account is for, and where ERPNext's standard chart puts that kind.
 #:
 #: The safe is cash, not an expense: change fetched from it and takings carried
@@ -62,7 +64,7 @@ REASON_ACCOUNTS = {
 
 def setup(company: str | None = None) -> dict[str, str]:
 	"""Create the accounts if they are missing and point the reasons at them."""
-	company = company or frappe.defaults.get_global_default("company")
+	company = site_company(company)
 	if not company:
 		return {}
 

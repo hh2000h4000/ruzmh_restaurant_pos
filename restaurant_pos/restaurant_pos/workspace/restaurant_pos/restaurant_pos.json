@@ -161,9 +161,19 @@
    "hidden": 0,
    "is_query_report": 0,
    "label": "Reports",
-   "link_count": 8,
+   "link_count": 12,
    "onboard": 0,
    "type": "Card Break"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 1,
+   "label": "Invoice Sales",
+   "link_count": 0,
+   "link_to": "Invoice Sales",
+   "link_type": "Report",
+   "onboard": 0,
+   "type": "Link"
   },
   {
    "dependencies": "",
@@ -188,6 +198,16 @@
    "type": "Link"
   },
   {
+   "hidden": 0,
+   "is_query_report": 1,
+   "label": "Channel Sales",
+   "link_count": 0,
+   "link_to": "Channel Sales",
+   "link_type": "Report",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
    "dependencies": "",
    "hidden": 0,
    "is_query_report": 1,
@@ -205,6 +225,16 @@
    "label": "Payment Types",
    "link_count": 0,
    "link_to": "Payment Types",
+   "link_type": "Report",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 1,
+   "label": "Drawer Variances",
+   "link_count": 0,
+   "link_to": "Drawer Variances",
    "link_type": "Report",
    "onboard": 0,
    "type": "Link"
@@ -249,6 +279,16 @@
    "label": "Gift Card Balances",
    "link_count": 0,
    "link_to": "Gift Card Balances",
+   "link_type": "Report",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 1,
+   "label": "VAT Return",
+   "link_count": 0,
+   "link_to": "VAT Return",
    "link_type": "Report",
    "onboard": 0,
    "type": "Link"
@@ -524,7 +564,7 @@
    "type": "Link"
   }
  ],
- "modified": "2026-09-26 16:00:00.000000",
+ "modified": "2026-09-26 23:45:00.000000",
  "modified_by": "Administrator",
  "module": "Restaurant POS",
  "name": "Restaurant POS",

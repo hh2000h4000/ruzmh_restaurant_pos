@@ -27,6 +27,7 @@ import frappe
 from frappe import _
 from frappe.utils import flt, get_datetime
 
+from restaurant_pos.restaurant_pos.report.daily_sales.daily_sales import money_of
 from restaurant_pos.utils import reporting
 
 #: Minutes per row. An hour by default; the shorter ones are for one-rush shops.
@@ -41,7 +42,7 @@ def execute(filters=None):
 	slot = _slot(filters)
 
 	orders = reporting.settled_orders(filters, from_date, to_date, ["sales_invoice", "closed_at"])
-	money = _money_of([row.sales_invoice for row in orders])
+	money = money_of([row.sales_invoice for row in orders])
 
 	rows = {start: _slot_row(start, slot) for start in range(0, MINUTES_IN_DAY, slot)}
 	for order in orders:
@@ -92,18 +93,6 @@ def _slot_row(start: int, slot: int) -> dict:
 		"bills": 0,
 		"total": 0.0,
 	}
-
-
-def _money_of(invoices: list[str]) -> dict[str, frappe._dict]:
-	if not invoices:
-		return {}
-
-	rows = frappe.get_all(
-		"Sales Invoice",
-		filters={"name": ("in", invoices), "docstatus": 1},
-		fields=["name", "grand_total"],
-	)
-	return {row.name: row for row in rows}
 
 
 def _columns() -> list[dict]:

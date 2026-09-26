@@ -51,6 +51,7 @@
 - [ترتيب شاشة الكاشير](screen-layout.md)
 - [الصلاحيات: مين يقدر يسوي وش](permissions.md)
 - [سجل العمليات: كل إجراء حساس مكتوب](audit-log.md)
+- [التقارير: وش يقول لك كل واحد](reports.md)
 - [حجز طاولة](reservations.md)
 - [تغيير ألوان شاشة الكاشير](theme.md)
 - [تشغيل شاشة العميل](customer-display.md)

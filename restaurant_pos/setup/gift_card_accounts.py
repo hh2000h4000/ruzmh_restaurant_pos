@@ -29,6 +29,8 @@ Refs: FR-11.5, D-246, D-256
 
 import frappe
 
+from restaurant_pos.utils.company import site_company
+
 #: The liability. Under Current Liabilities, where ERPNext's standard chart puts
 #: money owed within the year — which is what an unspent card is.
 ACCOUNT = {
@@ -46,7 +48,7 @@ MODE_OF_PAYMENT = "بطاقة هدايا"
 
 def setup(company: str | None = None) -> dict[str, str | None]:
 	"""Create the account and the payment mode if they are missing."""
-	company = company or frappe.defaults.get_global_default("company") or _the_only_company()
+	company = site_company(company)
 	if not company:
 		return {}
 
@@ -72,18 +74,6 @@ def setup(company: str | None = None) -> dict[str, str | None]:
 		)
 		mode = None
 	return {"account": account, "mode_of_payment": mode}
-
-
-def _the_only_company() -> str | None:
-	"""The company, when a site has exactly one.
-
-	**A global default is not always set** — the test site has none, and neither
-	does a site somebody set up without touching Global Defaults. One company is
-	not a guess; two would be, and then this returns nothing rather than picking
-	the wrong ledger to owe money in.
-	"""
-	companies = frappe.get_all("Company", pluck="name", limit=2)
-	return companies[0] if len(companies) == 1 else None
 
 
 def _ensure_account(company: str) -> str | None:

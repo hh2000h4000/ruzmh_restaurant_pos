@@ -177,18 +177,32 @@ def _tried(what: str, work):
 	try:
 		return work()
 	except Exception:
-		frappe.log_error(f"ZATCA integration failed at {what}", "RPOS zatca")
+		# **Title only, so the traceback is the message** (`D-271`). The second
+		# argument used to be «RPOS zatca», which Frappe takes as the message in
+		# place of the traceback: 55 entries on the user's site said a ZATCA
+		# failure and not one said which — it was our own query, below.
+		frappe.log_error(title=f"ZATCA integration failed at {what}")
 		return None
 
 
 def _stamped_qr(invoice) -> str | None:
-	"""The cleared invoice's own QR, stamped by ZATCA (phase two)."""
-	return frappe.db.get_value(
+	"""The cleared invoice's own QR, stamped by ZATCA (phase two).
+
+	**Read off the document, not the table** (`D-271`). `qr_image_src` is a
+	Python property that draws `qr_code` as a PNG when asked; it has no column,
+	and selecting it failed on every print of every invoice on a site with the
+	app installed. An invoice the app has not processed has no record at all,
+	and that is simply no stamped QR — not a failure.
+	"""
+	name = frappe.db.get_value(
 		"Sales Invoice Additional Fields",
 		{"sales_invoice": invoice.name},
-		"qr_image_src",
+		"name",
 		order_by="creation desc",
 	)
+	if not name:
+		return None
+	return frappe.get_doc("Sales Invoice Additional Fields", name).qr_image_src
 
 
 def _phase_one_qr(invoice) -> str | None:

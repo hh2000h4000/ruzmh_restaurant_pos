@@ -169,3 +169,39 @@ class TestTheIntegrationOwnsTheQr(FrappeTestCase):
 		"""And it never raises — a print must not fail over an integration."""
 		self.assertNotIn(zatca.INTEGRATION, frappe.get_installed_apps())
 		self.assertIsNone(zatca.integration_qr(self._invoice()))
+
+
+class TestTheStampedQrIsReadOffTheDocument(FrappeTestCase):
+	"""`D-271` — the phase-two lookup failed on every print, logged without why.
+
+	`qr_image_src` is a property of the app's document, not a column, and the
+	log carried «RPOS zatca» where the traceback belonged. The app is not
+	installed on the suite's site, so its record is stood in for.
+	"""
+
+	invoice = frappe._dict(name="ACC-SINV-TEST-0002")
+
+	def test_an_invoice_the_app_never_processed_has_no_stamped_qr(self):
+		with (
+			patch.object(frappe.db, "get_value", return_value=None),
+			patch.object(frappe, "get_doc") as get_doc,
+		):
+			self.assertIsNone(zatca._stamped_qr(self.invoice))
+		get_doc.assert_not_called()
+
+	def test_the_qr_comes_from_the_document_s_own_property(self):
+		record = frappe._dict(qr_image_src="data:image/png;base64,STAMPED")
+		with (
+			patch.object(frappe.db, "get_value", return_value="SIAF-0001"),
+			patch.object(frappe, "get_doc", return_value=record),
+		):
+			self.assertEqual(zatca._stamped_qr(self.invoice), "data:image/png;base64,STAMPED")
+
+	def test_a_failure_is_logged_with_its_traceback(self):
+		def broken():
+			raise ValueError("the reason")
+
+		with patch.object(frappe, "log_error") as logged:
+			self.assertIsNone(zatca._tried("phase two", broken))
+
+		logged.assert_called_once_with(title="ZATCA integration failed at phase two")

@@ -47,11 +47,35 @@ class POSGiftCard(Document):
 		self.balance = balance_of(self.card_number) if not self.is_new() else 0.0
 
 	def on_trash(self):
-		"""**A card is never deleted.** It is money the restaurant owes.
+		"""**A card the books know is never deleted.** It is money the restaurant owes.
 
 		Deleting one erases a liability from the books while the guest still
 		holds the plastic, and the entries that explain the balance would be
-		orphaned. A card taken out of use is switched off, which leaves the
-		balance and its history where an accountant can still find them.
+		orphaned. A card taken out of use is switched off, and one issued by
+		mistake is cancelled (`utils/gift_card.void`), which reverses its entry
+		and keeps its history where an accountant can still find it.
+
+		**A record the books never saw is only a record** (`D-267`): no journal
+		entry and no invoice on any of its rows — a card typed into the desk
+		before that was closed off, or one issued while the method had no
+		account. The user asked why those could not go; they can, with their rows.
 		"""
-		frappe.throw(_("A gift card cannot be deleted. Switch it off instead."))
+		posted = frappe.get_all(
+			"POS Gift Card Entry",
+			filters={"gift_card": self.name},
+			or_filters={"journal_entry": ("is", "set"), "sales_invoice": ("is", "set")},
+			limit=1,
+		)
+		if posted:
+			frappe.throw(
+				_("A gift card the books know cannot be deleted. Cancel its issue, or switch it off.")
+			)
+
+		frappe.flags.rpos_deleting_gift_card = self.name
+		try:
+			for entry in frappe.get_all(
+				"POS Gift Card Entry", filters={"gift_card": self.name}, pluck="name"
+			):
+				frappe.delete_doc("POS Gift Card Entry", entry, ignore_permissions=True)
+		finally:
+			frappe.flags.rpos_deleting_gift_card = None

@@ -49,7 +49,7 @@ MAX_LOAD = 10000.0
 
 #: What the entries do to a balance.
 ADDS = ("issue", "top_up", "refund")
-TAKES = ("redeem",)
+TAKES = ("redeem", "void")
 
 
 def is_gift_card_method(method: str | None) -> bool:
@@ -239,6 +239,7 @@ def issue(
 		frappe.throw(_("Gift card {0} exists already.").format(number))
 
 	till = selling_till(pos_profile)
+	accounts = _sale_accounts(pos_profile, mode_of_payment)
 
 	card = frappe.get_doc(
 		{
@@ -267,7 +268,7 @@ def issue(
 		pos_opening_entry=till.name,
 	)
 
-	voucher = _post_issue(card, amount, pos_profile, mode_of_payment)
+	voucher = _post_issue(card, amount, accounts)
 	entry.db_set("journal_entry", voucher, update_modified=False)
 
 	log_audit(
@@ -291,7 +292,7 @@ def issue(
 	}
 
 
-def _post_issue(card, amount: float, pos_profile: str, mode_of_payment: str) -> str:
+def _post_issue(card, amount: float, accounts: tuple) -> str:
 	"""Cash in, liability up — and **never a Sales Invoice** (Article 19).
 
 	**No entry, no card** (`D-266`). This used to return None and write «not
@@ -307,25 +308,7 @@ def _post_issue(card, amount: float, pos_profile: str, mode_of_payment: str) -> 
 		# under the wrong regime.
 		frappe.throw(_("Gift cards taxed at issue are not built yet."))
 
-	terminal = frappe.db.get_value("POS Profile", pos_profile, ["company", "cost_center"], as_dict=True)
-
-	liability = _liability(terminal.company)
-	cash_account = frappe.db.get_value(
-		"Mode of Payment Account",
-		{"parent": mode_of_payment, "company": terminal.company},
-		"default_account",
-	)
-
-	if not liability:
-		_refuse_without_liability(terminal.company)
-	if not cash_account:
-		frappe.throw(
-			_("{0} has no account on {1}, so the card's money has nowhere to go.").format(
-				mode_of_payment, terminal.company
-			)
-		)
-
-	cost_center = terminal.cost_center or frappe.db.get_value("Company", terminal.company, "cost_center")
+	terminal, liability, cash_account, cost_center = accounts
 
 	try:
 		entry = frappe.get_doc(
@@ -354,6 +337,33 @@ def _post_issue(card, amount: float, pos_profile: str, mode_of_payment: str) -> 
 	except Exception:
 		frappe.log_error(f"Gift card {card.name} did not post", "RPOS gift card")
 		_refuse_unposted()
+
+
+def _sale_accounts(pos_profile: str, mode_of_payment: str) -> tuple:
+	"""Where a card sold at this till posts — asked **before** the card exists.
+
+	So a refusal leaves nothing behind whether or not anything rolls it back.
+	"""
+	terminal = frappe.db.get_value("POS Profile", pos_profile, ["company", "cost_center"], as_dict=True)
+
+	liability = _liability(terminal.company)
+	if not liability:
+		_refuse_without_liability(terminal.company)
+
+	cash_account = frappe.db.get_value(
+		"Mode of Payment Account",
+		{"parent": mode_of_payment, "company": terminal.company},
+		"default_account",
+	)
+	if not cash_account:
+		frappe.throw(
+			_("{0} has no account on {1}, so the card's money has nowhere to go.").format(
+				mode_of_payment, terminal.company
+			)
+		)
+
+	cost_center = terminal.cost_center or frappe.db.get_value("Company", terminal.company, "cost_center")
+	return terminal, liability, cash_account, cost_center
 
 
 def issue_batch(
@@ -396,9 +406,10 @@ def issue_batch(
 	if not account and not customer:
 		frappe.throw(_("Say where the money came from: a customer's account, or an account."))
 
+	accounts = _office_accounts(customer, account, company)
 	numbers = codes.make("POS Gift Card", count=count, pattern=pattern, prefix=prefix, start=start)
 
-	made = []
+	made, entries = [], []
 	for number in numbers:
 		card = frappe.get_doc(
 			{
@@ -413,17 +424,23 @@ def issue_batch(
 			}
 		).insert(ignore_permissions=True)
 
-		_write_entry(
-			card,
-			entry_type="issue",
-			amount=amount,
-			branch=None,
-			pos_profile=None,
-			reason=_("Issued from the office"),
+		entries.append(
+			_write_entry(
+				card,
+				entry_type="issue",
+				amount=amount,
+				branch=None,
+				pos_profile=None,
+				reason=_("Issued from the office"),
+			)
 		)
 		made.append(card.name)
 
-	voucher = _post_office_issue(made, amount * len(made), customer, account, company)
+	voucher = _post_office_issue(made, amount * len(made), accounts)
+	# Each card's row names the batch's voucher, as a till sale's row names its
+	# own: it is how a row is known to have reached the books (`D-267`).
+	for entry in entries:
+		entry.db_set("journal_entry", voucher, update_modified=False)
 
 	log_audit(
 		"gift_card_issued",
@@ -444,10 +461,8 @@ def issue_batch(
 	return {"cards": made, "amount": amount, "journal_entry": voucher}
 
 
-def _post_office_issue(
-	cards: list[str], total: float, customer: str | None, account: str | None, company: str | None
-) -> str:
-	"""One voucher for the batch: what it came from, against the liability.
+def _office_accounts(customer: str | None, account: str | None, company: str | None) -> tuple:
+	"""What an office batch debits and credits — asked **before** any card exists.
 
 	**Against the customer's account when no account is named**, with the party on
 	the line — so a company that has not paid yet owes exactly this, and the
@@ -462,7 +477,8 @@ def _post_office_issue(
 	if not liability:
 		_refuse_without_liability(company)
 
-	debit = {"credit_in_account_currency": 0.0, "debit_in_account_currency": total}
+	cost_center = frappe.db.get_value("Company", company, "cost_center")
+	debit = {"credit_in_account_currency": 0.0, "cost_center": cost_center}
 	if account:
 		debit["account"] = account
 	else:
@@ -477,9 +493,13 @@ def _post_office_issue(
 			)
 		)
 
-	cost_center = frappe.db.get_value("Company", company, "cost_center")
-	for line in (debit,):
-		line["cost_center"] = cost_center
+	return company, liability, debit, cost_center
+
+
+def _post_office_issue(cards: list[str], total: float, accounts: tuple) -> str:
+	"""One voucher for the batch: what it came from, against the liability."""
+	company, liability, debit, cost_center = accounts
+	debit = {**debit, "debit_in_account_currency": total}
 
 	try:
 		entry = frappe.get_doc(
@@ -504,6 +524,144 @@ def _post_office_issue(
 	except Exception:
 		frappe.log_error(f"Office gift cards {cards[:3]} did not post", "RPOS gift card")
 		_refuse_unposted()
+
+
+# --------------------------------------------------------------------------- #
+# Cancelling one that was never spent
+# --------------------------------------------------------------------------- #
+
+
+def void(card_name: str, reason: str) -> dict:
+	"""Cancel a card nobody has spent from — the books put back as they were (`D-267`).
+
+	**What the professional systems do, and why this is not a delete.** Toast
+	voids an unused card, Square refunds its purchase, and neither lets a card
+	that ever reached the books disappear: the card stays, cancelled, with the
+	entry that cancelled it. The user asked for both a delete and a cancel; the
+	delete is kept for a record the books never saw (`POSGiftCard.on_trash`).
+
+	**Reversed against where it came from, per issue.** Each issue has a journal
+	entry; the reversal debits the liability and credits that entry's own source
+	line — the till's cash, the bank, or the company's account with its party —
+	for this card's amount. An office batch posts one entry for many cards, so
+	cancelling one card cannot simply cancel that entry.
+
+	**A card sold at the till goes back out of the drawer it came into**, so that
+	drawer must still be open: the guest is handed the money, and `takings_of`
+	takes the sale back out of what the count expects. Once the drawer has closed
+	its money was counted and handed over, and nothing here can reach it.
+	"""
+	frappe.has_permission("POS Gift Card", "write", throw=True)
+
+	reason = (reason or "").strip()
+	if not reason:
+		frappe.throw(_("Say why the card is being cancelled."))
+
+	card = frappe.get_doc("POS Gift Card", card_name)
+	entries = frappe.get_all(
+		"POS Gift Card Entry",
+		filters={"gift_card": card.name},
+		fields=[
+			"entry_type",
+			"amount",
+			"journal_entry",
+			"pos_opening_entry",
+			"mode_of_payment",
+			"branch",
+			"pos_profile",
+		],
+		order_by="creation asc",
+	)
+
+	if any(row.entry_type == "void" for row in entries):
+		frappe.throw(_("Gift card {0} is already cancelled.").format(card.card_number))
+	if any(row.entry_type != "issue" for row in entries):
+		frappe.throw(
+			_("Gift card {0} has been spent from, so it cannot be cancelled. Switch it off instead.").format(
+				card.card_number
+			)
+		)
+	if not entries or any(not row.journal_entry for row in entries):
+		frappe.throw(
+			_(
+				"Gift card {0} never reached the books, so there is nothing to reverse. Delete it instead."
+			).format(card.card_number)
+		)
+	for row in entries:
+		if (
+			row.pos_opening_entry
+			and frappe.db.get_value("POS Opening Entry", row.pos_opening_entry, "status") != "Open"
+		):
+			frappe.throw(
+				_(
+					"Gift card {0} was sold into a drawer that has closed, so its money cannot be "
+					"handed back from it. Switch it off instead."
+				).format(card.card_number)
+			)
+
+	reversals = []
+	for row in entries:
+		voucher = _reverse_issue(card, row, reason)
+		entry = _write_entry(
+			card,
+			entry_type="void",
+			amount=row.amount,
+			branch=row.branch,
+			pos_profile=row.pos_profile,
+			reason=reason,
+			mode_of_payment=row.mode_of_payment,
+			pos_opening_entry=row.pos_opening_entry,
+		)
+		entry.db_set("journal_entry", voucher, update_modified=False)
+		reversals.append(voucher)
+
+	frappe.db.set_value("POS Gift Card", card.name, "is_active", 0)
+
+	log_audit(
+		"gift_card_voided",
+		branch=entries[0].branch,
+		pos_profile=entries[0].pos_profile,
+		details={"gift_card": card.name, "reason": reason, "journal_entries": reversals},
+	)
+
+	return {"gift_card": card.name, "journal_entries": reversals}
+
+
+def _reverse_issue(card, row, reason: str) -> str:
+	"""The issue's own entry, backwards, for this card's amount."""
+	issued = frappe.get_doc("Journal Entry", row.journal_entry)
+	owed = next(line for line in issued.accounts if flt(line.credit_in_account_currency) > 0)
+	source = next(line for line in issued.accounts if flt(line.debit_in_account_currency) > 0)
+	amount = flt(row.amount)
+
+	back = {
+		"account": source.account,
+		"credit_in_account_currency": amount,
+		"cost_center": source.cost_center,
+	}
+	if source.party_type:
+		back["party_type"] = source.party_type
+		back["party"] = source.party
+
+	entry = frappe.get_doc(
+		{
+			"doctype": "Journal Entry",
+			"voucher_type": issued.voucher_type,
+			"company": issued.company,
+			"posting_date": getdate(now_datetime()),
+			"user_remark": _("Gift card {0} cancelled: {1}").format(card.card_number, reason),
+			"accounts": [
+				{
+					"account": owed.account,
+					"debit_in_account_currency": amount,
+					"cost_center": owed.cost_center,
+				},
+				back,
+			],
+		}
+	).insert(ignore_permissions=True)
+	entry.submit()
+	return entry.name
 
 
 def _refuse_without_liability(company: str) -> None:
@@ -540,12 +698,14 @@ def takings_of(opening_entry: str) -> dict[str, float]:
 	tally: dict[str, float] = {}
 	for row in frappe.get_all(
 		"POS Gift Card Entry",
-		filters={"pos_opening_entry": opening_entry, "entry_type": ("in", ("issue", "top_up"))},
-		fields=["mode_of_payment", "amount"],
+		filters={"pos_opening_entry": opening_entry, "entry_type": ("in", ("issue", "top_up", "void"))},
+		fields=["mode_of_payment", "amount", "entry_type"],
 	):
 		if not row.mode_of_payment:
 			continue
-		tally[row.mode_of_payment] = tally.get(row.mode_of_payment, 0.0) + flt(row.amount)
+		# `D-267` — a cancelled sale handed its money back out of this drawer.
+		sign = -1 if row.entry_type == "void" else 1
+		tally[row.mode_of_payment] = tally.get(row.mode_of_payment, 0.0) + sign * flt(row.amount)
 
 	return tally
 

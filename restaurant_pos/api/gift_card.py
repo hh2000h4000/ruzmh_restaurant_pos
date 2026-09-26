@@ -69,6 +69,16 @@ def issue_from_the_office(
 	)
 
 
+@frappe.whitelist(methods=["POST"])
+def void_card(card: str, reason: str) -> dict:
+	"""Cancel a card nobody spent from (`D-267`).
+
+	A desk action, so guarded like `issue_from_the_office` — by the card form's
+	own permission, inside `void`.
+	"""
+	return cards.void(card, reason)
+
+
 @frappe.whitelist(methods=["GET"])
 def lookup(card_number: str) -> dict:
 	"""What is on a card, for the screen that is about to spend it.

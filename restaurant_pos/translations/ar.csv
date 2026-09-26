@@ -1110,7 +1110,6 @@ Recorded At,وقت التسجيل,POS Gift Card Entry
 Queue Id,رقم الطابور,POS Gift Card Entry
 "The offline queue's id, so one replayed request cannot spend a card twice.",رقم طابور الأوفلاين، عشان الطلب اللي ينعاد ما يصرف البطاقة مرتين.
 A gift card cannot hold less than nothing.,رصيد البطاقة ما ينزل تحت الصفر.
-A gift card cannot be deleted. Switch it off instead.,البطاقة ما تنحذف. شِل علامة «مفعّل» بدالها.
 A gift card entry cannot be deleted.,حركة البطاقة ما تنحذف.
 Enter the gift card number.,اكتب رقم البطاقة.
 No gift card with that number.,ما فيه بطاقة بهذا الرقم.
@@ -1140,3 +1139,18 @@ Which company? This site has more than one and none is the default.,أي شرك�
 "{0} has no default receivable account, so the customer cannot owe for the cards.",{0} ما لها حساب مدينين افتراضي، فما يقدر العميل يتسجّل عليه مبلغ البطاقات.
 Gift cards cannot be issued yet: no payment method is marked «Gift Card» with a liability account for {0}. The guide's gift card page shows how to set it up.,ما تقدر تصدر بطاقات هدايا للحين: ما فيه طريقة دفع عليها علامة «بطاقة هدايا» ولها حساب التزام في {0}. صفحة بطاقة الهدايا في الدليل تشرح الإعداد.
 The card was not issued: its journal entry could not be posted. The Error Log says why.,البطاقة ما انصدرت: قيدها ما انرحّل. السبب مكتوب في Error Log.
+Say why the card is being cancelled.,اكتب ليش البطاقة تنلغي.
+Gift card {0} is already cancelled.,البطاقة {0} ملغاة من قبل.
+"Gift card {0} has been spent from, so it cannot be cancelled. Switch it off instead.",البطاقة {0} انصرف منها، فما تنلغي. أوقفها بدال كذا.
+"Gift card {0} never reached the books, so there is nothing to reverse. Delete it instead.",البطاقة {0} ما وصلت الدفاتر أصلاً، فما فيه شي ينعكس. احذفها بدال كذا.
+"Gift card {0} was sold into a drawer that has closed, so its money cannot be handed back from it. Switch it off instead.",البطاقة {0} انباعت في درج انقفل، فما تقدر ترجع فلوسها منه. أوقفها بدال كذا.
+Gift card {0} cancelled: {1},إلغاء البطاقة {0}: {1}
+"A gift card the books know cannot be deleted. Cancel its issue, or switch it off.",البطاقة اللي لها قيد في الدفاتر ما تنحذف. ألغِ إصدارها، أو أوقفها.
+Cancel issue,إلغاء الإصدار
+Why is it cancelled?,ليش تنلغي؟
+Cancel the card,ألغِ البطاقة
+The card is cancelled.,انلغت البطاقة.
+void,إلغاء,POS Gift Card Entry
+gift_card_issued,إصدار بطاقة هدايا
+gift_card_redeemed,دفع ببطاقة هدايا
+gift_card_voided,إلغاء بطاقة هدايا

@@ -49,7 +49,7 @@
    "in_list_view": 1,
    "in_standard_filter": 1,
    "label": "Entry Type",
-   "options": "issue\ntop_up\nredeem\nrefund",
+   "options": "issue\ntop_up\nredeem\nrefund\nvoid",
    "reqd": 1
   },
   {
@@ -171,7 +171,7 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-09-25 00:00:00.000000",
+ "modified": "2026-09-26 20:00:00.000000",
  "modified_by": "Administrator",
  "module": "Restaurant POS",
  "name": "POS Gift Card Entry",

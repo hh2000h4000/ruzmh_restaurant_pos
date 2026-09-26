@@ -18,5 +18,11 @@ from frappe.model.document import Document
 
 class POSGiftCardEntry(Document):
 	def on_trash(self):
-		"""Money the restaurant took or gave back leaves a row that stays."""
+		"""Money the restaurant took or gave back leaves a row that stays.
+
+		**Except with its card**, when that card never reached the books
+		(`D-267`): `POSGiftCard.on_trash` has checked, and names the card here.
+		"""
+		if frappe.flags.rpos_deleting_gift_card == self.gift_card:
+			return
 		frappe.throw(_("A gift card entry cannot be deleted."))

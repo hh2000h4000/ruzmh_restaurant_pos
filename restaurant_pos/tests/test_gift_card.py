@@ -656,12 +656,112 @@ class NoEntryNoCard(GiftCardTestBase):
 
 		with self.assertRaises(frappe.ValidationError):
 			self._sell(number=f"{PREFIX}9")
+		self.assertFalse(frappe.db.exists("POS Gift Card", {"card_number": f"{PREFIX}9"}))
 
 	def test_the_office_will_not_issue_one_either(self):
 		from restaurant_pos.api import gift_card as api
 
 		self._unmarked()
 
+		before = frappe.db.count("POS Gift Card")
 		with self.assertRaises(frappe.ValidationError):
 			api.issue_from_the_office(count=1, amount=100, customer=_a_customer(), prefix=PREFIX)
+		self.assertEqual(frappe.db.count("POS Gift Card"), before)
 
+
+class CancellingACard(GiftCardTestBase):
+	"""`D-267` — undoing a card issued by mistake, the way Toast and Square do.
+
+	The user asked why a card with nothing on it could not be deleted. The answer
+	is two actions: a card the books know is **cancelled** — its entry reversed,
+	the card kept — and only a record the books never saw is **deleted**.
+	"""
+
+	def _net_on(self, account: str, vouchers: list[str]) -> float:
+		rows = frappe.get_all(
+			"GL Entry",
+			filters={"account": account, "voucher_no": ("in", vouchers), "is_cancelled": 0},
+			fields=["debit", "credit"],
+		)
+		return sum(flt(row.credit) - flt(row.debit) for row in rows)
+
+	def _entries(self, card: str) -> list:
+		return frappe.get_all(
+			"POS Gift Card Entry", filters={"gift_card": card}, fields=["entry_type", "journal_entry"]
+		)
+
+	def test_an_office_card_is_cancelled_and_the_customer_owes_nothing_for_it(self):
+		from restaurant_pos.api import gift_card as api
+
+		made = api.issue_from_the_office(count=1, amount=100, customer=_a_customer(), prefix=PREFIX)
+		card = made["cards"][0]
+
+		result = cards.void(card, "wrong amount")
+
+		vouchers = [made["journal_entry"], *result["journal_entries"]]
+		company = frappe.db.get_value("POS Profile", self.profile, "company")
+		self.assertEqual(self._net_on(cards._liability(company), vouchers), 0)
+		receivable = frappe.db.get_value("Company", company, "default_receivable_account")
+		self.assertEqual(self._net_on(receivable, vouchers), 0)
+		self.assertEqual(flt(frappe.db.get_value("POS Gift Card", card, "balance")), 0)
+		self.assertEqual(frappe.db.get_value("POS Gift Card", card, "is_active"), 0)
+
+	def test_a_card_sold_at_the_till_hands_its_money_back_out_of_the_drawer(self):
+		entry = service.open_till(pos_profile=self.profile)["entry"]
+		before = service.summarise_till(entry)["till_expected"]
+		sold = self._sell(amount=150)
+
+		cards.void(sold["gift_card"], "sold by mistake")
+
+		after = service.summarise_till(entry)["till_expected"]
+		self.assertAlmostEqual(after, before, places=2)
+
+	def test_a_card_spent_from_is_not_cancelled(self):
+		sold = self._sell(amount=200)
+		order = self._bill()
+		payment.process_payment(
+			order,
+			payments=[
+				{"method": MODE_OF_PAYMENT, "amount": flt(order.total_amount), "gift_card": f"{PREFIX}1"}
+			],
+		)
+
+		with self.assertRaises(frappe.ValidationError):
+			cards.void(sold["gift_card"], "changed their mind")
+
+	def test_a_card_is_cancelled_once(self):
+		sold = self._sell(amount=100)
+		cards.void(sold["gift_card"], "mistake")
+
+		with self.assertRaises(frappe.ValidationError):
+			cards.void(sold["gift_card"], "again")
+
+	def test_a_card_whose_drawer_has_closed_is_not_cancelled(self):
+		sold = self._sell(amount=100)
+		till = frappe.db.get_value(
+			"POS Gift Card Entry", {"gift_card": sold["gift_card"]}, "pos_opening_entry"
+		)
+		frappe.db.set_value("POS Opening Entry", till, "status", "Closed")
+		self.addCleanup(frappe.db.set_value, "POS Opening Entry", till, "status", "Open")
+
+		with self.assertRaises(frappe.ValidationError):
+			cards.void(sold["gift_card"], "too late")
+
+	def test_a_card_the_books_know_is_not_deleted(self):
+		sold = self._sell(amount=100)
+
+		with self.assertRaises(frappe.ValidationError):
+			frappe.delete_doc("POS Gift Card", sold["gift_card"], ignore_permissions=True)
+
+	def test_a_record_the_books_never_saw_is_deleted_with_its_rows(self):
+		card = frappe.get_doc(
+			{"doctype": "POS Gift Card", "card_number": f"{PREFIX}X", "is_active": 1}
+		).insert(ignore_permissions=True)
+		frappe.get_doc(
+			{"doctype": "POS Gift Card Entry", "gift_card": card.name, "entry_type": "issue", "amount": 50}
+		).insert(ignore_permissions=True)
+
+		frappe.delete_doc("POS Gift Card", card.name, ignore_permissions=True)
+
+		self.assertFalse(frappe.db.exists("POS Gift Card", card.name))
+		self.assertFalse(self._entries(card.name))

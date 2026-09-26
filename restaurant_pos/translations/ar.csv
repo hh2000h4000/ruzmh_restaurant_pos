@@ -1125,3 +1125,7 @@ Not posted to the ledger.,ما انقيّد في الدفتر.
 Gift card {0} has {1} left.,البطاقة {0} فيها {1} بس.
 Returned from {0},مسترجع من {0}
 Which gift card? Enter the number printed on it.,أي بطاقة؟ اكتب الرقم المطبوع عليها.
+POS Gift Card,بطاقة هدايا
+POS Gift Card Entry,حركة بطاقة هدايا
+Gift Card Balances,أرصدة بطاقات الهدايا
+Gift Cards,بطاقات الهدايا

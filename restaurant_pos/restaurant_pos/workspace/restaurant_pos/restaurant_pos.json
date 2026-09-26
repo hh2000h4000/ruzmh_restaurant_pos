@@ -257,7 +257,7 @@
    "hidden": 0,
    "is_query_report": 0,
    "label": "The menu",
-   "link_count": 9,
+   "link_count": 10,
    "onboard": 0,
    "type": "Card Break"
   },
@@ -356,6 +356,16 @@
    "label": "Coupons",
    "link_count": 0,
    "link_to": "POS Coupon",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Gift Cards",
+   "link_count": 0,
+   "link_to": "POS Gift Card",
    "link_type": "DocType",
    "onboard": 0,
    "type": "Link"
@@ -514,7 +524,7 @@
    "type": "Link"
   }
  ],
- "modified": "2026-09-25 23:00:00.000000",
+ "modified": "2026-09-26 06:00:00.000000",
  "modified_by": "Administrator",
  "module": "Restaurant POS",
  "name": "Restaurant POS",

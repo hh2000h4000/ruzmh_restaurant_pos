@@ -161,7 +161,7 @@
    "hidden": 0,
    "is_query_report": 0,
    "label": "Reports",
-   "link_count": 12,
+   "link_count": 17,
    "onboard": 0,
    "type": "Card Break"
   },
@@ -187,6 +187,16 @@
    "type": "Link"
   },
   {
+   "hidden": 0,
+   "is_query_report": 1,
+   "label": "Modifier Sales",
+   "link_count": 0,
+   "link_to": "Modifier Sales",
+   "link_type": "Report",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
    "dependencies": "",
    "hidden": 0,
    "is_query_report": 1,
@@ -203,6 +213,16 @@
    "label": "Channel Sales",
    "link_count": 0,
    "link_to": "Channel Sales",
+   "link_type": "Report",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 1,
+   "label": "Guests and Tables",
+   "link_count": 0,
+   "link_to": "Guests and Tables",
    "link_type": "Report",
    "onboard": 0,
    "type": "Link"
@@ -251,6 +271,26 @@
    "type": "Link"
   },
   {
+   "hidden": 0,
+   "is_query_report": 1,
+   "label": "Hours Worked",
+   "link_count": 0,
+   "link_to": "Hours Worked",
+   "link_type": "Report",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 1,
+   "label": "Customer Sales",
+   "link_count": 0,
+   "link_to": "Customer Sales",
+   "link_type": "Report",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
    "dependencies": "",
    "hidden": 0,
    "is_query_report": 1,
@@ -268,6 +308,16 @@
    "label": "Coupon Sales",
    "link_count": 0,
    "link_to": "Coupon Sales",
+   "link_type": "Report",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 1,
+   "label": "Promotion Sales",
+   "link_count": 0,
+   "link_to": "Promotion Sales",
    "link_type": "Report",
    "onboard": 0,
    "type": "Link"
@@ -564,7 +614,7 @@
    "type": "Link"
   }
  ],
- "modified": "2026-09-26 23:45:00.000000",
+ "modified": "2026-09-27 01:00:00.000000",
  "modified_by": "Administrator",
  "module": "Restaurant POS",
  "name": "Restaurant POS",

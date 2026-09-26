@@ -165,8 +165,13 @@ def _by_employee(punches) -> dict[str, list]:
 	return grouped
 
 
-def _worked(employee, punches) -> dict:
-	"""Minutes between each IN and the OUT that follows it."""
+def _worked(employee, punches, until=None) -> dict:
+	"""Minutes between each IN and the OUT that follows it.
+
+	An `IN` still open counts up to ``until`` — now, on the roster; the end of
+	the period, on the hours report (`D-274`), so a shift still running today
+	does not pad last month.
+	"""
 	minutes = 0.0
 	started = None
 
@@ -178,7 +183,7 @@ def _worked(employee, punches) -> dict:
 			started = None
 
 	if started:
-		minutes += time_diff_in_seconds(now_datetime(), started) / 60
+		minutes += max(time_diff_in_seconds(until or now_datetime(), started), 0) / 60
 
 	return {
 		"employee": employee.name,

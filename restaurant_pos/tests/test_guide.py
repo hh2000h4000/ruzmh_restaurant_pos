@@ -72,6 +72,16 @@ class ThePage(FrappeTestCase):
 		self.assertNotIn('.md"', html)
 		self.assertNotIn("{{", html)
 
+	def test_the_guide_is_arabic_and_right_to_left_for_an_english_account(self):
+		"""`D-222` — the pages are Arabic only; an English office mirrored their tables."""
+		frappe.local.lang = "en"
+		self.addCleanup(setattr, frappe.local, "lang", "ar")
+
+		html = self._render("gift-card-accounting")
+
+		self.assertIn('dir="rtl"', html)
+		self.assertIn("دليل نقاط البيع", html)
+
 	def test_the_start_page_is_the_readme(self):
 		html = self._render()
 

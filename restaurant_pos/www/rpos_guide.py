@@ -33,6 +33,7 @@ from frappe.utils import md_to_html
 
 GUIDE = Path(__file__).resolve().parent.parent / "public" / "guide"
 ROUTE = "/rpos-guide"
+LANG = "ar"
 IMAGES = "/assets/restaurant_pos/guide/images/"
 
 #: A page is a Markdown file name and nothing else, so no path reaches outside.
@@ -56,10 +57,16 @@ def get_context(context):
 
 	context.no_cache = 1
 	context.body = md_to_html(_linked(source))
-	context.title = _heading(source) or _("POS User Guide")
+	context.title = _heading(source) or _("POS User Guide", lang=LANG)
 	context.home = ROUTE
-	context.lang = frappe.local.lang or "ar"
-	context.text_direction = "rtl" if context.lang.startswith("ar") else "ltr"
+	# **The guide is Arabic whoever reads it** (`D-222`): its pages are written
+	# in Arabic only, so the page is laid out right to left and its bar speaks
+	# Arabic even to an office account set to English — the user's was, and the
+	# tables came out mirrored.
+	context.lang = LANG
+	context.text_direction = "rtl"
+	context.guide_label = _("POS User Guide", lang=LANG)
+	context.back_label = _("Back to the office", lang=LANG)
 	return context
 
 

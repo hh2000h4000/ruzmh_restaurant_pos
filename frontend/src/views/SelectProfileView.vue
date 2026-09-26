@@ -128,7 +128,23 @@ function nextScreen(): string | { name: string } {
 
 <template>
   <main class="flex min-h-0 items-center justify-center overflow-y-auto p-4">
-    <div class="w-full max-w-md rounded-rpos bg-surface p-6 shadow-sm">
+    <!-- A paired till opening is not being set up (`D-272`). Every page load
+         passes through here to fetch the terminal, and the title and the line
+         asking for a manager's code showed above «loading» on each one — a
+         cashier who refreshed was asked, for a second, to pair a till that
+         was paired. Only the loading line, until there is a question to ask. -->
+    <p
+      v-if="starting"
+      role="status"
+      class="text-muted"
+    >
+      {{ t("common.loading") }}
+    </p>
+
+    <div
+      v-else
+      class="w-full max-w-md rounded-rpos bg-surface p-6 shadow-sm"
+    >
       <div class="mb-1 flex items-start justify-between gap-3">
         <h1 class="text-lg font-semibold">
           {{ t("setup.title") }}
@@ -141,15 +157,7 @@ function nextScreen(): string | { name: string } {
         {{ t("setup.hint") }}
       </p>
 
-      <p
-        v-if="starting"
-        class="py-6 text-center text-muted"
-      >
-        {{ t("common.loading") }}
-      </p>
-
       <form
-        v-else
         class="flex flex-col gap-3"
         @submit.prevent="pair"
       >

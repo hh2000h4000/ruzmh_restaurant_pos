@@ -14,6 +14,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ApiError } from "@/api/client";
 import { pairedDevice } from "@/device";
+import { t } from "@/i18n";
 import { useSessionStore } from "@/stores/session";
 import SelectProfileView from "@/views/SelectProfileView.vue";
 
@@ -60,6 +61,21 @@ describe("pairing this machine", () => {
     expect(pairedDevice()).toEqual({ posProfile: "T1", token: "tok-1" });
     expect(session.load).toHaveBeenCalledWith("T1", "tok-1");
     expect(push).toHaveBeenCalled();
+  });
+
+  it("does not ask a paired till for a code while it opens", async () => {
+    // `D-272` — every load passes through here; the pairing prompt showed on each.
+    localStorage.setItem("rpos.pos_profile", "T1");
+    localStorage.setItem("rpos.device_token", "tok-1");
+    const session = useSessionStore();
+    vi.spyOn(session, "load").mockImplementation(() => new Promise(() => {}));
+
+    const view = screen();
+    await flushPromises();
+
+    expect(view.text()).toContain(t("common.loading"));
+    expect(view.text()).not.toContain(t("setup.hint"));
+    expect(view.find("form").exists()).toBe(false);
   });
 
   it("says what the server said, not a guess at it", async () => {

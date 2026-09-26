@@ -92,7 +92,7 @@ def closings(filters, from_date: str, to_date: str) -> list[dict]:
 
 def _total(rows: list[dict]) -> dict:
 	return {
-		"cashier_name": _("Total"),
+		"cashier_name": _("Total", context="RPOS report"),
 		"expected": flt(sum(row["expected"] for row in rows), 2),
 		"counted": flt(sum(row["counted"] for row in rows), 2),
 		"difference": flt(sum(row["difference"] for row in rows), 2),

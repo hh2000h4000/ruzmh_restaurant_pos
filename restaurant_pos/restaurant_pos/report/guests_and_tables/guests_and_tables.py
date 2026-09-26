@@ -66,7 +66,7 @@ def _finish(row: dict) -> None:
 
 
 def _total(rows: list[dict]) -> dict:
-	total = {"table": _("Total")}
+	total = {"table": _("Total", context="RPOS report")}
 	for field in ("turns", "guests", "counted_sales", "sales", "minutes"):
 		total[field] = sum(row[field] for row in rows)
 	_finish(total)

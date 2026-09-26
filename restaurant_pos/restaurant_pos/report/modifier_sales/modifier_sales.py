@@ -62,7 +62,7 @@ def execute(filters=None):
 	for row in rows:
 		row["revenue"] = flt(row["revenue"], 2)
 	total = {
-		"option": _("Total"),
+		"option": _("Total", context="RPOS report"),
 		"times": sum(row["times"] for row in rows),
 		"revenue": flt(sum(row["revenue"] for row in rows), 2),
 	}

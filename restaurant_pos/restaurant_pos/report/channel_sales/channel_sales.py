@@ -104,7 +104,12 @@ def _columns() -> list[dict]:
 		{"fieldname": "bills", "label": _("Bills"), "fieldtype": "Int", "width": 80},
 		{"fieldname": "sales", "label": _("Sales before VAT"), "fieldtype": "Currency", "width": 130},
 		{"fieldname": "tax", "label": _("VAT"), "fieldtype": "Currency", "width": 100},
-		{"fieldname": "total", "label": _("Total"), "fieldtype": "Currency", "width": 120},
+		{
+			"fieldname": "total",
+			"label": _("Total", context="RPOS report"),
+			"fieldtype": "Currency",
+			"width": 120,
+		},
 		{"fieldname": "returns", "label": _("Returns"), "fieldtype": "Currency", "width": 110},
 		{"fieldname": "net", "label": _("Net"), "fieldtype": "Currency", "width": 120},
 		{"fieldname": "share", "label": _("Share %"), "fieldtype": "Percent", "width": 90},

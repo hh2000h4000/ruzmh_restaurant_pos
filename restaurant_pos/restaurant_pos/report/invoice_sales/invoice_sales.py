@@ -189,14 +189,18 @@ def _items(bills: dict[str, dict]) -> list[dict]:
 
 
 def _invoice_total(rows: list[dict]) -> dict:
-	total = {"number": None, "invoice": _("Total"), "paid_by": _("{0} bills").format(len(rows))}
+	total = {
+		"number": None,
+		"invoice": _("Total", context="RPOS report"),
+		"paid_by": _("{0} bills").format(len(rows)),
+	}
 	for field in ("sales", "tax", "total"):
 		total[field] = flt(sum(row[field] for row in rows), 2)
 	return total
 
 
 def _item_total(rows: list[dict]) -> dict:
-	total = {"invoice": _("Total")}
+	total = {"invoice": _("Total", context="RPOS report")}
 	for field in ("qty", "sales", "amount"):
 		total[field] = flt(sum(row[field] for row in rows), 2)
 	return total
@@ -238,7 +242,12 @@ def _invoice_columns() -> list[dict]:
 		},
 		{"fieldname": "sales", "label": _("Sales before VAT"), "fieldtype": "Currency", "width": 120},
 		{"fieldname": "tax", "label": _("VAT"), "fieldtype": "Currency", "width": 90},
-		{"fieldname": "total", "label": _("Total"), "fieldtype": "Currency", "width": 110},
+		{
+			"fieldname": "total",
+			"label": _("Total", context="RPOS report"),
+			"fieldtype": "Currency",
+			"width": 110,
+		},
 		{"fieldname": "paid_by", "label": _("Paid By"), "fieldtype": "Data", "width": 200},
 	]
 

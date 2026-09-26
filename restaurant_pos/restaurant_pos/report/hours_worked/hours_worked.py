@@ -84,7 +84,7 @@ def execute(filters=None):
 	total_hours = flt(sum(row["hours"] for row in rows), 2)
 	total_sales = flt(sum(row["sales"] for row in rows), 2)
 	total = {
-		"employee_name": _("Total"),
+		"employee_name": _("Total", context="RPOS report"),
 		"hours": total_hours,
 		"sales": total_sales,
 		"per_hour": flt(total_sales / total_hours, 2) if total_hours else 0.0,

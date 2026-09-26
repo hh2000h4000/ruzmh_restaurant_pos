@@ -1154,3 +1154,13 @@ void,إلغاء,POS Gift Card Entry
 gift_card_issued,إصدار بطاقة هدايا
 gift_card_redeemed,دفع ببطاقة هدايا
 gift_card_voided,إلغاء بطاقة هدايا
+Settled on Account (Credit),على الحساب (آجل)
+No money changes hands at the till. The invoice stays outstanding against the customer and is settled later by a Payment Entry.,ما تتحرك فلوس في الكاشير. الفاتورة تبقى مستحقة على العميل، وتتسدّد بعدين بسند قبض.
+Business Day,يوم العمل
+Automatic Clock Out,انصراف تلقائي
+"Written when the restaurant's business day was closed, not punched by the employee.",انكتب لما انقفل يوم العمل، مو الموظف اللي سجّله.
+Variance Reason,سبب الفرق
+PIN Lookup,بحث الرقم السري
+RPOS Daily Number,رقم اليوم
+"The short number the till shows for this document, in the branch's daily sequence.",الرقم القصير اللي يعرضه الكاشير لهذا المستند، في تسلسل الفرع اليومي.
+Identity,البيانات,POS Gift Card

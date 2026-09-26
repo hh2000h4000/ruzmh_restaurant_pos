@@ -1,6 +1,6 @@
 {
  "charts": [],
- "content": "[{\"id\": \"rpos_head\", \"type\": \"header\", \"data\": {\"text\": \"<span class=\\\"h4\\\">Restaurant POS</span>\", \"col\": 12}}, {\"id\": \"rpos_intro\", \"type\": \"paragraph\", \"data\": {\"text\": \"<b>The till itself is at /restaurant-pos</b> \\u2014 this page is the office behind it: the menu, the floor, the shifts and the trail. A cashier never needs to come here, and nothing on this page is where an order is taken.\", \"col\": 12}}, {\"id\": \"rpos_sc1\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Open the till\", \"col\": 3}}, {\"id\": \"rpos_sc2\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Restaurant Orders\", \"col\": 3}}, {\"id\": \"rpos_sc3\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Restaurant Shifts\", \"col\": 3}}, {\"id\": \"rpos_sc4\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"POS Permissions\", \"col\": 3}}, {\"id\": \"rpos_spacer\", \"type\": \"spacer\", \"data\": {\"col\": 12}}, {\"id\": \"rpos_card1\", \"type\": \"card\", \"data\": {\"card_name\": \"Orders and Bookings\", \"col\": 4}}, {\"id\": \"rpos_card2\", \"type\": \"card\", \"data\": {\"card_name\": \"The floor\", \"col\": 4}}, {\"id\": \"rpos_card3\", \"type\": \"card\", \"data\": {\"card_name\": \"Days and Drawers\", \"col\": 4}}, {\"id\": \"rposReportsCard\", \"type\": \"card\", \"data\": {\"card_name\": \"Reports\", \"col\": 4}}, {\"id\": \"rpos_card4\", \"type\": \"card\", \"data\": {\"card_name\": \"The menu\", \"col\": 4}}, {\"id\": \"rpos_card5\", \"type\": \"card\", \"data\": {\"card_name\": \"Devices and Branches\", \"col\": 4}}, {\"id\": \"rpos_card6\", \"type\": \"card\", \"data\": {\"card_name\": \"Staff and Logs\", \"col\": 4}}, {\"id\": \"rpos_card7\", \"type\": \"card\", \"data\": {\"card_name\": \"Loyalty points\", \"col\": 4}}, {\"id\": \"rpos_card8\", \"type\": \"card\", \"data\": {\"card_name\": \"Settings\", \"col\": 4}}]",
+ "content": "[{\"id\": \"rpos_head\", \"type\": \"header\", \"data\": {\"text\": \"<span class=\\\"h4\\\">Restaurant POS</span>\", \"col\": 12}}, {\"id\": \"rpos_intro\", \"type\": \"paragraph\", \"data\": {\"text\": \"<b>The till itself is at /restaurant-pos</b> — this page is the office behind it: the menu, the floor, the shifts and the trail. A cashier never needs to come here, and nothing on this page is where an order is taken.\", \"col\": 12}}, {\"id\": \"rpos_sc1\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Open the till\", \"col\": 3}}, {\"id\": \"rpos_sc_guide\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"POS User Guide\", \"col\": 3}}, {\"id\": \"rpos_sc2\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Restaurant Orders\", \"col\": 3}}, {\"id\": \"rpos_sc3\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Restaurant Shifts\", \"col\": 3}}, {\"id\": \"rpos_sc4\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"POS Permissions\", \"col\": 3}}, {\"id\": \"rpos_spacer\", \"type\": \"spacer\", \"data\": {\"col\": 12}}, {\"id\": \"rpos_card1\", \"type\": \"card\", \"data\": {\"card_name\": \"Orders and Bookings\", \"col\": 4}}, {\"id\": \"rpos_card2\", \"type\": \"card\", \"data\": {\"card_name\": \"The floor\", \"col\": 4}}, {\"id\": \"rpos_card3\", \"type\": \"card\", \"data\": {\"card_name\": \"Days and Drawers\", \"col\": 4}}, {\"id\": \"rposReportsCard\", \"type\": \"card\", \"data\": {\"card_name\": \"Reports\", \"col\": 4}}, {\"id\": \"rpos_card4\", \"type\": \"card\", \"data\": {\"card_name\": \"The menu\", \"col\": 4}}, {\"id\": \"rpos_card5\", \"type\": \"card\", \"data\": {\"card_name\": \"Devices and Branches\", \"col\": 4}}, {\"id\": \"rpos_card6\", \"type\": \"card\", \"data\": {\"card_name\": \"Staff and Logs\", \"col\": 4}}, {\"id\": \"rpos_card7\", \"type\": \"card\", \"data\": {\"card_name\": \"Loyalty points\", \"col\": 4}}, {\"id\": \"rpos_card8\", \"type\": \"card\", \"data\": {\"card_name\": \"Settings\", \"col\": 4}}]",
  "creation": "2026-09-06 00:00:00.000000",
  "custom_blocks": [],
  "docstatus": 0,
@@ -524,7 +524,7 @@
    "type": "Link"
   }
  ],
- "modified": "2026-09-26 06:00:00.000000",
+ "modified": "2026-09-26 16:00:00.000000",
  "modified_by": "Administrator",
  "module": "Restaurant POS",
  "name": "Restaurant POS",
@@ -541,6 +541,12 @@
    "label": "Open the till",
    "type": "URL",
    "url": "/restaurant-pos"
+  },
+  {
+   "color": "Blue",
+   "label": "POS User Guide",
+   "type": "URL",
+   "url": "/rpos-guide"
   },
   {
    "color": "Grey",

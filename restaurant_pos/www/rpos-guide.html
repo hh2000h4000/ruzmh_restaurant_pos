@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="{{ lang }}" dir="{{ text_direction }}">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>{{ title }}</title>
+	<style>
+		:root { --ink: #1a1a1a; --muted: #5f6368; --line: #e3e3e3; --soft: #f6f7f8; --accent: #1f4d43; }
+
+		* { box-sizing: border-box; }
+
+		body {
+			margin: 0;
+			background: var(--soft);
+			color: var(--ink);
+			font-family: "Noto Sans Arabic", "Segoe UI", Tahoma, system-ui, sans-serif;
+			line-height: 1.8;
+		}
+
+		.bar {
+			position: sticky;
+			top: 0;
+			display: flex;
+			gap: 16px;
+			align-items: center;
+			justify-content: space-between;
+			padding: 12px 16px;
+			background: #fff;
+			border-block-end: 1px solid var(--line);
+		}
+		.bar a { color: var(--accent); text-decoration: none; font-weight: 600; }
+		.bar .back { color: var(--muted); font-weight: 400; }
+
+		main {
+			max-width: 860px;
+			margin: 24px auto;
+			padding: 24px 32px;
+			background: #fff;
+			border: 1px solid var(--line);
+			border-radius: 12px;
+		}
+
+		h1 { font-size: 1.6rem; margin-block: 0 16px; }
+		h2 { font-size: 1.25rem; margin-block: 32px 8px; }
+		h3 { font-size: 1.05rem; margin-block: 24px 8px; }
+		a { color: var(--accent); }
+
+		/* The pictures are the office at 1280 × 800: they shrink to the page and
+		   keep a frame, so a white screenshot does not melt into a white page. */
+		img { max-width: 100%; height: auto; border: 1px solid var(--line); border-radius: 8px; }
+
+		table { width: 100%; border-collapse: collapse; margin-block: 12px; }
+		th, td { border: 1px solid var(--line); padding: 6px 10px; text-align: start; vertical-align: top; }
+		th { background: var(--soft); }
+
+		blockquote {
+			margin-inline: 0;
+			padding: 8px 16px;
+			border-inline-start: 4px solid var(--accent);
+			background: var(--soft);
+		}
+
+		code { background: var(--soft); padding: 1px 6px; border-radius: 4px; direction: ltr; unicode-bidi: isolate; }
+		hr { border: 0; border-block-start: 1px solid var(--line); margin-block: 32px 16px; }
+
+		@media (max-width: 640px) {
+			main { margin: 0; padding: 16px; border: 0; border-radius: 0; }
+		}
+	</style>
+</head>
+<body>
+	<nav class="bar">
+		<a href="{{ home }}">{{ _("POS User Guide") }}</a>
+		<a class="back" href="/app/restaurant-pos">{{ _("Back to the office") }}</a>
+	</nav>
+	<main>
+		{{ body }}
+	</main>
+</body>
+</html>

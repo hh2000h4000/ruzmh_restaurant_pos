@@ -51,7 +51,24 @@ def setup(company: str | None = None) -> dict[str, str | None]:
 		return {}
 
 	account = _ensure_account(company)
-	mode = _ensure_mode(company, account)
+	try:
+		mode = _ensure_mode(company, account)
+	except frappe.MandatoryError as error:
+		# **Another app's required field, whose value is not ours to invent.**
+		# `ksa_compliance` makes a ZATCA payment-means code mandatory on every
+		# payment mode, and which code a gift card carries is a tax answer. This
+		# ran inside `after_migrate`, so the refusal stopped every step after it
+		# on the user's site, migrate after migrate, with nobody told (`D-262`).
+		# Said in the Error Log instead; the manager creates the mode by hand
+		# with its code, and the next migrate links the account to it. No
+		# rollback: the insert is refused in validation, before it writes, and
+		# a rollback here would undo everything `after_migrate` did before it.
+		frappe.log_error(
+			title=f"Payment mode «{MODE_OF_PAYMENT}» was not created",
+			message=f"{error}\n\nCreate it in Mode of Payment with that field filled; "
+			"the next migrate links the gift card account to it.",
+		)
+		mode = None
 	return {"account": account, "mode_of_payment": mode}
 
 

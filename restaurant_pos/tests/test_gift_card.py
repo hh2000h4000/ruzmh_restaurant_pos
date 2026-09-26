@@ -12,9 +12,13 @@ count has to expect it.
 Refs: FR-11.5, D-029, D-256
 """
 
+from unittest.mock import patch
+
 import frappe
+from frappe.tests.utils import FrappeTestCase
 from frappe.utils import flt
 
+from restaurant_pos.setup import gift_card_accounts
 from restaurant_pos.setup.gift_card_accounts import MODE_OF_PAYMENT
 from restaurant_pos.tests.test_order import ITEM
 from restaurant_pos.tests.test_payment import CASH, PaymentTestBase
@@ -510,3 +514,36 @@ class IssuingFromTheOffice(GiftCardTestBase):
 
 		self.assertAlmostEqual(flt(card.balance), 0, places=2)
 		self.assertAlmostEqual(cards.balance_of(card.name), 0, places=2)
+
+
+class AnotherAppsRequiredField(FrappeTestCase):
+	"""`D-262` — `ksa_compliance` requires a ZATCA code on every payment mode.
+
+	The mode was refused, the refusal escaped `after_migrate`, and every step
+	after it stopped on the user's site — migrate after migrate, unseen. The code
+	is a tax answer, so it is not invented here: it is said, and setup goes on.
+	"""
+
+	def test_a_refused_mode_is_logged_and_does_not_stop_setup(self):
+		refused = frappe.MandatoryError("[Mode of Payment, x]: custom_zatca_payment_means_code")
+		with patch.object(gift_card_accounts, "_ensure_mode", side_effect=refused):
+			result = gift_card_accounts.setup()
+
+		self.assertIsNone(result["mode_of_payment"])
+		logged = frappe.get_all(
+			"Error Log", filters={"method": ("like", f"%{MODE_OF_PAYMENT}%")}, pluck="error", limit=1
+		)
+		self.assertTrue(logged)
+		self.assertIn("custom_zatca_payment_means_code", logged[0])
+
+
+class NoCardByHand(FrappeTestCase):
+	"""`D-263` — the list's «إضافة» made a card with no entry, so no money on it.
+
+	The balance is the sum of the entries, so a card typed in by hand showed
+	zero and was refused at the till — beside «إصدار بطاقات», which asks the
+	same question and answers it properly. One way in, and it posts the entry.
+	"""
+
+	def test_the_office_cannot_create_a_card_by_hand(self):
+		self.assertEqual(frappe.get_meta("POS Gift Card").in_create, 1)

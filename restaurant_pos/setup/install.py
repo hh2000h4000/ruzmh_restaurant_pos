@@ -673,11 +673,34 @@ def require_erpnext_fields() -> None:
 		)
 
 
+GUIDE_ROUTE = "/rpos-guide"
+
+
+def add_guide_to_help_menu() -> None:
+	"""«مساعدة ← دليل نقاط البيع» on every office page (`D-262`).
+
+	Frappe's own `standard_help_items` hook is read only while the help menu is
+	still empty — on a new site's first install — so an existing site never
+	sees it. The row is added here instead, once: matched on its route, so a
+	label the manager renamed is theirs and nothing is doubled on migrate.
+	"""
+	navbar = frappe.get_single("Navbar Settings")
+	if any(row.route == GUIDE_ROUTE for row in navbar.help_dropdown):
+		return
+
+	navbar.append(
+		"help_dropdown",
+		{"item_label": "POS User Guide", "item_type": "Route", "route": GUIDE_ROUTE, "is_standard": 0},
+	)
+	navbar.save(ignore_permissions=True)
+
+
 def after_install():
 	create_custom_fields(CUSTOM_FIELDS, ignore_validate=True)
 	require_erpnext_fields()
 	grant_erpnext_permissions()
 	create_default_templates()
+	add_guide_to_help_menu()
 	frappe.db.commit()
 
 	# Shipped defaults run on install only. See setup/defaults.py for why they
@@ -705,3 +728,6 @@ def after_migrate():
 	# account and the payment mode, or the feature is simply absent there. It
 	# creates nothing that is already present and overwrites nothing at all.
 	gift_card_accounts.setup()
+
+	# Every site that had the app before the guide was served needs the menu row.
+	add_guide_to_help_menu()

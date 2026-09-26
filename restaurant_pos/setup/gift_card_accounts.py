@@ -60,13 +60,15 @@ def setup(company: str | None = None) -> dict[str, str | None]:
 		# ran inside `after_migrate`, so the refusal stopped every step after it
 		# on the user's site, migrate after migrate, with nobody told (`D-262`).
 		# Said in the Error Log instead; the manager creates the mode by hand
-		# with its code, and the next migrate links the account to it. No
+		# with its code and ticks «Gift Card», and the next migrate links the
+		# account to it. No
 		# rollback: the insert is refused in validation, before it writes, and
 		# a rollback here would undo everything `after_migrate` did before it.
 		frappe.log_error(
 			title=f"Payment mode «{MODE_OF_PAYMENT}» was not created",
-			message=f"{error}\n\nCreate it in Mode of Payment with that field filled; "
-			"the next migrate links the gift card account to it.",
+			message=f"{error}\n\nCreate a Mode of Payment with that field filled and tick "
+			"«Gift Card» on it — any name will do; the next migrate links the gift card "
+			"account to it.",
 		)
 		mode = None
 	return {"account": account, "mode_of_payment": mode}
@@ -115,16 +117,32 @@ def _ensure_account(company: str) -> str | None:
 
 
 def _ensure_mode(company: str, account: str | None) -> str | None:
-	"""The payment mode, pointed at the liability account for this company."""
-	if not frappe.db.exists("Mode of Payment", MODE_OF_PAYMENT):
-		frappe.get_doc(
-			{
-				"doctype": "Mode of Payment",
-				"mode_of_payment": MODE_OF_PAYMENT,
-				"enabled": 1,
-				"type": "General",
-			}
-		).insert(ignore_permissions=True)
+	"""The gift card payment mode, pointed at the liability account for this company.
+
+	**Found by its tick, not by its name** (`D-264`). A site whose manager made
+	their own — in their words, in their language — keeps theirs once it is
+	ticked. Only when nothing is ticked does the name come in: a mode already
+	called «بطاقة هدايا» (every site set up before the tick existed) is ticked,
+	and a site with neither gets one.
+	"""
+	name = frappe.db.get_value("Mode of Payment", {"rpos_is_gift_card": 1}, "name")
+	if not name and frappe.db.exists("Mode of Payment", MODE_OF_PAYMENT):
+		name = MODE_OF_PAYMENT
+		frappe.db.set_value("Mode of Payment", name, "rpos_is_gift_card", 1)
+	if not name:
+		name = (
+			frappe.get_doc(
+				{
+					"doctype": "Mode of Payment",
+					"mode_of_payment": MODE_OF_PAYMENT,
+					"enabled": 1,
+					"type": "General",
+					"rpos_is_gift_card": 1,
+				}
+			)
+			.insert(ignore_permissions=True)
+			.name
+		)
 
 	# **Not credit, and this is enforced rather than left to whoever edited it**
 	# (`D-257`). `rpos_is_credit` means *the money is still owed* — a delivery
@@ -133,16 +151,16 @@ def _ensure_mode(company: str, account: str | None) -> str | None:
 	# liability account and left a receivable against a guest who owed nothing.
 	# A card **is** settled; it simply settles from a balance instead of from the
 	# drawer, and the drawer's own exclusion is `kind` in `utils/shift`.
-	if frappe.db.get_value("Mode of Payment", MODE_OF_PAYMENT, "rpos_is_credit"):
-		frappe.db.set_value("Mode of Payment", MODE_OF_PAYMENT, "rpos_is_credit", 0)
+	if frappe.db.get_value("Mode of Payment", name, "rpos_is_credit"):
+		frappe.db.set_value("Mode of Payment", name, "rpos_is_credit", 0)
 
 	if not account:
-		return MODE_OF_PAYMENT
+		return name
 
-	mode = frappe.get_doc("Mode of Payment", MODE_OF_PAYMENT)
+	mode = frappe.get_doc("Mode of Payment", name)
 	if any(row.company == company for row in mode.accounts):
-		return MODE_OF_PAYMENT
+		return name
 
 	mode.append("accounts", {"company": company, "default_account": account})
 	mode.save(ignore_permissions=True)
-	return MODE_OF_PAYMENT
+	return name

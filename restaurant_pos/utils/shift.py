@@ -37,7 +37,6 @@ import frappe
 from frappe import _
 from frappe.utils import cint, flt, format_datetime, now_datetime, nowdate, nowtime
 
-from restaurant_pos.setup.gift_card_accounts import MODE_OF_PAYMENT as GIFT_CARD_METHOD
 from restaurant_pos.utils import cash_movement, gift_card, printing
 from restaurant_pos.utils.order import profiles_in, table_section_branch
 from restaurant_pos.utils.payment import is_credit_method
@@ -747,7 +746,7 @@ def _kind_of(method: str) -> str:
 	counted into that drawer then. Only `till` is expected at the close, and the
 	Z report lists the other two apart so the figures explain themselves.
 	"""
-	if method == GIFT_CARD_METHOD:
+	if gift_card.is_gift_card_method(method):
 		return "gift"
 
 	return "credit" if is_credit_method(method) else "till"

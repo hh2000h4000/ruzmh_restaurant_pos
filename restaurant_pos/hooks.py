@@ -65,6 +65,9 @@ doc_events = {
 	"Transaction Deletion Record": {
 		"on_submit": "restaurant_pos.utils.transaction_deletion.on_submit",
 	},
+	# D-264 — the gift card method is known by its tick, so the tick is kept
+	# honest: never also credit, and never on two methods at once.
+	"Mode of Payment": {"validate": "restaurant_pos.utils.gift_card.validate_mode_of_payment"},
 }
 
 # D-085 — a print job carries the bitmap it printed, about 15 KB of base64 each.

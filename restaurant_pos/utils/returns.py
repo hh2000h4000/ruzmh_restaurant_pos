@@ -22,7 +22,6 @@ import frappe
 from frappe import _
 from frappe.utils import flt, get_datetime, now_datetime
 
-from restaurant_pos.setup.gift_card_accounts import MODE_OF_PAYMENT as GIFT_CARD_METHOD
 from restaurant_pos.utils import gift_card as gift_cards
 from restaurant_pos.utils import loyalty, numbering, payment, printing
 from restaurant_pos.utils.audit import log_audit
@@ -522,7 +521,7 @@ def _assert_within_what_that_method_paid(credit, method: str, due: float, origin
 	would rather have the notes is an ordinary evening. The cap exists where the
 	money was never in the drawer to begin with.
 	"""
-	if not any(row["method"] == GIFT_CARD_METHOD for row in original):
+	if not any(gift_cards.is_gift_card_method(row["method"]) for row in original):
 		return
 
 	paid = sum(flt(row["amount"]) for row in original if row["method"] == method)

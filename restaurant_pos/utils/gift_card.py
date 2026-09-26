@@ -37,7 +37,6 @@ import frappe
 from frappe import _
 from frappe.utils import flt, getdate, now_datetime, nowdate
 
-from restaurant_pos.setup.gift_card_accounts import MODE_OF_PAYMENT
 from restaurant_pos.utils import codes
 from restaurant_pos.utils.audit import log_audit
 from restaurant_pos.utils.order import table_section_branch
@@ -51,6 +50,56 @@ MAX_LOAD = 10000.0
 #: What the entries do to a balance.
 ADDS = ("issue", "top_up", "refund")
 TAKES = ("redeem",)
+
+
+def is_gift_card_method(method: str | None) -> bool:
+	"""Whether this payment method spends a gift card's balance (`D-264`).
+
+	**The field, never the name.** The name is whatever the manager typed, in
+	whatever language — and the one this code used to compare against was
+	misspelt on the first site that made its own: «بطاقة هدية» for «بطاقة
+	هدايا», and the till would have taken it like cash and asked for no card.
+	"""
+	return bool(method) and bool(frappe.db.get_value("Mode of Payment", method, "rpos_is_gift_card"))
+
+
+def gift_card_method() -> str | None:
+	"""The method marked as the gift card — one per site (`D-264`).
+
+	One, because its account **is** the liability every card is owed from, and
+	two methods could name two accounts for the same promise.
+	"""
+	return frappe.db.get_value("Mode of Payment", {"rpos_is_gift_card": 1}, "name")
+
+
+def validate_mode_of_payment(doc, method=None) -> None:
+	"""Keep the gift card tick meaning one thing (`D-264`, `D-257`).
+
+	**Not credit as well.** Credit makes the invoice `is_pos = 0` with no payment
+	rows, so a card-paid bill would never reach the liability account.
+
+	**Not on two methods.** Every card is owed from the one method's account;
+	a second tick could point half the cards at a different account.
+	"""
+	if not doc.get("rpos_is_gift_card"):
+		return
+
+	if doc.get("rpos_is_credit"):
+		frappe.throw(_("A gift card method is paid from the card's balance, not settled on account."))
+
+	other = frappe.db.get_value("Mode of Payment", {"rpos_is_gift_card": 1, "name": ("!=", doc.name)}, "name")
+	if other:
+		frappe.throw(_("{0} is already the gift card method. Only one can be.").format(other))
+
+
+def _liability(company: str) -> str | None:
+	"""The account every card on this company is owed from."""
+	method = gift_card_method()
+	if not method:
+		return None
+	return frappe.db.get_value(
+		"Mode of Payment Account", {"parent": method, "company": company}, "default_account"
+	)
 
 
 def vat_falls_at() -> str:
@@ -243,11 +292,7 @@ def _post_issue(card, amount: float, pos_profile: str, mode_of_payment: str) -> 
 
 	terminal = frappe.db.get_value("POS Profile", pos_profile, ["company", "cost_center"], as_dict=True)
 
-	liability = frappe.db.get_value(
-		"Mode of Payment Account",
-		{"parent": MODE_OF_PAYMENT, "company": terminal.company},
-		"default_account",
-	)
+	liability = _liability(terminal.company)
 	cash_account = frappe.db.get_value(
 		"Mode of Payment Account",
 		{"parent": mode_of_payment, "company": terminal.company},
@@ -255,7 +300,7 @@ def _post_issue(card, amount: float, pos_profile: str, mode_of_payment: str) -> 
 	)
 
 	if not liability or not cash_account:
-		missing = MODE_OF_PAYMENT if not liability else mode_of_payment
+		missing = (gift_card_method() or _("the gift card method")) if not liability else mode_of_payment
 		card.db_set(
 			"notes",
 			_("Not posted to the ledger: {0} has no account on this company.").format(missing),
@@ -397,11 +442,7 @@ def _post_office_issue(
 	if not company:
 		return None
 
-	liability = frappe.db.get_value(
-		"Mode of Payment Account",
-		{"parent": MODE_OF_PAYMENT, "company": company},
-		"default_account",
-	)
+	liability = _liability(company)
 	if not liability:
 		return None
 
@@ -544,7 +585,7 @@ def refund(credit) -> list[str]:
 	paid_back = [
 		row
 		for row in credit.get("payments") or []
-		if row.mode_of_payment == MODE_OF_PAYMENT and flt(row.amount)
+		if is_gift_card_method(row.mode_of_payment) and flt(row.amount)
 	]
 	if not paid_back:
 		return []
@@ -588,7 +629,7 @@ def card_rows(payments: list[dict]) -> list[dict]:
 	"""The payment rows that spend a card, with the number they name."""
 	rows = []
 	for row in payments or []:
-		if row.get("method") != MODE_OF_PAYMENT:
+		if not is_gift_card_method(row.get("method")):
 			continue
 
 		number = (row.get("gift_card") or "").strip().upper()

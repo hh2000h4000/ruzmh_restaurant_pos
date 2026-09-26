@@ -407,6 +407,19 @@ CUSTOM_FIELDS = {
 			),
 			"insert_after": "type",
 		},
+		{
+			# `D-264` — what makes a method spend a gift card. It was the method's
+			# name, so a card method called anything else — another language, a
+			# typo — took money like cash and asked for no card.
+			"fieldname": "rpos_is_gift_card",
+			"fieldtype": "Check",
+			"label": "Gift Card",
+			"description": (
+				"The cashier is asked for the card's number and its balance pays. "
+				"One method only; its account is the gift card liability."
+			),
+			"insert_after": "rpos_is_credit",
+		},
 	],
 	"Item Group": [
 		{

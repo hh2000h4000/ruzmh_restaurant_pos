@@ -1132,3 +1132,8 @@ Gift Cards,بطاقات الهدايا
 POS User Guide,دليل نقاط البيع
 Back to the office,رجوع للمكتب
 There is no such page in the guide.,ما فيه صفحة بهذا الاسم في الدليل.
+the gift card method,طريقة بطاقة الهدايا
+A gift card method is paid from the card's balance, not settled on account.,طريقة بطاقة الهدايا تُدفع من رصيد البطاقة، ما تنسجل على الحساب.
+{0} is already the gift card method. Only one can be.,{0} هي طريقة بطاقة الهدايا من قبل. ما يصير إلا وحدة.
+Gift Card,بطاقة هدايا,Mode of Payment
+The cashier is asked for the card's number and its balance pays. One method only; its account is the gift card liability.,الكاشير يطلب رقم البطاقة، والدفع من رصيدها. طريقة وحدة بس، وحسابها هو حساب بطاقات الهدايا.

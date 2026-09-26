@@ -547,3 +547,81 @@ class NoCardByHand(FrappeTestCase):
 
 	def test_the_office_cannot_create_a_card_by_hand(self):
 		self.assertEqual(frappe.get_meta("POS Gift Card").in_create, 1)
+
+
+class TheTickNotTheName(GiftCardTestBase):
+	"""`D-264` — a gift card method is the one ticked, whatever it is called.
+
+	It was the name. The first site to make its own called it «بطاقة هدية»
+	against the code's «بطاقة هدايا», and the till would have taken it like cash
+	and asked for no card. A name is a label for people, in their language.
+	"""
+
+	OTHER = "RPOS Test Gifts"
+
+	def _ticked(self, name: str) -> None:
+		was = frappe.db.get_value("Mode of Payment", {"rpos_is_gift_card": 1}, "name")
+		company = frappe.db.get_value("POS Profile", self.profile, "company")
+		liability = cards._liability(company)
+		if not frappe.db.exists("Mode of Payment", name):
+			frappe.get_doc({"doctype": "Mode of Payment", "mode_of_payment": name, "type": "General"}).insert(
+				ignore_permissions=True
+			)
+		mode = frappe.get_doc("Mode of Payment", name)
+		if not any(row.company == company for row in mode.accounts):
+			mode.append("accounts", {"company": company, "default_account": liability})
+			mode.save(ignore_permissions=True)
+
+		frappe.db.set_value("Mode of Payment", was, "rpos_is_gift_card", 0)
+		frappe.db.set_value("Mode of Payment", name, "rpos_is_gift_card", 1)
+		self.addCleanup(frappe.db.set_value, "Mode of Payment", name, "rpos_is_gift_card", 0)
+		self.addCleanup(frappe.db.set_value, "Mode of Payment", was, "rpos_is_gift_card", 1)
+
+		terminal = frappe.get_doc("POS Profile", self.profile)
+		if not any(row.mode_of_payment == name for row in terminal.payments):
+			terminal.append("payments", {"mode_of_payment": name, "default": 0})
+			terminal.save(ignore_permissions=True)
+
+	def test_a_method_with_another_name_spends_the_card(self):
+		self._sell(amount=200)
+		self._ticked(self.OTHER)
+		order = self._bill()
+		due = flt(order.total_amount)
+
+		payment.process_payment(
+			order, payments=[{"method": self.OTHER, "amount": due, "gift_card": f"{PREFIX}1"}]
+		)
+
+		self.assertEqual(flt(frappe.db.get_value("POS Gift Card", f"{PREFIX}1", "balance")), flt(200 - due))
+
+	def test_the_old_name_unticked_is_an_ordinary_method(self):
+		self._ticked(self.OTHER)
+
+		self.assertFalse(cards.is_gift_card_method(MODE_OF_PAYMENT))
+		self.assertTrue(cards.is_gift_card_method(self.OTHER))
+
+	def test_a_second_ticked_method_is_refused(self):
+		if not frappe.db.exists("Mode of Payment", self.OTHER):
+			frappe.get_doc(
+				{"doctype": "Mode of Payment", "mode_of_payment": self.OTHER, "type": "General"}
+			).insert(ignore_permissions=True)
+		mode = frappe.get_doc("Mode of Payment", self.OTHER)
+		mode.rpos_is_gift_card = 1
+
+		with self.assertRaises(frappe.ValidationError):
+			mode.save(ignore_permissions=True)
+
+	def test_a_method_both_gift_card_and_credit_is_refused(self):
+		mode = frappe.get_doc("Mode of Payment", cards.gift_card_method())
+		mode.rpos_is_credit = 1
+
+		with self.assertRaises(frappe.ValidationError):
+			mode.save(ignore_permissions=True)
+
+	def test_setup_ticks_the_method_it_used_to_find_by_name(self):
+		frappe.db.set_value("Mode of Payment", MODE_OF_PAYMENT, "rpos_is_gift_card", 0)
+		self.addCleanup(frappe.db.set_value, "Mode of Payment", MODE_OF_PAYMENT, "rpos_is_gift_card", 1)
+
+		gift_card_accounts.setup()
+
+		self.assertEqual(cards.gift_card_method(), MODE_OF_PAYMENT)

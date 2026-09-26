@@ -1238,3 +1238,8 @@ Customer Sales,مبيعات العملاء
 Promotion Sales,أداء العروض
 Hours Worked,ساعات العمل
 Total,الإجمالي,RPOS report
+POS Reports,التقارير
+Oversight,المراقبة
+For the Accountant,للمحاسب
+"<span class=""h4"">POS Reports</span>","<span class=""h4"">التقارير</span>"
+Every report picks its period; most can be narrowed to a branch or an order type. <b>The guide's «التقارير» page</b> says what each one answers.,كل تقرير تختار له الفترة، وأغلبها تقدر تحصرها بفرع أو بنوع طلب. <b>صفحة «التقارير» في الدليل</b> تقول وش يجاوب كل واحد.

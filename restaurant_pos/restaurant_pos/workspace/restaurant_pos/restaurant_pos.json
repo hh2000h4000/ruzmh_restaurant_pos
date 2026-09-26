@@ -1,6 +1,6 @@
 {
  "charts": [],
- "content": "[{\"id\": \"rpos_head\", \"type\": \"header\", \"data\": {\"text\": \"<span class=\\\"h4\\\">Restaurant POS</span>\", \"col\": 12}}, {\"id\": \"rpos_intro\", \"type\": \"paragraph\", \"data\": {\"text\": \"<b>The till itself is at /restaurant-pos</b> — this page is the office behind it: the menu, the floor, the shifts and the trail. A cashier never needs to come here, and nothing on this page is where an order is taken.\", \"col\": 12}}, {\"id\": \"rpos_sc1\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Open the till\", \"col\": 3}}, {\"id\": \"rpos_sc_guide\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"POS User Guide\", \"col\": 3}}, {\"id\": \"rpos_sc2\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Restaurant Orders\", \"col\": 3}}, {\"id\": \"rpos_sc3\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Restaurant Shifts\", \"col\": 3}}, {\"id\": \"rpos_sc4\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"POS Permissions\", \"col\": 3}}, {\"id\": \"rpos_spacer\", \"type\": \"spacer\", \"data\": {\"col\": 12}}, {\"id\": \"rpos_card1\", \"type\": \"card\", \"data\": {\"card_name\": \"Orders and Bookings\", \"col\": 4}}, {\"id\": \"rpos_card2\", \"type\": \"card\", \"data\": {\"card_name\": \"The floor\", \"col\": 4}}, {\"id\": \"rpos_card3\", \"type\": \"card\", \"data\": {\"card_name\": \"Days and Drawers\", \"col\": 4}}, {\"id\": \"rposReportsCard\", \"type\": \"card\", \"data\": {\"card_name\": \"Reports\", \"col\": 4}}, {\"id\": \"rpos_card4\", \"type\": \"card\", \"data\": {\"card_name\": \"The menu\", \"col\": 4}}, {\"id\": \"rpos_card5\", \"type\": \"card\", \"data\": {\"card_name\": \"Devices and Branches\", \"col\": 4}}, {\"id\": \"rpos_card6\", \"type\": \"card\", \"data\": {\"card_name\": \"Staff and Logs\", \"col\": 4}}, {\"id\": \"rpos_card7\", \"type\": \"card\", \"data\": {\"card_name\": \"Loyalty points\", \"col\": 4}}, {\"id\": \"rpos_card8\", \"type\": \"card\", \"data\": {\"card_name\": \"Settings\", \"col\": 4}}]",
+ "content": "[{\"id\": \"rpos_head\", \"type\": \"header\", \"data\": {\"text\": \"<span class=\\\"h4\\\">Restaurant POS</span>\", \"col\": 12}}, {\"id\": \"rpos_intro\", \"type\": \"paragraph\", \"data\": {\"text\": \"<b>The till itself is at /restaurant-pos</b> — this page is the office behind it: the menu, the floor, the shifts and the trail. A cashier never needs to come here, and nothing on this page is where an order is taken.\", \"col\": 12}}, {\"id\": \"rpos_sc1\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Open the till\", \"col\": 3}}, {\"id\": \"rpos_sc_guide\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"POS User Guide\", \"col\": 3}}, {\"id\": \"rpos_sc2\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Restaurant Orders\", \"col\": 3}}, {\"id\": \"rpos_sc3\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Restaurant Shifts\", \"col\": 3}}, {\"id\": \"rpos_sc4\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"POS Permissions\", \"col\": 3}}, {\"id\": \"rpos_spacer\", \"type\": \"spacer\", \"data\": {\"col\": 12}}, {\"id\": \"rpos_card1\", \"type\": \"card\", \"data\": {\"card_name\": \"Orders and Bookings\", \"col\": 4}}, {\"id\": \"rpos_card2\", \"type\": \"card\", \"data\": {\"card_name\": \"The floor\", \"col\": 4}}, {\"id\": \"rpos_card3\", \"type\": \"card\", \"data\": {\"card_name\": \"Days and Drawers\", \"col\": 4}}, {\"id\": \"rpos_card4\", \"type\": \"card\", \"data\": {\"card_name\": \"The menu\", \"col\": 4}}, {\"id\": \"rpos_card5\", \"type\": \"card\", \"data\": {\"card_name\": \"Devices and Branches\", \"col\": 4}}, {\"id\": \"rpos_card6\", \"type\": \"card\", \"data\": {\"card_name\": \"Staff and Logs\", \"col\": 4}}, {\"id\": \"rpos_card7\", \"type\": \"card\", \"data\": {\"card_name\": \"Loyalty points\", \"col\": 4}}, {\"id\": \"rpos_card8\", \"type\": \"card\", \"data\": {\"card_name\": \"Settings\", \"col\": 4}}]",
  "creation": "2026-09-06 00:00:00.000000",
  "custom_blocks": [],
  "docstatus": 0,
@@ -154,192 +154,6 @@
    "link_count": 0,
    "link_to": "POS Order Counter",
    "link_type": "DocType",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Reports",
-   "link_count": 17,
-   "onboard": 0,
-   "type": "Card Break"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 1,
-   "label": "Invoice Sales",
-   "link_count": 0,
-   "link_to": "Invoice Sales",
-   "link_type": "Report",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "dependencies": "",
-   "hidden": 0,
-   "is_query_report": 1,
-   "label": "Item Sales",
-   "link_count": 0,
-   "link_to": "Item Sales",
-   "link_type": "Report",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 1,
-   "label": "Modifier Sales",
-   "link_count": 0,
-   "link_to": "Modifier Sales",
-   "link_type": "Report",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "dependencies": "",
-   "hidden": 0,
-   "is_query_report": 1,
-   "label": "Daily Sales",
-   "link_count": 0,
-   "link_to": "Daily Sales",
-   "link_type": "Report",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 1,
-   "label": "Channel Sales",
-   "link_count": 0,
-   "link_to": "Channel Sales",
-   "link_type": "Report",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 1,
-   "label": "Guests and Tables",
-   "link_count": 0,
-   "link_to": "Guests and Tables",
-   "link_type": "Report",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "dependencies": "",
-   "hidden": 0,
-   "is_query_report": 1,
-   "label": "Hourly Sales",
-   "link_count": 0,
-   "link_to": "Hourly Sales",
-   "link_type": "Report",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "dependencies": "",
-   "hidden": 0,
-   "is_query_report": 1,
-   "label": "Payment Types",
-   "link_count": 0,
-   "link_to": "Payment Types",
-   "link_type": "Report",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 1,
-   "label": "Drawer Variances",
-   "link_count": 0,
-   "link_to": "Drawer Variances",
-   "link_type": "Report",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "dependencies": "",
-   "hidden": 0,
-   "is_query_report": 1,
-   "label": "Staff Sales",
-   "link_count": 0,
-   "link_to": "Staff Sales",
-   "link_type": "Report",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 1,
-   "label": "Hours Worked",
-   "link_count": 0,
-   "link_to": "Hours Worked",
-   "link_type": "Report",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 1,
-   "label": "Customer Sales",
-   "link_count": 0,
-   "link_to": "Customer Sales",
-   "link_type": "Report",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "dependencies": "",
-   "hidden": 0,
-   "is_query_report": 1,
-   "label": "Sales Exceptions",
-   "link_count": 0,
-   "link_to": "Sales Exceptions",
-   "link_type": "Report",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "dependencies": "",
-   "hidden": 0,
-   "is_query_report": 1,
-   "label": "Coupon Sales",
-   "link_count": 0,
-   "link_to": "Coupon Sales",
-   "link_type": "Report",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 1,
-   "label": "Promotion Sales",
-   "link_count": 0,
-   "link_to": "Promotion Sales",
-   "link_type": "Report",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "dependencies": "",
-   "hidden": 0,
-   "is_query_report": 1,
-   "label": "Gift Card Balances",
-   "link_count": 0,
-   "link_to": "Gift Card Balances",
-   "link_type": "Report",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 1,
-   "label": "VAT Return",
-   "link_count": 0,
-   "link_to": "VAT Return",
-   "link_type": "Report",
    "onboard": 0,
    "type": "Link"
   },
@@ -614,7 +428,7 @@
    "type": "Link"
   }
  ],
- "modified": "2026-09-27 01:00:00.000000",
+ "modified": "2026-09-27 02:00:00.000000",
  "modified_by": "Administrator",
  "module": "Restaurant POS",
  "name": "Restaurant POS",

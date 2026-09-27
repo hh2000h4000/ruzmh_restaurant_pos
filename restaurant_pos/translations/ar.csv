@@ -1261,3 +1261,7 @@ Discounted bills only,الفواتير المخصومة فقط
 Approved By,اعتمده
 {0} takes no money at the till, so it cannot pay for a gift card.,{0} ما يدخّل فلوس في الدرج، فما ينفع تنشرى فيه بطاقة هدايا.
 Cashier Device,جهاز الكاشير
+Table,الطاولة,Restaurant Table
+Table,الطاولة,Restaurant Order
+Table,الطاولة,Restaurant Order Table
+Table,الطاولة,Restaurant Reservation

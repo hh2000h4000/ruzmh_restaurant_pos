@@ -288,7 +288,8 @@ def _invoice_columns() -> list[dict]:
 		{"fieldname": "order_type", "label": _("Order Type"), "fieldtype": "Data", "width": 110},
 		{
 			"fieldname": "table",
-			"label": _("Table"),
+			# ERPNext's own Arabic for "Table" is the spreadsheet's «جدول» (`D-280`).
+			"label": _("Table", context="Restaurant Table"),
 			"fieldtype": "Link",
 			"options": "Restaurant Table",
 			"width": 90,

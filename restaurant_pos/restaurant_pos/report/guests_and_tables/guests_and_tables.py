@@ -77,7 +77,8 @@ def _columns() -> list[dict]:
 	return [
 		{
 			"fieldname": "table",
-			"label": _("Table"),
+			# ERPNext's own Arabic for "Table" is the spreadsheet's «جدول» (`D-280`).
+			"label": _("Table", context="Restaurant Table"),
 			"fieldtype": "Link",
 			"options": "Restaurant Table",
 			"width": 120,

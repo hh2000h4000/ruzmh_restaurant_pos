@@ -95,3 +95,27 @@ class TestTheBills(PaymentTestBase):
 		chosen = reporting.scope(frappe._dict(branch="B", pos_profile="T", order_type="O"))
 
 		self.assertEqual(chosen, {"branch": "B", "pos_profile": "T", "order_type": "O"})
+
+
+class TheTableColumn(PaymentTestBase):
+	"""`D-280` — the column read «جدول», a spreadsheet's table, over record codes.
+
+	ERPNext's Arabic for "Table" is the spreadsheet's, and a table's name is
+	`TBL-SEC-<section>-001-001`. The user asked what the field was.
+	"""
+
+	def test_it_is_headed_as_a_dining_table_in_arabic(self):
+		from frappe.translate import clear_cache
+
+		from restaurant_pos.restaurant_pos.report.guests_and_tables import guests_and_tables
+
+		clear_cache()
+		self.addCleanup(setattr, frappe.local, "lang", frappe.local.lang)
+		frappe.local.lang = "ar"
+
+		for columns in (report._invoice_columns(), guests_and_tables._columns()):
+			label = next(column["label"] for column in columns if column["fieldname"] == "table")
+			self.assertEqual(label, "الطاولة")
+
+	def test_a_table_shows_its_number_where_it_is_linked(self):
+		self.assertTrue(frappe.get_meta("Restaurant Table").show_title_field_in_link)

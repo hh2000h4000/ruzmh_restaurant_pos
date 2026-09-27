@@ -7,7 +7,7 @@ import { t } from "@/i18n";
  *
  * **A till in kiosk mode raises no soft keyboard**, which is the reason
  * `DigitPad` and `AmountKeypad` exist. A coupon code went into a bare `<input>`
- * beside them, and on a tablet in kiosk mode it could not be typed at all —
+ * beside them, and on the Windows till in kiosk mode it could not be typed at all —
  * the rule was already written in this codebase and this component was the one
  * place that ignored it.
  *
@@ -27,6 +27,28 @@ import { t } from "@/i18n";
 const props = defineProps<{ value: string; maxLength?: number }>();
 const emit = defineEmits<{ update: [value: string] }>();
 
+/**
+ * **Only where the device has no keyboard of its own** (`D-277`).
+ *
+ * The pad exists for the Windows till in kiosk mode, which raises none. A phone
+ * or a tablet raises its own the moment the field takes focus, so the pad was a
+ * second keyboard under the first — the user's question on seeing it measured
+ * on a phone: «ايش بنستفيد… هو اصلا فيه اللوحة تبعه». The Android tablets in
+ * `docs/11` run ordinary Chrome with screen pinning, keyboard and all.
+ *
+ * Numbers are another matter and keep their pads everywhere: an amount or a
+ * count is tapped faster on big keys than on a phone's keyboard, which is why
+ * Square draws its own on the iPad too.
+ */
+function hasOwnKeyboard(): boolean {
+  const agent = navigator.userAgent;
+  if (/Android|iPhone|iPad|iPod/i.test(agent)) return true;
+  // iPadOS introduces itself as a Mac. A Mac has no touch points; an iPad has five.
+  return /Macintosh/.test(agent) && navigator.maxTouchPoints > 1;
+}
+
+const shown = !hasOwnKeyboard();
+
 /** Letters then digits — 36 keys, four rows of nine, no gaps. */
 const KEYS = [
   ..."ABCDEFGHIJKLMNOPQRSTUVWXYZ",
@@ -43,7 +65,10 @@ function press(key: string): void {
   <!-- Left to right whatever the page direction, like every other pad here: a
        keyboard laid out by the locale comes out backwards and is not a keyboard
        anybody has used (`FR-17`). -->
-  <div dir="ltr">
+  <div
+    v-if="shown"
+    dir="ltr"
+  >
     <div class="grid grid-cols-9 gap-1.5">
       <button
         v-for="key in KEYS"

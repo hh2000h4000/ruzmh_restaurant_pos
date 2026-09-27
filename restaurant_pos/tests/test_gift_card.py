@@ -790,3 +790,27 @@ class WhatMovedInAPeriod(GiftCardTestBase):
 
 		self.assertEqual([row["entry_type"] for row in rows], ["issue", "redeem"])
 		self.assertAlmostEqual(sum(row["owed_change"] for row in rows), 200 - spent, places=2)
+
+
+class OnlyMoneyPaysForACard(GiftCardTestBase):
+	"""`D-276` — the sell sheet offered the gift card method to pay for a card.
+
+	The entry moved the liability onto itself and the new card held a balance
+	nobody had paid. A credit line is the same hole from the other side.
+	"""
+
+	def test_a_card_cannot_buy_a_card(self):
+		with self.assertRaises(frappe.ValidationError):
+			self._sell(mode_of_payment=cards.gift_card_method())
+
+		self.assertFalse(frappe.db.exists("POS Gift Card", f"{PREFIX}1"))
+
+	def test_a_credit_line_cannot_buy_a_card(self):
+		credit = frappe.db.get_value("Mode of Payment", {"rpos_is_credit": 1}, "name")
+		if not credit:
+			self.skipTest("no credit method on this site")
+
+		with self.assertRaises(frappe.ValidationError):
+			self._sell(mode_of_payment=credit)
+
+		self.assertFalse(frappe.db.exists("POS Gift Card", f"{PREFIX}1"))

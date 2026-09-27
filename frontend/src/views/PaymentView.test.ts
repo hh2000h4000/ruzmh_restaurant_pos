@@ -109,7 +109,11 @@ function isDisabled(wrapper: Wrapper, name: string): boolean {
   return (methodButton(wrapper, name).element as HTMLButtonElement).disabled;
 }
 
-/** The single button that ends the sale, found by its own label. */
+/**
+ * The button that ends the sale, found by its own label — the summary card's.
+ * Narrower than three columns the bar at the foot carries the same one
+ * (`D-278`); CSS shows one or the other, and jsdom draws both.
+ */
 function confirmButton(wrapper: Wrapper) {
   const found = wrapper
     .findAll("button")
@@ -206,6 +210,22 @@ describe("what the payment screen lets a cashier reach", () => {
     await tender(wrapper, "Cash");
 
     expect(confirmButton(wrapper).disabled).toBe(false);
+  });
+
+  it("keeps the total and the button at the foot of a narrow screen", async () => {
+    // `D-278` — on a phone the button was below the screen, on a tablet cut in
+    // half. The bar answers exactly as the card's button does.
+    const wrapper = await open(summary());
+    const bar = wrapper.find("[data-pay-bar]");
+    const barButton = () => bar.find("button").element as HTMLButtonElement;
+
+    expect(bar.text()).toContain("تأكيد الدفع");
+    expect(barButton().disabled).toBe(true);
+
+    await tender(wrapper, "Cash");
+
+    expect(barButton().disabled).toBe(confirmButton(wrapper).disabled);
+    expect(barButton().disabled).toBe(false);
   });
 
   /**

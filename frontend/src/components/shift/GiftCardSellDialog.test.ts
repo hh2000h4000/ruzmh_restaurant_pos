@@ -24,7 +24,11 @@ vi.mock("@/api/giftCard", () => ({ sellGiftCard: vi.fn() }));
 beforeEach(() => {
   setActivePinia(createPinia());
   useSessionStore().data = {
-    payment_methods: [{ mode_of_payment: "Cash", is_credit: 0, default: 1 }],
+    payment_methods: [
+      { mode_of_payment: "Cash", is_credit: 0, default: 1 },
+      { mode_of_payment: "Card balance", is_credit: 0, is_gift_card: 1 },
+      { mode_of_payment: "Talabat", is_credit: 1 },
+    ],
   } as unknown as PosSession;
 });
 
@@ -49,5 +53,17 @@ describe("selling a card", () => {
     const panel = sheet().find('[role="dialog"]');
 
     expect(panel.classes()).toContain("max-w-5xl");
+  });
+
+  it("offers only what puts money in the drawer to pay for a card", () => {
+    // `D-276` — a card bought with a card held a balance nobody paid for.
+    const labels = sheet()
+      .find("[data-dialog-footer]")
+      .findAll("button")
+      .map((button) => button.text().trim());
+
+    expect(labels).toContain("Cash");
+    expect(labels).not.toContain("Card balance");
+    expect(labels).not.toContain("Talabat");
   });
 });

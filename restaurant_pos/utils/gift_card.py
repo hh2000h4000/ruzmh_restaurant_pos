@@ -345,6 +345,17 @@ def _sale_accounts(pos_profile: str, mode_of_payment: str) -> tuple:
 
 	So a refusal leaves nothing behind whether or not anything rolls it back.
 	"""
+	# **Only money that arrives pays for a card** (`D-276`). A card bought with
+	# a card moved the liability onto itself and left a new balance nobody paid
+	# for; a platform's or a company's credit line is money still owed, not
+	# money in the drawer. The sell sheet listed both.
+	if is_gift_card_method(mode_of_payment) or frappe.db.get_value(
+		"Mode of Payment", mode_of_payment, "rpos_is_credit"
+	):
+		frappe.throw(
+			_("{0} takes no money at the till, so it cannot pay for a gift card.").format(mode_of_payment)
+		)
+
 	terminal = frappe.db.get_value("POS Profile", pos_profile, ["company", "cost_center"], as_dict=True)
 
 	liability = _liability(terminal.company)

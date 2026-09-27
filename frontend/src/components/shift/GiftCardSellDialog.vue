@@ -40,7 +40,7 @@ const field = ref<HTMLInputElement | null>(null);
 
 /** Only what puts money in the drawer: no credit lines, no gift cards. */
 const methods = computed(() =>
-  (session.data?.payment_methods ?? []).filter((row) => !row.is_credit),
+  (session.data?.payment_methods ?? []).filter((row) => !row.is_credit && !row.is_gift_card),
 );
 
 const value = computed(() => Number(amount.value) || 0);

@@ -1230,9 +1230,10 @@ async function confirm(): Promise<void> {
           }}</span>
         </div>
 
+        <!-- Here on a wide screen only; narrower, it is the bar below. -->
         <button
           type="button"
-          class="mt-auto min-h-[3.875rem] w-full rounded-rpos-lg bg-primary px-4 text-base font-medium text-primary-contrast shadow-primary transition duration-200 ease-rpos hover:brightness-110 disabled:opacity-50 disabled:shadow-none"
+          class="mt-auto hidden min-h-[3.875rem] w-full rounded-rpos-lg bg-primary px-4 text-base font-medium text-primary-contrast shadow-primary transition duration-200 ease-rpos hover:brightness-110 disabled:opacity-50 disabled:shadow-none lg:block"
           :disabled="!canConfirm"
           @click="confirm"
         >
@@ -1253,6 +1254,27 @@ async function confirm(): Promise<void> {
     >
       {{ t("common.loading") }}
     </p>
+
+    <!-- `D-278` — on a phone or a portrait tablet the three cards stack into one
+         column, and the button that takes the money was the last thing in it:
+         below the screen on a phone, cut in half on a tablet. So narrower than
+         the three-column layout, the total and the button ride the bottom of
+         the screen, and the column scrolls above them. -->
+    <div
+      v-if="summary && !done && !loadFailure"
+      data-pay-bar
+      class="flex shrink-0 items-center gap-4 border-t border-line bg-surface px-6 py-3 lg:hidden"
+    >
+      <span class="rpos-numeric text-2xl font-medium tracking-tighter">{{ money(due) }}</span>
+      <button
+        type="button"
+        class="min-h-[3.25rem] flex-1 rounded-rpos-lg bg-primary px-4 text-base font-medium text-primary-contrast shadow-primary transition duration-200 ease-rpos hover:brightness-110 disabled:opacity-50 disabled:shadow-none"
+        :disabled="!canConfirm"
+        @click="confirm"
+      >
+        {{ busy ? "…" : t("pay.confirm") }}
+      </button>
+    </div>
 
     <!-- Screen 9 — manager authorisation -->
     <TenderSheet

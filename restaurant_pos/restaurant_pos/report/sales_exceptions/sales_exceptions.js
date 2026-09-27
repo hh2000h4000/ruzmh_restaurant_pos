@@ -27,6 +27,13 @@ frappe.query_reports["Sales Exceptions"] = {
 			options: "Branch",
 		},
 		{
+			// `D-279` — which of the branch's tills rang it up.
+			fieldname: "pos_profile",
+			label: __("Cashier Device"),
+			fieldtype: "Link",
+			options: "POS Profile",
+		},
+		{
 			fieldname: "action_type",
 			label: __("Action Type"),
 			fieldtype: "Select",

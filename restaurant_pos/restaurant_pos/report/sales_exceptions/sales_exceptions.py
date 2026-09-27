@@ -79,6 +79,8 @@ def _events(filters, from_date: str, to_date: str) -> list[dict]:
 	scope = {"action_type": ("in", wanted), "timestamp": ("between", [from_date, to_date])}
 	if filters.branch:
 		scope["branch"] = filters.branch
+	if filters.pos_profile:
+		scope["pos_profile"] = filters.pos_profile
 	if filters.cashier:
 		scope["cashier"] = filters.cashier
 

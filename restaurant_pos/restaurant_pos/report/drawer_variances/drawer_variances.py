@@ -67,6 +67,8 @@ def closings(filters, from_date: str, to_date: str) -> list[dict]:
 	names = {}
 	rows = []
 	for entry in entries:
+		if filters.pos_profile and entry.pos_profile != filters.pos_profile:
+			continue
 		branch = branch_of_profile(entry.pos_profile)
 		if filters.branch and branch != filters.branch:
 			continue

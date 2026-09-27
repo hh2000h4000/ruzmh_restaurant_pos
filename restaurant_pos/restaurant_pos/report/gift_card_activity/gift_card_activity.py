@@ -37,6 +37,8 @@ def execute(filters=None):
 	conditions = {"recorded_at": ("between", [from_date, add_days(to_date, 1)])}
 	if filters.branch:
 		conditions["branch"] = filters.branch
+	if filters.pos_profile:
+		conditions["pos_profile"] = filters.pos_profile
 	if filters.entry_type:
 		conditions["entry_type"] = filters.entry_type
 

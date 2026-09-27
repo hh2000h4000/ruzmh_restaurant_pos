@@ -26,6 +26,13 @@ frappe.query_reports["Staff Sales"] = {
 			options: "Branch",
 		},
 		{
+			// `D-279` — which of the branch's tills rang it up.
+			fieldname: "pos_profile",
+			label: __("Cashier Device"),
+			fieldtype: "Link",
+			options: "POS Profile",
+		},
+		{
 			fieldname: "order_type",
 			label: __("Order Type"),
 			fieldtype: "Link",

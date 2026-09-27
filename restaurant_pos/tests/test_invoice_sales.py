@@ -15,7 +15,7 @@ from frappe.utils import flt, today
 
 from restaurant_pos.restaurant_pos.report.invoice_sales import invoice_sales as report
 from restaurant_pos.tests.test_payment import CASH, PaymentTestBase
-from restaurant_pos.utils import returns
+from restaurant_pos.utils import reporting, returns
 
 REASON = "goods_returned"
 
@@ -77,3 +77,21 @@ class TestTheBills(PaymentTestBase):
 		self.assertAlmostEqual(row["offer_amount"], 6, places=2)
 		self.assertAlmostEqual(row["manual_discount"], 4, places=2)
 		self.assertNotIn(plain.sales_invoice, [row.get("invoice") for row in rows])
+
+	def test_a_bill_is_found_under_its_own_till_and_no_other(self):
+		"""`D-279` — three tills in one branch are three answers to «who sold this?»."""
+		order = self._sold()
+		period = {"from_date": today(), "to_date": today(), "view": "invoice"}
+
+		_columns, mine = report.execute({**period, "pos_profile": self.profile})
+		row = next(row for row in mine if row.get("invoice") == order.sales_invoice)
+		self.assertEqual(row["till"], self.profile)
+
+		_columns, other = report.execute({**period, "pos_profile": "RPOS No Such Till"})
+		self.assertNotIn(order.sales_invoice, [row.get("invoice") for row in other])
+
+	def test_every_report_that_walks_bills_is_scoped_by_till(self):
+		"""The one place fourteen reports take their scope from."""
+		chosen = reporting.scope(frappe._dict(branch="B", pos_profile="T", order_type="O"))
+
+		self.assertEqual(chosen, {"branch": "B", "pos_profile": "T", "order_type": "O"})

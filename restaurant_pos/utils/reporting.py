@@ -36,10 +36,18 @@ def window(filters) -> tuple[str, str]:
 
 
 def scope(filters) -> dict:
-	"""The branch and order type, as filters on `Restaurant Order`."""
+	"""The branch, the till and the order type, as filters on `Restaurant Order`.
+
+	**The till is the device the bill was rung up on** (`D-279`) — three tills
+	in one branch are three answers to «who sold this?», and every bill already
+	carried its `pos_profile`. Here, so every report that walks settled bills
+	offers it at once rather than fourteen of them learning it one by one.
+	"""
 	chosen = {}
 	if filters.branch:
 		chosen["branch"] = filters.branch
+	if filters.pos_profile:
+		chosen["pos_profile"] = filters.pos_profile
 	if filters.order_type:
 		chosen["order_type"] = filters.order_type
 	return chosen

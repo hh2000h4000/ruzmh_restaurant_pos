@@ -25,5 +25,12 @@ frappe.query_reports["Channel Sales"] = {
 			fieldtype: "Link",
 			options: "Branch",
 		},
+		{
+			// `D-279` — which of the branch's tills rang it up.
+			fieldname: "pos_profile",
+			label: __("Cashier Device"),
+			fieldtype: "Link",
+			options: "POS Profile",
+		},
 	],
 };

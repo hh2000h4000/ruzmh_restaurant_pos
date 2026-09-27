@@ -38,6 +38,13 @@ frappe.query_reports["Coupon Sales"] = {
 			options: "Branch",
 		},
 		{
+			// `D-279` — which of the branch's tills rang it up.
+			fieldname: "pos_profile",
+			label: __("Cashier Device"),
+			fieldtype: "Link",
+			options: "POS Profile",
+		},
+		{
 			fieldname: "group_by_coupon",
 			label: __("One row per code, not per campaign"),
 			fieldtype: "Check",

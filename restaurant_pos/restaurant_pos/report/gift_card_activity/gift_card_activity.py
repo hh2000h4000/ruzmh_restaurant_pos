@@ -106,15 +106,25 @@ def _summary(totals: dict) -> list[dict]:
 
 def _columns() -> list[dict]:
 	return [
-		{"fieldname": "recorded_at", "label": _("Date"), "fieldtype": "Datetime", "width": 160},
+		{
+			"fieldname": "recorded_at",
+			"label": _("Date", context="RPOS report"),
+			"fieldtype": "Datetime",
+			"width": 160,
+		},
 		{"fieldname": "card_number", "label": _("Card Number"), "fieldtype": "Data", "width": 150},
 		{"fieldname": "kind", "label": _("Movement"), "fieldtype": "Data", "width": 110},
-		{"fieldname": "amount", "label": _("Amount"), "fieldtype": "Currency", "width": 110},
+		{
+			"fieldname": "amount",
+			"label": _("Amount", context="RPOS report"),
+			"fieldtype": "Currency",
+			"width": 110,
+		},
 		{"fieldname": "owed_change", "label": _("Change in Owed"), "fieldtype": "Currency", "width": 130},
 		{"fieldname": "balance_after", "label": _("Balance After"), "fieldtype": "Currency", "width": 120},
 		{
 			"fieldname": "sales_invoice",
-			"label": _("Invoice"),
+			"label": _("Invoice", context="RPOS report"),
 			"fieldtype": "Link",
 			"options": "Sales Invoice",
 			"width": 150,
@@ -126,7 +136,24 @@ def _columns() -> list[dict]:
 			"options": "Mode of Payment",
 			"width": 120,
 		},
-		{"fieldname": "branch", "label": _("Branch"), "fieldtype": "Link", "options": "Branch", "width": 130},
-		{"fieldname": "recorded_by", "label": _("By"), "fieldtype": "Link", "options": "User", "width": 150},
-		{"fieldname": "reason", "label": _("Reason"), "fieldtype": "Data", "width": 200},
+		{
+			"fieldname": "branch",
+			"label": _("Branch", context="RPOS report"),
+			"fieldtype": "Link",
+			"options": "Branch",
+			"width": 130,
+		},
+		{
+			"fieldname": "recorded_by",
+			"label": _("By", context="RPOS report"),
+			"fieldtype": "Link",
+			"options": "User",
+			"width": 150,
+		},
+		{
+			"fieldname": "reason",
+			"label": _("Reason", context="RPOS report"),
+			"fieldtype": "Data",
+			"width": 200,
+		},
 	]

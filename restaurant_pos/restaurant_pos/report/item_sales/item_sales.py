@@ -213,7 +213,7 @@ def _message(rows: list[dict]) -> str | None:
 def _columns(*, by_group: bool, costed: bool) -> list[dict]:
 	item = {
 		"fieldname": "item_code",
-		"label": _("Item"),
+		"label": _("Item", context="RPOS report"),
 		"fieldtype": "Link",
 		"options": "Item",
 		"width": 240,
@@ -228,12 +228,22 @@ def _columns(*, by_group: bool, costed: bool) -> list[dict]:
 
 	money = [
 		{"fieldname": "qty", "label": _("Sold"), "fieldtype": "Float", "width": 90},
-		{"fieldname": "returned_qty", "label": _("Returned"), "fieldtype": "Float", "width": 100},
+		{
+			"fieldname": "returned_qty",
+			"label": _("Returned", context="RPOS report"),
+			"fieldtype": "Float",
+			"width": 100,
+		},
 		{"fieldname": "net_qty", "label": _("Net Quantity"), "fieldtype": "Float", "width": 110},
 		{"fieldname": "amount", "label": _("Sales (excl. VAT)"), "fieldtype": "Currency", "width": 150},
 	]
 	cost = [
-		{"fieldname": "cost", "label": _("Cost"), "fieldtype": "Currency", "width": 130},
+		{
+			"fieldname": "cost",
+			"label": _("Cost", context="RPOS report"),
+			"fieldtype": "Currency",
+			"width": 130,
+		},
 		{"fieldname": "cost_ratio", "label": _("Food Cost %"), "fieldtype": "Float", "width": 110},
 		{"fieldname": "profit", "label": _("Profit"), "fieldtype": "Currency", "width": 130},
 		# **Float, not Percent**, for the same reason the share is: Frappe's total

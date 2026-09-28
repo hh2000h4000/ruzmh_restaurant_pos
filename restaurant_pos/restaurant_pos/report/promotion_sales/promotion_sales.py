@@ -74,7 +74,7 @@ def _columns() -> list[dict]:
 			"options": "Restaurant Promotion",
 			"width": 120,
 		},
-		{"fieldname": "title", "label": _("Title"), "fieldtype": "Data", "width": 200},
+		{"fieldname": "title", "label": _("Title", context="RPOS report"), "fieldtype": "Data", "width": 200},
 		{"fieldname": "bills", "label": _("Bills"), "fieldtype": "Int", "width": 80},
 		{"fieldname": "given", "label": _("Given Away"), "fieldtype": "Currency", "width": 120},
 		{"fieldname": "sales", "label": _("Sales of Those Bills"), "fieldtype": "Currency", "width": 150},

@@ -196,20 +196,36 @@ def _columns(*, by_staff: bool) -> list[dict]:
 		return [
 			{
 				"fieldname": "cashier",
-				"label": _("Cashier"),
+				"label": _("Cashier", context="RPOS report"),
 				"fieldtype": "Link",
 				"options": "User",
 				"width": 230,
 			},
 			{"fieldname": "count", "label": _("How Many"), "fieldtype": "Int", "width": 110},
-			{"fieldname": "amount", "label": _("Amount"), "fieldtype": "Currency", "width": 150},
+			{
+				"fieldname": "amount",
+				"label": _("Amount", context="RPOS report"),
+				"fieldtype": "Currency",
+				"width": 150,
+			},
 			{"fieldname": "share", "label": _("Share of Sales %"), "fieldtype": "Float", "width": 140},
 		]
 
 	return [
 		{"fieldname": "timestamp", "label": _("Timestamp"), "fieldtype": "Datetime", "width": 160},
-		{"fieldname": "action_type", "label": _("Action Type"), "fieldtype": "Data", "width": 140},
-		{"fieldname": "cashier", "label": _("Cashier"), "fieldtype": "Link", "options": "User", "width": 200},
+		{
+			"fieldname": "action_type",
+			"label": _("Action Type", context="RPOS report"),
+			"fieldtype": "Data",
+			"width": 140,
+		},
+		{
+			"fieldname": "cashier",
+			"label": _("Cashier", context="RPOS report"),
+			"fieldtype": "Link",
+			"options": "User",
+			"width": 200,
+		},
 		{
 			"fieldname": "approved_by",
 			"label": _("Approved By"),
@@ -224,6 +240,16 @@ def _columns(*, by_staff: bool) -> list[dict]:
 			"options": "Restaurant Order",
 			"width": 170,
 		},
-		{"fieldname": "reason", "label": _("Reason"), "fieldtype": "Data", "width": 240},
-		{"fieldname": "amount", "label": _("Amount"), "fieldtype": "Currency", "width": 140},
+		{
+			"fieldname": "reason",
+			"label": _("Reason", context="RPOS report"),
+			"fieldtype": "Data",
+			"width": 240,
+		},
+		{
+			"fieldname": "amount",
+			"label": _("Amount", context="RPOS report"),
+			"fieldtype": "Currency",
+			"width": 140,
+		},
 	]

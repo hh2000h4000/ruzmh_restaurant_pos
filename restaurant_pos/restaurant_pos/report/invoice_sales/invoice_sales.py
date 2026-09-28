@@ -269,18 +269,18 @@ def _item_total(rows: list[dict]) -> dict:
 
 def _invoice_columns() -> list[dict]:
 	return [
-		{"fieldname": "at", "label": _("Time"), "fieldtype": "Datetime", "width": 150},
+		{"fieldname": "at", "label": _("Time", context="RPOS report"), "fieldtype": "Datetime", "width": 150},
 		{"fieldname": "number", "label": _("No."), "fieldtype": "Data", "width": 60},
 		{
 			"fieldname": "invoice",
-			"label": _("Invoice"),
+			"label": _("Invoice", context="RPOS report"),
 			"fieldtype": "Link",
 			"options": "Sales Invoice",
 			"width": 150,
 		},
 		{
 			"fieldname": "against",
-			"label": _("Returns"),
+			"label": _("Returns", context="RPOS report"),
 			"fieldtype": "Link",
 			"options": "Sales Invoice",
 			"width": 150,
@@ -301,7 +301,12 @@ def _invoice_columns() -> list[dict]:
 			"options": "POS Profile",
 			"width": 120,
 		},
-		{"fieldname": "cashier", "label": _("Cashier"), "fieldtype": "Data", "width": 130},
+		{
+			"fieldname": "cashier",
+			"label": _("Cashier", context="RPOS report"),
+			"fieldtype": "Data",
+			"width": 130,
+		},
 		{
 			"fieldname": "customer",
 			"label": _("Customer"),
@@ -341,11 +346,11 @@ def _invoice_columns() -> list[dict]:
 
 def _item_columns() -> list[dict]:
 	return [
-		{"fieldname": "at", "label": _("Time"), "fieldtype": "Datetime", "width": 150},
+		{"fieldname": "at", "label": _("Time", context="RPOS report"), "fieldtype": "Datetime", "width": 150},
 		{"fieldname": "number", "label": _("No."), "fieldtype": "Data", "width": 60},
 		{
 			"fieldname": "invoice",
-			"label": _("Invoice"),
+			"label": _("Invoice", context="RPOS report"),
 			"fieldtype": "Link",
 			"options": "Sales Invoice",
 			"width": 150,
@@ -358,10 +363,31 @@ def _item_columns() -> list[dict]:
 			"options": "POS Profile",
 			"width": 120,
 		},
-		{"fieldname": "item_code", "label": _("Item"), "fieldtype": "Link", "options": "Item", "width": 130},
-		{"fieldname": "item_name", "label": _("Item Name"), "fieldtype": "Data", "width": 170},
+		{
+			"fieldname": "item_code",
+			"label": _("Item", context="RPOS report"),
+			"fieldtype": "Link",
+			"options": "Item",
+			"width": 130,
+		},
+		{
+			"fieldname": "item_name",
+			"label": _("Item Name", context="RPOS report"),
+			"fieldtype": "Data",
+			"width": 170,
+		},
 		{"fieldname": "qty", "label": _("Qty"), "fieldtype": "Float", "width": 70},
-		{"fieldname": "rate", "label": _("Rate"), "fieldtype": "Currency", "width": 100},
+		{
+			"fieldname": "rate",
+			"label": _("Rate", context="RPOS report"),
+			"fieldtype": "Currency",
+			"width": 100,
+		},
 		{"fieldname": "sales", "label": _("Sales before VAT"), "fieldtype": "Currency", "width": 120},
-		{"fieldname": "amount", "label": _("Amount"), "fieldtype": "Currency", "width": 110},
+		{
+			"fieldname": "amount",
+			"label": _("Amount", context="RPOS report"),
+			"fieldtype": "Currency",
+			"width": 110,
+		},
 	]

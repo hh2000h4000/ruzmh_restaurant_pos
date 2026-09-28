@@ -106,7 +106,13 @@ def _total(rows: list[dict]) -> dict:
 
 def _columns() -> list[dict]:
 	return [
-		{"fieldname": "cashier", "label": _("Cashier"), "fieldtype": "Link", "options": "User", "width": 200},
+		{
+			"fieldname": "cashier",
+			"label": _("Cashier", context="RPOS report"),
+			"fieldtype": "Link",
+			"options": "User",
+			"width": 200,
+		},
 		{"fieldname": "staff_name", "label": _("Name"), "fieldtype": "Data", "width": 200},
 		{"fieldname": "bills", "label": _("Bills"), "fieldtype": "Int", "width": 90},
 		{"fieldname": "sales", "label": _("Sales"), "fieldtype": "Currency", "width": 150},

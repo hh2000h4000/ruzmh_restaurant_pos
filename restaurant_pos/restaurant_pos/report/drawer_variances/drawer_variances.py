@@ -140,7 +140,13 @@ def _columns() -> list[dict]:
 			"options": "POS Closing Entry",
 			"width": 150,
 		},
-		{"fieldname": "branch", "label": _("Branch"), "fieldtype": "Link", "options": "Branch", "width": 130},
+		{
+			"fieldname": "branch",
+			"label": _("Branch", context="RPOS report"),
+			"fieldtype": "Link",
+			"options": "Branch",
+			"width": 130,
+		},
 		{
 			"fieldname": "pos_profile",
 			"label": _("Terminal", context="RPOS report"),
@@ -148,17 +154,37 @@ def _columns() -> list[dict]:
 			"options": "POS Profile",
 			"width": 120,
 		},
-		{"fieldname": "cashier_name", "label": _("Cashier"), "fieldtype": "Data", "width": 150},
+		{
+			"fieldname": "cashier_name",
+			"label": _("Cashier", context="RPOS report"),
+			"fieldtype": "Data",
+			"width": 150,
+		},
 		{"fieldname": "expected", "label": _("Expected"), "fieldtype": "Currency", "width": 110},
 		{"fieldname": "counted", "label": _("Counted"), "fieldtype": "Currency", "width": 110},
-		{"fieldname": "difference", "label": _("Difference"), "fieldtype": "Currency", "width": 110},
-		{"fieldname": "reason", "label": _("Reason"), "fieldtype": "Data", "width": 260},
+		{
+			"fieldname": "difference",
+			"label": _("Difference", context="RPOS report"),
+			"fieldtype": "Currency",
+			"width": 110,
+		},
+		{
+			"fieldname": "reason",
+			"label": _("Reason", context="RPOS report"),
+			"fieldtype": "Data",
+			"width": 260,
+		},
 	]
 
 
 def _cashier_columns() -> list[dict]:
 	return [
-		{"fieldname": "cashier_name", "label": _("Cashier"), "fieldtype": "Data", "width": 180},
+		{
+			"fieldname": "cashier_name",
+			"label": _("Cashier", context="RPOS report"),
+			"fieldtype": "Data",
+			"width": 180,
+		},
 		{"fieldname": "drawers", "label": _("Drawers"), "fieldtype": "Int", "width": 90},
 		{"fieldname": "short_drawers", "label": _("Drawers Short"), "fieldtype": "Int", "width": 110},
 		{"fieldname": "short", "label": _("Shortages"), "fieldtype": "Currency", "width": 120},

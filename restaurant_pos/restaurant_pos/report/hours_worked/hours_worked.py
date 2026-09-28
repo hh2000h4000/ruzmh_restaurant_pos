@@ -102,7 +102,7 @@ def _columns() -> list[dict]:
 			"width": 130,
 		},
 		{"fieldname": "employee_name", "label": _("Name"), "fieldtype": "Data", "width": 180},
-		{"fieldname": "hours", "label": _("Hours"), "fieldtype": "Float", "width": 90},
+		{"fieldname": "hours", "label": _("Hours", context="RPOS report"), "fieldtype": "Float", "width": 90},
 		{"fieldname": "sales", "label": _("Sales Taken"), "fieldtype": "Currency", "width": 130},
 		{"fieldname": "per_hour", "label": _("Sales an Hour"), "fieldtype": "Currency", "width": 120},
 	]

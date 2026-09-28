@@ -1267,3 +1267,22 @@ Table,الطاولة,Restaurant Order Table
 Table,الطاولة,Restaurant Reservation
 "{0} of {1} lines include an ingredient carried at zero cost in the books.","{0} من {1} أصناف فيها مكوّن مقيّم بصفر في الدفاتر."
 Food Cost %,نسبة تكلفة الأكل ٪
+Amount,المبلغ,RPOS report
+Item,الصنف,RPOS report
+Item Name,اسم الصنف,RPOS report
+Rate,السعر,RPOS report
+Returns,مرتجع من فاتورة,RPOS report
+Title,العرض,RPOS report
+By,بواسطة,RPOS report
+Promotion,العرض,RPOS report
+Time,الوقت,RPOS report
+Cost,التكلفة,RPOS report
+Returned,المرتجع,RPOS report
+Cashier,الكاشير,RPOS report
+Invoice,الفاتورة,RPOS report
+Date,التاريخ,RPOS report
+Difference,الفرق,RPOS report
+Reason,السبب,RPOS report
+Branch,الفرع,RPOS report
+Hours,الساعات,RPOS report
+Action Type,نوع العملية,RPOS report

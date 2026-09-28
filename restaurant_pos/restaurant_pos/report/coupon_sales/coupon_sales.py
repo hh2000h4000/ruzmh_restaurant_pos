@@ -114,7 +114,7 @@ def _columns(*, by_campaign: bool) -> list[dict]:
 		*head,
 		{
 			"fieldname": "promotion",
-			"label": _("Promotion"),
+			"label": _("Promotion", context="RPOS report"),
 			"fieldtype": "Link",
 			"options": "Restaurant Promotion",
 			"width": 160,

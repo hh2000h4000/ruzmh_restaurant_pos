@@ -67,11 +67,42 @@ def _lines_of(invoices: list[str], item_group: str | None) -> list[frappe._dict]
 	if item_group:
 		filters["item_group"] = item_group
 
-	return frappe.get_all(
+	lines = frappe.get_all(
 		"Sales Invoice Item",
 		filters=filters,
-		fields=["item_code", "item_name", "item_group", "qty", "net_amount", "incoming_rate"],
+		fields=["name", "item_code", "item_name", "item_group", "qty", "net_amount", "incoming_rate"],
 	)
+	recipes = _recipe_costs(invoices)
+	for line in lines:
+		if line.name in recipes:
+			line.recipe_cost = recipes[line.name]
+	return lines
+
+
+def _recipe_costs(invoices: list[str]) -> dict[str, float | None]:
+	"""What a dish sold by its recipe cost — the sum of its ingredients (`D-281`).
+
+	A prepared dish is not a stock item, so its own line carries no cost: the
+	invoice unpacks its Product Bundle into packed items, and **those** leave the
+	warehouse at a worth. Read off the line alone, every burger was free to make
+	— the owner's question was exactly this: «أصناف غير مخزنة… ويحسب تكلفتها من
+	مكوناتها».
+
+	`None` for a line one of whose ingredients left with no worth: a partial
+	cost would understate it, so it is counted as uncosted and said aloud.
+	"""
+	costs: dict[str, float | None] = {}
+	for packed in frappe.get_all(
+		"Packed Item",
+		filters={"parenttype": "Sales Invoice", "parent": ("in", invoices)},
+		fields=["parent_detail_docname", "qty", "incoming_rate"],
+	):
+		line = packed.parent_detail_docname
+		if not flt(packed.incoming_rate):
+			costs[line] = None
+		elif costs.get(line, 0.0) is not None:
+			costs[line] = costs.get(line, 0.0) + abs(flt(packed.qty)) * flt(packed.incoming_rate)
+	return costs
 
 
 # --------------------------------------------------------------------------- #
@@ -124,6 +155,14 @@ def _tally(sold: list, returned: list, *, by_group: bool) -> list[dict]:
 
 def _add_cost(row: dict, line) -> None:
 	"""What the stock was worth as it left — and how much left with no worth at all."""
+	if "recipe_cost" in line:
+		if line.recipe_cost is None:
+			row["uncosted_qty"] += abs(flt(line.qty))
+		else:
+			# Sold adds its cost; a credit note, whose quantity is negative, takes it back.
+			row["cost"] += line.recipe_cost if flt(line.qty) > 0 else -line.recipe_cost
+		return
+
 	rate = flt(line.incoming_rate)
 	if rate:
 		row["cost"] += rate * flt(line.qty)

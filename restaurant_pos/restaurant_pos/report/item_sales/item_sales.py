@@ -75,11 +75,11 @@ def _lines_of(invoices: list[str], item_group: str | None) -> list[frappe._dict]
 	recipes = _recipe_costs(invoices)
 	for line in lines:
 		if line.name in recipes:
-			line.recipe_cost = recipes[line.name]
+			line.recipe_cost, line.recipe_short = recipes[line.name]
 	return lines
 
 
-def _recipe_costs(invoices: list[str]) -> dict[str, float | None]:
+def _recipe_costs(invoices: list[str]) -> dict[str, tuple[float, bool]]:
 	"""What a dish sold by its recipe cost — the sum of its ingredients (`D-281`).
 
 	A prepared dish is not a stock item, so its own line carries no cost: the
@@ -88,20 +88,21 @@ def _recipe_costs(invoices: list[str]) -> dict[str, float | None]:
 	— the owner's question was exactly this: «أصناف غير مخزنة… ويحسب تكلفتها من
 	مكوناتها».
 
-	`None` for a line one of whose ingredients left with no worth: a partial
-	cost would understate it, so it is counted as uncosted and said aloud.
+	**An ingredient with no worth counts as nothing, and the rest still count**
+	(`D-282`). Calling the whole burger uncosted because the bun had no price
+	threw away three prices that were known — the owner: «الأفضل تطلع التكلفة
+	تكلفة باقي المكونات». The second value says a line was short an ingredient,
+	so the report can say its cost reads low.
 	"""
-	costs: dict[str, float | None] = {}
+	costs: dict[str, tuple[float, bool]] = {}
 	for packed in frappe.get_all(
 		"Packed Item",
 		filters={"parenttype": "Sales Invoice", "parent": ("in", invoices)},
 		fields=["parent_detail_docname", "qty", "incoming_rate"],
 	):
-		line = packed.parent_detail_docname
-		if not flt(packed.incoming_rate):
-			costs[line] = None
-		elif costs.get(line, 0.0) is not None:
-			costs[line] = costs.get(line, 0.0) + abs(flt(packed.qty)) * flt(packed.incoming_rate)
+		cost, short = costs.get(packed.parent_detail_docname, (0.0, False))
+		rate = flt(packed.incoming_rate)
+		costs[packed.parent_detail_docname] = (cost + abs(flt(packed.qty)) * rate, short or not rate)
 	return costs
 
 
@@ -126,6 +127,7 @@ def _tally(sold: list, returned: list, *, by_group: bool) -> list[dict]:
 				"amount": 0.0,
 				"cost": 0.0,
 				"uncosted_qty": 0.0,
+				"short_costed_qty": 0.0,
 			}
 			# `item_name` carries no column: Frappe's Link cell reads it from the row
 			# and prints "CODE: Name", so a column of its own would repeat the words.
@@ -156,11 +158,10 @@ def _tally(sold: list, returned: list, *, by_group: bool) -> list[dict]:
 def _add_cost(row: dict, line) -> None:
 	"""What the stock was worth as it left — and how much left with no worth at all."""
 	if "recipe_cost" in line:
-		if line.recipe_cost is None:
-			row["uncosted_qty"] += abs(flt(line.qty))
-		else:
-			# Sold adds its cost; a credit note, whose quantity is negative, takes it back.
-			row["cost"] += line.recipe_cost if flt(line.qty) > 0 else -line.recipe_cost
+		# Sold adds its cost; a credit note, whose quantity is negative, takes it back.
+		row["cost"] += line.recipe_cost if flt(line.qty) > 0 else -line.recipe_cost
+		if line.recipe_short:
+			row["short_costed_qty"] += abs(flt(line.qty))
 		return
 
 	rate = flt(line.incoming_rate)
@@ -174,17 +175,34 @@ def _cost_columns(row: dict) -> None:
 	row["cost"] = flt(row["cost"], 2)
 	row["profit"] = flt(row["amount"] - row["cost"], 2)
 	row["margin"] = flt(row["profit"] / row["amount"] * 100, 2) if row["amount"] else 0.0
+	# **The restaurant's own measure** (`D-282`): the Uniform System of Accounts
+	# for Restaurants states food cost as cost of food sold over food sales —
+	# the margin's complement, and the figure a kitchen is actually run on.
+	row["cost_ratio"] = flt(row["cost"] / row["amount"] * 100, 2) if row["amount"] else 0.0
 
 
 def _message(rows: list[dict]) -> str | None:
-	"""Say it plainly when a margin is built on dishes that were never costed."""
+	"""Say it plainly when a margin is built on costs that are missing or short."""
+	said = []
 	blind = [row for row in rows if row["uncosted_qty"]]
-	if not blind:
-		return None
-
-	return _("{0} of {1} lines have no cost, so their profit reads as the whole price.").format(
-		len(blind), len(rows)
-	)
+	if blind:
+		said.append(
+			_("{0} of {1} lines have no cost, so their profit reads as the whole price.").format(
+				len(blind), len(rows)
+			)
+		)
+	short = [row for row in rows if row["short_costed_qty"]]
+	if short:
+		# Said as what the books hold, not as an error: ERPNext will not post an
+		# ingredient with no valuation unless «Allow Zero Valuation Rate» was
+		# ticked, so a zero here is the recorded cost (IAS 2 ¶34) — worth a look
+		# in case the tick was a slip, not a figure to second-guess.
+		said.append(
+			_("{0} of {1} lines include an ingredient carried at zero cost in the books.").format(
+				len(short), len(rows)
+			)
+		)
+	return " ".join(said) or None
 
 
 # --------------------------------------------------------------------------- #
@@ -216,6 +234,7 @@ def _columns(*, by_group: bool, costed: bool) -> list[dict]:
 	]
 	cost = [
 		{"fieldname": "cost", "label": _("Cost"), "fieldtype": "Currency", "width": 130},
+		{"fieldname": "cost_ratio", "label": _("Food Cost %"), "fieldtype": "Float", "width": 110},
 		{"fieldname": "profit", "label": _("Profit"), "fieldtype": "Currency", "width": 130},
 		# **Float, not Percent**, for the same reason the share is: Frappe's total
 		# row averages a percent column, and an average of margins is not a margin.

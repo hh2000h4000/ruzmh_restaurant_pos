@@ -137,6 +137,8 @@ class TheRecipeLeavesTheWarehouse(PaymentTestBase):
 
 		self.assertAlmostEqual(after["cost"] - before["cost"], 2 * COST_OF_ONE, places=2)
 		self.assertEqual(after["uncosted_qty"], before["uncosted_qty"])
+		# Food cost as the Uniform System of Accounts for Restaurants states it.
+		self.assertAlmostEqual(after["cost_ratio"], after["cost"] / after["amount"] * 100, places=1)
 
 	def test_a_refunded_dish_takes_its_recipe_cost_back(self):
 		before = self._row()
@@ -147,6 +149,34 @@ class TheRecipeLeavesTheWarehouse(PaymentTestBase):
 
 		self.assertAlmostEqual(after["cost"] - before["cost"], COST_OF_ONE, places=2)
 		self.assertEqual(after["uncosted_qty"], before["uncosted_qty"])
+
+	def test_an_ingredient_with_no_cost_counts_as_nothing_and_the_rest_still_count(self):
+		"""`D-282` — a bun carried at zero made the whole burger uncosted; now it costs nothing.
+
+		The books recorded zero for it — ERPNext posts no ingredient without a
+		valuation unless «Allow Zero Valuation Rate» is ticked — and IAS 2 ¶34 puts
+		the carrying amount in cost of sales. So the report shows the books.
+		"""
+		before = self._row()
+		order = self._sold(qty=2)
+		# An ingredient that came into stock with no worth, as a receipt without a rate does.
+		frappe.db.set_value(
+			"Packed Item",
+			{"parent": order.sales_invoice, "item_code": "RPOS-TEST-BUN"},
+			"incoming_rate",
+			0,
+		)
+
+		_columns, rows, message = item_sales.execute(
+			frappe._dict(from_date=today(), to_date=today(), pos_profile=self.profile, show_cost=1)
+		)
+		after = next(row for row in rows if row.get("item_code") == ITEM)
+		bun = next(rate for code, _uom, _qty, rate in RECIPE if code == "RPOS-TEST-BUN")
+
+		self.assertAlmostEqual(after["cost"] - before["cost"], 2 * (COST_OF_ONE - bun), places=2)
+		self.assertEqual(after["uncosted_qty"], before["uncosted_qty"])
+		self.assertEqual(after["short_costed_qty"], 2)
+		self.assertIn("carried at zero cost", message)
 
 
 def _drop_bundle() -> None:

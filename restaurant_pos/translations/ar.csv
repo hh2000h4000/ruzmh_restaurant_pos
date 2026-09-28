@@ -1265,3 +1265,5 @@ Table,الطاولة,Restaurant Table
 Table,الطاولة,Restaurant Order
 Table,الطاولة,Restaurant Order Table
 Table,الطاولة,Restaurant Reservation
+"{0} of {1} lines include an ingredient carried at zero cost in the books.","{0} من {1} أصناف فيها مكوّن مقيّم بصفر في الدفاتر."
+Food Cost %,نسبة تكلفة الأكل ٪

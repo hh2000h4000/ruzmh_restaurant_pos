@@ -48,6 +48,24 @@ def chosen(modifiers) -> list[dict]:
 	return parsed if isinstance(parsed, list) else []
 
 
+def portion_price(item: str, portion, price_list: str | None) -> float | None:
+	"""An add-on priced from its item: the item's price on the list, per portion.
+
+	The owner's water: «اضافة ماء» at the water's own 3.00, with nothing typed on
+	the option (`D-284`). Per stock unit times the portion, so 0.02 kg of a
+	sauce listed at 150.00 a kilo is 3.00. None when the list has no price —
+	said to the cashier, never sold at nothing.
+	"""
+	if not price_list:
+		return None
+	rate = frappe.db.get_value(
+		"Item Price", {"item_code": item, "price_list": price_list, "selling": 1}, "price_list_rate"
+	)
+	if rate is None:
+		return None
+	return flt(flt(rate) * (flt(portion) or 1), 2)
+
+
 def invoice_lines(row) -> list[dict]:
 	"""The invoice lines for one order line: the dish, then each add-on it sells.
 
@@ -82,6 +100,13 @@ def invoice_lines(row) -> list[dict]:
 			"rpos_order_item": row.name,
 			"rpos_is_addon": 1,
 		}
+		if not line["rate"]:
+			# **Free, and said so in ERPNext's own words** — not a discount. A rate
+			# of 0 reads to it as "none given" and it fills in the price list (the
+			# owner's free water billed at 3.00), so the list price is 0 too; and
+			# `is_free_item` is its flag for an item given away, which its
+			# selling-price check lets through.
+			line.update({"price_list_rate": 0, "is_free_item": 1})
 		portion = flt(choice.get("item_qty")) or 1
 		if portion != 1:
 			# **Sold by the portion, taken from stock by the kilo** — ERPNext's
@@ -91,6 +116,16 @@ def invoice_lines(row) -> list[dict]:
 			line.update({"uom": PORTION, "conversion_factor": portion})
 		lines.append(line)
 	return lines
+
+
+def stock_taken(row) -> dict[str, float]:
+	"""What the add-ons sold on one order line take from stock, in stock units."""
+	taken: dict[str, float] = {}
+	for choice in chosen(row.modifiers):
+		if choice.get("item") and choice.get("item_effect") == "sell":
+			qty = flt(row.qty) * (flt(choice.get("item_qty")) or 1)
+			taken[choice["item"]] = taken.get(choice["item"], 0.0) + qty
+	return taken
 
 
 def leave_out_removed(doc, method=None) -> None:

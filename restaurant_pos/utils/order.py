@@ -19,7 +19,7 @@ import frappe
 from frappe import _
 from frappe.utils import cint, flt, now_datetime
 
-from restaurant_pos.utils import activity, kitchen, numbering, routing, totals
+from restaurant_pos.utils import activity, addons, kitchen, numbering, routing, totals
 from restaurant_pos.utils.audit import log_audit
 from restaurant_pos.utils.permissions import (
 	assert_permission,
@@ -506,7 +506,9 @@ def add_item(
 		frappe.throw(_("Quantity must be greater than zero."))
 
 	details = _load_item(item)
-	resolved_modifiers, modifier_delta = _resolve_modifiers(item, modifiers)
+	resolved_modifiers, modifier_delta = _resolve_modifiers(
+		item, modifiers, price_list_for(order.order_type, order.pos_profile)
+	)
 	unit_rate = _resolve_rate(order, item, rate)
 
 	route = routing.resolve_route(
@@ -626,11 +628,15 @@ def _resolve_rate(order, item: str, requested_rate: float | None) -> float:
 	return totals.money(requested_rate)
 
 
-def _resolve_modifiers(item: str, selected: list | None) -> tuple[list, float]:
+def _resolve_modifiers(item: str, selected: list | None, price_list: str | None = None) -> tuple[list, float]:
 	"""Price each selected modifier from the database (FR-4.2).
 
 	The client sends which options were chosen; what they cost is read here. A
 	client-supplied price effect is a free lunch.
+
+	**`item_price` is the linked item's own price on this order's list**
+	(`D-284`), stored as the `add` it amounts to — so everything downstream of
+	the order line reads one kind of surcharge.
 	"""
 	if not selected:
 		return [], 0.0
@@ -660,6 +666,16 @@ def _resolve_modifiers(item: str, selected: list | None) -> tuple[list, float]:
 		)
 		if not option:
 			frappe.throw(_("Modifier option {0} is not available.").format(option_title))
+
+		if option.price_effect == "item_price":
+			option.price_effect = "add"
+			option.price_amount = addons.portion_price(option.stock_item, option.stock_qty, price_list)
+			if option.price_amount is None:
+				frappe.throw(
+					_("{0} takes its price from {1}, which has no price in {2}.").format(
+						option.title_ar or option.title, option.stock_item, price_list
+					)
+				)
 
 		effect = flt(option.price_amount)
 		if option.price_effect == "add":

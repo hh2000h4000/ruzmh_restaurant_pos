@@ -65,7 +65,7 @@ class TestThePriceEffects(OrderTestBase):
 	def test_replace_is_no_longer_on_offer(self):
 		"""The trap is gone from the form, not merely discouraged in the guide."""
 		options = frappe.get_meta("POS Modifier Option").get_field("price_effect").options
-		self.assertEqual(options.split("\n"), ["none", "add", "subtract"])
+		self.assertEqual(options.split("\n"), ["none", "add", "subtract", "item_price"])
 
 
 class TestRetiringReplace(OrderTestBase):

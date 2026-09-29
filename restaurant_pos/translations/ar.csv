@@ -489,6 +489,11 @@ Price Effect,أثره على السعر,POS Modifier Option
 none,ما يغيّر السعر,POS Modifier Option
 add,يزيد على السعر,POS Modifier Option
 subtract,ينقص من السعر,POS Modifier Option
+item_price,سعر الصنف,POS Modifier Option
+"none: free. add / subtract: by the amount. item_price: the linked item's own selling price.",«ما يغيّر السعر»: مجانية. «يزيد» أو «ينقص»: بالمبلغ اللي تكتبه. «سعر الصنف»: سعر الصنف المربوط من قائمة الأسعار.
+Row #{0}: Choose the item whose price this option takes.,سطر {0}: اختر الصنف اللي تاخذ الإضافة سعره.
+"Row #{0}: {1} has no selling price, so the option has no price to take.",سطر {0}: الصنف {1} ما له سعر بيع، فما في سعر تاخذه الإضافة.
+"{0} takes its price from {1}, which has no price in {2}.",«{0}» تاخذ سعرها من {1}، وهو ما له سعر في {2}.
 Price Amount,المبلغ,POS Modifier Option
 Stock Item,الصنف في المخزن,POS Modifier Option
 "Leave empty when the option does not touch stock. With an item: a price that goes up adds it, a price that goes down leaves it out of the recipe.",اتركه فاضي إذا الخيار ما يأثر على المخزون. وإذا اخترت صنف: الخيار اللي يزيد السعر إضافة تنخصم من المخزن، واللي ينقّصه «بدون» ما ينخصم من الوصفة.

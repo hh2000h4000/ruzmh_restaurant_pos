@@ -25,7 +25,7 @@ import frappe.sessions
 from frappe import _
 from frappe.utils import cint, flt, now_datetime
 
-from restaurant_pos.utils import device
+from restaurant_pos.utils import addons, device
 from restaurant_pos.utils import theme as theme_service
 from restaurant_pos.utils import totals as totals_service
 from restaurant_pos.utils.gift_card import is_gift_card_method
@@ -182,7 +182,7 @@ def load_pos_session(pos_profile: str, device_token: str | None = None) -> dict:
 		# "extra cheese" impossible during an outage and a round trip away from
 		# the cashier the rest of the time. There are far fewer groups than
 		# items, and the items are already here.
-		"modifier_groups": _modifier_groups_for(items),
+		"modifier_groups": _modifier_groups_for(items, profile.selling_price_list),
 		"promotions": _promotions(profile.branch),
 		# FR-2.9 — typing Arabic on a touch screen mid-rush is the slowest thing
 		# a cashier does, and these are the notes a kitchen hears every day.
@@ -635,19 +635,24 @@ def _promotions(branch: str | None) -> list[dict]:
 	)
 
 
-def _modifier_groups_for(items: list[dict]) -> list[dict]:
+def _modifier_groups_for(items: list[dict], price_list: str | None = None) -> list[dict]:
 	"""Every group this terminal's menu can reach (D-076).
 
 	Scoped to the menu rather than the whole site: a chain's other branches sell
 	things this till does not, and a payload is read on every sign-in.
 	"""
 	wanted = sorted({group for item in items for group in (item.get("modifier_groups") or [])})
-	return get_modifier_groups(wanted) if wanted else []
+	return get_modifier_groups(wanted, price_list) if wanted else []
 
 
 @frappe.whitelist()
-def get_modifier_groups(groups: list | str | None = None) -> list[dict]:
-	"""Modifier groups with their options, for the item popup (FR-4.4)."""
+def get_modifier_groups(groups: list | str | None = None, price_list: str | None = None) -> list[dict]:
+	"""Modifier groups with their options, for the item popup (FR-4.4).
+
+	An option priced from its item (`item_price`, `D-284`) ships as the `add`
+	it amounts to on this terminal's list, so the till shows «+ 3.00» before
+	anyone pays and prices the line the same way while the connection is down.
+	"""
 	# Names no branch, so it asks for a till role itself (`D-208`).
 	assert_pos_user()
 	if isinstance(groups, str):
@@ -678,9 +683,22 @@ def get_modifier_groups(groups: list | str | None = None) -> list[dict]:
 			"parent": ("in", [r.name for r in rows]),
 			"is_active": 1,
 		},
-		fields=["parent", "title", "title_ar", "price_effect", "price_amount", "is_default"],
+		fields=[
+			"parent",
+			"title",
+			"title_ar",
+			"price_effect",
+			"price_amount",
+			"stock_item",
+			"stock_qty",
+			"is_default",
+		],
 		order_by="idx",
 	):
+		if option.price_effect == "item_price":
+			option.price_effect = "add"
+			option.price_amount = flt(addons.portion_price(option.stock_item, option.stock_qty, price_list))
+		del option["stock_item"], option["stock_qty"]
 		options.setdefault(option.parent, []).append(option)
 
 	for row in rows:

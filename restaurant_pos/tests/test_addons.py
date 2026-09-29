@@ -193,6 +193,53 @@ class AnAddOnIsSoldLikeAnyItem(RecipeTestBase):
 		# Costed by the kilo that left, not by the portions sold.
 		self.assertAlmostEqual(patty_cost() - before, 2 * 0.15 * UNIT_COST[PATTY], places=2)
 
+	def _cheese_priced_at(self, rate: float) -> None:
+		price_list = frappe.db.get_value("POS Profile", self.profile, "selling_price_list")
+		frappe.db.delete("Item Price", {"item_code": CHEESE, "price_list": price_list})
+		price = frappe.get_doc(
+			{"doctype": "Item Price", "item_code": CHEESE, "price_list": price_list, "price_list_rate": rate}
+		).insert(ignore_permissions=True)
+		self.addCleanup(frappe.delete_doc, "Item Price", price.name, force=True, ignore_permissions=True)
+
+	def test_a_free_add_on_of_a_priced_item_stays_free_and_is_no_discount(self):
+		"""The owner's free water: ERPNext read a 0 rate as none and billed 3.00."""
+		self._cheese_priced_at(3)
+		_group(price_effect="none", price_amount=0, item_effect="sell")
+
+		order = self._sold_with("Extra cheese")
+
+		cheese = frappe.get_all(
+			"Sales Invoice Item",
+			filters={"parent": order.sales_invoice, "item_code": CHEESE},
+			fields=["amount", "discount_percentage", "discount_amount", "is_free_item"],
+		)[0]
+		self.assertEqual(flt(cheese.amount), 0)
+		self.assertEqual((flt(cheese.discount_percentage), flt(cheese.discount_amount)), (0, 0))
+		self.assertEqual(cheese.is_free_item, 1)
+		self.assertAlmostEqual(
+			flt(frappe.db.get_value("Sales Invoice", order.sales_invoice, "grand_total")),
+			flt(order.total_amount),
+			places=2,
+		)
+		self.assertEqual(self._moved(order.sales_invoice)[CHEESE], -4)
+
+	def test_an_add_on_priced_from_its_item_takes_the_item_s_price(self):
+		"""«سعر الصنف»: nothing typed on the option; the item's list price is the price."""
+		self._cheese_priced_at(3)
+		_group(price_effect="item_price")
+
+		order = self._sold_with("Extra cheese")
+
+		cheese = next(line for line in self._lines(order.sales_invoice) if line.item_code == CHEESE)
+		self.assertEqual((flt(cheese.rate), flt(cheese.amount)), (3.0, 6.0))
+		self.assertEqual(flt(order.items[0].amount) - flt(self._lines(order.sales_invoice)[0].amount), 6.0)
+		# The till was told the same price before anyone paid.
+		from restaurant_pos.api import session
+
+		price_list = frappe.db.get_value("POS Profile", self.profile, "selling_price_list")
+		shipped = session.get_modifier_groups([GROUP], price_list)[0].options[0]
+		self.assertEqual((shipped.price_effect, flt(shipped.price_amount)), ("add", 3.0))
+
 	def test_an_option_with_no_item_sells_nothing_extra(self):
 		frappe.db.set_value(
 			"POS Modifier Option", {"parent": GROUP, "title": "Extra cheese"}, "stock_item", None

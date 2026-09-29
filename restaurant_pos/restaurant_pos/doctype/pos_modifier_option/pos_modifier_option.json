@@ -41,17 +41,18 @@
    "fieldtype": "Select",
    "in_list_view": 1,
    "label": "Price Effect",
-   "options": "none\nadd\nsubtract",
-   "reqd": 1
+   "options": "none\nadd\nsubtract\nitem_price",
+   "reqd": 1,
+   "description": "none: free. add / subtract: by the amount. item_price: the linked item's own selling price."
   },
   {
    "columns": 1,
-   "depends_on": "eval:doc.price_effect!='none'",
+   "depends_on": "eval:['add','subtract'].includes(doc.price_effect)",
    "fieldname": "price_amount",
    "fieldtype": "Currency",
    "in_list_view": 1,
    "label": "Price Amount",
-   "mandatory_depends_on": "eval:doc.price_effect!='none'",
+   "mandatory_depends_on": "eval:['add','subtract'].includes(doc.price_effect)",
    "precision": "2"
   },
   {
@@ -61,7 +62,8 @@
    "label": "Stock Item",
    "options": "Item",
    "columns": 2,
-   "in_list_view": 1
+   "in_list_view": 1,
+   "mandatory_depends_on": "eval:doc.price_effect=='item_price'"
   },
   {
    "default": "1",
@@ -102,7 +104,7 @@
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2026-09-29 14:00:00.000000",
+ "modified": "2026-09-29 15:00:00.000000",
  "modified_by": "Administrator",
  "module": "Restaurant POS",
  "name": "POS Modifier Option",

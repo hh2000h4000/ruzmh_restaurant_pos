@@ -23,7 +23,7 @@ class POSModifierGroup(Document):
 				frappe.throw(_("Row #{0}: Option '{1}' is listed more than once.").format(row.idx, row.title))
 			seen.add(key)
 
-			if row.price_effect == "none":
+			if row.price_effect in ("none", "item_price"):
 				row.price_amount = 0
 			elif flt(row.price_amount) < 0:
 				frappe.throw(_("Row #{0}: Price Amount cannot be negative.").format(row.idx))
@@ -44,10 +44,20 @@ class POSModifierGroup(Document):
 		nobody can fix it.
 		"""
 		if not row.stock_item:
+			if row.price_effect == "item_price":
+				frappe.throw(_("Row #{0}: Choose the item whose price this option takes.").format(row.idx))
 			row.item_effect = None
 			return
 
-		if row.price_effect == "add":
+		if row.price_effect == "item_price":
+			row.item_effect = "sell"
+			if not frappe.db.exists("Item Price", {"item_code": row.stock_item, "selling": 1}):
+				frappe.throw(
+					_("Row #{0}: {1} has no selling price, so the option has no price to take.").format(
+						row.idx, row.stock_item
+					)
+				)
+		elif row.price_effect == "add":
 			row.item_effect = "sell"
 		elif row.price_effect == "subtract":
 			row.item_effect = "remove"

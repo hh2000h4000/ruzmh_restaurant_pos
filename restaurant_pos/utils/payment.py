@@ -351,6 +351,9 @@ def _stock_that_is_not_there(order, profile) -> str | None:
 	for row in order.items or []:
 		if row.status != "void":
 			wanted[row.item] = wanted.get(row.item, 0.0) + flt(row.qty)
+			# `D-284` — an add-on leaves stock like the dish does, in its stock unit.
+			for item, qty in addons.stock_taken(row).items():
+				wanted[item] = wanted.get(item, 0.0) + qty
 	if not wanted:
 		return None
 
@@ -687,6 +690,12 @@ def _create_sales_invoice(order, payments, settlement: str = "till"):
 			# marked **Allow Negative Stock** on the item itself (`D-233`).
 			"update_stock": 1,
 			"set_warehouse": profile.warehouse,
+			# **The till prices the bill; ERPNext's pricing rules do not** (`D-284`).
+			# Every price here was fixed on the order, and the guard below refuses
+			# an invoice that disagrees with it — so a rule could only ever break
+			# a sale. And a transaction rule that does not match *removes* every
+			# `is_free_item` line, which is how a free add-on is written.
+			"ignore_pricing_rule": 1,
 			"taxes_and_charges": profile.taxes_and_charges,
 			"cost_center": profile.get("cost_center"),
 			"remarks": _("Restaurant Order {0}").format(order.name),

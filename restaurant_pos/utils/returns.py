@@ -22,8 +22,8 @@ import frappe
 from frappe import _
 from frappe.utils import flt, get_datetime, now_datetime
 
+from restaurant_pos.utils import addons, loyalty, numbering, payment, printing
 from restaurant_pos.utils import gift_card as gift_cards
-from restaurant_pos.utils import loyalty, numbering, payment, printing
 from restaurant_pos.utils.audit import log_audit
 from restaurant_pos.utils.payment import TOLERANCE, is_credit_method, terminal_methods
 from restaurant_pos.utils.permissions import (
@@ -76,9 +76,21 @@ def returnable(order) -> dict:
 	rows = frappe.get_all(
 		"Sales Invoice Item",
 		filters={"parent": invoice, "parenttype": "Sales Invoice"},
-		fields=["name", "idx", "item_code", "item_name", "qty", "rate", "amount"],
+		fields=[
+			"name",
+			"idx",
+			"item_code",
+			"item_name",
+			"qty",
+			"rate",
+			"amount",
+			"rpos_order_item",
+			"rpos_is_addon",
+		],
 		order_by="idx",
 	)
+	# `D-284` — an add-on comes back with its dish, never on its own.
+	rows = addons.dish_rows(rows)
 
 	taken = _returned_quantities([row.name for row in rows])
 
@@ -313,7 +325,7 @@ def _validate_quantities(order, items: list) -> dict[str, float]:
 				frappe.ValidationError,
 			)
 
-	return wanted
+	return addons.with_addons(order.sales_invoice, wanted)
 
 
 def preview(order, *, items: list) -> dict:

@@ -55,7 +55,11 @@ doc_events = {
 	# which doubled every balance beside the ledger rows RPOS writes.
 	"Sales Invoice": {
 		"before_cancel": "restaurant_pos.utils.payment.block_invoice_cancel",
-		"validate": "restaurant_pos.utils.loyalty.keep_erpnext_out",
+		"validate": [
+			"restaurant_pos.utils.loyalty.keep_erpnext_out",
+			# D-284 — after ERPNext unpacks the recipe, «no onion» takes it out.
+			"restaurant_pos.utils.addons.leave_out_removed",
+		],
 	},
 	# D-189 — a program RPOS cannot honour is refused when it is saved: tiers
 	# (ERPNext's pick the wrong one) and an empty expiry (points die tonight).

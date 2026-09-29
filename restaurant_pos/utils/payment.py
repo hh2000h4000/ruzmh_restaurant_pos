@@ -22,7 +22,7 @@ import frappe
 from frappe import _
 from frappe.utils import cint, flt, now_datetime
 
-from restaurant_pos.utils import activity, coupons, kitchen, loyalty, printing, promotions, totals
+from restaurant_pos.utils import activity, addons, coupons, kitchen, loyalty, printing, promotions, totals
 from restaurant_pos.utils import gift_card as gift_cards
 from restaurant_pos.utils.audit import log_audit
 from restaurant_pos.utils.order import (
@@ -721,16 +721,12 @@ def _create_sales_invoice(order, payments, settlement: str = "till"):
 		if row.status == "void":
 			continue
 
-		invoice.append(
-			"items",
-			{
-				"item_code": row.item,
-				"qty": flt(row.qty),
-				"rate": flt(row.amount) / flt(row.qty) if flt(row.qty) else flt(row.rate),
-				"warehouse": profile.warehouse,
-				"cost_center": profile.get("cost_center"),
-			},
-		)
+		# `D-284` — the dish, then every add-on it sells as a line of its own.
+		for line in addons.invoice_lines(row):
+			invoice.append(
+				"items",
+				{**line, "warehouse": profile.warehouse, "cost_center": profile.get("cost_center")},
+			)
 
 	if flt(order.discount_amount):
 		# Which total the discount comes off has to match how the order was

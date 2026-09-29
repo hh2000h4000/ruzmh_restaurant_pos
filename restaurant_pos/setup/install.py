@@ -369,6 +369,35 @@ CUSTOM_FIELDS = {
 			"insert_after": "is_return",
 		},
 	],
+	# `D-284` — an add-on sold as its own line, bound to the dish it was chosen
+	# on. Copied onto a credit note by `make_return_doc`, which is how a return
+	# of the dish finds its add-ons and a recipe keeps its removals.
+	"Sales Invoice Item": [
+		{
+			"fieldname": "rpos_order_item",
+			"fieldtype": "Data",
+			"label": "RPOS Order Line",
+			"read_only": 1,
+			"hidden": 1,
+			"insert_after": "item_name",
+		},
+		{
+			"fieldname": "rpos_is_addon",
+			"fieldtype": "Check",
+			"label": "Add-on",
+			"read_only": 1,
+			"description": "Chosen on the dish above it at the till.",
+			"insert_after": "rpos_order_item",
+		},
+		{
+			"fieldname": "rpos_removed",
+			"fieldtype": "Small Text",
+			"label": "Left Out of the Recipe",
+			"read_only": 1,
+			"hidden": 1,
+			"insert_after": "rpos_is_addon",
+		},
+	],
 	# **The two rules ERPNext's program has no field for** (`D-189`). Earning,
 	# the value of a point and the expiry are ERPNext's own fields; these are
 	# the limits on *spending*, which ERPNext leaves to whoever builds the till.

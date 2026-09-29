@@ -35,7 +35,9 @@ RECIPE = (
 COST_OF_ONE = 7.50
 
 
-class TheRecipeLeavesTheWarehouse(PaymentTestBase):
+class RecipeTestBase(PaymentTestBase):
+	"""The burger with a recipe, and every ingredient in stock (shared with `test_addons`)."""
+
 	def setUp(self):
 		super().setUp()
 		self.warehouse = frappe.db.get_value("POS Profile", self.profile, "warehouse")
@@ -93,6 +95,19 @@ class TheRecipeLeavesTheWarehouse(PaymentTestBase):
 		order.reload()
 		return order
 
+	def _moved(self, voucher: str) -> dict[str, float]:
+		"""What each item did in the warehouse on one document."""
+		moved: dict[str, float] = {}
+		for row in frappe.get_all(
+			"Stock Ledger Entry",
+			filters={"voucher_no": voucher, "is_cancelled": 0},
+			fields=["item_code", "actual_qty"],
+		):
+			moved[row.item_code] = flt(moved.get(row.item_code, 0) + flt(row.actual_qty), 3)
+		return moved
+
+
+class TheRecipeLeavesTheWarehouse(RecipeTestBase):
 	def test_each_ingredient_leaves_the_warehouse_in_its_recipe_quantity(self):
 		order = self._sold(qty=2)
 

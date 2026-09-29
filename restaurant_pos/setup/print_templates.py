@@ -139,6 +139,9 @@ hr { border: 0; border-top: 1px dashed #000; margin: 0.4rem 0; }
 .item { padding: 0.2rem 0; }
 .item .nm { font-weight: bold; }
 .item .fig { padding-left: 1rem; font-size: 0.92rem; }
+/* An add-on belongs to the dish above it, so it is set in under it, not bold. */
+.item.addon { padding-top: 0; padding-right: 1.2rem; }
+.item.addon .nm { font-weight: normal; }
 /* Saudi practice, and the reference receipt says it in a box: a customer
  * looking at a price needs to know the tax is already in it. */
 .notice { border: 1px dashed #000; padding: 0.25rem; margin: 0.35rem 0;
@@ -229,12 +232,16 @@ CUSTOMER_RECEIPT = """
 	{{% endif %}}
 	<div class="rule"></div>
 	{{% for item in doc.items %}}
-	<div class="item">
-		<div class="nm">{{{{ item.item_name | rtl }}}}</div>
+	{{# D-284 — an add-on sits under its dish, as it did on the till; a free
+	    one is named without a price. #}}
+	<div class="item{{% if item.rpos_is_addon %}} addon{{% endif %}}">
+		<div class="nm">{{% if item.rpos_is_addon %}}+ {{% endif %}}{{{{ item.item_name | rtl }}}}</div>
+		{{% if not item.rpos_is_addon or item.amount %}}
 		<div class="row fig">
 			<span class="amt">{{{{ item.qty | int }}}} &times; {{{{ "%.2f" | format(item.rate) }}}}</span>
 			<span class="amt">{{{{ "%.2f" | format(item.amount) }}}}</span>
 		</div>
+		{{% endif %}}
 	</div>
 	{{% endfor %}}
 	<div class="rule"></div>

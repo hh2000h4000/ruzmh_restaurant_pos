@@ -655,7 +655,7 @@ def _resolve_modifiers(item: str, selected: list | None) -> tuple[list, float]:
 		option = frappe.db.get_value(
 			"POS Modifier Option",
 			{"parent": group, "title": option_title, "is_active": 1},
-			["title", "title_ar", "price_effect", "price_amount"],
+			["title", "title_ar", "price_effect", "price_amount", "stock_item", "item_effect"],
 			as_dict=True,
 		)
 		if not option:
@@ -667,15 +667,19 @@ def _resolve_modifiers(item: str, selected: list | None) -> tuple[list, float]:
 		elif option.price_effect == "subtract":
 			delta -= effect
 
-		resolved.append(
-			{
-				"group": group,
-				"option": option.title,
-				"option_ar": option.title_ar,
-				"price_effect": option.price_effect,
-				"amount": effect,
-			}
-		)
+		choice = {
+			"group": group,
+			"option": option.title,
+			"option_ar": option.title_ar,
+			"price_effect": option.price_effect,
+			"amount": effect,
+		}
+		# `D-284` — kept with the line like the price, so an option edited later
+		# does not change what an earlier order sells or takes out of stock.
+		if option.stock_item:
+			choice["item"] = option.stock_item
+			choice["item_effect"] = option.item_effect or "sell"
+		resolved.append(choice)
 
 	return resolved, delta
 

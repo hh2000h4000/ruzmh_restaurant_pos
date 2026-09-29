@@ -11,6 +11,7 @@
   "price_effect",
   "price_amount",
   "stock_item",
+  "stock_qty",
   "item_effect",
   "is_default",
   "is_active"
@@ -34,7 +35,7 @@
    "translatable": 1
   },
   {
-   "columns": 2,
+   "columns": 1,
    "default": "none",
    "fieldname": "price_effect",
    "fieldtype": "Select",
@@ -60,6 +61,17 @@
    "label": "Stock Item",
    "options": "Item",
    "columns": 2,
+   "in_list_view": 1
+  },
+  {
+   "default": "1",
+   "depends_on": "eval:doc.stock_item && doc.price_effect!='subtract' && doc.item_effect!='remove'",
+   "description": "How much of the stock item one choice takes, in its stock unit: 1 slice of cheese, 0.02 kg of sauce.",
+   "fieldname": "stock_qty",
+   "fieldtype": "Float",
+   "label": "Quantity",
+   "non_negative": 1,
+   "columns": 1,
    "in_list_view": 1
   },
   {
@@ -90,7 +102,7 @@
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2026-09-29 13:00:00.000000",
+ "modified": "2026-09-29 14:00:00.000000",
  "modified_by": "Administrator",
  "module": "Restaurant POS",
  "name": "POS Modifier Option",

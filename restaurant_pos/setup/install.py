@@ -737,8 +737,19 @@ def add_guide_to_help_menu() -> None:
 	navbar.save(ignore_permissions=True)
 
 
+def ensure_portion_uom():
+	"""The unit an add-on is sold in when a choice is not one stock unit (`D-284`)."""
+	from restaurant_pos.utils.addons import PORTION
+
+	if not frappe.db.exists("UOM", PORTION):
+		frappe.get_doc({"doctype": "UOM", "uom_name": PORTION, "must_be_whole_number": 0}).insert(
+			ignore_permissions=True
+		)
+
+
 def after_install():
 	create_custom_fields(CUSTOM_FIELDS, ignore_validate=True)
+	ensure_portion_uom()
 	require_erpnext_fields()
 	grant_erpnext_permissions()
 	create_default_templates()
@@ -756,6 +767,7 @@ def after_install():
 
 def after_migrate():
 	create_custom_fields(CUSTOM_FIELDS, ignore_validate=True)
+	ensure_portion_uom()
 	require_erpnext_fields()
 	grant_erpnext_permissions()
 

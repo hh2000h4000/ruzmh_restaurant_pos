@@ -493,6 +493,11 @@ Price Amount,المبلغ,POS Modifier Option
 Stock Item,الصنف في المخزن,POS Modifier Option
 "Leave empty when the option does not touch stock. With an item: a price that goes up adds it, a price that goes down leaves it out of the recipe.",اتركه فاضي إذا الخيار ما يأثر على المخزون. وإذا اخترت صنف: الخيار اللي يزيد السعر إضافة تنخصم من المخزن، واللي ينقّصه «بدون» ما ينخصم من الوصفة.
 Adds or Leaves Out,إضافة أو بدون,POS Modifier Option
+Quantity,الكمية,POS Modifier Option
+"How much of the stock item one choice takes, in its stock unit: 1 slice of cheese, 0.02 kg of sauce.",كم ياخذ الاختيار الواحد من الصنف، بوحدته في المخزن: ١ شريحة جبن، ٠٫٠٢ كجم صوص.
+Portion,حصة
+"Row #{0}: {1} has a recipe, which already says how much it takes. Leave the quantity at 1.",سطر {0}: الصنف {1} له وصفة تحدد كميته، فخلّ الكمية ١.
+"Row #{0}: {1} is counted in whole {2}, so the quantity must be a whole number.",سطر {0}: الصنف {1} ينعدّ بـ{2} كاملة، فالكمية لازم تكون رقم صحيح.
 "Only asked when the price does not change: «extra sauce, free» adds, «no onion» leaves out.",يُسأل بس إذا السعر ما يتغير: «صوص زيادة مجاناً» إضافة، و«بدون بصل» بدون.
 sell,إضافة: يُخصم من المخزن,POS Modifier Option
 remove,بدون: ما يُخصم من الوصفة,POS Modifier Option

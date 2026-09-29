@@ -32,6 +32,10 @@ import json
 import frappe
 from frappe.utils import flt
 
+#: The unit an add-on is sold in when one choice is not one stock unit (0.02 kg
+#: of sauce is one portion). Created by `setup.install`.
+PORTION = "Portion"
+
 
 def chosen(modifiers) -> list[dict]:
 	"""The choices stored on an order line (`_resolve_modifiers`)."""
@@ -71,15 +75,21 @@ def invoice_lines(row) -> list[dict]:
 		}
 	]
 	for choice in sold:
-		lines.append(
-			{
-				"item_code": choice["item"],
-				"qty": qty,
-				"rate": flt(choice.get("amount")),
-				"rpos_order_item": row.name,
-				"rpos_is_addon": 1,
-			}
-		)
+		line = {
+			"item_code": choice["item"],
+			"qty": qty,
+			"rate": flt(choice.get("amount")),
+			"rpos_order_item": row.name,
+			"rpos_is_addon": 1,
+		}
+		portion = flt(choice.get("item_qty")) or 1
+		if portion != 1:
+			# **Sold by the portion, taken from stock by the kilo** — ERPNext's
+			# own sales-unit/stock-unit split. One portion at the option's price,
+			# so the money stays exact to the halala, and 0.02 kg leaves the
+			# warehouse because the conversion factor says so.
+			line.update({"uom": PORTION, "conversion_factor": portion})
+		lines.append(line)
 	return lines
 
 

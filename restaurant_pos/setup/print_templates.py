@@ -232,17 +232,21 @@ CUSTOMER_RECEIPT = """
 	{{% endif %}}
 	<div class="rule"></div>
 	{{% for item in doc.items %}}
-	{{# D-284 — an add-on sits under its dish, as it did on the till; a free
-	    one is named without a price. #}}
-	<div class="item{{% if item.rpos_is_addon %}} addon{{% endif %}}">
-		<div class="nm">{{% if item.rpos_is_addon %}}+ {{% endif %}}{{{{ item.item_name | rtl }}}}</div>
-		{{% if not item.rpos_is_addon or item.amount %}}
+	{{# D-284 — an add-on sits under its dish, as it did on the till, with its
+	    amount alone: "0.02 times" means nothing to a guest. A free one has none. #}}
+	{{% if item.rpos_is_addon %}}
+	<div class="item addon">
+		<div class="row"><span class="nm">+ {{{{ item.item_name | rtl }}}}</span>{{% if item.amount %}}<span class="amt">{{{{ "%.2f" | format(item.amount) }}}}</span>{{% endif %}}</div>
+	</div>
+	{{% else %}}
+	<div class="item">
+		<div class="nm">{{{{ item.item_name | rtl }}}}</div>
 		<div class="row fig">
 			<span class="amt">{{{{ item.qty | int }}}} &times; {{{{ "%.2f" | format(item.rate) }}}}</span>
 			<span class="amt">{{{{ "%.2f" | format(item.amount) }}}}</span>
 		</div>
-		{{% endif %}}
 	</div>
+	{{% endif %}}
 	{{% endfor %}}
 	<div class="rule"></div>
 	<div class="tri">

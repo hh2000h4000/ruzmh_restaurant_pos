@@ -70,7 +70,16 @@ def _lines_of(invoices: list[str], item_group: str | None) -> list[frappe._dict]
 	lines = frappe.get_all(
 		"Sales Invoice Item",
 		filters=filters,
-		fields=["name", "item_code", "item_name", "item_group", "qty", "net_amount", "incoming_rate"],
+		fields=[
+			"name",
+			"item_code",
+			"item_name",
+			"item_group",
+			"qty",
+			"stock_qty",
+			"net_amount",
+			"incoming_rate",
+		],
 	)
 	recipes = _recipe_costs(invoices)
 	for line in lines:
@@ -164,9 +173,13 @@ def _add_cost(row: dict, line) -> None:
 			row["short_costed_qty"] += abs(flt(line.qty))
 		return
 
+	# **Per stock unit, so times the stock quantity** — not the quantity sold,
+	# which is in the unit it was sold in: an add-on of 0.02 kg of sauce is one
+	# portion sold and 0.02 kg gone (`D-284`). The two are equal on every line
+	# sold in its own stock unit.
 	rate = flt(line.incoming_rate)
 	if rate:
-		row["cost"] += rate * flt(line.qty)
+		row["cost"] += rate * flt(line.stock_qty if line.get("stock_qty") is not None else line.qty)
 	else:
 		row["uncosted_qty"] += abs(flt(line.qty))
 

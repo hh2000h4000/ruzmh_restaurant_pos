@@ -61,11 +61,42 @@ class POSModifierGroup(Document):
 		if row.item_effect != "sell":
 			return
 
+		self.validate_quantity(row)
+
 		sellable = frappe.db.get_value("Item", row.stock_item, ["is_sales_item", "disabled"], as_dict=True)
 		if not sellable or not sellable.is_sales_item or sellable.disabled:
 			frappe.throw(
 				_("Row #{0}: {1} is not an enabled sales item, so the till could not sell it.").format(
 					row.idx, row.stock_item
+				)
+			)
+
+	def validate_quantity(self, row):
+		"""How much one choice takes, in the item's stock unit (`D-284`).
+
+		**The owner's first sale proved it was needed:** with one choice meaning
+		one stock unit, «extra sauce» took a whole kilo of a sauce the recipe uses
+		0.02 kg of. Foodics and Toast both carry a quantity on the mapping.
+		"""
+		if not flt(row.stock_qty):
+			row.stock_qty = 1
+
+		item = frappe.db.get_value("Item", row.stock_item, ["stock_uom"], as_dict=True)
+		if flt(row.stock_qty) != 1 and frappe.db.exists("Product Bundle", {"new_item_code": row.stock_item}):
+			# The recipe already says how much; a quantity on top would scale it twice.
+			frappe.throw(
+				_(
+					"Row #{0}: {1} has a recipe, which already says how much it takes. Leave the quantity at 1."
+				).format(row.idx, row.stock_item)
+			)
+		if (
+			item
+			and flt(row.stock_qty) != cint(row.stock_qty)
+			and frappe.db.get_value("UOM", item.stock_uom, "must_be_whole_number")
+		):
+			frappe.throw(
+				_("Row #{0}: {1} is counted in whole {2}, so the quantity must be a whole number.").format(
+					row.idx, row.stock_item, item.stock_uom
 				)
 			)
 

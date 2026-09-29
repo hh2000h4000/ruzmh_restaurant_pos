@@ -33,7 +33,19 @@ UNIT_COST = {code: rate for code, _uom, _qty, rate in RECIPE}
 PER_BURGER = {code: qty for code, _uom, qty, _rate in RECIPE}
 
 
-def _group(**overrides) -> str:
+PATTY = "RPOS-TEST-PATTY"
+EXTRA_PATTY = {
+	"title": "Extra patty",
+	"title_ar": "لحم إضافي",
+	"price_effect": "add",
+	"price_amount": 4.00,
+	"stock_item": PATTY,
+	"stock_qty": 0.15,
+	"is_active": 1,
+}
+
+
+def _group(*extra: dict, **overrides) -> str:
 	if frappe.db.exists("POS Modifier Group", GROUP):
 		frappe.delete_doc("POS Modifier Group", GROUP, force=True, ignore_permissions=True)
 	cheese = {
@@ -61,7 +73,7 @@ def _group(**overrides) -> str:
 			"title": GROUP,
 			"title_ar": "إضافات",
 			"selection_type": "multiple",
-			"modifier_options": [cheese, no_bun],
+			"modifier_options": [cheese, no_bun, *extra],
 		}
 	).insert(ignore_permissions=True)
 	return GROUP
@@ -160,6 +172,27 @@ class AnAddOnIsSoldLikeAnyItem(RecipeTestBase):
 			{ITEM: -1, CHEESE: -1},
 		)
 
+	def test_a_weighed_add_on_takes_its_quantity_and_keeps_its_price(self):
+		"""The owner's first sale: «extra sauce» took a whole kilo of a 0.02 kg sauce."""
+		_group(EXTRA_PATTY)
+
+		def patty_cost():
+			_columns, rows, *_rest = item_sales.execute(
+				frappe._dict(from_date=today(), to_date=today(), pos_profile=self.profile, show_cost=1)
+			)
+			return flt(next((r for r in rows if r.get("item_code") == PATTY), {"cost": 0.0})["cost"])
+
+		before = patty_cost()
+		order = self._sold_with("Extra patty")
+		line = next(line for line in self._lines(order.sales_invoice) if line.item_code == PATTY)
+
+		# Two portions sold at 4.00 each — the money as rung, to the halala.
+		self.assertEqual((flt(line.qty), flt(line.rate), flt(line.amount)), (2, 4.0, 8.0))
+		# 0.15 kg a burger from the recipe, and 0.15 kg a burger from the add-on.
+		self.assertEqual(self._moved(order.sales_invoice)[PATTY], flt(-4 * PER_BURGER[PATTY], 3))
+		# Costed by the kilo that left, not by the portions sold.
+		self.assertAlmostEqual(patty_cost() - before, 2 * 0.15 * UNIT_COST[PATTY], places=2)
+
 	def test_an_option_with_no_item_sells_nothing_extra(self):
 		frappe.db.set_value(
 			"POS Modifier Option", {"parent": GROUP, "title": "Extra cheese"}, "stock_item", None
@@ -187,6 +220,12 @@ class TheOptionIsCheckedWhenSaved(RecipeTestBase):
 
 		_group(price_effect="none", price_amount=0, item_effect="sell")
 		self.assertEqual(self._effect("Extra cheese"), "sell")
+
+	def test_half_a_slice_of_a_counted_item_is_refused(self):
+		if not frappe.db.get_value("UOM", "Nos", "must_be_whole_number"):
+			self.skipTest("Nos is not whole-number on this site")
+		with self.assertRaises(frappe.ValidationError):
+			_group(stock_qty=0.5)
 
 	def test_an_item_the_till_cannot_sell_is_refused(self):
 		frappe.db.set_value("Item", CHEESE, "is_sales_item", 0)

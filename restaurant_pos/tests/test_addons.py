@@ -170,9 +170,23 @@ class AnAddOnIsSoldLikeAnyItem(RecipeTestBase):
 
 
 class TheOptionIsCheckedWhenSaved(RecipeTestBase):
-	def test_a_sold_item_cannot_take_money_off_the_dish(self):
+	def _effect(self, title: str) -> str:
+		return frappe.db.get_value("POS Modifier Option", {"parent": GROUP, "title": title}, "item_effect")
+
+	def test_the_price_decides_adding_or_leaving_out(self):
+		"""The owner's rule: a question with one right answer is not asked."""
+		_group(price_effect="add", item_effect="remove")
+		self.assertEqual(self._effect("Extra cheese"), "sell")
+
+		_group(price_effect="subtract", item_effect="sell")
+		self.assertEqual(self._effect("Extra cheese"), "remove")
+
+	def test_at_no_change_of_price_the_answer_is_required(self):
 		with self.assertRaises(frappe.ValidationError):
-			_group(price_effect="subtract")
+			_group(price_effect="none", price_amount=0, item_effect=None)
+
+		_group(price_effect="none", price_amount=0, item_effect="sell")
+		self.assertEqual(self._effect("Extra cheese"), "sell")
 
 	def test_an_item_the_till_cannot_sell_is_refused(self):
 		frappe.db.set_value("Item", CHEESE, "is_sales_item", 0)

@@ -490,16 +490,17 @@ none,ما يغيّر السعر,POS Modifier Option
 add,يزيد على السعر,POS Modifier Option
 subtract,ينقص من السعر,POS Modifier Option
 Price Amount,المبلغ,POS Modifier Option
-Item,الصنف,POS Modifier Option
-"Sell: the item goes on the bill under the dish, and leaves stock like any sale. Remove: the dish's recipe leaves this ingredient out.",يُباع: الصنف ينزل في الفاتورة تحت الطبق وينخصم من المخزون مثل أي بيع. يُشال: المكوّن ما ينخصم من وصفة الطبق.
-Item Effect,أثره على الصنف,POS Modifier Option
-sell,يُباع تحت الطبق,POS Modifier Option
-remove,يُشال من الوصفة,POS Modifier Option
+Stock Item,الصنف في المخزن,POS Modifier Option
+"Leave empty when the option does not touch stock. With an item: a price that goes up adds it, a price that goes down leaves it out of the recipe.",اتركه فاضي إذا الخيار ما يأثر على المخزون. وإذا اخترت صنف: الخيار اللي يزيد السعر إضافة تنخصم من المخزن، واللي ينقّصه «بدون» ما ينخصم من الوصفة.
+Adds or Leaves Out,إضافة أو بدون,POS Modifier Option
+"Only asked when the price does not change: «extra sauce, free» adds, «no onion» leaves out.",يُسأل بس إذا السعر ما يتغير: «صوص زيادة مجاناً» إضافة، و«بدون بصل» بدون.
+sell,إضافة: يُخصم من المخزن,POS Modifier Option
+remove,بدون: ما يُخصم من الوصفة,POS Modifier Option
+"Row #{0}: The price does not change, so say whether {1} is added or left out.",سطر {0}: السعر ما يتغير، فحدّد هل {1} إضافة أو بدون.
 Add-on,إضافة,Sales Invoice Item
 Chosen on the dish above it at the till.,اختارها الكاشير على الطبق اللي فوقها.
 Left Out of the Recipe,مشال من الوصفة,Sales Invoice Item
 RPOS Order Line,سطر الطلب,Sales Invoice Item
-Row #{0}: An option that sells an item cannot take money off the dish.,سطر {0}: الخيار اللي يبيع صنف ما يقدر ينقّص من سعر الطبق.
 "Row #{0}: {1} is not an enabled sales item, so the till could not sell it.",سطر {0}: الصنف {1} مو صنف بيع مفعّل، فالكاشير ما يقدر يبيعه.
 "<b>The till itself is at /restaurant-pos</b> — this page is the office behind it: the menu, the floor, the shifts and the trail. A cashier never needs to come here, and nothing on this page is where an order is taken.",<b>شاشة الكاشير على الرابط /restaurant-pos</b>. هذي الصفحة للإدارة: القائمة، والصالة، وأيام العمل، والسجلات. الكاشير ما يحتاج يدخل هنا.
 "Printers are defined once per branch, here — not repeated on every till. An <b>agent</b> running inside the restaurant is what reaches them; the server only renders and queues.","هنا تضيف طابعات كل فرع مرة وحدة، وما تحتاج تضيفها على كل جهاز. <b>برنامج الطباعة</b> اللي على كمبيوتر داخل المطعم هو اللي يوصل للطابعات ويطبع."

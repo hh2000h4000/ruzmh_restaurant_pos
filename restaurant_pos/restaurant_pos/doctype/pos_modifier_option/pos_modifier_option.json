@@ -54,23 +54,24 @@
    "precision": "2"
   },
   {
-   "description": "Sell: the item goes on the bill under the dish, and leaves stock like any sale. Remove: the dish's recipe leaves this ingredient out.",
+   "description": "Leave empty when the option does not touch stock. With an item: a price that goes up adds it, a price that goes down leaves it out of the recipe.",
    "fieldname": "stock_item",
    "fieldtype": "Link",
-   "label": "Item",
+   "label": "Stock Item",
    "options": "Item",
    "columns": 2,
    "in_list_view": 1
   },
   {
-   "default": "sell",
-   "depends_on": "stock_item",
+   "depends_on": "eval:doc.stock_item && doc.price_effect=='none'",
    "fieldname": "item_effect",
    "fieldtype": "Select",
-   "label": "Item Effect",
-   "options": "sell\nremove",
+   "label": "Adds or Leaves Out",
+   "options": "\nsell\nremove",
    "columns": 2,
-   "in_list_view": 1
+   "in_list_view": 1,
+   "mandatory_depends_on": "eval:doc.stock_item && doc.price_effect=='none'",
+   "description": "Only asked when the price does not change: «extra sauce, free» adds, «no onion» leaves out."
   },
   {
    "fieldname": "is_default",
@@ -89,7 +90,7 @@
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2026-09-29 12:00:00.000000",
+ "modified": "2026-09-29 13:00:00.000000",
  "modified_by": "Administrator",
  "module": "Restaurant POS",
  "name": "POS Modifier Option",

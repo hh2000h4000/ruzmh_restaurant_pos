@@ -678,7 +678,7 @@ def _resolve_modifiers(item: str, selected: list | None) -> tuple[list, float]:
 		# does not change what an earlier order sells or takes out of stock.
 		if option.stock_item:
 			choice["item"] = option.stock_item
-			choice["item_effect"] = option.item_effect or "sell"
+			choice["item_effect"] = option.item_effect
 		resolved.append(choice)
 
 	return resolved, delta

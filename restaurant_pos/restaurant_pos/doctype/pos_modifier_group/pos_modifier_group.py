@@ -31,25 +31,35 @@ class POSModifierGroup(Document):
 			self.validate_item(row)
 
 	def validate_item(self, row):
-		"""An option's item is sold under the dish, or left out of its recipe (`D-284`).
+		"""An option's stock item is added under the dish, or left out of its recipe (`D-284`).
 
-		**Sold** is an ordinary line on the bill, so it must be something ERPNext
+		**The price says which, and the manager is asked only when it cannot**
+		(the owner's point: a question with one right answer is filler). An
+		option that raises the price adds something; one that lowers it leaves
+		something out. At no change of price both happen — «extra sauce, free»
+		and «no onion» — so there, and only there, the answer is required.
+
+		**Added** is an ordinary line on the bill, so it must be something ERPNext
 		will sell — it refuses a non-sales item at the till, mid-payment, where
-		nobody can fix it. And a sold item cannot take money *off* the dish: a
-		line at a negative price is not a sale.
+		nobody can fix it.
 		"""
 		if not row.stock_item:
 			row.item_effect = None
 			return
 
-		row.item_effect = row.item_effect or "sell"
+		if row.price_effect == "add":
+			row.item_effect = "sell"
+		elif row.price_effect == "subtract":
+			row.item_effect = "remove"
+		elif row.item_effect not in ("sell", "remove"):
+			frappe.throw(
+				_("Row #{0}: The price does not change, so say whether {1} is added or left out.").format(
+					row.idx, row.stock_item
+				)
+			)
+
 		if row.item_effect != "sell":
 			return
-
-		if row.price_effect == "subtract":
-			frappe.throw(
-				_("Row #{0}: An option that sells an item cannot take money off the dish.").format(row.idx)
-			)
 
 		sellable = frappe.db.get_value("Item", row.stock_item, ["is_sales_item", "disabled"], as_dict=True)
 		if not sellable or not sellable.is_sales_item or sellable.disabled:

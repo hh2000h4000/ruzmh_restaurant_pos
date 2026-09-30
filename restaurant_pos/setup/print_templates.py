@@ -234,7 +234,24 @@ CUSTOMER_RECEIPT = """
 	{{% for item in doc.items %}}
 	{{# D-284 — an add-on sits under its dish, as it did on the till, with its
 	    amount alone: "0.02 times" means nothing to a guest. A free one has none. #}}
-	{{% if item.rpos_is_addon %}}
+	{{% if item.rpos_combo %}}
+	{{# D-285 — a combo reads as the guest ordered it: its name and price once,
+	    its items under it without prices. #}}
+	{{% set meal = doc.items | selectattr("rpos_order_item", "equalto", item.rpos_order_item) | list %}}
+	{{% if meal[0].name == item.name %}}
+	{{% set paid = meal | sum(attribute="amount") %}}
+	<div class="item">
+		<div class="nm">{{{{ (frappe.db.get_value("Item", item.rpos_combo, "pos_display_name_ar") or frappe.db.get_value("Item", item.rpos_combo, "item_name")) | rtl }}}}</div>
+		<div class="row fig">
+			<span class="amt">{{{{ item.qty | int }}}} &times; {{{{ "%.2f" | format(paid / item.qty if item.qty else paid) }}}}</span>
+			<span class="amt">{{{{ "%.2f" | format(paid) }}}}</span>
+		</div>
+	</div>
+	{{% endif %}}
+	<div class="item addon">
+		<div class="row"><span class="nm">- {{{{ item.item_name | rtl }}}}</span></div>
+	</div>
+	{{% elif item.rpos_is_addon %}}
 	<div class="item addon">
 		<div class="row"><span class="nm">+ {{{{ item.item_name | rtl }}}}</span>{{% if item.amount %}}<span class="amt">{{{{ "%.2f" | format(item.amount) }}}}</span>{{% endif %}}</div>
 	</div>

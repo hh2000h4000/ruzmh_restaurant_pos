@@ -183,7 +183,7 @@ function confirm(): void {
             :aria-pressed="isChosen(group, option.title)"
             @click="toggle(group, option.title)"
           >
-            {{ pick(option.title_ar, option.title) }}
+            {{ pick(option.title_ar, option.label ?? option.title) }}
             <span
               v-if="option.price_amount"
               class="rpos-numeric text-xs"

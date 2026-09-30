@@ -312,6 +312,40 @@ CUSTOM_FIELDS = {
 			"description": "Row order determines display order in the modifier popup.",
 			"insert_after": "rpos_modifier_section",
 		},
+		# `D-285` — a combo is an item on the menu with its choices under it: the
+		# till opens them like modifiers, and the items chosen are what is sold.
+		{
+			"fieldname": "rpos_combo_section",
+			"fieldtype": "Section Break",
+			"label": "Combo",
+			"collapsible": 1,
+			"insert_after": "pos_modifier_groups",
+		},
+		{
+			"fieldname": "rpos_is_combo",
+			"fieldtype": "Check",
+			"label": "Combo",
+			"description": "The guest buys the items below as one, and they are what leaves stock and what is sold.",
+			"insert_after": "rpos_combo_section",
+		},
+		{
+			"fieldname": "rpos_combo_pricing",
+			"fieldtype": "Select",
+			"label": "Combo Price",
+			"options": "fixed\nsum",
+			"default": "fixed",
+			"depends_on": "rpos_is_combo",
+			"description": "fixed: this item's own price, shared across the items. sum: the items' prices added up.",
+			"insert_after": "rpos_is_combo",
+		},
+		{
+			"fieldname": "rpos_combo_items",
+			"fieldtype": "Table",
+			"options": "POS Combo Item",
+			"label": "Combo Items",
+			"depends_on": "rpos_is_combo",
+			"insert_after": "rpos_combo_pricing",
+		},
 	],
 	# The manager PIN belongs to a person, not a role (DECISIONS.md D-016).
 	# Its value never reaches this column: restaurant_pos.utils.manager_pin
@@ -390,12 +424,21 @@ CUSTOM_FIELDS = {
 			"insert_after": "rpos_order_item",
 		},
 		{
+			"fieldname": "rpos_combo",
+			"fieldtype": "Link",
+			"options": "Item",
+			"label": "Combo",
+			"read_only": 1,
+			"description": "The combo this item was sold in.",
+			"insert_after": "rpos_is_addon",
+		},
+		{
 			"fieldname": "rpos_removed",
 			"fieldtype": "Small Text",
 			"label": "Left Out of the Recipe",
 			"read_only": 1,
 			"hidden": 1,
-			"insert_after": "rpos_is_addon",
+			"insert_after": "rpos_combo",
 		},
 	],
 	# **The two rules ERPNext's program has no field for** (`D-189`). Earning,

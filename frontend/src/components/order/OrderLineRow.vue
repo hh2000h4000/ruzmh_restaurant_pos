@@ -132,6 +132,11 @@ function voidFromDrawer(): void {
 /** A line already with the kitchen cannot be quietly re-tapped away (BR-013). */
 const isSent = computed(() => props.line.status === "sent");
 
+/** A combo reads as its header with its items under it, one to a line (D-285). */
+const isCombo = computed(() =>
+  (props.line.modifiers ?? []).some((modifier) => modifier.item_effect === "combo"),
+);
+
 /** Bare figures: the currency is stated once, on the total. */
 function money(value: number): string {
   return formatNumber(value, 2);
@@ -193,8 +198,18 @@ function money(value: number): string {
               {{ line.item_name }}
             </p>
 
+            <template v-if="isCombo">
+              <p
+                v-for="(part, index) in line.modifiers"
+                :key="index"
+                class="truncate text-sm text-muted"
+                data-combo-part
+              >
+                – {{ pick(part.option_ar, part.option) }}
+              </p>
+            </template>
             <p
-              v-if="line.modifiers?.length"
+              v-else-if="line.modifiers?.length"
               class="truncate text-sm text-muted"
             >
               {{

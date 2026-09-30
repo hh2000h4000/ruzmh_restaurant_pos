@@ -1306,3 +1306,35 @@ Reason,السبب,RPOS report
 Branch,الفرع,RPOS report
 Hours,الساعات,RPOS report
 Action Type,نوع العملية,RPOS report
+POS Combo Item,صنف الكومبو
+Choice,الخيار,POS Combo Item
+Item,الصنف,POS Combo Item
+Quantity,الكمية,POS Combo Item
+Price From,السعر من,POS Combo Item
+Price,السعر,POS Combo Item
+Default,الافتراضي,POS Combo Item
+Adds to Price,يُضاف على السعر,POS Combo Item
+item_price,سعر الصنف,POS Combo Item
+amount,مبلغ,POS Combo Item
+"The choice this item belongs to, such as «Drink». The guest picks one item per choice. Leave empty for an item that always comes with the combo.",الخيار اللي يتبعه الصنف، مثل «المشروب». الزبون يختار صنفاً واحداً من كل خيار. اتركه فاضي للصنف اللي يجي دايماً مع الكومبو.
+"With a fixed combo price, choosing this item adds its price on top — a large drink instead of a regular one.",إذا سعر الكومبو ثابت، اختيار هالصنف يزيد سعره فوق سعر الكومبو، مثل مشروب كبير بدل العادي.
+Combo,كومبو,Item
+Combo Price,سعر الكومبو,Item
+Combo Items,أصناف الكومبو,Item
+fixed,سعر ثابت,Item
+sum,مجموع أسعار الأصناف,Item
+"The guest buys the items below as one, and they are what leaves stock and what is sold.",الزبون يشتري الأصناف اللي تحت كوجبة وحدة، وهي اللي تنباع وتنخصم من المخزن.
+"fixed: this item's own price, shared across the items. sum: the items' prices added up.",سعر ثابت: سعر هذا الصنف، ويتوزع على الأصناف. مجموع الأسعار: أسعار الأصناف مجموعة.
+Combo,الكومبو,Sales Invoice Item
+The combo this item was sold in.,الكومبو اللي انباع فيه هالصنف.
+{0} is not one of this combo's choices.,{0} مو من خيارات هالكومبو.
+Choose one item for {0}.,اختر صنفاً واحداً لـ{0}.
+Choose: {0},اختر: {0}
+{0} is not offered under {1}.,{0} مو من أصناف {1}.
+A combo is not kept in stock; its items are. Untick Maintain Stock.,الكومبو ما ينحفظ في المخزن، أصنافه هي اللي تنحفظ. شيل علامة «المحافظة على المخزون».
+A combo asks its own choices. Remove its modifier groups.,الكومبو يسأل خياراته بنفسه. شيل مجموعات الإضافات منه.
+Add the items this combo is made of.,أضف الأصناف اللي يتكوّن منها الكومبو.
+Row #{0}: A combo cannot hold a combo.,سطر {0}: ما ينفع كومبو داخل كومبو.
+Row #{0}: {1} is not an enabled sales item.,سطر {0}: الصنف {1} مو صنف بيع مفعّل.
+{0} can have only one default item.,«{0}» له صنف افتراضي واحد بس.
+From: {0},من: {0}

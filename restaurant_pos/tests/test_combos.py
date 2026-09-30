@@ -1,0 +1,220 @@
+# Copyright (c) 2026, RPOS and contributors
+# For license information, please see license.txt
+
+"""A combo is sold as its items — to the kitchen, to the invoice, to stock (`D-285`).
+
+«Burger meal»: the burger of `test_recipes` always, and a drink chosen — cola
+(5.00) by default, or juice, which adds 3.00 to a fixed-price meal. Every
+figure is known, so the tests hold the till's price, the invoice's shares, the
+warehouse and the return to it.
+
+Refs: FR-4.2, D-284, D-285
+"""
+
+import frappe
+from frappe.utils import flt
+
+from restaurant_pos.api import session
+from restaurant_pos.tests.test_order import ITEM, TEST_ITEM_RATE, TEST_PRICE_LIST
+from restaurant_pos.tests.test_recipes import COST_OF_ONE, RecipeTestBase
+from restaurant_pos.utils import combos, kitchen, returns
+from restaurant_pos.utils import order as orders
+
+MEAL = "RPOS-TEST-CMB-MEAL"
+COLA = "RPOS-TEST-CMB-COLA"
+JUICE = "RPOS-TEST-CMB-JUICE"
+MEAL_PRICE = 29.00
+COLA_PRICE = 5.00
+JUICE_PRICE = 7.00
+UPGRADE = 3.00
+DRINK = "Drink"
+
+
+class ComboTestBase(RecipeTestBase):
+	def setUp(self):
+		super().setUp()
+		for code, price in ((COLA, COLA_PRICE), (JUICE, JUICE_PRICE)):
+			self._ingredient(code, "Nos")
+			self._receive(code, 50, 1.00)
+			self._price(code, price)
+		self._meal("fixed")
+
+	def _price(self, code: str, rate: float) -> None:
+		frappe.db.delete("Item Price", {"item_code": code, "price_list": TEST_PRICE_LIST})
+		frappe.get_doc(
+			{
+				"doctype": "Item Price",
+				"item_code": code,
+				"price_list": TEST_PRICE_LIST,
+				"price_list_rate": rate,
+			}
+		).insert(ignore_permissions=True)
+
+	def _meal(self, pricing: str) -> None:
+		rows = [
+			{"slot": "", "item": ITEM, "qty": 1, "price_source": "item_price"},
+			{"slot": DRINK, "item": COLA, "qty": 1, "price_source": "item_price", "is_default": 1},
+			{
+				"slot": DRINK,
+				"item": JUICE,
+				"qty": 1,
+				"price_source": "item_price" if pricing == "sum" else "amount",
+				"price": UPGRADE,
+				"adds_to_price": 1,
+			},
+		]
+		if frappe.db.exists("Item", MEAL):
+			meal = frappe.get_doc("Item", MEAL)
+			meal.rpos_combo_pricing = pricing
+			meal.set("rpos_combo_items", rows)
+			meal.save(ignore_permissions=True)
+		else:
+			frappe.get_doc(
+				{
+					"doctype": "Item",
+					"item_code": MEAL,
+					"item_name": "Burger meal",
+					"item_group": frappe.db.get_value("Item Group", {"is_group": 0}, "name"),
+					"stock_uom": "Nos",
+					"is_stock_item": 0,
+					"rpos_is_combo": 1,
+					"rpos_combo_pricing": pricing,
+					"rpos_combo_items": rows,
+				}
+			).insert(ignore_permissions=True)
+		self._price(MEAL, MEAL_PRICE)
+
+	def _ordered(self, drink: str, qty: float = 1):
+		order = self._order()
+		orders.add_item(
+			order, item=MEAL, qty=qty, modifiers=[{"group": combos.group_name(MEAL, DRINK), "option": drink}]
+		)
+		order.reload()
+		return order
+
+	def _paid(self, drink: str, qty: float = 1):
+		order = self._ordered(drink, qty)
+		self._pay(order)
+		order.reload()
+		return order
+
+	def _lines(self, invoice: str) -> list:
+		return frappe.get_all(
+			"Sales Invoice Item",
+			filters={"parent": invoice},
+			fields=["name", "item_code", "qty", "rate", "amount", "rpos_combo", "is_free_item"],
+			order_by="idx",
+		)
+
+
+class AFixedPriceCombo(ComboTestBase):
+	def test_the_till_prices_the_meal_and_an_upgrade_adds_on_top(self):
+		self.assertEqual(flt(self._ordered(COLA).items[0].amount), MEAL_PRICE)
+		self.assertEqual(flt(self._ordered(JUICE).items[0].amount), MEAL_PRICE + UPGRADE)
+
+	def test_the_invoice_sells_the_items_sharing_the_price_by_their_own(self):
+		order = self._paid(COLA, qty=2)
+		burger, cola = self._lines(order.sales_invoice)
+
+		self.assertEqual((burger.item_code, cola.item_code), (ITEM, COLA))
+		self.assertEqual((burger.rpos_combo, cola.rpos_combo), (MEAL, MEAL))
+		whole = TEST_ITEM_RATE + COLA_PRICE
+		self.assertAlmostEqual(flt(burger.rate), flt(MEAL_PRICE * TEST_ITEM_RATE / whole, 2), places=2)
+		# The shares add up to the meal, to the halala.
+		self.assertAlmostEqual(flt(burger.amount) + flt(cola.amount), 2 * MEAL_PRICE, places=2)
+		self.assertNotIn(MEAL, [line.item_code for line in self._lines(order.sales_invoice)])
+
+	def test_the_items_leave_the_warehouse_and_the_meal_does_not(self):
+		order = self._paid(COLA, qty=2)
+		moved = self._moved(order.sales_invoice)
+
+		self.assertEqual(moved[COLA], -2)
+		self.assertEqual(moved["RPOS-TEST-PATTY"], -0.3)
+		self.assertNotIn(MEAL, moved)
+		cost = -sum(
+			flt(row.stock_value_difference)
+			for row in frappe.get_all(
+				"Stock Ledger Entry",
+				filters={"voucher_no": order.sales_invoice, "is_cancelled": 0},
+				fields=["stock_value_difference"],
+			)
+		)
+		self.assertAlmostEqual(cost, 2 * (COST_OF_ONE + 1.00), places=2)
+
+	def test_each_item_reaches_the_kitchen_saying_which_meal_it_is_from(self):
+		order = self._ordered(COLA)
+		result = kitchen.send_to_kitchen(order)
+
+		sent = [
+			row
+			for ticket in result["kots_created"]
+			for row in frappe.get_all(
+				"KOT Item", filters={"parent": ticket["kot_name"]}, fields=["item", "notes"]
+			)
+		]
+		# Two items, each to its own station — or said to be unrouted, never lost.
+		self.assertEqual(len(sent) + len(result["unrouted_items"]), 2)
+		self.assertLessEqual({row.item for row in sent}, {ITEM, COLA})
+		for row in sent:
+			self.assertIn("Burger meal", row.notes or "")
+
+	def test_the_meal_comes_back_whole(self):
+		order = self._paid(JUICE)
+		offered = returns.returnable(order)["items"]
+
+		self.assertEqual(len(offered), 1)
+		self.assertEqual(offered[0]["item"], MEAL)
+		self.assertAlmostEqual(offered[0]["amount"], MEAL_PRICE + UPGRADE, places=2)
+
+		result = returns.create_return(
+			order, items=[{"row": offered[0]["row"], "qty": 1}], reason_code="goods_returned"
+		)
+		back = self._moved(result["credit_note"])
+		self.assertEqual(back[JUICE], 1)
+		self.assertEqual(back["RPOS-TEST-PATTY"], 0.15)
+
+	def test_the_till_is_sent_the_choices_as_a_popup(self):
+		items, _groups = session._catalog(frappe.get_doc("POS Profile", self.profile), [])
+		meal = next(item for item in items if item.item_code == MEAL)
+		self.assertEqual(meal.modifier_groups, [combos.group_name(MEAL, DRINK)])
+
+		drink = combos.groups_for(MEAL, TEST_PRICE_LIST)[0]
+		self.assertEqual(drink["is_required"], 1)
+		prices = {
+			option.title: (option.price_effect, flt(option.price_amount)) for option in drink["options"]
+		}
+		self.assertEqual(prices, {COLA: ("none", 0.0), JUICE: ("add", UPGRADE)})
+
+
+class ASumPricedCombo(ComboTestBase):
+	def setUp(self):
+		super().setUp()
+		self._meal("sum")
+
+	def test_the_meal_costs_its_items_added_up(self):
+		self.assertEqual(flt(self._ordered(COLA).items[0].amount), TEST_ITEM_RATE + COLA_PRICE)
+		order = self._paid(JUICE)
+		self.assertEqual(
+			{line.item_code: flt(line.rate) for line in self._lines(order.sales_invoice)},
+			{ITEM: TEST_ITEM_RATE, JUICE: JUICE_PRICE},
+		)
+
+
+class TheComboIsCheckedWhenSaved(ComboTestBase):
+	def test_a_choice_must_be_made(self):
+		order = self._order()
+		with self.assertRaises(frappe.ValidationError):
+			orders.add_item(order, item=MEAL, qty=1, modifiers=[])
+
+	def test_an_item_not_offered_under_the_choice_is_refused(self):
+		order = self._order()
+		with self.assertRaises(frappe.ValidationError):
+			orders.add_item(
+				order, item=MEAL, qty=1, modifiers=[{"group": combos.group_name(MEAL, DRINK), "option": ITEM}]
+			)
+
+	def test_a_combo_is_not_kept_in_stock(self):
+		meal = frappe.get_doc("Item", MEAL)
+		meal.is_stock_item = 1
+		with self.assertRaises(frappe.ValidationError):
+			meal.save(ignore_permissions=True)

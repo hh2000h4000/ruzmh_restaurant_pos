@@ -19,7 +19,7 @@ import frappe
 from frappe import _
 from frappe.utils import cint, flt, now_datetime
 
-from restaurant_pos.utils import activity, addons, kitchen, numbering, routing, totals
+from restaurant_pos.utils import activity, addons, combos, kitchen, numbering, routing, totals
 from restaurant_pos.utils.audit import log_audit
 from restaurant_pos.utils.permissions import (
 	assert_permission,
@@ -597,11 +597,7 @@ def _resolve_rate(order, item: str, requested_rate: float | None) -> float:
 	if not price_list:
 		frappe.throw(_("POS Profile {0} has no selling price list.").format(order.pos_profile))
 
-	listed = frappe.db.get_value(
-		"Item Price",
-		{"item_code": item, "price_list": price_list, "selling": 1},
-		"price_list_rate",
-	)
+	listed = _price_on(item, price_list)
 
 	if listed is None:
 		if requested_rate is None:
@@ -638,6 +634,10 @@ def _resolve_modifiers(item: str, selected: list | None, price_list: str | None 
 	(`D-284`), stored as the `add` it amounts to — so everything downstream of
 	the order line reads one kind of surcharge.
 	"""
+	# `D-285` — a combo's choices are its items, and it has no others.
+	if combos.is_combo(item):
+		return combos.resolve(item, selected, price_list)
+
 	if not selected:
 		return [], 0.0
 
@@ -1557,15 +1557,25 @@ def _listed_rate(order, item: str) -> float:
 	if not price_list:
 		frappe.throw(_("POS Profile {0} has no selling price list.").format(order.pos_profile))
 
-	listed = frappe.db.get_value(
-		"Item Price",
-		{"item_code": item, "price_list": price_list, "selling": 1},
-		"price_list_rate",
-	)
+	listed = _price_on(item, price_list)
 	if listed is None:
 		frappe.throw(_("No price is configured for {0} in price list {1}.").format(item, price_list))
 
 	return totals.money(flt(listed))
+
+
+def _price_on(item: str, price_list: str) -> float | None:
+	"""An item's price on a list, or None when the list has none.
+
+	`D-285` — a combo priced by its items starts from its fixed items' prices.
+	"""
+	if combos.is_combo(item):
+		return combos.base_price(item, price_list)
+	return frappe.db.get_value(
+		"Item Price",
+		{"item_code": item, "price_list": price_list, "selling": 1},
+		"price_list_rate",
+	)
 
 
 # --------------------------------------------------------------------------- #

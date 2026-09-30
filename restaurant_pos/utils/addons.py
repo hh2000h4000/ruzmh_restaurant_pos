@@ -122,7 +122,8 @@ def stock_taken(row) -> dict[str, float]:
 	"""What the add-ons sold on one order line take from stock, in stock units."""
 	taken: dict[str, float] = {}
 	for choice in chosen(row.modifiers):
-		if choice.get("item") and choice.get("item_effect") == "sell":
+		# A combo's items (`D-285`) leave stock the same way an add-on does.
+		if choice.get("item") and choice.get("item_effect") in ("sell", "combo"):
 			qty = flt(row.qty) * (flt(choice.get("item_qty")) or 1)
 			taken[choice["item"]] = taken.get(choice["item"], 0.0) + qty
 	return taken
@@ -160,30 +161,45 @@ def dish_rows(rows: list) -> list:
 
 	An add-on row is folded into its dish, so the return screen offers the
 	burger at what the guest paid for it — cheese and all — and never the cheese
-	on its own.
+	on its own. **A combo's items fold the same way** (`D-285`), into one row
+	named for the combo: the guest returns a meal.
+
+	The rows of one order line share `rpos_order_item`; the first of them leads.
 	"""
-	dishes = [row for row in rows if not row.get("rpos_is_addon")]
-	by_line = {row.rpos_order_item: row for row in dishes if row.get("rpos_order_item")}
-	for row in rows:
-		if row.get("rpos_is_addon") and by_line.get(row.rpos_order_item):
-			dish = by_line[row.rpos_order_item]
-			dish.rate = flt(dish.rate) + flt(row.rate)
-			dish.amount = flt(dish.amount) + flt(row.amount)
-	return dishes
+	leads: dict[str, object] = {}
+	shown = []
+	for row in sorted(rows, key=lambda row: row.get("idx") or 0):
+		key = row.get("rpos_order_item")
+		lead = leads.get(key) if key else None
+		if lead is None:
+			if key:
+				leads[key] = row
+			if row.get("rpos_combo"):
+				row.item_code = row.rpos_combo
+				row.item_name = frappe.db.get_value("Item", row.rpos_combo, "pos_display_name_ar") or (
+					frappe.db.get_value("Item", row.rpos_combo, "item_name")
+				)
+			shown.append(row)
+			continue
+		lead.rate = flt(lead.rate) + flt(row.rate)
+		lead.amount = flt(lead.amount) + flt(row.amount)
+	return shown
 
 
 def with_addons(invoice: str, wanted: dict[str, float]) -> dict[str, float]:
-	"""A dish coming back brings its add-ons, in the same share of the line."""
+	"""A dish coming back brings its add-ons — a combo, its items — in the same share."""
 	rows = frappe.get_all(
 		"Sales Invoice Item",
 		filters={"parent": invoice, "parenttype": "Sales Invoice"},
-		fields=["name", "qty", "rpos_order_item", "rpos_is_addon"],
+		fields=["name", "qty", "rpos_order_item"],
+		order_by="idx",
 	)
-	dishes = {row.rpos_order_item: row for row in rows if row.rpos_order_item and not row.rpos_is_addon}
-
+	leads: dict[str, object] = {}
 	full = dict(wanted)
 	for row in rows:
-		dish = dishes.get(row.rpos_order_item) if row.rpos_is_addon else None
-		if dish and wanted.get(dish.name) and flt(dish.qty):
-			full[row.name] = flt(wanted[dish.name]) * flt(row.qty) / flt(dish.qty)
+		if not row.rpos_order_item:
+			continue
+		lead = leads.setdefault(row.rpos_order_item, row)
+		if lead is not row and wanted.get(lead.name) and flt(lead.qty):
+			full[row.name] = flt(wanted[lead.name]) * flt(row.qty) / flt(lead.qty)
 	return full

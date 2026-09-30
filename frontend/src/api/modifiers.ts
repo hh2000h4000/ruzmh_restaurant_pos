@@ -6,6 +6,8 @@ export interface ModifierOption {
   price_effect: "none" | "add" | "subtract";
   price_amount: number;
   is_default: 0 | 1;
+  /** The English name when `title` is a code — a combo's item (D-285). */
+  label?: string;
 }
 
 export interface ModifierGroup {

@@ -206,6 +206,8 @@ export interface OrderLine {
     option_ar: string;
     amount: number;
     price_effect?: "none" | "add" | "subtract";
+    /** `combo` — one of a combo's items, listed under it (D-285). */
+    item_effect?: string;
   }[];
   production_center: string | null;
 }

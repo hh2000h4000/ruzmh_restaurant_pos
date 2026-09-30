@@ -27,7 +27,7 @@ import frappe
 from frappe import _
 from frappe.utils import flt, now_datetime
 
-from restaurant_pos.utils import activity, printing
+from restaurant_pos.utils import activity, combos, printing, routing
 from restaurant_pos.utils.audit import log_audit
 
 #: Lines that still have to reach the kitchen.
@@ -84,8 +84,9 @@ def send_to_kitchen(order, *, kot_type: str | None = None) -> dict:
 	kot_type = kot_type or _kot_type_for(order)
 	header = _header(order)
 
-	routed, unrouted = _split_by_center(pending)
+	routed, unrouted = _split_by_center(_tickets_of(order, pending))
 	created = []
+	named: set[int] = set()
 
 	for production_center, rows in routed.items():
 		kot = _create_kot(
@@ -99,7 +100,10 @@ def send_to_kitchen(order, *, kot_type: str | None = None) -> dict:
 		created.append(kot)
 
 		for row in rows:
-			row.kot_reference = kot.name
+			# A combo's items reach several tickets; its line names the first.
+			if id(row.source) not in named:
+				named.add(id(row.source))
+				row.source.kot_reference = kot.name
 
 	moment = now_datetime()
 	for row in pending:
@@ -160,7 +164,7 @@ def create_void_kot(order, rows) -> list[dict]:
 		return []
 
 	header = _header(order)
-	routed, _unrouted = _split_by_center(rows)
+	routed, _unrouted = _split_by_center(_tickets_of(order, rows))
 
 	created = []
 	for production_center, center_rows in routed.items():
@@ -244,6 +248,50 @@ def _header(order) -> frappe._dict:
 		# cannot cover — and the reason order-level notes exist (FR-2.9).
 		order_notes=order.notes,
 	)
+
+
+def _tickets_of(order, rows) -> list[frappe._dict]:
+	"""What each station is told, line by line — a combo taken apart (`D-285`).
+
+	A combo is one line on the order, but its burger is cooked at the grill and
+	its drink poured at the bar. Each item goes to the station its own routing
+	names, as Square's combo does, and says which meal it belongs to so the
+	counter can put the tray together.
+	"""
+	tickets = []
+	for row in rows:
+		parts = combos.parts(row)
+		if not parts:
+			tickets.append(
+				frappe._dict(
+					item=row.item,
+					item_name=row.item_name,
+					qty=row.qty,
+					modifiers=row.modifiers,
+					notes=row.notes,
+					production_center=row.production_center,
+					source=row,
+				)
+			)
+			continue
+
+		label = _("From: {0}").format(row.item_name)
+		for part in parts:
+			route = routing.resolve_route(
+				part["item"], branch=order.branch, order_type=order.order_type, pos_profile=order.pos_profile
+			)
+			tickets.append(
+				frappe._dict(
+					item=part["item"],
+					item_name=part.get("option_ar") or part["item"],
+					qty=flt(row.qty) * (flt(part.get("item_qty")) or 1),
+					modifiers=None,
+					notes="\n".join(filter(None, [label, row.notes])),
+					production_center=route.production_center,
+					source=row,
+				)
+			)
+	return tickets
 
 
 def _split_by_center(rows) -> tuple[dict, list]:

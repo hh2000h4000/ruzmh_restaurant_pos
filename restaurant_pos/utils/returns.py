@@ -86,6 +86,7 @@ def returnable(order) -> dict:
 			"amount",
 			"rpos_order_item",
 			"rpos_is_addon",
+			"rpos_combo",
 		],
 		order_by="idx",
 	)

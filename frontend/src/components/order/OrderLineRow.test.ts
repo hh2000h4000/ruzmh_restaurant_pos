@@ -70,3 +70,32 @@ describe("saying which dish the offer came off", () => {
     expect(text).not.toContain("12.50");
   });
 });
+
+/**
+ * A combo is a header with its items under it (`D-285`) — the shape of the
+ * owner's reference till. Joined on one line like modifiers, a meal of four
+ * items truncated after the second and the cashier could not read the drink.
+ */
+describe("a combo on the bill", () => {
+  it("lists each of its items on a line of its own", () => {
+    const wrapper = row({
+      item_name: "وجبة برغر",
+      modifiers: [
+        { group: "", option: "Burger", option_ar: "برغر", amount: 0, item_effect: "combo" },
+        { group: "المشروب", option: "Cola", option_ar: "كولا", amount: 0, item_effect: "combo" },
+      ],
+    });
+
+    const parts = wrapper.findAll("[data-combo-part]").map((part) => part.text());
+    expect(parts).toEqual(["– برغر", "– كولا"]);
+  });
+
+  it("keeps a dish's modifiers on one line", () => {
+    const wrapper = row({
+      modifiers: [{ group: "إضافات", option: "Cheese", option_ar: "جبنة", amount: 2 }],
+    });
+
+    expect(wrapper.findAll("[data-combo-part]")).toHaveLength(0);
+    expect(wrapper.text()).toContain("جبنة");
+  });
+});

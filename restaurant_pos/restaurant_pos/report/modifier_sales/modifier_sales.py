@@ -44,6 +44,9 @@ def execute(filters=None):
 		fields=["qty", "modifiers"],
 	):
 		for choice in _parsed(line.modifiers):
+			# A combo's items are sold, not chosen extras; Item Sales counts them (`D-285`).
+			if choice.get("item_effect") == "combo":
+				continue
 			key = (choice.get("group"), choice.get("option"))
 			row = choices.setdefault(
 				key,

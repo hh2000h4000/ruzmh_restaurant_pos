@@ -25,7 +25,7 @@ import frappe.sessions
 from frappe import _
 from frappe.utils import cint, flt, now_datetime
 
-from restaurant_pos.utils import addons, device
+from restaurant_pos.utils import addons, combos, device
 from restaurant_pos.utils import theme as theme_service
 from restaurant_pos.utils import totals as totals_service
 from restaurant_pos.utils.gift_card import is_gift_card_method
@@ -491,6 +491,7 @@ def _catalog(profile, order_types: list[dict]) -> tuple[list[dict], list[dict]]:
 			"stock_uom",
 			"image",
 			"default_production_center",
+			"rpos_is_combo as is_combo",
 		],
 		order_by="item_name asc",
 	)
@@ -549,6 +550,13 @@ def _catalog(profile, order_types: list[dict]) -> tuple[list[dict], list[dict]]:
 		# screen has to remember is not (`CLAUDE.md` §5.5).
 		row.rates = {name: rates[row.item_code] for name, rates in by_list.items() if row.item_code in rates}
 		row.modifier_groups = modifiers.get(row.item_code, [])
+		if row.is_combo:
+			# `D-285` — its choices open like modifiers, and a combo priced by its
+			# items starts from its fixed ones on every list the till sells from.
+			row.modifier_groups = combos.slot_names(row.item_code)
+			if frappe.db.get_value("Item", row.item_code, "rpos_combo_pricing") == "sum":
+				row.rates = {name: combos.base_price(row.item_code, name) for name in by_list}
+				row.rate = row.rates.get(profile.selling_price_list)
 		row.display_name = row.pos_display_name_ar or row.item_name
 		row.image = row.image or picture
 
@@ -642,7 +650,13 @@ def _modifier_groups_for(items: list[dict], price_list: str | None = None) -> li
 	things this till does not, and a payload is read on every sign-in.
 	"""
 	wanted = sorted({group for item in items for group in (item.get("modifier_groups") or [])})
-	return get_modifier_groups(wanted, price_list) if wanted else []
+	real = [group for group in wanted if not group.startswith(combos.PREFIX)]
+	groups = get_modifier_groups(real, price_list) if real else []
+	# `D-285` — a combo's choices ride as groups, so the till's popup asks them.
+	for item in items:
+		if item.get("is_combo"):
+			groups.extend(combos.groups_for(item["item_code"], price_list))
+	return groups
 
 
 @frappe.whitelist()

@@ -34,6 +34,8 @@ after_migrate = "restaurant_pos.setup.install.after_migrate"
 # reversibly and check_password() would never see it, so it is intercepted and
 # stored as a one-way hash instead (DECISIONS.md D-015, D-016).
 doc_events = {
+	# D-285 — a combo the till can sell, or a refusal the manager can read.
+	"Item": {"validate": "restaurant_pos.utils.combos.validate_item"},
 	# D-201 — and an RPOS role is granted on this form, so the escalation guard
 	# (FR-12.6) runs here rather than only inside an API nothing called.
 	"User": {
@@ -138,6 +140,8 @@ doctype_js = {
 	"POS Profile": "public/js/pos_profile.js",
 	# D-265 — the gift card method's account list offers liabilities.
 	"Mode of Payment": "public/js/mode_of_payment.js",
+	# D-285 — the combo table's choices read in Arabic.
+	"Item": "public/js/item.js",
 }
 
 # ---------------------------------------------------------------------------

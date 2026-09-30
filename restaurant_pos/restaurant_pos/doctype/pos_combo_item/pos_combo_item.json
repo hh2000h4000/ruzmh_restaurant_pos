@@ -1,0 +1,92 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "creation": "2026-09-30 00:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "slot",
+  "item",
+  "qty",
+  "price_source",
+  "price",
+  "is_default",
+  "adds_to_price"
+ ],
+ "fields": [
+  {
+   "columns": 2,
+   "description": "The choice this item belongs to, such as «Drink». The guest picks one item per choice. Leave empty for an item that always comes with the combo.",
+   "fieldname": "slot",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Choice"
+  },
+  {
+   "columns": 2,
+   "fieldname": "item",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Item",
+   "options": "Item",
+   "reqd": 1
+  },
+  {
+   "columns": 1,
+   "default": "1",
+   "fieldname": "qty",
+   "fieldtype": "Float",
+   "in_list_view": 1,
+   "label": "Quantity",
+   "non_negative": 1
+  },
+  {
+   "columns": 1,
+   "default": "item_price",
+   "fieldname": "price_source",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Price From",
+   "options": "item_price\namount"
+  },
+  {
+   "columns": 1,
+   "depends_on": "eval:doc.price_source=='amount'",
+   "fieldname": "price",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Price",
+   "precision": "2"
+  },
+  {
+   "columns": 1,
+   "depends_on": "slot",
+   "fieldname": "is_default",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Default"
+  },
+  {
+   "columns": 2,
+   "depends_on": "slot",
+   "description": "With a fixed combo price, choosing this item adds its price on top — a large drink instead of a regular one.",
+   "fieldname": "adds_to_price",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Adds to Price"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "istable": 1,
+ "links": [],
+ "modified": "2026-09-30 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Restaurant POS",
+ "name": "POS Combo Item",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

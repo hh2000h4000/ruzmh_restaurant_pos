@@ -1338,3 +1338,5 @@ Row #{0}: A combo cannot hold a combo.,سطر {0}: ما ينفع كومبو دا
 Row #{0}: {1} is not an enabled sales item.,سطر {0}: الصنف {1} مو صنف بيع مفعّل.
 {0} can have only one default item.,«{0}» له صنف افتراضي واحد بس.
 From: {0},من: {0}
+In Combos,ضمن كومبو,RPOS report
+Combos as meals,الكومبو كوجبة

@@ -55,5 +55,12 @@ frappe.query_reports["Item Sales"] = {
 			label: __("Show cost and profit"),
 			fieldtype: "Check",
 		},
+		{
+			// `D-286` — how many meals sold and what they brought in, instead of
+			// the burgers and drinks they were made of.
+			fieldname: "combos_as_meals",
+			label: __("Combos as meals"),
+			fieldtype: "Check",
+		},
 	],
 };

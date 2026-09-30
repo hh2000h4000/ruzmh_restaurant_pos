@@ -186,6 +186,54 @@ class AFixedPriceCombo(ComboTestBase):
 		self.assertEqual(prices, {COLA: ("none", 0.0), JUICE: ("add", UPGRADE)})
 
 
+class TheComboInItemSales(ComboTestBase):
+	"""`D-286` — «how many meals, and how many burgers of them»."""
+
+	def _rows(self, **flags) -> dict:
+		from frappe.utils import today
+
+		from restaurant_pos.restaurant_pos.report.item_sales import item_sales
+
+		_columns, rows, *_rest = item_sales.execute(
+			frappe._dict(from_date=today(), to_date=today(), pos_profile=self.profile, show_cost=1, **flags)
+		)
+		return {row["item_code"]: row for row in rows if row.get("item_code")}
+
+	def test_the_items_say_how_many_went_out_in_combos(self):
+		before = self._rows().get(COLA, {"qty": 0.0, "combo_qty": 0.0})
+		self._paid(COLA, qty=2)
+		after = self._rows()[COLA]
+
+		self.assertEqual(after["qty"] - before["qty"], 2)
+		self.assertEqual(after["combo_qty"] - before["combo_qty"], 2)
+		self.assertNotIn(MEAL, self._rows())
+
+	def test_combos_as_meals_counts_the_meals_with_their_money_and_cost(self):
+		before = self._rows(combos_as_meals=1).get(MEAL, {"qty": 0.0, "amount": 0.0, "cost": 0.0})
+		order = self._paid(COLA, qty=2)
+		after = self._rows(combos_as_meals=1)[MEAL]
+
+		net = sum(
+			flt(line.net_amount)
+			for line in frappe.get_all(
+				"Sales Invoice Item", filters={"parent": order.sales_invoice}, fields=["net_amount"]
+			)
+		)
+		self.assertEqual(after["qty"] - before["qty"], 2)
+		self.assertAlmostEqual(after["amount"] - before["amount"], net, places=2)
+		self.assertAlmostEqual(after["cost"] - before["cost"], 2 * (COST_OF_ONE + 1.00), places=2)
+
+	def test_a_returned_meal_is_counted_back_as_a_meal(self):
+		order = self._paid(COLA)
+		before = self._rows(combos_as_meals=1)[MEAL]
+		row = returns.returnable(order)["items"][0]["row"]
+		returns.create_return(order, items=[{"row": row, "qty": 1}], reason_code="goods_returned")
+		after = self._rows(combos_as_meals=1)[MEAL]
+
+		self.assertEqual(after["returned_qty"] - before["returned_qty"], 1)
+		self.assertAlmostEqual(after["cost"] - before["cost"], -(COST_OF_ONE + 1.00), places=2)
+
+
 class ASumPricedCombo(ComboTestBase):
 	def setUp(self):
 		super().setUp()

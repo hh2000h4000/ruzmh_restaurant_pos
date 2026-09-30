@@ -21,7 +21,13 @@ reading 100% on every line is a lie told in a currency. So the columns appear
 only when the owner ticks for them, and lines with no cost are counted and said
 aloud rather than passed off as free to make.
 
-Refs: FR-11.2, D-217, D-243, D-244
+**A combo reads two ways** (`D-286`). By default its burger and its drink are
+counted where they belong — Square's item sales do the same — and a column says
+how many of each went out inside a combo. Ticked «combos as meals», each combo
+is one row instead: how many meals, what they brought in, what they cost. Never
+both at once, or the meal's money would be counted twice.
+
+Refs: FR-11.2, D-217, D-243, D-244, D-285, D-286
 """
 
 import frappe
@@ -36,12 +42,13 @@ def execute(filters=None):
 	from_date, to_date = reporting.window(filters)
 	by_group = bool(filters.group_by_item_group)
 	costed = bool(filters.show_cost)
+	meals = bool(filters.combos_as_meals)
 
 	orders = reporting.settled_orders(filters, from_date, to_date, ["sales_invoice"])
 	sold = _lines_of([row.sales_invoice for row in orders], filters.item_group)
 	returned = _lines_of(reporting.credit_notes(filters, from_date, to_date), filters.item_group)
 
-	rows = _tally(sold, returned, by_group=by_group)
+	rows = _tally(sold, returned, by_group=by_group, meals=meals)
 	rows = [row for row in rows if row["qty"] or row["returned_qty"]]
 	rows.sort(key=lambda row: row["amount"], reverse=True)
 
@@ -51,7 +58,11 @@ def execute(filters=None):
 		if costed:
 			_cost_columns(row)
 
-	return _columns(by_group=by_group, costed=costed), rows, (_message(rows) if costed else None)
+	return (
+		_columns(by_group=by_group, costed=costed, meals=meals),
+		rows,
+		(_message(rows) if costed else None),
+	)
 
 
 # --------------------------------------------------------------------------- #
@@ -72,9 +83,12 @@ def _lines_of(invoices: list[str], item_group: str | None) -> list[frappe._dict]
 		filters=filters,
 		fields=[
 			"name",
+			"parent",
 			"item_code",
 			"item_name",
 			"item_group",
+			"rpos_combo",
+			"rpos_order_item",
 			"qty",
 			"stock_qty",
 			"net_amount",
@@ -120,9 +134,11 @@ def _recipe_costs(invoices: list[str]) -> dict[str, tuple[float, bool]]:
 # --------------------------------------------------------------------------- #
 
 
-def _tally(sold: list, returned: list, *, by_group: bool) -> list[dict]:
+def _tally(sold: list, returned: list, *, by_group: bool, meals: bool = False) -> list[dict]:
 	"""One row per dish, or per group when the manager asks the coarser question."""
 	rows: dict[str, dict] = {}
+	if meals:
+		sold, returned = _as_meals(sold), _as_meals(returned)
 
 	def row_for(line) -> dict:
 		key = line.item_group if by_group else line.item_code
@@ -137,6 +153,7 @@ def _tally(sold: list, returned: list, *, by_group: bool) -> list[dict]:
 				"cost": 0.0,
 				"uncosted_qty": 0.0,
 				"short_costed_qty": 0.0,
+				"combo_qty": 0.0,
 			}
 			# `item_name` carries no column: Frappe's Link cell reads it from the row
 			# and prints "CODE: Name", so a column of its own would repeat the words.
@@ -147,6 +164,8 @@ def _tally(sold: list, returned: list, *, by_group: bool) -> list[dict]:
 		row = row_for(line)
 		row["qty"] += flt(line.qty)
 		row["amount"] += flt(line.net_amount)
+		if line.get("rpos_combo"):
+			row["combo_qty"] += flt(line.qty)
 		_add_cost(row, line)
 
 	# A credit note's own quantities and amounts are already negative, so the
@@ -162,6 +181,43 @@ def _tally(sold: list, returned: list, *, by_group: bool) -> list[dict]:
 		row["amount"] = flt(row["amount"], 2)
 
 	return list(rows.values())
+
+
+def _as_meals(lines: list) -> list:
+	"""A combo's lines folded into one line per meal, named for the combo (`D-286`).
+
+	Its items share one order line, so the meals are counted once per order
+	line on each document; the money and the cost are the items' own, added.
+	"""
+	meals: dict[tuple, frappe._dict] = {}
+	kept = []
+	for line in lines:
+		if not line.get("rpos_combo"):
+			kept.append(line)
+			continue
+		key = (line.parent, line.rpos_order_item)
+		meal = meals.get(key)
+		if meal is None:
+			combo = frappe.db.get_value(
+				"Item", line.rpos_combo, ["item_name", "pos_display_name_ar", "item_group"], as_dict=True
+			)
+			meal = meals[key] = frappe._dict(
+				item_code=line.rpos_combo,
+				item_name=combo.pos_display_name_ar or combo.item_name,
+				item_group=combo.item_group,
+				qty=flt(line.qty),
+				net_amount=0.0,
+				recipe_cost=0.0,
+				recipe_short=False,
+			)
+			kept.append(meal)
+		meal.net_amount += flt(line.net_amount)
+		cost = frappe._dict(cost=0.0, uncosted_qty=0.0, short_costed_qty=0.0)
+		_add_cost(cost, line)
+		# Kept positive like a recipe's cost; `_add_cost` gives it the credit note's sign.
+		meal.recipe_cost += abs(cost.cost)
+		meal.recipe_short = meal.recipe_short or bool(cost.short_costed_qty or cost.uncosted_qty)
+	return kept
 
 
 def _add_cost(row: dict, line) -> None:
@@ -223,7 +279,7 @@ def _message(rows: list[dict]) -> str | None:
 # --------------------------------------------------------------------------- #
 
 
-def _columns(*, by_group: bool, costed: bool) -> list[dict]:
+def _columns(*, by_group: bool, costed: bool, meals: bool = False) -> list[dict]:
 	item = {
 		"fieldname": "item_code",
 		"label": _("Item", context="RPOS report"),
@@ -248,6 +304,19 @@ def _columns(*, by_group: bool, costed: bool) -> list[dict]:
 			"width": 100,
 		},
 		{"fieldname": "net_qty", "label": _("Net Quantity"), "fieldtype": "Float", "width": 110},
+		# `D-286` — how many of the sold went out inside a combo.
+		*(
+			[]
+			if meals
+			else [
+				{
+					"fieldname": "combo_qty",
+					"label": _("In Combos", context="RPOS report"),
+					"fieldtype": "Float",
+					"width": 110,
+				}
+			]
+		),
 		{"fieldname": "amount", "label": _("Sales (excl. VAT)"), "fieldtype": "Currency", "width": 150},
 	]
 	cost = [

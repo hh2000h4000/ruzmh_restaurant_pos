@@ -1360,3 +1360,9 @@ Variance Cost,تكلفة الفرق,RPOS report
 The closing count is before the opening count.,جرد النهاية قبل جرد البداية.
 {0} is not a submitted stock count.,{0} مو جرد معتمد.
 "No closing count yet: the closing figures are the books', so there is no variance to show. Count the stock and choose that count as the closing one.",ما في جرد نهاية للحين: أرقام النهاية من الدفاتر، فما في فرق يطلع. سوّ جرد واختره كجرد النهاية.
+Voids and Comps Cost,تكلفة الملغى والمجاني
+Kind,النوع,RPOS report
+Quantity,الكمية,RPOS report
+Voided after the kitchen,ملغى بعد المطبخ
+Given free,مجاني
+"Voided after the kitchen never left stock: the next count finds it missing. Free items did, with their sale.",الملغى بعد المطبخ ما انخصم من المخزن، فالجرد الجاي بيلقاه ناقص. والمجاني انخصم مع بيعه.

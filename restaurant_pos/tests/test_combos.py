@@ -30,9 +30,27 @@ UPGRADE = 3.00
 DRINK = "Drink"
 
 
+def _choice(name: str, low: int = 1, high: int = 1) -> str:
+	"""A combo choice picking between ``low`` and ``high`` items (`D-290`)."""
+	if frappe.db.exists("POS Combo Choice", name):
+		frappe.db.set_value("POS Combo Choice", name, {"min_selections": low, "max_selections": high})
+	else:
+		frappe.get_doc(
+			{
+				"doctype": "POS Combo Choice",
+				"title_ar": name,
+				"title": name,
+				"min_selections": low,
+				"max_selections": high,
+			}
+		).insert(ignore_permissions=True)
+	return name
+
+
 class ComboTestBase(RecipeTestBase):
 	def setUp(self):
 		super().setUp()
+		_choice(DRINK)
 		for code, price in ((COLA, COLA_PRICE), (JUICE, JUICE_PRICE)):
 			self._ingredient(code, "Nos")
 			self._receive(code, 50, 1.00)
@@ -184,6 +202,115 @@ class AFixedPriceCombo(ComboTestBase):
 			option.title: (option.price_effect, flt(option.price_amount)) for option in drink["options"]
 		}
 		self.assertEqual(prices, {COLA: ("none", 0.0), JUICE: ("add", UPGRADE)})
+
+
+class AComboItemTakesItsOwnAddOns(ComboTestBase):
+	"""`D-289` — extra cheese on the meal's burger, as on a burger alone."""
+
+	def setUp(self):
+		super().setUp()
+		from restaurant_pos.tests import test_addons
+
+		self.addons = test_addons
+		test_addons._group()
+		frappe.db.delete("Modifier Group Assignment", {"parent": ITEM, "parenttype": "Item"})
+		frappe.get_doc(
+			{
+				"doctype": "Modifier Group Assignment",
+				"parent": ITEM,
+				"parenttype": "Item",
+				"parentfield": "pos_modifier_groups",
+				"modifier_group": test_addons.GROUP,
+			}
+		).db_insert()
+		self.addCleanup(frappe.db.delete, "Modifier Group Assignment", {"parent": ITEM, "parenttype": "Item"})
+
+	def _ordered_with(self, *extras: str, qty: float = 1):
+		part = combos.part_group_name(MEAL, ITEM, self.addons.GROUP)
+		order = self._order()
+		orders.add_item(
+			order,
+			item=MEAL,
+			qty=qty,
+			modifiers=[
+				{"group": combos.group_name(MEAL, DRINK), "option": COLA},
+				*({"group": part, "option": extra} for extra in extras),
+			],
+		)
+		order.reload()
+		return order
+
+	def test_the_till_asks_the_burger_s_groups_inside_the_meal(self):
+		self.assertIn(combos.part_group_name(MEAL, ITEM, self.addons.GROUP), combos.slot_names(MEAL))
+		part = combos.part_groups(MEAL)[0]
+		self.assertIsNone(part["when"], "the burger always comes, so its groups always show")
+
+	def test_extra_cheese_adds_its_price_and_is_sold_as_its_own_line(self):
+		order = self._ordered_with("Extra cheese", qty=2)
+		self.assertEqual(flt(order.items[0].amount), 2 * (MEAL_PRICE + self.addons.EXTRA))
+
+		self._pay(order)
+		order.reload()
+		lines = self._lines(order.sales_invoice)
+		cheese = next(line for line in lines if line.item_code == self.addons.CHEESE)
+		self.assertEqual((flt(cheese.qty), flt(cheese.rate)), (2, self.addons.EXTRA))
+		self.assertEqual(cheese.rpos_combo, MEAL)
+		self.assertAlmostEqual(sum(flt(line.amount) for line in lines), flt(order.items[0].amount), places=2)
+
+		moved = self._moved(order.sales_invoice)
+		self.assertEqual(moved[self.addons.CHEESE], -4, "two from the recipes, two extra")
+
+	def test_no_bun_on_the_meal_s_burger_keeps_the_bun(self):
+		order = self._ordered_with("No bun")
+		self._pay(order)
+		order.reload()
+
+		self.assertNotIn(self.addons.BUN, self._moved(order.sales_invoice))
+
+
+class AChoiceSaysHowManyToPick(ComboTestBase):
+	"""`D-290` — Square's number of selections, Toast's minimum and maximum."""
+
+	def _drinks(self, low: int, high: int):
+		_choice(DRINK, low, high)
+		return [{"group": combos.group_name(MEAL, DRINK), "option": drink} for drink in (COLA, JUICE)]
+
+	def test_an_optional_choice_may_be_left_empty(self):
+		self._drinks(0, 1)
+		order = self._order()
+		orders.add_item(order, item=MEAL, qty=1, modifiers=[])
+		order.reload()
+
+		self.assertEqual([part["item"] for part in combos.parts(order.items[0])], [ITEM])
+		self.assertEqual(combos.groups_for(MEAL, TEST_PRICE_LIST)[0]["is_required"], 0)
+
+	def test_a_choice_of_two_takes_both_and_prices_the_upgrade(self):
+		both = self._drinks(1, 2)
+		order = self._order()
+		orders.add_item(order, item=MEAL, qty=1, modifiers=both)
+		order.reload()
+
+		self.assertEqual({part["item"] for part in combos.parts(order.items[0])}, {ITEM, COLA, JUICE})
+		self.assertEqual(flt(order.items[0].amount), MEAL_PRICE + UPGRADE)
+		self.assertEqual(combos.groups_for(MEAL, TEST_PRICE_LIST)[0]["selection_type"], "multiple")
+
+	def test_more_than_the_choice_allows_is_refused(self):
+		both = self._drinks(1, 1)
+		order = self._order()
+		with self.assertRaises(frappe.ValidationError):
+			orders.add_item(order, item=MEAL, qty=1, modifiers=both)
+
+	def test_a_minimum_above_the_maximum_is_refused(self):
+		with self.assertRaises(frappe.ValidationError):
+			frappe.get_doc(
+				{
+					"doctype": "POS Combo Choice",
+					"title_ar": "خيار خاطئ",
+					"title": "Wrong",
+					"min_selections": 3,
+					"max_selections": 1,
+				}
+			).insert(ignore_permissions=True)
 
 
 class TheComboInItemSales(ComboTestBase):

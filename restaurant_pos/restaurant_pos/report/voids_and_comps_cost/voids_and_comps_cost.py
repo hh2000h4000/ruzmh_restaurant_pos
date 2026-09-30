@@ -104,12 +104,17 @@ def _line_cost(line, warehouse: str | None) -> float:
 	qty = flt(line.qty)
 	parts = combos.parts(line)
 	if parts:
-		return sum(_item_cost(p["item"], qty * (flt(p.get("item_qty")) or 1), warehouse) for p in parts)
+		# `D-289` — each item with its own add-ons and «without», as a dish.
+		return sum(
+			_dish_cost(p["item"], qty * (flt(p.get("item_qty")) or 1), p.get("modifiers"), warehouse)
+			for p in parts
+		)
+	return _dish_cost(line.item, qty, line.modifiers, warehouse)
 
-	chosen = addons.chosen(line.modifiers)
-	removed = {c["item"] for c in chosen if c.get("item") and c.get("item_effect") == "remove"}
-	cost = _item_cost(line.item, qty, warehouse, removed)
-	for choice in chosen:
+
+def _dish_cost(item: str, qty: float, modifiers, warehouse: str | None) -> float:
+	cost = _item_cost(item, qty, warehouse, set(addons.removed_items(modifiers)))
+	for choice in addons.chosen(modifiers):
 		if choice.get("item") and choice.get("item_effect") == "sell":
 			cost += _item_cost(choice["item"], qty * (flt(choice.get("item_qty")) or 1), warehouse)
 	return cost

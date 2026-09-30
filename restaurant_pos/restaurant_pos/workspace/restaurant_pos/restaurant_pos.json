@@ -161,7 +161,7 @@
    "hidden": 0,
    "is_query_report": 0,
    "label": "The menu",
-   "link_count": 10,
+   "link_count": 11,
    "onboard": 0,
    "type": "Card Break"
   },
@@ -216,6 +216,17 @@
    "label": "Modifier Groups",
    "link_count": 0,
    "link_to": "POS Modifier Group",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Combo Choices",
+   "link_count": 0,
+   "link_to": "POS Combo Choice",
    "link_type": "DocType",
    "onboard": 0,
    "type": "Link"
@@ -428,7 +439,7 @@
    "type": "Link"
   }
  ],
- "modified": "2026-09-27 02:00:00.000000",
+ "modified": "2026-09-30 18:00:00.000000",
  "modified_by": "Administrator",
  "module": "Restaurant POS",
  "name": "Restaurant POS",

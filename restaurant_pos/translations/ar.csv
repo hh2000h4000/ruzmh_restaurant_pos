@@ -1316,7 +1316,6 @@ Default,الافتراضي,POS Combo Item
 Adds to Price,يُضاف على السعر,POS Combo Item
 item_price,سعر الصنف,POS Combo Item
 amount,مبلغ,POS Combo Item
-"The choice this item belongs to, such as «Drink». The guest picks one item per choice. Leave empty for an item that always comes with the combo.",الخيار اللي يتبعه الصنف، مثل «المشروب». الزبون يختار صنفاً واحداً من كل خيار. اتركه فاضي للصنف اللي يجي دايماً مع الكومبو.
 "With a fixed combo price, choosing this item adds its price on top — a large drink instead of a regular one.",إذا سعر الكومبو ثابت، اختيار هالصنف يزيد سعره فوق سعر الكومبو، مثل مشروب كبير بدل العادي.
 Combo,كومبو,Item
 Combo Price,سعر الكومبو,Item
@@ -1328,15 +1327,12 @@ sum,مجموع أسعار الأصناف,Item
 Combo,الكومبو,Sales Invoice Item
 The combo this item was sold in.,الكومبو اللي انباع فيه هالصنف.
 {0} is not one of this combo's choices.,{0} مو من خيارات هالكومبو.
-Choose one item for {0}.,اختر صنفاً واحداً لـ{0}.
-Choose: {0},اختر: {0}
 {0} is not offered under {1}.,{0} مو من أصناف {1}.
 A combo is not kept in stock; its items are. Untick Maintain Stock.,الكومبو ما ينحفظ في المخزن، أصنافه هي اللي تنحفظ. شيل علامة «المحافظة على المخزون».
 A combo asks its own choices. Remove its modifier groups.,الكومبو يسأل خياراته بنفسه. شيل مجموعات الإضافات منه.
 Add the items this combo is made of.,أضف الأصناف اللي يتكوّن منها الكومبو.
 Row #{0}: A combo cannot hold a combo.,سطر {0}: ما ينفع كومبو داخل كومبو.
 Row #{0}: {1} is not an enabled sales item.,سطر {0}: الصنف {1} مو صنف بيع مفعّل.
-{0} can have only one default item.,«{0}» له صنف افتراضي واحد بس.
 From: {0},من: {0}
 In Combos,ضمن كومبو,RPOS report
 Combos as meals,الكومبو كوجبة
@@ -1366,3 +1362,18 @@ Quantity,الكمية,RPOS report
 Voided after the kitchen,ملغى بعد المطبخ
 Given free,مجاني
 "Voided after the kitchen never left stock: the next count finds it missing. Free items did, with their sale.",الملغى بعد المطبخ ما انخصم من المخزن، فالجرد الجاي بيلقاه ناقص. والمجاني انخصم مع بيعه.
+POS Combo Choice,خيار الكومبو
+Title (Arabic),الاسم بالعربي,POS Combo Choice
+Title (English),الاسم بالإنجليزي,POS Combo Choice
+Min Selections,أقل عدد,POS Combo Choice
+Max Selections,أكثر عدد,POS Combo Choice
+Description,الوصف,POS Combo Choice
+"What the cashier reads over the items, such as «المشروب».",اللي يقراه الكاشير فوق الأصناف، مثل «المشروب».
+0 makes the choice optional: the cashier may pick nothing.,صفر يعني الخيار اختياري: الكاشير يقدر ما يختار شي.
+How many items may be picked. 0 means no limit.,كم صنف يقدر يختار. صفر يعني بلا حد.
+"The choice this item is picked under, such as «Drink» — set up once under Combo Choices, with how many to pick. Leave empty for an item that always comes with the combo.",الخيار اللي ينختار تحته هالصنف، مثل «المشروب». تسويه مرة وحدة في «خيارات الكومبو» وتحدد فيه كم يختار. اتركه فاضي للصنف اللي يجي دايماً مع الكومبو.
+Choose between {0} and {1} for {2}.,اختر من {0} إلى {1} في «{2}».
+any number,أي عدد
+{0} can have at most {1} default items.,«{0}» له {1} أصناف افتراضية بالأكثر.
+{0} is not in this combo as ordered.,{0} مو ضمن هالكومبو زي ما انطلب.
+Combo Choices,خيارات الكومبو

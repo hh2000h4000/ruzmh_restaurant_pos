@@ -285,7 +285,8 @@ def _tickets_of(order, rows) -> list[frappe._dict]:
 					item=part["item"],
 					item_name=part.get("option_ar") or part["item"],
 					qty=flt(row.qty) * (flt(part.get("item_qty")) or 1),
-					modifiers=None,
+					# `D-289` — the item's own add-ons go to its station with it.
+					modifiers=frappe.as_json(part["modifiers"]) if part.get("modifiers") else None,
 					notes="\n".join(filter(None, [label, row.notes])),
 					production_center=route.production_center,
 					source=row,

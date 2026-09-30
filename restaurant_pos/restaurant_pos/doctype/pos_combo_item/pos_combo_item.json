@@ -17,11 +17,12 @@
  "fields": [
   {
    "columns": 2,
-   "description": "The choice this item belongs to, such as «Drink». The guest picks one item per choice. Leave empty for an item that always comes with the combo.",
+   "description": "The choice this item is picked under, such as «Drink» — set up once under Combo Choices, with how many to pick. Leave empty for an item that always comes with the combo.",
    "fieldname": "slot",
-   "fieldtype": "Data",
+   "fieldtype": "Link",
    "in_list_view": 1,
-   "label": "Choice"
+   "label": "Choice",
+   "options": "POS Combo Choice"
   },
   {
    "columns": 2,
@@ -80,7 +81,7 @@
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2026-09-30 00:00:00.000000",
+ "modified": "2026-09-30 18:00:00.000000",
  "modified_by": "Administrator",
  "module": "Restaurant POS",
  "name": "POS Combo Item",

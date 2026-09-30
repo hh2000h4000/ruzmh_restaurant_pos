@@ -43,10 +43,7 @@ def execute(filters=None):
 		},
 		fields=["qty", "modifiers"],
 	):
-		for choice in _parsed(line.modifiers):
-			# A combo's items are sold, not chosen extras; Item Sales counts them (`D-285`).
-			if choice.get("item_effect") == "combo":
-				continue
+		for choice, times in _choices(line):
 			key = (choice.get("group"), choice.get("option"))
 			row = choices.setdefault(
 				key,
@@ -57,9 +54,9 @@ def execute(filters=None):
 					"revenue": 0.0,
 				},
 			)
-			row["times"] += flt(line.qty)
+			row["times"] += times
 			sign = {"add": 1, "subtract": -1}.get(choice.get("price_effect"), 0)
-			row["revenue"] += sign * flt(choice.get("amount")) * flt(line.qty)
+			row["revenue"] += sign * flt(choice.get("amount")) * times
 
 	rows = sorted(choices.values(), key=lambda row: (-row["revenue"], -row["times"]))
 	for row in rows:
@@ -70,6 +67,23 @@ def execute(filters=None):
 		"revenue": flt(sum(row["revenue"] for row in rows), 2),
 	}
 	return _columns(), ([*rows, total] if rows else rows)
+
+
+def _choices(line) -> list[tuple[dict, float]]:
+	"""Each choice on a line and how many times it was made.
+
+	A combo's items are sold, not chosen extras — Item Sales counts them
+	(`D-285`) — but the add-ons chosen **on** them are extras like any other
+	(`D-289`): extra cheese on the meal's burger is extra cheese.
+	"""
+	found = []
+	for choice in _parsed(line.modifiers):
+		if choice.get("item_effect") != "combo":
+			found.append((choice, flt(line.qty)))
+			continue
+		pieces = flt(line.qty) * (flt(choice.get("item_qty")) or 1)
+		found.extend((extra, pieces) for extra in choice.get("modifiers") or [])
+	return found
 
 
 def _parsed(value) -> list[dict]:

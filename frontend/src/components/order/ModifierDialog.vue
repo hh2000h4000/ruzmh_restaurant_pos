@@ -69,6 +69,16 @@ watch(
   { immediate: true },
 );
 
+/**
+ * The groups asked right now: a combo item's own groups only while that item
+ * is the one chosen (D-289). A hidden group is neither required nor sent.
+ */
+const shown = computed(() =>
+  groups.value.filter(
+    (group) => !group.when || (chosen.value[group.when.group] ?? []).includes(group.when.option),
+  ),
+);
+
 function toggle(group: ModifierGroup, title: string): void {
   const current = chosen.value[group.name] ?? [];
 
@@ -94,7 +104,7 @@ function isChosen(group: ModifierGroup, title: string): boolean {
 
 /** Which required groups still have no answer — the reason Confirm is disabled. */
 const unresolved = computed(() =>
-  groups.value.filter((group) => {
+  shown.value.filter((group) => {
     const count = (chosen.value[group.name] ?? []).length;
     if (group.is_required && count === 0) return true;
     return group.selection_type === "multiple" && count < (group.min_selections || 0);
@@ -103,7 +113,7 @@ const unresolved = computed(() =>
 
 const priceDelta = computed(() => {
   let delta = 0;
-  for (const group of groups.value) {
+  for (const group of shown.value) {
     for (const title of chosen.value[group.name] ?? []) {
       const option = group.options.find((candidate) => candidate.title === title);
       if (!option) continue;
@@ -121,7 +131,7 @@ function confirm(): void {
   if (unresolved.value.length) return;
 
   const modifiers: ModifierChoice[] = [];
-  for (const group of groups.value) {
+  for (const group of shown.value) {
     for (const option of chosen.value[group.name] ?? []) {
       modifiers.push({ group: group.name, option });
     }
@@ -154,7 +164,7 @@ function confirm(): void {
 
     <template v-else>
       <section
-        v-for="group in groups"
+        v-for="group in shown"
         :key="group.name"
         class="mb-4"
       >

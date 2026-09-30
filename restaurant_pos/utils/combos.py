@@ -32,13 +32,17 @@ Refs: FR-4.2, D-284, D-285
 
 import frappe
 from frappe import _
-from frappe.utils import flt
+from frappe.utils import cint, flt
 
 from restaurant_pos.utils import addons
 
 #: A combo's choices travel as modifier groups named ``combo:<combo>:<choice>``,
 #: which no real group can be called (a group is named by its title).
 PREFIX = "combo:"
+
+#: A combo item's own modifier groups travel as ``combo-part:<combo>|<item>|<group>``,
+#: shown only while that item is the one chosen (`D-289`).
+PART_PREFIX = "combo-part:"
 
 #: The effect a combo's item carries on the order line — neither an add-on sold
 #: under a dish nor one left out of its recipe, but the thing being sold.
@@ -61,6 +65,14 @@ def definition(item: str) -> frappe._dict | None:
 			order_by="idx",
 		),
 	)
+
+
+def choice(slot: str) -> frappe._dict:
+	"""A choice's names and how many to pick — one, when nobody set it up otherwise (`D-290`)."""
+	found = frappe.db.get_value(
+		"POS Combo Choice", slot, ["title", "title_ar", "min_selections", "max_selections"], as_dict=True
+	)
+	return found or frappe._dict(title=slot, title_ar=slot, min_selections=1, max_selections=1)
 
 
 def group_name(combo: str, slot: str) -> str:
@@ -107,19 +119,20 @@ def groups_for(combo: str, price_list: str | None) -> list[dict]:
 	for row in spec.rows:
 		if not row.slot:
 			continue
-		group = groups.setdefault(
-			row.slot,
-			{
+		if row.slot not in groups:
+			rule = choice(row.slot)
+			groups[row.slot] = {
 				"name": group_name(combo, row.slot),
-				"title": row.slot,
-				"title_ar": row.slot,
-				"selection_type": "single",
-				"is_required": 1,
-				"min_selections": 1,
-				"max_selections": 1,
+				"title": rule.title,
+				"title_ar": rule.title_ar,
+				# `D-290` — Square's number of selections, Toast's minimum and maximum.
+				"selection_type": "single" if rule.max_selections == 1 else "multiple",
+				"is_required": 1 if rule.min_selections else 0,
+				"min_selections": rule.min_selections,
+				"max_selections": rule.max_selections,
 				"options": [],
-			},
-		)
+			}
+		group = groups[row.slot]
 		price = row_price(row, price_list) if _counts_in_price(row, spec.pricing) else 0.0
 		group["options"].append(
 			frappe._dict(
@@ -136,42 +149,86 @@ def groups_for(combo: str, price_list: str | None) -> list[dict]:
 
 
 def slot_names(combo: str) -> list[str]:
-	"""The groups the till opens for this combo, in the order the rows list them."""
+	"""The groups the till opens for this combo: its choices, then its items' own groups."""
 	spec = definition(combo)
 	seen: list[str] = []
 	for row in spec.rows if spec else []:
 		if row.slot and row.slot not in seen:
 			seen.append(row.slot)
-	return [group_name(combo, slot) for slot in seen]
+	return [group_name(combo, slot) for slot in seen] + [part["name"] for part in part_groups(combo)]
+
+
+def part_group_name(combo: str, item: str, group: str) -> str:
+	return f"{PART_PREFIX}{combo}|{item}|{group}"
+
+
+def part_groups(combo: str) -> list[dict]:
+	"""Each combo item's own modifier groups — extra cheese on the meal's burger (`D-289`).
+
+	**The item's groups, not a second set** (`CLAUDE.md` §5.5): the burger in the
+	meal asks what the burger asks on its own. A group of an item under a choice
+	is shown only while that item is chosen — ``when`` names the choice and the
+	item — and a fixed item's groups always.
+	"""
+	spec = definition(combo)
+	found = []
+	for row in spec.rows if spec else []:
+		for assigned in frappe.get_all(
+			"Modifier Group Assignment",
+			filters={"parent": row.item, "parenttype": "Item"},
+			fields=["modifier_group"],
+			order_by="idx",
+		):
+			name = part_group_name(combo, row.item, assigned.modifier_group)
+			if any(part["name"] == name for part in found):
+				continue
+			found.append(
+				{
+					"name": name,
+					"group": assigned.modifier_group,
+					"item": row.item,
+					"item_name": _display_name(row.item),
+					"when": {"group": group_name(combo, row.slot), "option": row.item} if row.slot else None,
+				}
+			)
+	return found
 
 
 def resolve(combo: str, selected: list | None, price_list: str | None) -> tuple[list, float]:
 	"""The items a combo line sells, from the choices the till sent (FR-4.2).
 
-	**One item per choice, from that choice's rows**, and every fixed item with
-	it. Prices are read here, never taken from the client (`D-020`). Each entry
+	**As many items per choice as the choice allows, from that choice's rows**
+	(`D-290`), and every fixed item with it. Prices are read here, never taken from the client (`D-020`). Each entry
 	keeps the item's own price as ``weight`` — what the invoice shares the
 	combo's price by.
 	"""
 	spec = definition(combo)
-	picked: dict[str, str] = {}
-	for choice in selected or []:
-		group = choice.get("group") or ""
+	picked: dict[str, list[str]] = {}
+	extras: dict[str, list] = {}
+	for sent in selected or []:
+		group = sent.get("group") or ""
+		if group.startswith(part_group_name(combo, "", "")[:-1]):
+			item, _sep, real = group[len(part_group_name(combo, "", "")[:-1]) :].partition("|")
+			extras.setdefault(item, []).append({"group": real, "option": sent.get("option")})
+			continue
 		if not group.startswith(group_name(combo, "")):
 			frappe.throw(_("{0} is not one of this combo's choices.").format(group))
 		slot = group[len(group_name(combo, "")) :]
-		if slot in picked:
-			frappe.throw(_("Choose one item for {0}.").format(slot))
-		picked[slot] = choice.get("option")
+		picked.setdefault(slot, []).append(sent.get("option"))
+
+	for slot in sorted({row.slot for row in spec.rows if row.slot} | set(picked)):
+		rule = choice(slot)
+		count = len(picked.get(slot, []))
+		if count < cint(rule.min_selections) or (rule.max_selections and count > cint(rule.max_selections)):
+			frappe.throw(
+				_("Choose between {0} and {1} for {2}.").format(
+					rule.min_selections, rule.max_selections or _("any number"), rule.title_ar
+				)
+			)
 
 	resolved, delta = [], 0.0
-	slots = {row.slot for row in spec.rows if row.slot}
-	missing = sorted(slots - set(picked))
-	if missing:
-		frappe.throw(_("Choose: {0}").format("، ".join(missing)))
-
 	for row in spec.rows:
-		if row.slot and picked.get(row.slot) != row.item:
+		if row.slot and row.item not in picked.get(row.slot, []):
 			continue
 		price = row_price(row, price_list)
 		counted = row.slot and _counts_in_price(row, spec.pricing)
@@ -192,13 +249,36 @@ def resolve(combo: str, selected: list | None, price_list: str | None) -> tuple[
 		)
 
 	unknown = [
-		slot
-		for slot, item in picked.items()
+		(slot, item)
+		for slot, items in picked.items()
+		for item in items
 		if not any(e["item"] == item and e["group"] == slot for e in resolved)
 	]
 	if unknown:
-		frappe.throw(_("{0} is not offered under {1}.").format(picked[unknown[0]], unknown[0]))
+		frappe.throw(_("{0} is not offered under {1}.").format(unknown[0][1], unknown[0][0]))
+
+	delta += _resolve_extras(resolved, extras, price_list)
 	return resolved, delta
+
+
+def _resolve_extras(parts: list[dict], extras: dict[str, list], price_list: str | None) -> float:
+	"""Price each combo item's own add-ons the way the item alone would be (`D-289`).
+
+	The item's modifier rules, read by the same function a dish's are — so the
+	burger in the meal takes extra cheese at the price, and with the stock, it
+	takes on its own. Per piece of the item, as an add-on is per dish.
+	"""
+	from restaurant_pos.utils.order import _resolve_modifiers
+
+	delta = 0.0
+	for item, chosen in extras.items():
+		part = next((p for p in parts if p["item"] == item), None)
+		if part is None:
+			frappe.throw(_("{0} is not in this combo as ordered.").format(item))
+		resolved, part_delta = _resolve_modifiers(item, chosen, price_list)
+		part["modifiers"] = resolved
+		delta += part_delta * (flt(part.get("item_qty")) or 1)
+	return delta
 
 
 def parts(row) -> list[dict]:
@@ -222,6 +302,15 @@ def invoice_lines(row) -> list[dict]:
 	items = parts(row)
 	qty = flt(row.qty)
 	unit = flt(row.amount) / qty if qty else 0.0
+	# `D-289` — an item's sold add-ons keep their own price, as under a dish; the
+	# combo's price, and anything else chosen, is what the items share.
+	extras = [
+		(choice, extra)
+		for choice in items
+		for extra in choice.get("modifiers") or []
+		if extra.get("item") and extra.get("item_effect") == "sell"
+	]
+	unit -= sum(flt(extra.get("amount")) * (flt(choice.get("item_qty")) or 1) for choice, extra in extras)
 	weights = [flt(c.get("weight")) for c in items]
 	total = sum(weights)
 	if not total:
@@ -243,7 +332,12 @@ def invoice_lines(row) -> list[dict]:
 		portion = flt(choice.get("item_qty")) or 1
 		if portion != 1:
 			line.update({"uom": addons.PORTION, "conversion_factor": portion})
+		removed = addons.removed_items(choice.get("modifiers"))
+		if removed:
+			line["rpos_removed"] = frappe.as_json(removed)
 		lines.append(line)
+		for extra in addons.sold_lines(choice.get("modifiers"), qty * portion, row.name):
+			lines.append({**extra, "rpos_combo": row.item})
 	return lines
 
 
@@ -271,8 +365,9 @@ def validate_item(doc, method=None) -> None:
 			row.adds_to_price = 0
 		elif row.is_default:
 			defaults[row.slot] = defaults.get(row.slot, 0) + 1
-			if defaults[row.slot] > 1:
-				frappe.throw(_("{0} can have only one default item.").format(row.slot))
+			most = cint(choice(row.slot).max_selections)
+			if most and defaults[row.slot] > most:
+				frappe.throw(_("{0} can have at most {1} default items.").format(row.slot, most))
 
 
 def _display_name(item: str) -> str:

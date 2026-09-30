@@ -208,6 +208,8 @@ export interface OrderLine {
     price_effect?: "none" | "add" | "subtract";
     /** `combo` — one of a combo's items, listed under it (D-285). */
     item_effect?: string;
+    /** A combo item's own add-ons, chosen on it (D-289). */
+    modifiers?: { option: string; option_ar: string }[];
   }[];
   production_center: string | null;
 }

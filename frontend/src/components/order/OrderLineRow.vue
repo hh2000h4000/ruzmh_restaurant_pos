@@ -206,6 +206,13 @@ function money(value: number): string {
                 data-combo-part
               >
                 – {{ pick(part.option_ar, part.option) }}
+                <template v-if="part.modifiers?.length">
+                  ({{
+                    part.modifiers
+                      .map((extra) => pick(extra.option_ar, extra.option))
+                      .join(t("common.listSeparator"))
+                  }})
+                </template>
               </p>
             </template>
             <p

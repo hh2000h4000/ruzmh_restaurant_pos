@@ -656,7 +656,33 @@ def _modifier_groups_for(items: list[dict], price_list: str | None = None) -> li
 	for item in items:
 		if item.get("is_combo"):
 			groups.extend(combos.groups_for(item["item_code"], price_list))
+			groups.extend(_combo_part_groups(item["item_code"], price_list))
 	return groups
+
+
+def _combo_part_groups(combo: str, price_list: str | None) -> list[dict]:
+	"""`D-289` — each combo item's own groups, named for the item and shown while it is chosen."""
+	parts = combos.part_groups(combo)
+	if not parts:
+		return []
+	real = {
+		group.name: group for group in get_modifier_groups(sorted({p["group"] for p in parts}), price_list)
+	}
+	shown = []
+	for part in parts:
+		group = real.get(part["group"])
+		if not group:
+			continue
+		shown.append(
+			frappe._dict(
+				group,
+				name=part["name"],
+				title=f"{group.title} ({part['item']})",
+				title_ar=f"{group.title_ar} — {part['item_name']}",
+				when=part["when"],
+			)
+		)
+	return shown
 
 
 @frappe.whitelist()

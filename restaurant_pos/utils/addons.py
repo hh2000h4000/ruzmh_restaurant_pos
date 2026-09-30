@@ -78,26 +78,45 @@ def invoice_lines(row) -> list[dict]:
 	qty = flt(row.qty)
 	unit = flt(row.amount) / qty if qty else flt(row.rate)
 	choices = chosen(row.modifiers)
-	sold = [choice for choice in choices if choice.get("item") and choice.get("item_effect") == "sell"]
-	removed = sorted(
-		{choice["item"] for choice in choices if choice.get("item") and choice.get("item_effect") == "remove"}
-	)
-
-	lines = [
+	removed = removed_items(choices)
+	return [
 		{
 			"item_code": row.item,
 			"qty": qty,
-			"rate": unit - sum(flt(choice.get("amount")) for choice in sold),
+			"rate": unit - sum(flt(choice.get("amount")) for choice in _sold(choices)),
 			"rpos_order_item": row.name,
 			"rpos_removed": json.dumps(removed) if removed else None,
-		}
+		},
+		*sold_lines(choices, qty, row.name),
 	]
-	for choice in sold:
+
+
+def _sold(choices) -> list[dict]:
+	return [
+		choice for choice in chosen(choices) if choice.get("item") and choice.get("item_effect") == "sell"
+	]
+
+
+def removed_items(choices) -> list[str]:
+	"""The ingredients «without» leaves out of a dish's recipe."""
+	return sorted(
+		{
+			choice["item"]
+			for choice in chosen(choices)
+			if choice.get("item") and choice.get("item_effect") == "remove"
+		}
+	)
+
+
+def sold_lines(choices, qty: float, order_item: str) -> list[dict]:
+	"""An invoice line for each add-on sold with `qty` of a dish — or of a combo's item (`D-289`)."""
+	lines = []
+	for choice in _sold(choices):
 		line = {
 			"item_code": choice["item"],
 			"qty": qty,
 			"rate": flt(choice.get("amount")),
-			"rpos_order_item": row.name,
+			"rpos_order_item": order_item,
 			"rpos_is_addon": 1,
 		}
 		if not line["rate"]:
@@ -122,10 +141,14 @@ def stock_taken(row) -> dict[str, float]:
 	"""What the add-ons sold on one order line take from stock, in stock units."""
 	taken: dict[str, float] = {}
 	for choice in chosen(row.modifiers):
-		# A combo's items (`D-285`) leave stock the same way an add-on does.
+		# A combo's items (`D-285`) leave stock the same way an add-on does, and
+		# so do their own add-ons (`D-289`).
 		if choice.get("item") and choice.get("item_effect") in ("sell", "combo"):
 			qty = flt(row.qty) * (flt(choice.get("item_qty")) or 1)
 			taken[choice["item"]] = taken.get(choice["item"], 0.0) + qty
+			for extra in _sold(choice.get("modifiers")):
+				more = qty * (flt(extra.get("item_qty")) or 1)
+				taken[extra["item"]] = taken.get(extra["item"], 0.0) + more
 	return taken
 
 

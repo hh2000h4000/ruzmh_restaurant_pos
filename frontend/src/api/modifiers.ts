@@ -19,6 +19,11 @@ export interface ModifierGroup {
   min_selections: number;
   max_selections: number;
   options: ModifierOption[];
+  /**
+   * Shown only while this option of that group is chosen — a combo item's own
+   * groups, asked when that item is the one picked (D-289).
+   */
+  when?: { group: string; option: string } | null;
 }
 
 export function getModifierGroups(groups: string[]): Promise<ModifierGroup[]> {

@@ -302,15 +302,22 @@ def invoice_lines(row) -> list[dict]:
 	items = parts(row)
 	qty = flt(row.qty)
 	unit = flt(row.amount) / qty if qty else 0.0
-	# `D-289` — an item's sold add-ons keep their own price, as under a dish; the
-	# combo's price, and anything else chosen, is what the items share.
-	extras = [
-		(choice, extra)
-		for choice in items
-		for extra in choice.get("modifiers") or []
-		if extra.get("item") and extra.get("item_effect") == "sell"
-	]
-	unit -= sum(flt(extra.get("amount")) * (flt(choice.get("item_qty")) or 1) for choice, extra in extras)
+	# `D-289` — an item's add-ons stay with the item, as under a dish: one sold
+	# as stock is its own line at its price, and one that only changes the price
+	# («large», «double cheese» with no stock behind it) goes on its item's line.
+	# What the items share is the combo's price, and nothing chosen on one of them.
+	own = []
+	for choice in items:
+		pieces = flt(choice.get("item_qty")) or 1
+		surcharge = 0.0
+		for extra in choice.get("modifiers") or []:
+			money = {"add": 1, "subtract": -1}.get(extra.get("price_effect"), 0) * flt(extra.get("amount"))
+			if extra.get("item") and extra.get("item_effect") == "sell":
+				unit -= money * pieces
+			else:
+				surcharge += money * pieces
+		own.append(surcharge)
+	unit -= sum(own)
 	weights = [flt(c.get("weight")) for c in items]
 	total = sum(weights)
 	if not total:
@@ -320,6 +327,7 @@ def invoice_lines(row) -> list[dict]:
 	for index, (choice, weight) in enumerate(zip(items, weights, strict=True)):
 		share = flt(unit - given, 2) if index == len(items) - 1 else flt(unit * weight / total, 2)
 		given += share
+		share = flt(share + own[index], 2)
 		line = {
 			"item_code": choice["item"],
 			"qty": qty,

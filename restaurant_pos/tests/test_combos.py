@@ -260,6 +260,20 @@ class AComboItemTakesItsOwnAddOns(ComboTestBase):
 		moved = self._moved(order.sales_invoice)
 		self.assertEqual(moved[self.addons.CHEESE], -4, "two from the recipes, two extra")
 
+	def test_an_extra_with_no_stock_stays_on_its_own_item_s_line(self):
+		"""«Large» on the tea is the tea's money — not shared into the burger (owner's sale)."""
+		self.addons._group(
+			{"title": "Double", "title_ar": "دبل", "price_effect": "add", "price_amount": 4, "is_active": 1}
+		)
+		order = self._ordered_with("Double")
+		self._pay(order)
+		order.reload()
+
+		lines = {line.item_code: flt(line.rate) for line in self._lines(order.sales_invoice)}
+		whole = TEST_ITEM_RATE + COLA_PRICE
+		self.assertAlmostEqual(lines[COLA], flt(MEAL_PRICE * COLA_PRICE / whole, 2), places=2)
+		self.assertAlmostEqual(lines[ITEM], MEAL_PRICE - lines[COLA] + 4, places=2)
+
 	def test_no_bun_on_the_meal_s_burger_keeps_the_bun(self):
 		order = self._ordered_with("No bun")
 		self._pay(order)

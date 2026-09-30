@@ -1340,3 +1340,23 @@ Row #{0}: {1} is not an enabled sales item.,سطر {0}: الصنف {1} مو صن
 From: {0},من: {0}
 In Combos,ضمن كومبو,RPOS report
 Combos as meals,الكومبو كوجبة
+Actual vs Theoretical Usage,الاستهلاك الفعلي مقابل النظري
+Opening Count,جرد البداية
+Closing Count,جرد النهاية
+Unit,الوحدة,RPOS report
+Opening Count,جرد البداية,RPOS report
+Received,الوارد,RPOS report
+Theoretical (Sales),النظري (المبيعات),RPOS report
+Recorded Waste,الهدر المسجّل,RPOS report
+Other Out,صادر آخر,RPOS report
+Closing Count,جرد النهاية,RPOS report
+Actual Usage,الاستهلاك الفعلي,RPOS report
+Variance,الفرق,RPOS report
+Variance % of Theoretical,الفرق ٪ من النظري,RPOS report
+Unit Cost,تكلفة الوحدة,RPOS report
+Theoretical Cost,التكلفة النظرية,RPOS report
+Actual Cost,التكلفة الفعلية,RPOS report
+Variance Cost,تكلفة الفرق,RPOS report
+The closing count is before the opening count.,جرد النهاية قبل جرد البداية.
+{0} is not a submitted stock count.,{0} مو جرد معتمد.
+"No closing count yet: the closing figures are the books', so there is no variance to show. Count the stock and choose that count as the closing one.",ما في جرد نهاية للحين: أرقام النهاية من الدفاتر، فما في فرق يطلع. سوّ جرد واختره كجرد النهاية.

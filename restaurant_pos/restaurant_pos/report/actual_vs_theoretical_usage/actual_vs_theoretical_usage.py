@@ -68,48 +68,58 @@ def _tally(filters, start, end) -> list[dict]:
 	if not items:
 		return []
 
+	fields = [
+		"item_code",
+		"voucher_type",
+		"voucher_no",
+		"actual_qty",
+		"qty_after_transaction",
+		"valuation_rate",
+	]
+	# **The period's movements only** — never the warehouse's whole history, which
+	# grows by every sale for as long as the restaurant trades. The balance each
+	# item opened at is read once per item below.
 	entries = frappe.get_all(
 		"Stock Ledger Entry",
 		filters={
 			"warehouse": filters.warehouse,
 			"is_cancelled": 0,
 			"item_code": ("in", list(items)),
-			"posting_datetime": ("<=", end),
+			"posting_datetime": ("between", [start, end]),
 		},
-		fields=[
-			"item_code",
-			"voucher_type",
-			"voucher_no",
-			"actual_qty",
-			"qty_after_transaction",
-			"valuation_rate",
-			"posting_datetime",
-		],
+		fields=fields,
 		order_by="posting_datetime asc, creation asc",
 	)
 	waste = _material_issues({e.voucher_no for e in entries if e.voucher_type == "Stock Entry"})
 
-	rows: dict[str, dict] = {}
-	for entry in entries:
-		row = rows.setdefault(
-			entry.item_code,
-			{
-				"item_code": entry.item_code,
-				"item_name": items[entry.item_code].item_name,
-				"stock_uom": items[entry.item_code].stock_uom,
-				"opening": 0.0,
-				"received": 0.0,
-				"sold": 0.0,
-				"waste": 0.0,
-				"other_out": 0.0,
-				"closing": 0.0,
-				"rate": 0.0,
-			},
+	held = set(
+		frappe.get_all(
+			"Bin",
+			filters={"warehouse": filters.warehouse, "item_code": ("in", list(items))},
+			pluck="item_code",
 		)
-		before = entry.posting_datetime < start or entry.voucher_no == filters.opening_count
+	)
+	rows: dict[str, dict] = {}
+	for code in sorted(held | {entry.item_code for entry in entries}):
+		opened = _opening(code, filters, start, fields)
+		rows[code] = {
+			"item_code": code,
+			"item_name": items[code].item_name,
+			"stock_uom": items[code].stock_uom,
+			"opening": flt(opened.qty_after_transaction) if opened else 0.0,
+			"received": 0.0,
+			"sold": 0.0,
+			"waste": 0.0,
+			"other_out": 0.0,
+			"closing": flt(opened.qty_after_transaction) if opened else 0.0,
+			"rate": flt(opened.valuation_rate) if opened else 0.0,
+		}
+
+	for entry in entries:
+		row = rows[entry.item_code]
 		row["closing"] = flt(entry.qty_after_transaction)
 		row["rate"] = flt(entry.valuation_rate) or row["rate"]
-		if before:
+		if entry.voucher_no == filters.opening_count:
 			row["opening"] = flt(entry.qty_after_transaction)
 			continue
 
@@ -142,6 +152,23 @@ def _tally(filters, start, end) -> list[dict]:
 
 	shown.sort(key=lambda row: abs(row["variance_value"]), reverse=True)
 	return shown
+
+
+def _opening(code: str, filters, start, fields: list[str]) -> frappe._dict | None:
+	"""The item's last ledger entry before the period: what it opened at."""
+	found = frappe.get_all(
+		"Stock Ledger Entry",
+		filters={
+			"warehouse": filters.warehouse,
+			"is_cancelled": 0,
+			"item_code": code,
+			"posting_datetime": ("<", start),
+		},
+		fields=fields,
+		order_by="posting_datetime desc, creation desc",
+		limit=1,
+	)
+	return found[0] if found else None
 
 
 def _stock_items(item_group: str | None) -> dict[str, frappe._dict]:

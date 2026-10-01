@@ -176,6 +176,37 @@ class AFixedPriceCombo(ComboTestBase):
 		for row in sent:
 			self.assertIn("Burger meal", row.notes or "")
 
+	def test_an_upgrade_stays_on_the_item_it_upgraded(self):
+		"""Juice instead of cola is the juice's +3 — not shared into the burger."""
+		order = self._paid(JUICE)
+		lines = {line.item_code: flt(line.rate) for line in self._lines(order.sales_invoice)}
+
+		whole = TEST_ITEM_RATE + JUICE_PRICE
+		self.assertAlmostEqual(lines[ITEM], flt(MEAL_PRICE * TEST_ITEM_RATE / whole, 2), places=2)
+		self.assertAlmostEqual(lines[JUICE], MEAL_PRICE - lines[ITEM] + UPGRADE, places=2)
+
+	def test_a_note_changed_after_the_kitchen_reaches_every_station(self):
+		"""Its tickets name the items, so the note was looked up on the combo and lost."""
+		grill = frappe.db.get_value("Production Center", {"title": "RPOS Test Grill"}, "name")
+		for item in (ITEM, COLA):
+			before = frappe.db.get_value("Item", item, "default_production_center")
+			frappe.db.set_value("Item", item, "default_production_center", grill)
+			self.addCleanup(frappe.db.set_value, "Item", item, "default_production_center", before)
+		order = self._ordered(COLA)
+		sent = kitchen.send_to_kitchen(order)
+		order.reload()
+		orders.set_item_notes(order, item_idx=1, notes="No ice")
+
+		notes = [
+			row.notes
+			for ticket in sent["kots_created"]
+			for row in frappe.get_all("KOT Item", filters={"parent": ticket["kot_name"]}, fields=["notes"])
+		]
+		self.assertTrue(notes)
+		for note in notes:
+			self.assertIn("No ice", note)
+			self.assertIn("Burger meal", note)
+
 	def test_the_meal_comes_back_whole(self):
 		order = self._paid(JUICE)
 		offered = returns.returnable(order)["items"]

@@ -48,6 +48,36 @@ def chosen(modifiers) -> list[dict]:
 	return parsed if isinstance(parsed, list) else []
 
 
+def list_price(item: str, price_list: str | None) -> float | None:
+	"""An item's price for one unit of stock — the unit an add-on's quantity is in.
+
+	A price list may hold the item's price in another unit — a carton of cans for
+	a can — and read as it is, one choice would cost a carton. A price in the
+	stock unit is taken as it is; one in another unit is divided by that unit's
+	conversion factor on the item. None when the list has no price for it.
+	"""
+	if not price_list:
+		return None
+	prices = frappe.get_all(
+		"Item Price",
+		filters={"item_code": item, "price_list": price_list, "selling": 1},
+		fields=["price_list_rate", "uom"],
+	)
+	stock_uom = frappe.db.get_value("Item", item, "stock_uom")
+	for price in prices:
+		if not price.uom or price.uom == stock_uom:
+			return flt(price.price_list_rate)
+	for price in prices:
+		factor = frappe.db.get_value(
+			"UOM Conversion Detail",
+			{"parent": item, "parenttype": "Item", "uom": price.uom},
+			"conversion_factor",
+		)
+		if flt(factor):
+			return flt(price.price_list_rate) / flt(factor)
+	return None
+
+
 def portion_price(item: str, portion, price_list: str | None) -> float | None:
 	"""An add-on priced from its item: the item's price on the list, per portion.
 
@@ -56,14 +86,10 @@ def portion_price(item: str, portion, price_list: str | None) -> float | None:
 	sauce listed at 150.00 a kilo is 3.00. None when the list has no price —
 	said to the cashier, never sold at nothing.
 	"""
-	if not price_list:
-		return None
-	rate = frappe.db.get_value(
-		"Item Price", {"item_code": item, "price_list": price_list, "selling": 1}, "price_list_rate"
-	)
+	rate = list_price(item, price_list)
 	if rate is None:
 		return None
-	return flt(flt(rate) * (flt(portion) or 1), 2)
+	return flt(rate * (flt(portion) or 1), 2)
 
 
 def invoice_lines(row) -> list[dict]:

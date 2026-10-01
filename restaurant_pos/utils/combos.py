@@ -80,12 +80,8 @@ def group_name(combo: str, slot: str) -> str:
 
 
 def _list_price(item: str, price_list: str | None) -> float | None:
-	if not price_list:
-		return None
-	rate = frappe.db.get_value(
-		"Item Price", {"item_code": item, "price_list": price_list, "selling": 1}, "price_list_rate"
-	)
-	return None if rate is None else flt(rate)
+	"""An item's price for one unit of stock — one rule with the add-ons'."""
+	return addons.list_price(item, price_list)
 
 
 def row_price(row, price_list: str | None) -> float:
@@ -281,6 +277,10 @@ def _resolve_extras(parts: list[dict], extras: dict[str, list], price_list: str 
 	return delta
 
 
+def spec_pricing(combo: str) -> str:
+	return frappe.db.get_value("Item", combo, "rpos_combo_pricing") or "fixed"
+
+
 def parts(row) -> list[dict]:
 	"""The items one combo line sold, as stored on it."""
 	return [c for c in addons.chosen(row.modifiers) if c.get("item_effect") == EFFECT]
@@ -309,7 +309,9 @@ def invoice_lines(row) -> list[dict]:
 	own = []
 	for choice in items:
 		pieces = flt(choice.get("item_qty")) or 1
-		surcharge = 0.0
+		# The choice's own price — an upgrade on a fixed meal, or the item's price
+		# in a meal priced by its items — is the chosen item's money too.
+		surcharge = flt(choice.get("amount")) if choice.get("price_effect") == "add" else 0.0
 		for extra in choice.get("modifiers") or []:
 			money = {"add": 1, "subtract": -1}.get(extra.get("price_effect"), 0) * flt(extra.get("amount"))
 			if extra.get("item") and extra.get("item_effect") == "sell":
@@ -318,14 +320,26 @@ def invoice_lines(row) -> list[dict]:
 				surcharge += money * pieces
 		own.append(surcharge)
 	unit -= sum(own)
-	weights = [flt(c.get("weight")) for c in items]
+	# **Who shares what is left.** A fixed meal's price is every item's. A meal
+	# priced by its items has its fixed items' prices left, which are theirs;
+	# with none, whatever remains (a manager's price change) is everyone's.
+	sharing = [
+		not (spec_pricing(row.item) == "sum" and any(not c.get("group") for c in items) and c.get("group"))
+		for c in items
+	]
+	weights = [flt(c.get("weight")) if shares else 0.0 for c, shares in zip(items, sharing, strict=True)]
 	total = sum(weights)
 	if not total:
-		weights, total = [1.0] * len(items), float(len(items))
+		weights = [1.0 if shares else 0.0 for shares in sharing]
+		total = sum(weights)
+	last = max(index for index, shares in enumerate(sharing) if shares)
 
 	lines, given = [], 0.0
 	for index, (choice, weight) in enumerate(zip(items, weights, strict=True)):
-		share = flt(unit - given, 2) if index == len(items) - 1 else flt(unit * weight / total, 2)
+		if index == last:
+			share = flt(unit - given, 2)
+		else:
+			share = flt(unit * weight / total, 2) if total else 0.0
 		given += share
 		share = flt(share + own[index], 2)
 		line = {

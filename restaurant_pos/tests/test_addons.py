@@ -240,6 +240,33 @@ class AnAddOnIsSoldLikeAnyItem(RecipeTestBase):
 		shipped = session.get_modifier_groups([GROUP], price_list)[0].options[0]
 		self.assertEqual((shipped.price_effect, flt(shipped.price_amount)), ("add", 3.0))
 
+	def test_a_price_listed_by_the_box_is_read_per_slice(self):
+		"""A price kept for a box of ten is not the price of one slice."""
+		if not frappe.db.exists("UOM", "Box"):
+			frappe.get_doc({"doctype": "UOM", "uom_name": "Box"}).insert(ignore_permissions=True)
+		item = frappe.get_doc("Item", CHEESE)
+		item.set("uoms", [row for row in item.uoms if row.uom != "Box"])
+		item.append("uoms", {"uom": "Box", "conversion_factor": 10})
+		item.save(ignore_permissions=True)
+		self.addCleanup(frappe.db.delete, "UOM Conversion Detail", {"parent": CHEESE, "uom": "Box"})
+
+		price_list = frappe.db.get_value("POS Profile", self.profile, "selling_price_list")
+		frappe.db.delete("Item Price", {"item_code": CHEESE, "price_list": price_list})
+		price = frappe.get_doc(
+			{
+				"doctype": "Item Price",
+				"item_code": CHEESE,
+				"price_list": price_list,
+				"uom": "Box",
+				"price_list_rate": 30,
+			}
+		).insert(ignore_permissions=True)
+		self.addCleanup(frappe.delete_doc, "Item Price", price.name, force=True, ignore_permissions=True)
+
+		from restaurant_pos.utils import addons
+
+		self.assertAlmostEqual(addons.portion_price(CHEESE, 1, price_list), 3.0, places=2)
+
 	def test_an_option_with_no_item_sells_nothing_extra(self):
 		frappe.db.set_value(
 			"POS Modifier Option", {"parent": GROUP, "title": "Extra cheese"}, "stock_item", None

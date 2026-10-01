@@ -418,6 +418,9 @@ def restamp_item(order, row) -> list[dict]:
 	if not row.kot_reference:
 		return []
 
+	if combos.parts(row):
+		return _restamp_combo(order, row)
+
 	target = frappe.db.get_value(
 		"KOT Item",
 		{"parent": row.kot_reference, "parenttype": "Kitchen Order Ticket", "item": row.item},
@@ -441,3 +444,44 @@ def restamp_item(order, row) -> list[dict]:
 	)
 
 	return [{"kot_name": row.kot_reference, "production_center": center}]
+
+
+def _restamp_combo(order, row) -> list[dict]:
+	"""A combo's note, corrected on every station its items went to (`D-285`).
+
+	Its tickets name the items, never the combo, so looking the combo up on its
+	first ticket found nothing and the corrected note reached no kitchen at all.
+	Each item's row carries «From: <combo>» first, which is how it is found.
+	"""
+	label = _("From: {0}").format(row.item_name)
+	tickets = frappe.get_all(
+		"Kitchen Order Ticket",
+		filters={"restaurant_order": order.name, "kot_type": ("!=", "void")},
+		fields=["name", "production_center"],
+	)
+	touched = []
+	for ticket in tickets:
+		for kot_item in frappe.get_all(
+			"KOT Item",
+			filters={
+				"parent": ticket.name,
+				"parenttype": "Kitchen Order Ticket",
+				"item": ("in", [part["item"] for part in combos.parts(row)]),
+				"notes": ("like", f"{label}%"),
+			},
+			fields=["name", "item"],
+		):
+			notes = "\n".join(filter(None, [label, row.notes]))
+			frappe.db.set_value("KOT Item", kot_item.name, "notes", notes, update_modified=False)
+			frappe.publish_realtime(
+				event="rpos:kot_updated",
+				message={
+					"kot": ticket.name,
+					"restaurant_order": order.name,
+					"item": kot_item.item,
+					"notes": notes,
+				},
+				room=f"rpos:pc:{ticket.production_center}",
+			)
+			touched.append({"kot_name": ticket.name, "production_center": ticket.production_center})
+	return touched

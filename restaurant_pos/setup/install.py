@@ -314,19 +314,25 @@ CUSTOM_FIELDS = {
 		},
 		# `D-285` — a combo is an item on the menu with its choices under it: the
 		# till opens them like modifiers, and the items chosen are what is sold.
-		{
-			"fieldname": "rpos_combo_section",
-			"fieldtype": "Section Break",
-			"label": "Combo",
-			"collapsible": 1,
-			"insert_after": "pos_modifier_groups",
-		},
+		#
+		# `D-293` — the tick sits with the item's other POS settings, and the
+		# section it opens is a full-width one like the modifiers', closed by a
+		# break of its own: without it ERPNext's next fields (a column break among
+		# them) fell into the section and squeezed the table into half the form.
 		{
 			"fieldname": "rpos_is_combo",
 			"fieldtype": "Check",
 			"label": "Combo",
 			"description": "The guest buys the items below as one, and they are what leaves stock and what is sold.",
-			"insert_after": "rpos_combo_section",
+			"insert_after": "default_production_center",
+		},
+		{
+			"fieldname": "rpos_combo_section",
+			"fieldtype": "Section Break",
+			"label": "Combo",
+			"collapsible": 0,
+			"depends_on": "rpos_is_combo",
+			"insert_after": "pos_modifier_groups",
 		},
 		{
 			"fieldname": "rpos_combo_pricing",
@@ -334,17 +340,20 @@ CUSTOM_FIELDS = {
 			"label": "Combo Price",
 			"options": "fixed\nsum",
 			"default": "fixed",
-			"depends_on": "rpos_is_combo",
 			"description": "fixed: this item's own price, shared across the items. sum: the items' prices added up.",
-			"insert_after": "rpos_is_combo",
+			"insert_after": "rpos_combo_section",
 		},
 		{
 			"fieldname": "rpos_combo_items",
 			"fieldtype": "Table",
 			"options": "POS Combo Item",
 			"label": "Combo Items",
-			"depends_on": "rpos_is_combo",
 			"insert_after": "rpos_combo_pricing",
+		},
+		{
+			"fieldname": "rpos_combo_end",
+			"fieldtype": "Section Break",
+			"insert_after": "rpos_combo_items",
 		},
 	],
 	# The manager PIN belongs to a person, not a role (DECISIONS.md D-016).

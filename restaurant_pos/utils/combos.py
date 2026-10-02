@@ -56,23 +56,90 @@ def is_combo(item: str) -> bool:
 def definition(item: str) -> frappe._dict | None:
 	if not is_combo(item):
 		return None
+	rows = frappe.get_all(
+		"POS Combo Item",
+		filters={"parent": item, "parenttype": "Item"},
+		fields=["slot", "item", "qty", "price_source", "price", "is_default", "adds_to_price"],
+		order_by="idx",
+	)
 	return frappe._dict(
 		pricing=frappe.db.get_value("Item", item, "rpos_combo_pricing") or "fixed",
-		rows=frappe.get_all(
-			"POS Combo Item",
-			filters={"parent": item, "parenttype": "Item"},
-			fields=["slot", "item", "qty", "price_source", "price", "is_default", "adds_to_price"],
-			order_by="idx",
-		),
+		rows=_with_groups(item, rows),
+	)
+
+
+def _with_groups(combo: str, rows: list) -> list:
+	"""A row with a choice and no item offers the choice's whole item group (`D-294`).
+
+	Square's combo option holds items or categories; Fitec's choice names the
+	groups its components come from; Foodics picks the group first. So «any
+	drink» is one row, and a drink added to the menu tomorrow is in the combo
+	without anybody touching it — and one disabled leaves it.
+
+	**Inside the combo's price**: a group's items come at their own list price
+	as the share's weight and nothing on top. A row naming one of them under the
+	same choice prices it differently («fresh juice +3») and wins.
+	"""
+	named = {(row.slot, row.item) for row in rows if row.item}
+	expanded = []
+	for row in rows:
+		if row.item:
+			expanded.append(row)
+			continue
+		group = choice(row.slot).item_group if row.slot else None
+		for code in _sales_items_in(group, exclude=combo):
+			if (row.slot, code) in named:
+				continue
+			named.add((row.slot, code))
+			expanded.append(
+				frappe._dict(
+					slot=row.slot,
+					item=code,
+					qty=1,
+					price_source="item_price",
+					price=0,
+					is_default=0,
+					adds_to_price=0,
+				)
+			)
+	return expanded
+
+
+def _sales_items_in(group: str | None, exclude: str) -> list[str]:
+	"""Every enabled sales item in a group or under it — not a combo."""
+	if not group:
+		return []
+	bounds = frappe.db.get_value("Item Group", group, ["lft", "rgt"], as_dict=True)
+	if not bounds:
+		return []
+	groups = frappe.get_all(
+		"Item Group", filters={"lft": (">=", bounds.lft), "rgt": ("<=", bounds.rgt)}, pluck="name"
+	)
+	return frappe.get_all(
+		"Item",
+		filters={
+			"item_group": ("in", groups),
+			"is_sales_item": 1,
+			"disabled": 0,
+			"rpos_is_combo": 0,
+			"name": ("!=", exclude),
+		},
+		pluck="name",
+		order_by="item_name asc",
 	)
 
 
 def choice(slot: str) -> frappe._dict:
 	"""A choice's names and how many to pick — one, when nobody set it up otherwise (`D-290`)."""
 	found = frappe.db.get_value(
-		"POS Combo Choice", slot, ["title", "title_ar", "min_selections", "max_selections"], as_dict=True
+		"POS Combo Choice",
+		slot,
+		["title", "title_ar", "min_selections", "max_selections", "item_group"],
+		as_dict=True,
 	)
-	return found or frappe._dict(title=slot, title_ar=slot, min_selections=1, max_selections=1)
+	return found or frappe._dict(
+		title=slot, title_ar=slot, min_selections=1, max_selections=1, item_group=None
+	)
 
 
 def group_name(combo: str, slot: str) -> str:
@@ -377,6 +444,14 @@ def validate_item(doc, method=None) -> None:
 	defaults: dict[str, int] = {}
 	for row in doc.rpos_combo_items:
 		row.slot = (row.slot or "").strip()
+		if not row.item:
+			# `D-294` — «any item of the choice's group», which needs a group to name.
+			if not row.slot or not choice(row.slot).item_group:
+				frappe.throw(
+					_("Row #{0}: Choose an item, or a choice that has an item group.").format(row.idx)
+				)
+			row.is_default = 0
+			continue
 		if row.item == doc.name or frappe.db.get_value("Item", row.item, "rpos_is_combo"):
 			frappe.throw(_("Row #{0}: A combo cannot hold a combo.").format(row.idx))
 		sellable = frappe.db.get_value("Item", row.item, ["is_sales_item", "disabled"], as_dict=True)

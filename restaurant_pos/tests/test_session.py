@@ -514,12 +514,50 @@ class TestTheScreenLayoutMode(FrappeTestCase):
 					"layout_mode": "grid",
 					"grid_columns": 4,
 					"grid_rows": 4,
+					# Placed on purpose — both in the same cell.
 					"buttons": [
-						{"button_type": "item_group", "item_group": group},
-						{"button_type": "item_group", "item_group": group},
+						{"button_type": "item_group", "item_group": group, "col_start": 2, "row_start": 2},
+						{"button_type": "item_group", "item_group": group, "col_start": 2, "row_start": 2},
 					],
 				}
 			).insert(ignore_permissions=True)
+
+	def test_a_flow_layout_switched_to_the_grid_is_laid_out_in_its_order(self):
+		"""`D-295` — the owner switched to «grid» and was told cell (1, 1) was taken."""
+		group = frappe.db.get_value("Item Group", {"is_group": 0}, "name")
+		doc = frappe.get_doc(
+			{
+				"doctype": "POS Screen Layout",
+				"title": "RPOS Test switched",
+				"layout_mode": "flow",
+				"buttons": [{"button_type": "item_group", "item_group": group} for _ in range(5)],
+			}
+		).insert(ignore_permissions=True)
+		self.addCleanup(frappe.delete_doc, "POS Screen Layout", doc.name, force=True)
+
+		doc.update({"layout_mode": "grid", "grid_columns": 2, "grid_rows": 3})
+		doc.save(ignore_permissions=True)
+
+		self.assertEqual(
+			[(row.col_start, row.row_start) for row in doc.buttons],
+			[(1, 1), (2, 1), (1, 2), (2, 2), (1, 3)],
+		)
+
+	def test_more_buttons_than_the_grid_holds_are_refused(self):
+		group = frappe.db.get_value("Item Group", {"is_group": 0}, "name")
+		doc = frappe.get_doc(
+			{
+				"doctype": "POS Screen Layout",
+				"title": "RPOS Test overfull",
+				"layout_mode": "flow",
+				"buttons": [{"button_type": "item_group", "item_group": group} for _ in range(5)],
+			}
+		).insert(ignore_permissions=True)
+		self.addCleanup(frappe.delete_doc, "POS Screen Layout", doc.name, force=True)
+
+		doc.update({"layout_mode": "grid", "grid_columns": 2, "grid_rows": 2})
+		with self.assertRaises(frappe.ValidationError):
+			doc.save(ignore_permissions=True)
 
 	def test_a_flow_layout_needs_no_grid_size(self):
 		"""The point of the mode: no numbers to invent."""

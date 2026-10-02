@@ -1378,3 +1378,8 @@ any number,أي عدد
 {0} is not in this combo as ordered.,{0} مو ضمن هالكومبو زي ما انطلب.
 Combo Choices,خيارات الكومبو
 Recipes,وصفات الأصناف
+Item Group,مجموعة الأصناف,POS Combo Choice
+"Every sales item in this group is offered under the choice, inside the combo's price. A row for one of them on the combo prices it differently.",كل أصناف البيع في هالمجموعة تطلع تحت الخيار، وداخل سعر الكومبو. ولو تبي صنفاً منها بسعر مختلف، أضفه صفاً لحاله في الكومبو.
+Leave empty to offer the choice's whole item group.,اتركه فاضي عشان تطلع كل أصناف مجموعة الخيار.
+"Row #{0}: Choose an item, or a choice that has an item group.",سطر {0}: اختر صنفاً، أو خياراً له مجموعة أصناف.
+"{0} buttons do not fit on a grid of {1} columns and {2} rows.",{0} زر ما تكفيهم شبكة {1} أعمدة و{2} صفوف. زِد الأعمدة أو الصفوف.

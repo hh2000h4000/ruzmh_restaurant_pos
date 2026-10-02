@@ -358,6 +358,62 @@ class AChoiceSaysHowManyToPick(ComboTestBase):
 			).insert(ignore_permissions=True)
 
 
+class AChoiceOffersAWholeGroup(ComboTestBase):
+	"""`D-294` — «any drink»: Square's category option, Fitec's component groups."""
+
+	GROUP = "RPOS Test Drinks"
+
+	def setUp(self):
+		super().setUp()
+		if not frappe.db.exists("Item Group", self.GROUP):
+			frappe.get_doc(
+				{
+					"doctype": "Item Group",
+					"item_group_name": self.GROUP,
+					"parent_item_group": "All Item Groups",
+				}
+			).insert(ignore_permissions=True)
+		for drink in (COLA, JUICE):
+			before = frappe.db.get_value("Item", drink, "item_group")
+			frappe.db.set_value("Item", drink, "item_group", self.GROUP)
+			self.addCleanup(frappe.db.set_value, "Item", drink, "item_group", before)
+		frappe.db.set_value("POS Combo Choice", DRINK, "item_group", self.GROUP)
+		self.addCleanup(frappe.db.set_value, "POS Combo Choice", DRINK, "item_group", None)
+
+	def _any_drink(self, *extra: dict) -> None:
+		meal = frappe.get_doc("Item", MEAL)
+		meal.rpos_combo_pricing = "fixed"
+		meal.set("rpos_combo_items", [{"slot": "", "item": ITEM, "qty": 1}, {"slot": DRINK}, *extra])
+		meal.save(ignore_permissions=True)
+
+	def test_one_row_offers_every_item_of_the_group_inside_the_price(self):
+		self._any_drink()
+
+		offered = {
+			option.title: flt(option.price_amount)
+			for option in combos.groups_for(MEAL, TEST_PRICE_LIST)[0]["options"]
+		}
+		self.assertEqual(offered, {COLA: 0.0, JUICE: 0.0})
+		self.assertEqual(flt(self._ordered(JUICE).items[0].amount), MEAL_PRICE)
+
+	def test_a_row_for_one_of_them_prices_it_differently(self):
+		self._any_drink(
+			{"slot": DRINK, "item": JUICE, "price_source": "amount", "price": UPGRADE, "adds_to_price": 1}
+		)
+
+		offered = {
+			option.title: flt(option.price_amount)
+			for option in combos.groups_for(MEAL, TEST_PRICE_LIST)[0]["options"]
+		}
+		self.assertEqual(offered, {JUICE: UPGRADE, COLA: 0.0})
+		self.assertEqual(flt(self._ordered(JUICE).items[0].amount), MEAL_PRICE + UPGRADE)
+
+	def test_a_row_without_an_item_needs_a_choice_with_a_group(self):
+		frappe.db.set_value("POS Combo Choice", DRINK, "item_group", None)
+		with self.assertRaises(frappe.ValidationError):
+			self._any_drink()
+
+
 class TheComboInItemSales(ComboTestBase):
 	"""`D-286` — «how many meals, and how many burgers of them»."""
 

@@ -154,6 +154,49 @@ describe("the pictures on the menu", () => {
     expect(wrapper.findAll("[data-placeholder]")).toHaveLength(1);
   });
 
+  /**
+   * `D-296` — the owner's screen: two buttons on an 8 × 6 grid ran the whole
+   * height of the panel, because the rows were sized by the tiles and a tile's
+   * picture is as tall as its column is wide. The drawn rows share the height.
+   */
+  it("divides the panel's height between a drawn grid's rows", () => {
+    useSessionStore().data = {
+      items: [],
+      item_groups: groups,
+      screen_layout: {
+        name: "SL-GRID",
+        title: "grid",
+        layout_mode: "grid",
+        grid_columns: 8,
+        grid_rows: 6,
+        background_color: null,
+        buttons: [1, 2].map((idx) => ({
+          idx,
+          button_type: "item_group",
+          item_group: "Burgers",
+          item: null,
+          goto_screen: null,
+          action_type: null,
+          col_start: idx,
+          col_span: 1,
+          row_start: 1,
+          row_span: 1,
+          display_text: null,
+          display_text_ar: null,
+          image: null,
+          bg_color: null,
+          text_color: null,
+          font_size: null,
+        })),
+      },
+    } as unknown as PosSession;
+
+    const wrapper = mount(ItemPicker, { props: { orderType: null } });
+    const style = wrapper.find("[style*='grid-template-columns']").attributes("style");
+
+    expect(style).toContain("grid-template-rows: repeat(6, minmax(min-content, 1fr))");
+  });
+
   it("gives a layout button its group's picture, and its colour to the strip", () => {
     useSessionStore().data = {
       items: [],

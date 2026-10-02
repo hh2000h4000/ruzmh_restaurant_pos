@@ -11,6 +11,7 @@
   "column_break",
   "min_selections",
   "max_selections",
+  "item_group",
   "description"
  ],
  "fields": [
@@ -52,6 +53,13 @@
    "description": "How many items may be picked. 0 means no limit."
   },
   {
+   "fieldname": "item_group",
+   "fieldtype": "Link",
+   "options": "Item Group",
+   "label": "Item Group",
+   "description": "Every sales item in this group is offered under the choice, inside the combo's price. A row for one of them on the combo prices it differently."
+  },
+  {
    "fieldname": "description",
    "fieldtype": "Small Text",
    "label": "Description"
@@ -59,7 +67,7 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-09-30 18:00:00.000000",
+ "modified": "2026-10-02 14:00:00.000000",
  "modified_by": "Administrator",
  "module": "Restaurant POS",
  "name": "POS Combo Choice",

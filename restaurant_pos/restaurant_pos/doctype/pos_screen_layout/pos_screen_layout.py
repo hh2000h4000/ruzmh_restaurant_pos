@@ -10,7 +10,54 @@ from frappe.utils import cint
 class POSScreenLayout(Document):
 	def validate(self):
 		self.validate_grid()
+		if self.is_grid and self.switched_to_grid():
+			self.place_in_order()
 		self.validate_buttons()
+
+	def switched_to_grid(self) -> bool:
+		"""Whether the buttons have never been placed on a grid (`D-295`).
+
+		A layout built in `flow` has every button at column 1, row 1 — the
+		defaults, never read there. Switching it to `grid` met the manager with
+		«cell (1, 1) is already used by row 1» for a placement nobody made. So a
+		layout arriving on the grid is laid out in the order of its table first;
+		positions the manager sets after that are theirs and are checked.
+		"""
+		before = self.get_doc_before_save()
+		if before is not None:
+			return before.layout_mode != "grid"
+		buttons = self.buttons or []
+		return len(buttons) > 1 and all(
+			cint(row.col_start) <= 1 and cint(row.row_start) <= 1 for row in buttons
+		)
+
+	def place_in_order(self):
+		"""Each button in the first free cell, row by row, in the table's order."""
+		columns, rows = cint(self.grid_columns), cint(self.grid_rows)
+		taken: set[tuple[int, int]] = set()
+		for button in self.buttons or []:
+			wide, tall = max(cint(button.col_span), 1), max(cint(button.row_span), 1)
+			spot = next(
+				(
+					(col, row)
+					for row in range(1, rows - tall + 2)
+					for col in range(1, columns - wide + 2)
+					if not any(
+						(c, r) in taken for c in range(col, col + wide) for r in range(row, row + tall)
+					)
+				),
+				None,
+			)
+			if spot is None:
+				frappe.throw(
+					_("{0} buttons do not fit on a grid of {1} columns and {2} rows.").format(
+						len(self.buttons), columns, rows
+					)
+				)
+			button.col_start, button.row_start = spot
+			taken.update(
+				(c, r) for c in range(spot[0], spot[0] + wide) for r in range(spot[1], spot[1] + tall)
+			)
 
 	@property
 	def is_grid(self) -> bool:

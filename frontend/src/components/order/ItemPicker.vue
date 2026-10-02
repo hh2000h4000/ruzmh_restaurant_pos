@@ -165,11 +165,16 @@ const FLOW_MIN_TILE = "6rem";
 
 const layoutStyle = computed<Record<string, string>>(() => {
   if (layout.value?.layout_mode === "grid") {
-    return {
+    const drawn: Record<string, string> = {
       "--columns": String(layout.value.grid_columns),
       gridTemplateColumns: `repeat(${layout.value.grid_columns}, minmax(0, 1fr))`,
-      gridAutoRows: "minmax(4.5rem, auto)",
+      // D-296 — the drawn rows share the card's height, as flow's do. Sized
+      // by their tiles instead, a tile's square picture made every row as tall
+      // as the column was wide: two buttons on the owner's screen ran the
+      // whole height of it.
+      gridTemplateRows: `repeat(${layout.value.grid_rows}, minmax(min-content, 1fr))`,
     };
+    return drawn;
   }
 
   const count = layout.value?.buttons.length ?? 0;
@@ -188,9 +193,6 @@ const layoutStyle = computed<Record<string, string>>(() => {
     gridAutoRows: "minmax(min-content, 1fr)",
   };
 });
-
-/** Flow fills the card; a drawn grid keeps its rows the size it drew them. */
-const layoutFills = computed(() => layout.value?.layout_mode !== "grid");
 
 function gridStyle(button: LayoutButton): Record<string, string> {
   // In flow the button takes the next cell going: a coordinate here would be
@@ -404,16 +406,14 @@ function priceOf(item: CatalogItem): number | null {
     -->
     <div
       v-else-if="layout"
-      class="grid gap-3.5 overflow-y-auto"
-      :class="layoutFills ? 'h-full' : 'content-start'"
+      class="grid h-full gap-3.5 overflow-y-auto"
       :style="layoutStyle"
     >
-      <!-- A drawn grid sizes its rows to the tiles, so a tile there needs a
-           height of its own; in flow the row gives it one. -->
+      <!-- Flow and a drawn grid alike divide the card's height into rows, so
+           every tile is the size its row gives it (D-296). -->
       <MenuTile
         v-for="button in layout.buttons"
         :key="button.idx"
-        :class="layoutFills ? '' : 'min-h-[9rem]'"
         :style="gridStyle(button)"
         :label="label(button)"
         :image="imageOf(button)"

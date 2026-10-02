@@ -445,6 +445,9 @@ const messages: Catalogue["messages"] = {
   "mod.priceDelta": "الإضافة على السعر:",
   "mod.add": "إضافة للطلب",
   "mod.choose": "اختر:",
+  "mod.extras": "+ إضافات",
+  "mod.done": "تم",
+  "mod.withMeal": "يجي معها",
   "mod.missing": "خيارات هذا الصنف غير موجودة على الجهاز. أعد الاتصال مرة لتحميلها.",
 
   // Payment

@@ -4,6 +4,7 @@ import { computed, ref, watch } from "vue";
 import type { ModifierGroup } from "@/api/modifiers";
 import type { ModifierChoice } from "@/api/order";
 import BaseDialog from "@/components/BaseDialog.vue";
+import ModifierGroupList from "@/components/order/ModifierGroupList.vue";
 import NoteEditor from "@/components/order/NoteEditor.vue";
 import { formatNumber, pick, t } from "@/i18n";
 import { useSessionStore } from "@/stores/session";
@@ -30,6 +31,8 @@ const chosen = ref<Record<string, string[]>>({});
 const notes = ref("");
 const loading = ref(false);
 const failure = ref<string | null>(null);
+/** The combo item whose add-ons are open over the combo (D-292). */
+const editing = ref<string | null>(null);
 
 /**
  * D-076 — read from the session, not fetched.
@@ -46,6 +49,7 @@ watch(
     chosen.value = {};
     notes.value = "";
     failure.value = null;
+    editing.value = null;
 
     if (!item?.modifier_groups.length) return;
 
@@ -84,22 +88,66 @@ function toggle(group: ModifierGroup, title: string): void {
 
   if (group.selection_type === "single") {
     chosen.value[group.name] = current.includes(title) ? [] : [title];
-    return;
-  }
-
-  if (current.includes(title)) {
+  } else if (current.includes(title)) {
     chosen.value[group.name] = current.filter((value) => value !== title);
-    return;
+  } else {
+    const max = group.max_selections;
+    if (max && current.length >= max) return;
+    chosen.value[group.name] = [...current, title];
   }
 
-  const max = group.max_selections;
-  if (max && current.length >= max) return;
-
-  chosen.value[group.name] = [...current, title];
+  // Toast asks a nested group the moment its option is picked (D-292): an item
+  // chosen in the combo with a question it cannot go without opens it at once.
+  if (!group.part && (chosen.value[group.name] ?? []).includes(title)) {
+    if (unresolvedFor(title).length) editing.value = title;
+  }
 }
 
-function isChosen(group: ModifierGroup, title: string): boolean {
-  return (chosen.value[group.name] ?? []).includes(title);
+/**
+ * A combo item's own add-ons are asked over the combo, not under it (D-292).
+ *
+ * Laid out under its choices they ran the popup off the screen, and the
+ * cashier scrolled past questions about items nobody had picked. Square adds
+ * the combo and offers «Modify» per item with a summary; Toast prompts a nested
+ * group as soon as its option is picked. So: the combo shows its choices, each
+ * chosen item a line of what was picked on it and a button to change it, and
+ * a required question opens by itself.
+ */
+const topGroups = computed(() => shown.value.filter((group) => !group.part));
+
+function addOnsOf(item: string): ModifierGroup[] {
+  return shown.value.filter((group) => group.part?.item === item);
+}
+
+/** The chosen items of a combo choice that have add-ons of their own. */
+function partsUnder(group: ModifierGroup): string[] {
+  return (chosen.value[group.name] ?? []).filter((title) => addOnsOf(title).length);
+}
+
+/** The items always in the combo that have add-ons of their own. */
+const fixedParts = computed(() => [
+  ...new Set(shown.value.filter((group) => group.part && !group.when).map((group) => group.part!.item)),
+]);
+
+function partName(item: string): string {
+  const part = groups.value.find((group) => group.part?.item === item)?.part;
+  return part ? pick(part.title_ar, part.title) : item;
+}
+
+/** What was picked on one combo item, as a line under it. */
+function summary(item: string): string {
+  return addOnsOf(item)
+    .flatMap((group) =>
+      (chosen.value[group.name] ?? []).map((title) => {
+        const option = group.options.find((candidate) => candidate.title === title);
+        return option ? pick(option.title_ar, option.label ?? option.title) : title;
+      }),
+    )
+    .join(t("common.listSeparator"));
+}
+
+function unresolvedFor(item: string): ModifierGroup[] {
+  return unresolved.value.filter((group) => group.part?.item === item);
 }
 
 /** Which required groups still have no answer — the reason Confirm is disabled. */
@@ -163,45 +211,64 @@ function confirm(): void {
     </p>
 
     <template v-else>
+      <ModifierGroupList
+        :groups="topGroups"
+        :chosen="chosen"
+        @toggle="toggle"
+      >
+        <template #default="{ group }">
+          <p
+            v-for="part in partsUnder(group)"
+            :key="part"
+            class="mt-2 flex items-center gap-2 text-sm"
+            data-combo-part-summary
+          >
+            <span class="font-medium">{{ partName(part) }}</span>
+            <span
+              v-if="summary(part)"
+              class="truncate text-muted"
+            >· {{ summary(part) }}</span>
+            <button
+              type="button"
+              class="min-h-tap rounded-rpos border border-line px-3 text-sm"
+              :class="unresolvedFor(part).length ? 'border-danger text-danger' : ''"
+              data-combo-part-edit
+              @click="editing = part"
+            >
+              {{ t("mod.extras") }}
+            </button>
+          </p>
+        </template>
+      </ModifierGroupList>
+
       <section
-        v-for="group in shown"
-        :key="group.name"
+        v-if="fixedParts.length"
         class="mb-4"
       >
         <h3 class="mb-2 text-sm font-medium">
-          {{ pick(group.title_ar, group.title) }}
-          <span
-            v-if="group.is_required"
-            class="text-danger"
-          >*</span>
-          <span class="text-muted">
-            ({{ group.selection_type === "single" ? t("mod.single") : t("mod.multi") }})
-          </span>
+          {{ t("mod.withMeal") }}
         </h3>
-
-        <div class="flex flex-wrap gap-2">
+        <p
+          v-for="part in fixedParts"
+          :key="part"
+          class="mt-2 flex items-center gap-2 text-sm"
+          data-combo-part-summary
+        >
+          <span class="font-medium">{{ partName(part) }}</span>
+          <span
+            v-if="summary(part)"
+            class="truncate text-muted"
+          >· {{ summary(part) }}</span>
           <button
-            v-for="option in group.options"
-            :key="option.title"
             type="button"
-            class="min-h-tap rounded-rpos border px-4 text-sm"
-            :class="
-              isChosen(group, option.title)
-                ? 'border-primary bg-primary text-primary-contrast'
-                : 'border-line bg-surface'
-            "
-            :aria-pressed="isChosen(group, option.title)"
-            @click="toggle(group, option.title)"
+            class="min-h-tap rounded-rpos border border-line px-3 text-sm"
+            :class="unresolvedFor(part).length ? 'border-danger text-danger' : ''"
+            data-combo-part-edit
+            @click="editing = part"
           >
-            {{ pick(option.title_ar, option.label ?? option.title) }}
-            <span
-              v-if="option.price_amount"
-              class="rpos-numeric text-xs"
-            >
-              {{ option.price_effect === "subtract" ? "−" : "+" }}{{ formatNumber(option.price_amount, 2) }}
-            </span>
+            {{ t("mod.extras") }}
           </button>
-        </div>
+        </p>
       </section>
 
       <p class="mb-1.5 text-sm font-medium">
@@ -245,9 +312,34 @@ function confirm(): void {
       >
         {{ t("mod.choose") }}
         {{
-          unresolved.map((group) => pick(group.title_ar, group.title)).join(t("common.listSeparator"))
+          unresolved
+            .map((group) => (group.part ? partName(group.part.item) : pick(group.title_ar, group.title)))
+            .join(t("common.listSeparator"))
         }}
       </p>
     </template>
+  </BaseDialog>
+
+  <!-- A combo item's add-ons, over the combo (D-292). -->
+  <BaseDialog
+    :open="editing !== null"
+    :title="editing ? partName(editing) : ''"
+    @close="editing = null"
+  >
+    <ModifierGroupList
+      v-if="editing"
+      :groups="addOnsOf(editing)"
+      :chosen="chosen"
+      @toggle="toggle"
+    />
+    <button
+      type="button"
+      class="min-h-tap w-full rounded-rpos bg-primary px-4 font-medium text-primary-contrast disabled:opacity-60"
+      :disabled="editing !== null && unresolvedFor(editing).length > 0"
+      data-combo-part-done
+      @click="editing = null"
+    >
+      {{ t("mod.done") }}
+    </button>
   </BaseDialog>
 </template>

@@ -469,6 +469,9 @@ export const messages = {
   "mod.priceDelta": "Added to the price:",
   "mod.add": "Add to the order",
   "mod.choose": "Choose:",
+  "mod.extras": "+ Add-ons",
+  "mod.done": "Done",
+  "mod.withMeal": "Comes with it",
   "mod.missing": "This item's options are not on this device. Reconnect once to load them.",
 
   // Payment

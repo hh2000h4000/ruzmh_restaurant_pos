@@ -86,3 +86,22 @@ describe("the pinned footer", () => {
     expect(open().find("[data-dialog-footer]").exists()).toBe(false);
   });
 });
+
+/**
+ * A dialog over a dialog (`D-292`): a combo item's add-ons open over the combo.
+ * Every open dialog answered Escape, so one key closed both and threw the
+ * combo away with the cashier's choices in it.
+ */
+describe("a dialog over a dialog", () => {
+  it("closes only the one on top on Escape", () => {
+    const under = open({ title: "وجبة" });
+    const over = open({ title: "إضافات" });
+
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+
+    expect(over.emitted("close")).toBeTruthy();
+    expect(under.emitted("close")).toBeFalsy();
+    over.unmount();
+    under.unmount();
+  });
+});

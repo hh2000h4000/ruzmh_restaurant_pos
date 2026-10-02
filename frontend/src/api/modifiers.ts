@@ -24,6 +24,8 @@ export interface ModifierGroup {
    * groups, asked when that item is the one picked (D-289).
    */
   when?: { group: string; option: string } | null;
+  /** The combo item these add-ons belong to, asked over the combo (D-292). */
+  part?: { item: string; title: string; title_ar: string } | null;
 }
 
 export function getModifierGroups(groups: string[]): Promise<ModifierGroup[]> {

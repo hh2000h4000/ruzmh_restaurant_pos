@@ -20,6 +20,7 @@ import type { CatalogItem, PosSession } from "@/types/session";
 
 const MAIN = "combo:MEAL:Main";
 const CHEESE = "combo-part:MEAL|BURGER|Extras";
+const SAUCE = "combo-part:MEAL|CHICKEN|Sauce";
 
 function option(title: string, title_ar: string, price_amount = 0) {
   return {
@@ -52,6 +53,19 @@ const groups: ModifierGroup[] = [
     max_selections: 0,
     options: [option("Extra cheese", "جبنة إضافية", 2)],
     when: { group: MAIN, option: "BURGER" },
+    part: { item: "BURGER", title: "Burger", title_ar: "برغر" },
+  },
+  {
+    name: SAUCE,
+    title: "Sauce",
+    title_ar: "صوص — دجاج",
+    selection_type: "single",
+    is_required: 0,
+    min_selections: 0,
+    max_selections: 1,
+    options: [option("Garlic", "ثوم")],
+    when: { group: MAIN, option: "CHICKEN" },
+    part: { item: "CHICKEN", title: "Chicken", title_ar: "دجاج" },
   },
 ];
 
@@ -62,7 +76,7 @@ function dialog() {
         item_code: "MEAL",
         item_name: "Meal",
         pos_display_name_ar: "وجبة",
-        modifier_groups: [MAIN, CHEESE],
+        modifier_groups: [MAIN, CHEESE, SAUCE],
       } as unknown as CatalogItem,
     },
     global: { stubs: { teleport: true } },
@@ -80,7 +94,7 @@ describe("a combo item's own groups", () => {
     expect(wrapper.text()).not.toContain("جبنة إضافية");
   });
 
-  it("appear when their item is chosen, and are asked like any group", async () => {
+  it("open by themselves over the combo when the chosen item must be answered", async () => {
     const wrapper = dialog();
     await wrapper.findAll("button").find((button) => button.text() === "برغر")!.trigger("click");
 
@@ -97,5 +111,21 @@ describe("a combo item's own groups", () => {
 
     const sent = wrapper.emitted("confirm")![0][0] as { modifiers: { group: string }[] };
     expect(sent.modifiers).toEqual([{ group: MAIN, option: "CHICKEN" }]);
+  });
+
+  /**
+   * The owner's complaint (D-292): every chosen item's add-ons laid out under
+   * the combo ran it off the screen. An optional question waits behind a button.
+   */
+  it("keep an optional question behind a button, with a line of what was picked", async () => {
+    const wrapper = dialog();
+    await wrapper.findAll("button").find((button) => button.text() === "دجاج")!.trigger("click");
+
+    expect(wrapper.text()).not.toContain("ثوم");
+    await wrapper.find("[data-combo-part-edit]").trigger("click");
+    await wrapper.findAll("button").find((button) => button.text() === "ثوم")!.trigger("click");
+    await wrapper.find("[data-combo-part-done]").trigger("click");
+
+    expect(wrapper.find("[data-combo-part-summary]").text()).toContain("ثوم");
   });
 });

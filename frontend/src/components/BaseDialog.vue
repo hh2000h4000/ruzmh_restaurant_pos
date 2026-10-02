@@ -1,3 +1,12 @@
+<script lang="ts">
+/**
+ * The dialogs open now, innermost last (D-292). A combo's item opens its
+ * add-ons over the combo, and Escape pressed there closed both: every open
+ * dialog answered the key. Only the innermost does now.
+ */
+const opened: object[] = [];
+</script>
+
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref, watch } from "vue";
 
@@ -40,13 +49,28 @@ const emit = defineEmits<{ close: [] }>();
 
 const panel = ref<HTMLElement | null>(null);
 let lastFocused: HTMLElement | null = null;
+const token = {};
+
+function leaveStack(): void {
+  const at = opened.indexOf(token);
+  if (at >= 0) opened.splice(at, 1);
+}
+
+watch(
+  () => props.open,
+  (isOpen) => {
+    if (isOpen) opened.push(token);
+    else leaveStack();
+  },
+  { immediate: true },
+);
 
 function requestClose(): void {
   if (props.dismissible !== false) emit("close");
 }
 
 function onKeydown(event: KeyboardEvent): void {
-  if (!props.open) return;
+  if (!props.open || opened[opened.length - 1] !== token) return;
 
   if (event.key === "Escape") {
     requestClose();
@@ -86,7 +110,10 @@ watch(
 );
 
 onMounted(() => document.addEventListener("keydown", onKeydown));
-onUnmounted(() => document.removeEventListener("keydown", onKeydown));
+onUnmounted(() => {
+  document.removeEventListener("keydown", onKeydown);
+  leaveStack();
+});
 </script>
 
 <template>

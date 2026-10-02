@@ -680,6 +680,12 @@ def _combo_part_groups(combo: str, price_list: str | None) -> list[dict]:
 				title=f"{group.title} ({frappe.db.get_value('Item', part['item'], 'item_name')})",
 				title_ar=f"{group.title_ar} — {part['item_name']}",
 				when=part["when"],
+				# `D-292` — the till asks these over the combo, under the item's name.
+				part={
+					"item": part["item"],
+					"title": frappe.db.get_value("Item", part["item"], "item_name"),
+					"title_ar": part["item_name"],
+				},
 			)
 		)
 	return shown

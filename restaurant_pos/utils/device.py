@@ -48,6 +48,10 @@ def issue_code(pos_profile: str) -> dict:
 	"""
 	doc = frappe.get_doc("POS Profile", pos_profile)
 	doc.check_permission("write")
+	# `D-302` — said here, not at the till: `pair` already ignores a disabled
+	# terminal, and a code that can never work would send the cashier to retype it.
+	if doc.disabled:
+		frappe.throw(_("This terminal is disabled. Enable it before pairing a till."))
 
 	code = pairing.new_code()
 	doc.db_set(

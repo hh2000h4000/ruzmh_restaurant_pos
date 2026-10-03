@@ -119,6 +119,8 @@ export const messages = {
   "home.noOrderTypes": "No order type is available on this device.",
   "home.shiftClosed": "No open shift",
   "home.shiftRequired": "Open a shift before adding items or taking orders.",
+  "home.terminalDisabled": "This terminal is disabled",
+  "home.terminalDisabledHint": "A manager disabled this terminal, so it takes no orders or payments. Ask a manager.",
   "home.openOrders": "Open orders",
   "home.openOrdersUnit": "open orders",
   "type.hintTable": "Pick a table",

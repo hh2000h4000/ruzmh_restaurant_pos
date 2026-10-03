@@ -1403,3 +1403,5 @@ bell,جرس,POS Profile
 beep,صفّارة,POS Profile
 alarm,إنذار,POS Profile
 Test the Alert Sound,جرّب صوت التنبيه
+This terminal is disabled. Ask a manager.,هذا الجهاز معطّل. راجع المدير.
+This terminal is disabled. Enable it before pairing a till.,هذا الجهاز معطّل. فعّله قبل ما تربط له جهاز.

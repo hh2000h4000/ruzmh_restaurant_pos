@@ -34,6 +34,8 @@ export interface PosProfile {
   default_printer: string | null;
   restaurant_shift: string | null;
   branch: string | null;
+  /** A manager stopped this terminal (`D-302`). */
+  disabled?: 0 | 1;
   /** The bell's sound on this terminal (`D-301`). */
   rpos_alert_sound?: 0 | 1;
   rpos_alert_tone?: string | null;

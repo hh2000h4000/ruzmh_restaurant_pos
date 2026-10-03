@@ -154,3 +154,17 @@ class TestFreeingIt(DeviceTestBase):
 		)
 		self.assertIn("device_paired", actions)
 		self.assertIn("device_unpaired", actions)
+
+
+class ADisabledTerminalIsNotPaired(DeviceTestBase):
+	"""`D-302` — a code that could never work is refused where it is asked for."""
+
+	def test_no_code_is_issued_for_it(self):
+		frappe.db.set_value("POS Profile", self.profile, "disabled", 1, update_modified=False)
+		# Every later suite sells on this terminal.
+		self.addCleanup(
+			frappe.db.set_value, "POS Profile", self.profile, "disabled", 0, update_modified=False
+		)
+
+		with self.assertRaisesRegex(frappe.ValidationError, "disabled"):
+			session.issue_device_code(self.profile)

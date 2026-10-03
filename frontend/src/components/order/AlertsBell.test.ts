@@ -115,6 +115,9 @@ describe("the bell", () => {
 
     expect(kitchenApi.markKitchenTold).toHaveBeenCalledWith("KOT-1");
     expect(useAlertsStore().unread).toBe(0);
+    // Read now, so it leaves the unread tab the bell opens on, and stays under "All".
+    expect(wrapper.text()).not.toContain(t("alerts.state.told"));
+    await button(wrapper, t("alerts.tabAll")).trigger("click");
     expect(wrapper.text()).toContain(t("alerts.state.told"));
   });
 
@@ -148,6 +151,18 @@ describe("the bell", () => {
     vi.mocked(kitchenApi.getPrintAlerts).mockResolvedValue(answer([alert()]));
 
     expect((await opened(false)).text()).not.toContain(t("order.reprintTicket"));
+  });
+
+  it("opens on the unread", async () => {
+    vi.mocked(kitchenApi.getPrintAlerts).mockResolvedValue(
+      answer([alert(), alert({ kot_name: "KOT-2", failed_at: "2000-01-01 00:00:00", state: "told" })]),
+    );
+
+    const wrapper = await opened();
+
+    expect(wrapper.findAll("li")).toHaveLength(1);
+    await button(wrapper, t("alerts.tabAll")).trigger("click");
+    expect(wrapper.findAll("li")).toHaveLength(2);
   });
 
   it("asks for the older twenty only when told to", async () => {

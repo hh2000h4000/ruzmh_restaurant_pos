@@ -34,7 +34,8 @@ const alerts = useAlertsStore();
 const connection = useConnectionStore();
 
 const open = ref(false);
-const onlyUnread = ref(false);
+// Unread first, at the user's request: what is new is what the bell is opened for.
+const onlyUnread = ref(true);
 const busy = ref(false);
 const failure = ref<string | null>(null);
 
@@ -135,7 +136,7 @@ function source(row: PrintAlert): string {
 
       <div class="flex gap-1.5 px-[22px] pb-3.5">
         <button
-          v-for="tab in [false, true]"
+          v-for="tab in [true, false]"
           :key="String(tab)"
           type="button"
           class="h-10 rounded-[11px] px-4 text-[13.5px] font-medium transition-colors duration-150"

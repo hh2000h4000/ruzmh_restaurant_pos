@@ -1457,6 +1457,16 @@ async function send(): Promise<void> {
           </div>
 
           <div class="flex flex-col gap-2 empty:hidden">
+            <!-- D-302 — standing, unlike the shift notice: a stopped terminal is
+                 not a step the cashier skipped, and the drawer on it is the one
+                 thing left to do. -->
+            <p
+              v-if="session.disabled"
+              role="alert"
+              class="rounded-rpos bg-danger/10 p-3 text-sm text-danger"
+            >
+              {{ t("home.terminalDisabledHint") }}
+            </p>
             <p
               v-if="startupError"
               role="alert"
@@ -1890,11 +1900,11 @@ async function send(): Promise<void> {
     -->
     <BaseDialog
       :open="askingForShift"
-      :title="t('home.shiftClosed')"
+      :title="session.disabled ? t('home.terminalDisabled') : t('home.shiftClosed')"
       @close="askingForShift = false"
     >
       <p class="mb-4 text-sm text-muted">
-        {{ t("home.shiftRequired") }}
+        {{ session.disabled ? t("home.terminalDisabledHint") : t("home.shiftRequired") }}
       </p>
 
       <div class="flex gap-2">
@@ -1906,7 +1916,7 @@ async function send(): Promise<void> {
           {{ t("action.undo") }}
         </button>
         <button
-          v-if="session.can('can_open_shift')"
+          v-if="session.can('can_open_shift') && !session.disabled"
           type="button"
           class="min-h-tap flex-1 rounded-rpos bg-primary font-bold text-primary-contrast"
           @click="openShiftFromNotice"

@@ -1114,3 +1114,43 @@ class CarryingTooManyIsSaidNotRefused(ShiftTestBase):
 
 		self.assertFalse(report["carrying_too_many"])
 		self.assertTrue(report["blocked_by_open_orders"])
+
+
+class ADisabledTerminalStopsTakingMoney(ShiftTestBase):
+	"""`D-302` — ERPNext's **Disabled** tick on the POS Profile, which RPOS never read.
+
+	A manager ticked it believing the terminal was stopped, and it kept selling.
+	Disabled through `_profile`, not on the site: closing a drawer commits, and
+	a tick written to the record would outlive the test.
+	"""
+
+	def _disabled(self):
+		read_profile = service._profile
+
+		def disabled(pos_profile):
+			profile = read_profile(pos_profile)
+			profile.disabled = 1
+			return profile
+
+		return patch.object(service, "_profile", side_effect=disabled)
+
+	def test_it_opens_no_drawer(self):
+		with self._disabled(), self.assertRaisesRegex(frappe.ValidationError, "disabled"):
+			service.open_till(pos_profile=self.profile)
+
+	def test_it_takes_no_order_and_says_why(self):
+		service.open_till(pos_profile=self.profile)
+
+		with self._disabled():
+			self.assertFalse(service.may_sell(self.profile))
+			with self.assertRaisesRegex(frappe.ValidationError, "disabled"):
+				service.assert_may_sell(self.profile)
+
+	def test_a_drawer_already_open_on_it_can_still_be_closed(self):
+		"""Or the notes in it would belong to no count at all."""
+		entry = service.open_till(pos_profile=self.profile)["entry"]
+
+		with self._disabled(), patch.object(service.printing, "enqueue_print"):
+			service.close_till(opening_entry=entry)
+
+		self.assertEqual(frappe.db.get_value("POS Opening Entry", entry, "status"), "Closed")

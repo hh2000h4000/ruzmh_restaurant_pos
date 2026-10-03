@@ -131,6 +131,7 @@ def open_day(*, pos_profile: str, title: str | None = None) -> dict:
 
 	profile = _profile(pos_profile)
 	validate_branch_access(profile.branch)
+	assert_enabled(profile)
 
 	existing = _open_day(profile)
 	if existing:
@@ -287,6 +288,7 @@ def open_till(*, pos_profile: str, opening_floats: dict | None = None) -> dict:
 
 	profile = _profile(pos_profile)
 	validate_branch_access(profile.branch)
+	assert_enabled(profile)
 
 	day = _open_day(profile)
 	if not day:
@@ -1165,7 +1167,7 @@ def _profile(pos_profile: str) -> frappe._dict:
 	profile = frappe.db.get_value(
 		"POS Profile",
 		pos_profile,
-		["name", "restaurant_section", "restaurant_shift", "company"],
+		["name", "restaurant_section", "restaurant_shift", "company", "disabled"],
 		as_dict=True,
 	)
 	if not profile:
@@ -1297,6 +1299,10 @@ def may_sell(pos_profile: str) -> bool:
 	"""
 	profile = _profile(pos_profile)
 
+	# `D-302` — a terminal the manager disabled takes no money, whatever is open on it.
+	if profile.disabled:
+		return False
+
 	day = profile.restaurant_shift
 	if not (day and frappe.db.get_value("Restaurant Shift", day, "status") == "open"):
 		return False
@@ -1311,7 +1317,21 @@ def assert_may_sell(pos_profile: str) -> None:
 	counted and handed over, so anything after it lands in no count at all.
 	"""
 	if not may_sell(pos_profile):
+		assert_enabled(_profile(pos_profile))
 		frappe.throw(_("Open a shift before taking orders."))
+
+
+def assert_enabled(profile) -> None:
+	"""Refuse a terminal the manager disabled, saying so (`D-302`).
+
+	ERPNext's own **Disabled** tick on the POS Profile, which RPOS never read: a
+	manager ticked it believing the terminal was stopped, and it went on selling.
+	It now stops selling, opening a drawer and pairing a machine — and **only
+	that**: a drawer already open on it can still be counted and closed, or the
+	notes in it would belong to no count at all.
+	"""
+	if profile.disabled:
+		frappe.throw(_("This terminal is disabled. Ask a manager."))
 
 
 def _must_finish_orders(branch: str) -> bool:

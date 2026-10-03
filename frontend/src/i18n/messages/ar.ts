@@ -108,6 +108,8 @@ const messages: Catalogue["messages"] = {
   // «الدرج» لا «المناوبة» — بطلب المستخدم (D-225)، فالمكتب يسمّي اليوم «يوم العمل».
   "home.shiftClosed": "ما فيه درج مفتوح",
   "home.shiftRequired": "افتح الدرج قبل ما تضيف أصناف أو تستقبل طلبات.",
+  "home.terminalDisabled": "هذا الجهاز معطّل",
+  "home.terminalDisabledHint": "المدير عطّل هذا الجهاز، فما يستقبل طلبات ولا دفع. راجع المدير.",
   "home.openOrders": "الطلبات المفتوحة",
   "home.openOrdersUnit": "طلب مفتوح",
   "type.hintTable": "يبدأ باختيار طاولة",

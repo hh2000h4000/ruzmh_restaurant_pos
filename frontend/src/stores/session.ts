@@ -35,6 +35,8 @@ export const useSessionStore = defineStore("session", () => {
    * drawer of their own) lives on the server; nothing here re-derives it.
    */
   const canSell = computed(() => data.value?.can_sell === true);
+  /** A manager ticked **Disabled** on this terminal (`D-302`): it sells nothing until the tick comes off. */
+  const disabled = computed(() => Boolean(data.value?.pos_profile?.disabled));
 
   const orderTypes = computed<OrderType[]>(() => data.value?.order_types ?? []);
   const items = computed<CatalogItem[]>(() => data.value?.items ?? []);
@@ -145,6 +147,7 @@ export const useSessionStore = defineStore("session", () => {
     profile,
     branch,
     canSell,
+    disabled,
     orderTypes,
     items,
     itemsByCode,

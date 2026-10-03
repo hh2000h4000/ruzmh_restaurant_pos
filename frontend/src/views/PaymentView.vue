@@ -577,7 +577,7 @@ async function confirm(): Promise<void> {
   // BR-044 — a drawer that has been counted takes no more money (D-055). Said
   // on the press, not before it, so the screen carries no standing warning.
   if (!session.canSell) {
-    shiftNotice.value = t("home.shiftRequired");
+    shiftNotice.value = session.disabled ? t("home.terminalDisabledHint") : t("home.shiftRequired");
     return;
   }
 

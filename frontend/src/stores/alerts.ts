@@ -1,24 +1,21 @@
 import { defineStore } from "pinia";
 import { computed, ref } from "vue";
 
-import { getPrintAlerts, type PrintAlert } from "@/api/kitchen";
+import { getBell, markAnnouncementsRead, type BellItem } from "@/api/bell";
 import { playTone } from "@/sound";
 import { useConnectionStore } from "@/stores/connection";
 import { useSessionStore } from "@/stores/session";
 
 /**
- * The bell (`D-298`, `D-299`): the branch's kitchen tickets that did not print,
- * and which of them this till has read.
+ * The bell (`D-298`, `D-299`, `D-303`): what did not print, and what the office
+ * said — one list, newest first.
  *
- * **Read is this till's, kept on the device.** It is a convenience of the one
- * screen — the badge going quiet once somebody standing here has looked — not
- * a record: what was done about a ticket is on the server ("I told the
- * kitchen", a reprint). So it lives in `localStorage`, behind `try/catch`, and
- * a wiped browser only makes old alerts unread again.
- *
- * Read is a timestamp and a short list: everything that failed before `since`
- * is read, and so is each ticket named in `read` (one answered on its own).
- * Hidden rows are the ones the cashier struck off with ✕.
+ * **Read is kept where it belongs to.** A print alert is the branch's, and
+ * which of them *this till* has looked at is a convenience of the screen, kept
+ * on the device (`localStorage`, behind `try/catch`): a timestamp, and the
+ * tickets read or struck off one by one. An announcement is addressed to a
+ * person, and its sender needs to know who read it — so that is recorded on
+ * the server, per cashier, and the device only remembers which rows it hid.
  */
 interface Seen {
   since: string | null;
@@ -58,39 +55,52 @@ function today(): string {
   return `${now.getFullYear()}-${month}-${day}`;
 }
 
+/** What needs a hand now: an urgent announcement, or a ticket that never reached the kitchen. */
+export function isUrgent(item: BellItem): boolean {
+  return item.kind === "announcement" ? item.urgent : item.state === "failed";
+}
+
 export const useAlertsStore = defineStore("alerts", () => {
   const seen = ref<Seen>(load());
 
   /** The newest page — what the badge counts, whatever page the list is on. */
-  const latest = ref<PrintAlert[]>([]);
-  const rows = ref<PrintAlert[]>([]);
+  const latest = ref<BellItem[]>([]);
+  const rows = ref<BellItem[]>([]);
   const start = ref(0);
   const page = ref(20);
   const more = ref(false);
   const loading = ref(false);
   const failure = ref<string | null>(null);
+  /** This cashier's unread announcements on the server, past this page too. */
+  const unreadAnnouncements = ref(0);
+  /** Bumped to open the bell on its unread tab — the drawer just opened (`D-303`). */
+  const opened = ref(0);
 
-  /** Alerts already announced, so a chime is one per alert and never per refresh. */
+  /** Items already announced, so a chime is one per item and never per refresh. */
   let heard: Set<string> | null = null;
   let asking = false;
   let again = false;
 
-  function isUnread(row: PrintAlert): boolean {
-    if (seen.value.read.includes(row.kot_name)) return false;
-    return !seen.value.since || row.failed_at > seen.value.since;
+  function isUnread(item: BellItem): boolean {
+    if (item.kind === "announcement") return !item.read;
+    if (seen.value.read.includes(item.key)) return false;
+    return !seen.value.since || item.at > seen.value.since;
   }
 
-  const visible = computed(() => rows.value.filter((row) => !seen.value.hidden.includes(row.kot_name)));
+  const visible = computed(() => rows.value.filter((row) => !seen.value.hidden.includes(row.key)));
   const unread = computed(
-    () => latest.value.filter((row) => !seen.value.hidden.includes(row.kot_name) && isUnread(row)).length,
+    () =>
+      latest.value.filter(
+        (row) => row.kind === "print" && !seen.value.hidden.includes(row.key) && isUnread(row),
+      ).length + unreadAnnouncements.value,
   );
 
-  async function fetch(at: number): Promise<{ alerts: PrintAlert[]; more: boolean; page: number } | null> {
+  async function fetch(at: number) {
     const profile = useSessionStore().profile?.name;
     if (!profile) return null;
     // Offline the bell keeps what it last heard; the panel says why it is not newer.
     if (!useConnectionStore().isOnline) return null;
-    return getPrintAlerts(profile, at);
+    return getBell(profile, at);
   }
 
   /** The newest page: the badge, and the list when it is showing the newest. */
@@ -107,10 +117,11 @@ export const useAlertsStore = defineStore("alerts", () => {
     try {
       const answer = await fetch(0);
       if (!answer) return;
-      latest.value = answer.alerts;
+      latest.value = answer.items;
       page.value = answer.page;
+      unreadAnnouncements.value = answer.unread_announcements;
       if (start.value === 0) {
-        rows.value = answer.alerts;
+        rows.value = answer.items;
         more.value = answer.more;
       }
       failure.value = null;
@@ -127,14 +138,14 @@ export const useAlertsStore = defineStore("alerts", () => {
     }
   }
 
-  /** The user's rule: twenty at a time, and a page replaces the one before it. */
+  /** The user's rule: a page at a time, and a page replaces the one before it. */
   async function turn(to: number): Promise<void> {
     loading.value = true;
     try {
       const answer = await fetch(to);
       if (!answer) return;
       start.value = to;
-      rows.value = answer.alerts;
+      rows.value = answer.items;
       more.value = answer.more;
       failure.value = null;
     } catch (cause) {
@@ -144,7 +155,7 @@ export const useAlertsStore = defineStore("alerts", () => {
     }
   }
 
-  /** Once per new alert, never repeated (the user's choice), as this terminal is set (`D-301`). */
+  /** Once per new item, never repeated (the user's choice), as this terminal is set (`D-301`). */
   function chime(): void {
     const profile = useSessionStore().profile;
     if (profile?.rpos_alert_sound === 0) return;
@@ -152,10 +163,10 @@ export const useAlertsStore = defineStore("alerts", () => {
   }
 
   function announce(): void {
-    const fresh = latest.value.filter(isUnread).map((row) => row.kot_name);
+    const fresh = latest.value.filter(isUnread).map((row) => row.key);
     // The first read of a session only learns what is there: a till switched on
     // does not chime for the morning's alerts.
-    if (heard && fresh.some((name) => !heard!.has(name))) chime();
+    if (heard && fresh.some((key) => !heard!.has(key))) chime();
     heard = new Set([...(heard ?? []), ...fresh]);
   }
 
@@ -167,23 +178,45 @@ export const useAlertsStore = defineStore("alerts", () => {
     save(next);
   }
 
-  function markRead(kotName: string): void {
-    if (!seen.value.read.includes(kotName)) remember({ read: [...seen.value.read, kotName] });
+  /** One item read: on this till for a ticket, on the server for an announcement. */
+  async function markRead(item: BellItem): Promise<void> {
+    if (item.kind === "announcement") {
+      if (!item.read) await markAnnouncementsRead(item.key);
+      return;
+    }
+    if (!seen.value.read.includes(item.key)) remember({ read: [...seen.value.read, item.key] });
   }
 
-  /** Everything up to the newest alert is read; the per-ticket list is no longer needed. */
-  function markAllRead(): void {
-    const newest = latest.value.reduce((at, row) => (row.failed_at > at ? row.failed_at : at), seen.value.since ?? "");
+  /** Everything read: tickets up to the newest on this till, and this cashier's announcements. */
+  async function markAllRead(): Promise<void> {
+    const newest = latest.value
+      .filter((row) => row.kind === "print")
+      .reduce((at, row) => (row.at > at ? row.at : at), seen.value.since ?? "");
     remember({ since: newest || seen.value.since, read: [] });
+    if (unreadAnnouncements.value) {
+      await markAnnouncementsRead();
+      await refresh();
+    }
   }
 
-  function hide(kotName: string): void {
-    remember({ hidden: [...seen.value.hidden, kotName] });
+  function hide(key: string): void {
+    remember({ hidden: [...seen.value.hidden, key] });
+  }
+
+  /**
+   * The drawer just opened: if the office said something this cashier has not
+   * read, open the bell on it, as Toast's pre-shift notes do (`D-303`).
+   */
+  async function showUnreadAnnouncements(): Promise<void> {
+    await refresh();
+    if (unreadAnnouncements.value) opened.value += 1;
   }
 
   return {
     rows: visible,
     unread,
+    unreadAnnouncements,
+    opened,
     start,
     page,
     more,
@@ -195,5 +228,6 @@ export const useAlertsStore = defineStore("alerts", () => {
     markRead,
     markAllRead,
     hide,
+    showUnreadAnnouncements,
   };
 });

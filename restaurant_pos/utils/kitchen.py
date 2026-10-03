@@ -91,8 +91,11 @@ def alerts_per_page() -> int:
 	return cint(frappe.db.get_single_value("Restaurant POS Settings", "alerts_per_page")) or ALERT_PAGE
 
 
-def print_alerts(branch: str, start: int = 0) -> dict:
-	"""The bell: every ticket in the branch that failed to print, newest first (`D-298`).
+def print_alerts(branch: str, limit: int) -> list[dict]:
+	"""The newest ``limit`` tickets in the branch that failed to print (`D-298`).
+
+	One of the bell's two sources; `utils/bell.feed` pages them together with
+	the office's announcements (`D-303`).
 
 	**One place for the whole branch**, not a banner per order. The banner said
 	it only on the bill in hand, one line per ticket, and stood there until
@@ -110,13 +113,9 @@ def print_alerts(branch: str, start: int = 0) -> dict:
 	happened, not only what is still wrong. Which of them this till has read is
 	the till's own business (`D-299`), so the badge is counted there.
 
-	**Paged**, at the user's request — twenty unless the settings say otherwise
-	(`D-301`): a printer off all evening is a hundred rows nobody reads, and the
-	newest are the ones that matter. Only that page leaves the server, however
-	many thousand there are, and the index on ``print_failed_at`` reads only it.
+	**Only the newest ``limit``**, read through the index on ``print_failed_at``
+	however many thousand there are (`D-301`).
 	"""
-	start = max(0, int(start or 0))
-	page = alerts_per_page()
 	ticket = frappe.qb.DocType("Kitchen Order Ticket")
 	rows = (
 		_in_branch(ticket, branch)
@@ -135,16 +134,18 @@ def print_alerts(branch: str, start: int = 0) -> dict:
 		# The name breaks a tie, so a page boundary never shows one ticket twice.
 		.orderby(ticket.print_failed_at, order=Order.desc)
 		.orderby(ticket.name, order=Order.desc)
-		.limit(page + 1)
-		.offset(start)
+		.limit(limit)
 		.run(as_dict=True)
 	)
 
 	alerts = []
-	for row in rows[:page]:
+	for row in rows:
 		station, station_ar = station_of(row.production_center)
 		alerts.append(
 			{
+				"kind": "print",
+				"key": row.name,
+				"at": row.print_failed_at,
 				"kot_name": row.name,
 				"restaurant_order": row.restaurant_order,
 				"daily_number": row.daily_number,
@@ -158,11 +159,7 @@ def print_alerts(branch: str, start: int = 0) -> dict:
 			}
 		)
 
-	return {
-		"alerts": alerts,
-		"more": len(rows) > page,
-		"page": page,
-	}
+	return alerts
 
 
 def _alert_state(ticket) -> str:

@@ -92,6 +92,9 @@ UNSCOPED = {
 	"api.session.unpair_device": (
 		"desk action on the POS Profile, behind ERPNext document permissions (D-226)"
 	),
+	# Read from the till's bell and from the desk form alike, by office staff
+	# with no till role; it writes only the caller's own recipient rows.
+	"api.bell.mark_announcements_read": "touches only the signed-in person's own recipient rows (D-303)",
 	"restaurant_pos.doctype.pos_print_agent.pos_print_agent.generate_keys": (
 		"desk action on the DocType, behind ERPNext document permissions"
 	),

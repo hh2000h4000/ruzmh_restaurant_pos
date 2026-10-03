@@ -330,9 +330,20 @@
    "hidden": 0,
    "is_query_report": 0,
    "label": "Staff and Logs",
-   "link_count": 4,
+   "link_count": 5,
    "onboard": 0,
    "type": "Card Break"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Staff Announcements",
+   "link_count": 0,
+   "link_to": "POS Announcement",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
   },
   {
    "dependencies": "",
@@ -450,7 +461,7 @@
    "type": "Link"
   }
  ],
- "modified": "2026-10-02 12:00:00.000000",
+ "modified": "2026-10-03 16:32:39.565000",
  "modified_by": "Administrator",
  "module": "Restaurant POS",
  "name": "Restaurant POS",

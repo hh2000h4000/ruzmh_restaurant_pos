@@ -58,3 +58,4 @@
 - [تشغيل شاشة العميل](customer-display.md)
 - [مراجعة تذاكر المطبخ](kitchen-tickets.md)
 - [الطباعة ما اشتغلت؟](printing-problems.md)
+- [إعلان للكاشيرية](announcements.md)

@@ -901,6 +901,9 @@ function openShiftFromNotice(): void {
 function onTillOpened(): void {
   openingTill.value = false;
   if (session.canSell && startupError.value) void startFromRoute();
+  // D-303 — a drawer just opened: what the office said and this cashier has
+  // not read opens in the bell, before the first order.
+  if (session.canSell) void alerts.showUnreadAnnouncements();
 }
 
 /**

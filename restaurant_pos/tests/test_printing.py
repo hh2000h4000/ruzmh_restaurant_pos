@@ -724,7 +724,7 @@ class TheBellSaysWhatDidNotPrint(PrintingTestBase):
 		return kot
 
 	def _alert(self, kot) -> dict:
-		return next(row for row in kitchen.print_alerts(BRANCH)["alerts"] if row["kot_name"] == kot.name)
+		return next(row for row in kitchen.print_alerts(BRANCH, 50) if row["kot_name"] == kot.name)
 
 	def test_a_ticket_that_did_not_print_is_named_with_its_station(self):
 		kot = self._failed()
@@ -780,7 +780,7 @@ class TheBellSaysWhatDidNotPrint(PrintingTestBase):
 		older = self._failed()
 		newer = self._failed()
 
-		names = [row["kot_name"] for row in kitchen.print_alerts(BRANCH)["alerts"]]
+		names = [row["kot_name"] for row in kitchen.print_alerts(BRANCH, 50)]
 
 		self.assertLess(names.index(newer.name), names.index(older.name))
 
@@ -828,16 +828,19 @@ class TheBellSaysWhatDidNotPrint(PrintingTestBase):
 		"""The user's rule, with a page of two so the test does not make twenty-one bills.
 
 		The size is the settings' (`D-301`); patched here, so the test owns it.
+		Paged through the bell's feed, which pages announcements alongside (`D-303`).
 		"""
+		from restaurant_pos.utils import bell
+
 		first, second, third = self._failed(), self._failed(), self._failed()
 
 		with patch.object(kitchen, "alerts_per_page", return_value=2):
-			page = kitchen.print_alerts(BRANCH)
-			after = kitchen.print_alerts(BRANCH, start=2)
+			page = bell.feed(BRANCH, "nobody@example.com")
+			after = bell.feed(BRANCH, "nobody@example.com", start=2)
 
-		self.assertEqual([row["kot_name"] for row in page["alerts"]], [third.name, second.name])
+		self.assertEqual([row["key"] for row in page["items"]], [third.name, second.name])
 		self.assertTrue(page["more"])
-		self.assertEqual(after["alerts"][0]["kot_name"], first.name)
+		self.assertEqual(after["items"][0]["key"], first.name)
 
 
 class TestTheShippedTemplates(FrappeTestCase):

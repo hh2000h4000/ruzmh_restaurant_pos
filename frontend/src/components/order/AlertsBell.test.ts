@@ -3,14 +3,17 @@
 /**
  * The bell (`D-299`), to the user's design: a small button with an unread
  * count, a panel over the screen, twenty at a time, and a chime when a new
- * alert arrives — as the terminal is set (`D-301`).
+ * alert arrives — as the terminal is set (`D-301`). And the office's
+ * announcements in the same list, with their own urgent tab (`D-303`).
  */
 import { flushPromises, mount } from "@vue/test-utils";
 import { createPinia, setActivePinia } from "pinia";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import * as bellApi from "@/api/bell";
+import type { Announcement, Bell, BellItem } from "@/api/bell";
 import * as kitchenApi from "@/api/kitchen";
-import type { PrintAlert, PrintAlerts } from "@/api/kitchen";
+import type { PrintAlert } from "@/api/kitchen";
 import AlertsBell from "@/components/order/AlertsBell.vue";
 import { t } from "@/i18n";
 import { playTone } from "@/sound";
@@ -18,8 +21,12 @@ import { useAlertsStore } from "@/stores/alerts";
 import { useSessionStore } from "@/stores/session";
 import type { PosSession } from "@/types/session";
 
+vi.mock("@/api/bell", () => ({
+  getBell: vi.fn(),
+  markAnnouncementsRead: vi.fn(),
+}));
+
 vi.mock("@/api/kitchen", () => ({
-  getPrintAlerts: vi.fn(),
   markKitchenTold: vi.fn(),
   reprintKot: vi.fn(),
 }));
@@ -31,8 +38,12 @@ vi.mock("@/sound", () => ({ playTone: vi.fn(), unlockSound: vi.fn() }));
 const NOW = "2099-01-01 12:00:00";
 
 function alert(over: Partial<PrintAlert> = {}): PrintAlert {
+  const key = over.key ?? over.kot_name ?? "KOT-1";
   return {
-    kot_name: "KOT-1",
+    kind: "print",
+    key,
+    at: NOW,
+    kot_name: key,
     restaurant_order: "RO-1",
     daily_number: 4,
     call_name: null,
@@ -45,8 +56,27 @@ function alert(over: Partial<PrintAlert> = {}): PrintAlert {
   };
 }
 
-function answer(alerts: PrintAlert[], over: Partial<PrintAlerts> = {}): PrintAlerts {
-  return { alerts, more: false, page: 20, ...over };
+function note(over: Partial<Announcement> = {}): Announcement {
+  return {
+    kind: "announcement",
+    key: "ANN-1",
+    at: NOW,
+    subject: "Shawarma is out",
+    message: "Do not sell it today.",
+    urgent: false,
+    sender: "The Accountant",
+    read: false,
+    ...over,
+  };
+}
+
+function answer(items: BellItem[], over: Partial<Bell> = {}): Bell {
+  const unread = items.filter((item) => item.kind === "announcement" && !item.read).length;
+  return { items, more: false, page: 20, unread_announcements: unread, ...over };
+}
+
+function signIn(profile: Record<string, unknown> = {}): void {
+  useSessionStore().data = { pos_profile: { name: "RPOS Till", ...profile } } as unknown as PosSession;
 }
 
 async function bell(mayReprint = true) {
@@ -73,7 +103,7 @@ beforeEach(() => {
   window.localStorage.clear();
   setActivePinia(createPinia());
   vi.clearAllMocks();
-  useSessionStore().data = { pos_profile: { name: "RPOS Till" } } as unknown as PosSession;
+  signIn();
 });
 
 afterEach(() => {
@@ -82,17 +112,17 @@ afterEach(() => {
 
 describe("the bell", () => {
   it("is quiet with nothing unread, and counts what is", async () => {
-    vi.mocked(kitchenApi.getPrintAlerts).mockResolvedValue(answer([]));
+    vi.mocked(bellApi.getBell).mockResolvedValue(answer([]));
     expect((await bell()).text()).toBe("");
 
-    vi.mocked(kitchenApi.getPrintAlerts).mockResolvedValue(answer([alert(), alert({ kot_name: "KOT-2" })]));
+    vi.mocked(bellApi.getBell).mockResolvedValue(answer([alert(), alert({ key: "KOT-2" })]));
     setActivePinia(createPinia());
-    useSessionStore().data = { pos_profile: { name: "RPOS Till" } } as unknown as PosSession;
+    signIn();
     expect((await bell()).text()).toBe("2");
   });
 
   it("opens over the screen with the station, the bill and what to do", async () => {
-    vi.mocked(kitchenApi.getPrintAlerts).mockResolvedValue(answer([alert()]));
+    vi.mocked(bellApi.getBell).mockResolvedValue(answer([alert()]));
 
     const text = (await opened()).text();
 
@@ -103,7 +133,7 @@ describe("the bell", () => {
   });
 
   it("tells the kitchen, and the alert is read after", async () => {
-    vi.mocked(kitchenApi.getPrintAlerts)
+    vi.mocked(bellApi.getBell)
       .mockResolvedValueOnce(answer([alert()])) // the till's own check
       .mockResolvedValueOnce(answer([alert()])) // opening the bell asks again
       .mockResolvedValue(answer([alert({ state: "told" })]));
@@ -122,40 +152,38 @@ describe("the bell", () => {
   });
 
   it("marks everything read, and remembers it on this till", async () => {
-    vi.mocked(kitchenApi.getPrintAlerts).mockResolvedValue(answer([alert()]));
+    vi.mocked(bellApi.getBell).mockResolvedValue(answer([alert()]));
     const wrapper = await opened();
 
     await button(wrapper, t("alerts.markAllRead")).trigger("click");
 
     expect(useAlertsStore().unread).toBe(0);
     setActivePinia(createPinia());
-    useSessionStore().data = { pos_profile: { name: "RPOS Till" } } as unknown as PosSession;
+    signIn();
     await useAlertsStore().refresh();
     expect(useAlertsStore().unread).toBe(0);
   });
 
   it("strikes off only an alert that needs nothing more", async () => {
-    vi.mocked(kitchenApi.getPrintAlerts).mockResolvedValue(
-      answer([alert(), alert({ kot_name: "KOT-2", state: "printed" })]),
-    );
+    vi.mocked(bellApi.getBell).mockResolvedValue(answer([alert(), alert({ key: "KOT-2", state: "printed" })]));
     const wrapper = await opened();
 
     const strikes = wrapper.findAll(`[aria-label="${t("alerts.hide")}"]`);
     expect(strikes).toHaveLength(1);
 
     await strikes[0].trigger("click");
-    expect(useAlertsStore().rows.map((row) => row.kot_name)).toEqual(["KOT-1"]);
+    expect(useAlertsStore().rows.map((row) => row.key)).toEqual(["KOT-1"]);
   });
 
   it("offers no reprint to a cashier who may not", async () => {
-    vi.mocked(kitchenApi.getPrintAlerts).mockResolvedValue(answer([alert()]));
+    vi.mocked(bellApi.getBell).mockResolvedValue(answer([alert()]));
 
     expect((await opened(false)).text()).not.toContain(t("order.reprintTicket"));
   });
 
   it("opens on the unread", async () => {
-    vi.mocked(kitchenApi.getPrintAlerts).mockResolvedValue(
-      answer([alert(), alert({ kot_name: "KOT-2", failed_at: "2000-01-01 00:00:00", state: "told" })]),
+    vi.mocked(bellApi.getBell).mockResolvedValue(
+      answer([alert(), alert({ key: "KOT-2", at: "2000-01-01 00:00:00", state: "told" })]),
     );
 
     const wrapper = await opened();
@@ -166,26 +194,24 @@ describe("the bell", () => {
   });
 
   it("asks for the older twenty only when told to", async () => {
-    vi.mocked(kitchenApi.getPrintAlerts).mockResolvedValue(answer([alert()], { more: true }));
+    vi.mocked(bellApi.getBell).mockResolvedValue(answer([alert()], { more: true }));
     const wrapper = await opened();
 
     await button(wrapper, t("alerts.older")).trigger("click");
     await flushPromises();
 
-    expect(kitchenApi.getPrintAlerts).toHaveBeenLastCalledWith("RPOS Till", 20);
+    expect(bellApi.getBell).toHaveBeenLastCalledWith("RPOS Till", 20);
   });
 
   it("chimes for an alert that arrives, not for what was there already", async () => {
-    useSessionStore().data = {
-      pos_profile: { name: "RPOS Till", rpos_alert_sound: 1, rpos_alert_tone: "bell", rpos_alert_volume: 90 },
-    } as unknown as PosSession;
-    vi.mocked(kitchenApi.getPrintAlerts).mockResolvedValue(answer([alert()]));
+    signIn({ rpos_alert_sound: 1, rpos_alert_tone: "bell", rpos_alert_volume: 90 });
+    vi.mocked(bellApi.getBell).mockResolvedValue(answer([alert()]));
     const alerts = useAlertsStore();
     await alerts.refresh();
     await alerts.refresh();
     expect(playTone).not.toHaveBeenCalled();
 
-    vi.mocked(kitchenApi.getPrintAlerts).mockResolvedValue(answer([alert({ kot_name: "KOT-2" }), alert()]));
+    vi.mocked(bellApi.getBell).mockResolvedValue(answer([alert({ key: "KOT-2" }), alert()]));
     await alerts.refresh();
 
     expect(playTone).toHaveBeenCalledOnce();
@@ -193,22 +219,20 @@ describe("the bell", () => {
   });
 
   it("stays silent on a terminal set to no sound", async () => {
-    useSessionStore().data = {
-      pos_profile: { name: "RPOS Till", rpos_alert_sound: 0 },
-    } as unknown as PosSession;
-    vi.mocked(kitchenApi.getPrintAlerts).mockResolvedValue(answer([]));
+    signIn({ rpos_alert_sound: 0 });
+    vi.mocked(bellApi.getBell).mockResolvedValue(answer([]));
     const alerts = useAlertsStore();
     await alerts.refresh();
 
-    vi.mocked(kitchenApi.getPrintAlerts).mockResolvedValue(answer([alert()]));
+    vi.mocked(bellApi.getBell).mockResolvedValue(answer([alert()]));
     await alerts.refresh();
 
     expect(playTone).not.toHaveBeenCalled();
   });
 
   it("asks once more when asked while asking, and never twice at once", async () => {
-    let answerNow: (value: PrintAlerts) => void = () => undefined;
-    vi.mocked(kitchenApi.getPrintAlerts)
+    let answerNow: (value: Bell) => void = () => undefined;
+    vi.mocked(bellApi.getBell)
       .mockImplementationOnce(() => new Promise((resolve) => (answerNow = resolve)))
       .mockResolvedValue(answer([alert({ state: "told" })]));
     const alerts = useAlertsStore();
@@ -216,13 +240,95 @@ describe("the bell", () => {
     const first = alerts.refresh();
     void alerts.refresh();
     void alerts.refresh();
-    expect(kitchenApi.getPrintAlerts).toHaveBeenCalledTimes(1);
+    expect(bellApi.getBell).toHaveBeenCalledTimes(1);
 
     answerNow(answer([alert()]));
     await first;
     await flushPromises();
 
-    expect(kitchenApi.getPrintAlerts).toHaveBeenCalledTimes(2);
-    expect(alerts.rows[0].state).toBe("told");
+    expect(bellApi.getBell).toHaveBeenCalledTimes(2);
+    expect((alerts.rows[0] as PrintAlert).state).toBe("told");
+  });
+});
+
+describe("what the office says", () => {
+  it("is in the same list, with who sent it and what it says", async () => {
+    vi.mocked(bellApi.getBell).mockResolvedValue(answer([note()]));
+
+    const text = (await opened()).text();
+
+    expect(text).toContain("Shawarma is out");
+    expect(text).toContain("Do not sell it today.");
+    expect(text).toContain("The Accountant");
+    expect(useAlertsStore().unread).toBe(1);
+  });
+
+  it("is read on the server, by this cashier", async () => {
+    vi.mocked(bellApi.getBell)
+      .mockResolvedValueOnce(answer([note()]))
+      .mockResolvedValueOnce(answer([note()]))
+      .mockResolvedValue(answer([note({ read: true })]));
+    vi.mocked(bellApi.markAnnouncementsRead).mockResolvedValue({ marked: 1 });
+    const wrapper = await opened();
+
+    await button(wrapper, t("alerts.seen")).trigger("click");
+    await flushPromises();
+
+    expect(bellApi.markAnnouncementsRead).toHaveBeenCalledWith("ANN-1");
+    expect(useAlertsStore().unread).toBe(0);
+  });
+
+  it("marking everything read reads this cashier's announcements too", async () => {
+    vi.mocked(bellApi.getBell)
+      .mockResolvedValueOnce(answer([note(), alert()]))
+      .mockResolvedValueOnce(answer([note(), alert()]))
+      .mockResolvedValue(answer([note({ read: true }), alert()]));
+    vi.mocked(bellApi.markAnnouncementsRead).mockResolvedValue({ marked: 1 });
+    const wrapper = await opened();
+
+    await button(wrapper, t("alerts.markAllRead")).trigger("click");
+    await flushPromises();
+
+    expect(bellApi.markAnnouncementsRead).toHaveBeenCalledWith();
+    expect(useAlertsStore().unread).toBe(0);
+  });
+
+  it("an urgent one is under Urgent, with the tickets still waiting, and nothing else", async () => {
+    vi.mocked(bellApi.getBell).mockResolvedValue(
+      answer([
+        note({ key: "ANN-URGENT", urgent: true, subject: "Card 10045 is stolen" }),
+        note({ key: "ANN-PLAIN", subject: "Staff meeting at four" }),
+        alert(),
+        alert({ key: "KOT-DONE", state: "printed" }),
+      ]),
+    );
+    const wrapper = await opened();
+
+    await button(wrapper, t("alerts.tabUrgent")).trigger("click");
+    const text = wrapper.text();
+
+    expect(text).toContain("Card 10045 is stolen");
+    expect(text).not.toContain("Staff meeting at four");
+    expect(wrapper.findAll("li")).toHaveLength(2);
+  });
+
+  it("opens by itself when the drawer opens over something unread", async () => {
+    vi.mocked(bellApi.getBell).mockResolvedValue(answer([note()]));
+    const wrapper = await bell();
+
+    await useAlertsStore().showUnreadAnnouncements();
+    await flushPromises();
+
+    expect(wrapper.text()).toContain("Shawarma is out");
+  });
+
+  it("stays shut when the drawer opens over nothing unread", async () => {
+    vi.mocked(bellApi.getBell).mockResolvedValue(answer([note({ read: true })]));
+    const wrapper = await bell();
+
+    await useAlertsStore().showUnreadAnnouncements();
+    await flushPromises();
+
+    expect(wrapper.text()).not.toContain("Shawarma is out");
   });
 });

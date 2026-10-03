@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, ref, watch } from "vue";
 
+import type { Announcement, BellItem } from "@/api/bell";
 import { markKitchenTold, reprintKot, type PrintAlert } from "@/api/kitchen";
 import AppIcon from "@/components/AppIcon.vue";
 import { useDismiss } from "@/composables/useDismiss";
 import { dateOnly, formatNumber, pick, t, timeOnly, type MessageKey } from "@/i18n";
-import { useAlertsStore } from "@/stores/alerts";
+import { isUrgent, useAlertsStore } from "@/stores/alerts";
 import { useConnectionStore } from "@/stores/connection";
 
 /**
@@ -21,12 +22,17 @@ import { useConnectionStore } from "@/stores/connection";
  * **Each alert reads in two seconds**: what happened, which bill, when — and
  * the one thing to do about it, if anything is left to do.
  *
+ * **And what the office says** (`D-303`): announcements share the list, newest
+ * first whatever the kind, with their own tab for what is urgent. Opening a
+ * drawer opens the bell on what this cashier has not read.
+ *
  * Two places this departs from the design, both on purpose:
  * - **`click`, not `pointerdown`.** `main.css` explains it: a press acted on
  *   before the browser knows the finger is scrolling puts the wrong thing on
  *   the wrong bill. The list here scrolls.
  * - **✕ only on an alert that needs nothing.** Striking off a ticket that
- *   never reached the kitchen would hide the one alert this bell exists for.
+ *   never reached the kitchen would hide the one alert this bell exists for —
+ *   and an announcement nobody has read would leave its sender waiting.
  */
 defineProps<{ mayReprint: boolean }>();
 
@@ -34,14 +40,30 @@ const alerts = useAlertsStore();
 const connection = useConnectionStore();
 
 const open = ref(false);
+type Tab = "unread" | "urgent" | "all";
+const TABS: Tab[] = ["unread", "urgent", "all"];
+const TAB_LABEL = { unread: "alerts.tabUnread", urgent: "alerts.tabUrgent", all: "alerts.tabAll" } as const;
 // Unread first, at the user's request: what is new is what the bell is opened for.
-const onlyUnread = ref(true);
+const tab = ref<Tab>("unread");
 const busy = ref(false);
 const failure = ref<string | null>(null);
 
 const anchor = useDismiss(open);
 
-const shown = computed(() => (onlyUnread.value ? alerts.rows.filter(alerts.isUnread) : alerts.rows));
+const shown = computed(() => {
+  if (tab.value === "unread") return alerts.rows.filter(alerts.isUnread);
+  if (tab.value === "urgent") return alerts.rows.filter(isUrgent);
+  return alerts.rows;
+});
+
+// The drawer opened over something unread from the office (`D-303`).
+watch(
+  () => alerts.opened,
+  () => {
+    tab.value = "unread";
+    open.value = true;
+  },
+);
 const first = computed(() => alerts.start === 0);
 
 function toggle(): void {
@@ -49,11 +71,11 @@ function toggle(): void {
   if (open.value) void alerts.refresh();
 }
 
-async function act(row: PrintAlert, run: () => Promise<unknown>): Promise<void> {
+async function act(row: BellItem, run: () => Promise<unknown>): Promise<void> {
   busy.value = true;
   try {
     await run();
-    alerts.markRead(row.kot_name);
+    await alerts.markRead(row);
     failure.value = null;
   } catch (cause) {
     failure.value = cause instanceof Error ? cause.message : String(cause);
@@ -68,13 +90,42 @@ function localDay(): string {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 }
 
+/**
+ * "Got it" does nothing but read it — `act` records that. Named here because a
+ * template cannot reach `Promise`: the inline version failed on the till itself.
+ */
+function nothingMore(): Promise<void> {
+  return Promise.resolve();
+}
+
+/** When, as the cashier reads it: the time today, the date before that. */
+function when(at: string): string {
+  return `${at.slice(0, 10) === localDay() ? "" : `${dateOnly(at)} `}${timeOnly(at)}`;
+}
+
+/** "Accountant · 11:39" — who said it, and when. */
+function byline(row: Announcement): string {
+  return `${row.sender} · ${when(row.at)}`;
+}
+
 /** "Order 4 · 11:39" — the bill as the cashier calls it, and when it failed. */
 function source(row: PrintAlert): string {
   const bill = row.call_name || t("alerts.order", { number: formatNumber(row.daily_number ?? 0) });
   const where = row.table_number ? ` · ${t("card.table", { number: row.table_number })}` : "";
-  const day = row.failed_at.slice(0, 10) === localDay() ? "" : `${dateOnly(row.failed_at)} `;
   const ended = row.state === "failed" ? "" : ` · ${t(`alerts.state.${row.state}` as MessageKey)}`;
-  return `${bill}${where} · ${day}${timeOnly(row.failed_at)}${ended}`;
+  return `${bill}${where} · ${when(row.at)}${ended}`;
+}
+
+/** The kind at a glance: ! needs a hand, ✓ is settled, i is the office talking. */
+function badge(row: BellItem): { mark: string; tone: string } {
+  if (row.kind === "announcement") {
+    return row.urgent
+      ? { mark: "!", tone: "bg-danger/10 text-danger" }
+      : { mark: "i", tone: "bg-background text-muted" };
+  }
+  return row.state === "printed" || row.state === "told"
+    ? { mark: "✓", tone: "bg-primary/10 text-primary" }
+    : { mark: "!", tone: "bg-accent-gold/15 text-accent-gold" };
 }
 </script>
 
@@ -135,15 +186,25 @@ function source(row: PrintAlert): string {
       </header>
 
       <div class="flex gap-1.5 px-[22px] pb-3.5">
+        <!-- "Urgent" carries the alarm colour even unselected: it is the tab a
+             glance should find. -->
         <button
-          v-for="tab in [true, false]"
-          :key="String(tab)"
+          v-for="name in TABS"
+          :key="name"
           type="button"
           class="h-10 rounded-[11px] px-4 text-[13.5px] font-medium transition-colors duration-150"
-          :class="onlyUnread === tab ? 'bg-content text-surface' : 'bg-background text-muted'"
-          @click="onlyUnread = tab"
+          :class="
+            tab === name
+              ? name === 'urgent'
+                ? 'bg-danger text-white'
+                : 'bg-content text-surface'
+              : name === 'urgent'
+                ? 'bg-danger/10 text-danger'
+                : 'bg-background text-muted'
+          "
+          @click="tab = name"
         >
-          {{ tab ? t("alerts.tabUnread") : t("alerts.tabAll") }}
+          {{ t(TAB_LABEL[name]) }}
         </button>
       </div>
 
@@ -180,21 +241,47 @@ function source(row: PrintAlert): string {
         <ul v-else>
           <li
             v-for="row in shown"
-            :key="row.kot_name"
+            :key="row.key"
             class="grid grid-cols-[36px_minmax(0,1fr)_36px] gap-3.5 border-b border-line/60 px-[22px] py-4"
             :class="alerts.isUnread(row) ? 'bg-background/40' : 'bg-surface'"
           >
             <span
               class="grid h-9 w-9 place-items-center rounded-[11px] text-[15px] font-semibold"
-              :class="
-                row.state === 'printed' || row.state === 'told'
-                  ? 'bg-primary/10 text-primary'
-                  : 'bg-accent-gold/15 text-accent-gold'
-              "
+              :class="badge(row).tone"
               aria-hidden="true"
-            >{{ row.state === "printed" || row.state === "told" ? "✓" : "!" }}</span>
+            >{{ badge(row).mark }}</span>
 
-            <div class="grid min-w-0 gap-1">
+            <div
+              v-if="row.kind === 'announcement'"
+              class="grid min-w-0 gap-1"
+            >
+              <p
+                class="text-[14.5px] text-content [text-wrap:pretty]"
+                :class="alerts.isUnread(row) ? 'font-semibold' : 'font-normal'"
+              >
+                {{ row.subject }}
+              </p>
+              <p class="whitespace-pre-line text-[13.5px] text-content/80 [text-wrap:pretty]">
+                {{ row.message }}
+              </p>
+              <p class="rpos-numeric text-[12.5px] text-muted">
+                {{ byline(row) }}
+              </p>
+              <button
+                v-if="!row.read"
+                type="button"
+                class="mt-2 h-10 justify-self-start rounded-[11px] bg-primary px-4 text-[13px] font-medium text-primary-contrast transition-colors duration-150 hover:bg-primary/90 disabled:opacity-50"
+                :disabled="busy"
+                @click="act(row, nothingMore)"
+              >
+                {{ t("alerts.seen") }}
+              </button>
+            </div>
+
+            <div
+              v-else
+              class="grid min-w-0 gap-1"
+            >
               <p
                 class="text-[14.5px] text-content [text-wrap:pretty]"
                 :class="alerts.isUnread(row) ? 'font-semibold' : 'font-normal'"
@@ -234,14 +321,19 @@ function source(row: PrintAlert): string {
                 class="mt-1.5 h-2 w-2 rounded-full bg-primary"
                 :aria-label="t('alerts.tabUnread')"
               />
+              <!-- An icon, not the ✕ character: the glyph came out in two colours
+                   from one row to the next, whichever font drew it. -->
               <button
-                v-if="row.state !== 'failed'"
+                v-if="row.kind === 'announcement' ? row.read : row.state !== 'failed'"
                 type="button"
-                class="grid h-9 w-9 place-items-center rounded-[10px] text-[13px] text-subtle transition-colors duration-150 hover:bg-background hover:text-content"
+                class="grid h-9 w-9 place-items-center rounded-[10px] text-subtle transition-colors duration-150 hover:bg-background hover:text-content"
                 :aria-label="t('alerts.hide')"
-                @click="alerts.hide(row.kot_name)"
+                @click="alerts.hide(row.key)"
               >
-                ✕
+                <AppIcon
+                  name="close"
+                  :size="14"
+                />
               </button>
             </div>
           </li>

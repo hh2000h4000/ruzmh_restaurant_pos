@@ -46,6 +46,11 @@ export function getKots(orderName: string): Promise<KotCreated[]> {
 export type PrintAlertState = "failed" | "printing" | "printed" | "told";
 
 export interface PrintAlert {
+  kind: "print";
+  /** The ticket — what the bell keys a row by, whatever its kind. */
+  key: string;
+  /** When it failed — what the bell orders by. */
+  at: string;
   kot_name: string;
   restaurant_order: string;
   daily_number: number | null;
@@ -55,19 +60,6 @@ export interface PrintAlert {
   station_ar: string;
   failed_at: string;
   state: PrintAlertState;
-}
-
-export interface PrintAlerts {
-  alerts: PrintAlert[];
-  /** An older page exists. */
-  more: boolean;
-  /** Rows on a page — the server's number, so the two never step differently. */
-  page: number;
-}
-
-/** The bell: this branch's unprinted tickets, newest first, twenty at a time (`D-298`). */
-export function getPrintAlerts(posProfile: string, start = 0): Promise<PrintAlerts> {
-  return query("kitchen.get_print_alerts", { pos_profile: posProfile, start });
 }
 
 /**

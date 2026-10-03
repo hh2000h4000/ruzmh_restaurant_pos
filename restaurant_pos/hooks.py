@@ -30,6 +30,15 @@ after_migrate = "restaurant_pos.setup.install.after_migrate"
 # ---------------------------------------------------------------------------
 # Document events
 # ---------------------------------------------------------------------------
+# D-303 — an announcement opened from ERPNext's bell by the person it was sent
+# to, and by nobody else who merely works in the desk.
+permission_query_conditions = {
+	"POS Announcement": "restaurant_pos.utils.announcements.query_conditions",
+}
+has_permission = {
+	"POS Announcement": "restaurant_pos.utils.announcements.has_permission",
+}
+
 # The manager PIN is a Password custom field on User. Frappe would persist it
 # reversibly and check_password() would never see it, so it is intercepted and
 # stored as a one-way hash instead (DECISIONS.md D-015, D-016).

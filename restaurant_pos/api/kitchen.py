@@ -11,7 +11,7 @@ from frappe import _
 
 from restaurant_pos.utils import idempotency
 from restaurant_pos.utils import kitchen as service
-from restaurant_pos.utils.order import assert_mutable, branch_of_profile
+from restaurant_pos.utils.order import assert_mutable
 from restaurant_pos.utils.permissions import (
 	assert_permission,
 	validate_branch_access,
@@ -70,16 +70,6 @@ def reprint_kot(kot_name: str, queue_id: str | None = None) -> dict:
 		reference_name=kot_name,
 	)
 	return result
-
-
-@frappe.whitelist()
-def get_print_alerts(pos_profile: str, start: int = 0) -> dict:
-	"""The bell (`D-298`): this branch's unprinted tickets, twenty at a time."""
-	branch = branch_of_profile(pos_profile)
-	if not branch:
-		frappe.throw(_("POS Profile {0} has no Restaurant Section configured.").format(pos_profile))
-	validate_branch_access(branch)
-	return service.print_alerts(branch, start=start)
 
 
 @frappe.whitelist()

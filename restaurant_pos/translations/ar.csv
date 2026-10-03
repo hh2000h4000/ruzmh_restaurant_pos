@@ -1405,3 +1405,26 @@ alarm,إنذار,POS Profile
 Test the Alert Sound,جرّب صوت التنبيه
 This terminal is disabled. Ask a manager.,هذا الجهاز معطّل. راجع المدير.
 This terminal is disabled. Enable it before pairing a till.,هذا الجهاز معطّل. فعّله قبل ما تربط له جهاز.
+POS Announcement,إعلان نقاط البيع
+POS Announcement Recipient,مستلم الإعلان
+Subject,العنوان,POS Announcement
+Urgent,عاجل,POS Announcement
+"Shown under the bell's Urgent tab, in red. Keep it for what a cashier must know now.","يطلع تحت تاب «عاجل» في الجرس، بالأحمر. خلّه للشي اللي لازم الكاشير يعرفه الحين.",POS Announcement
+Message,الرسالة,POS Announcement
+Show Until,يظهر لين,POS Announcement
+"After this day the announcement leaves the bell. Empty keeps it.","بعد هذا اليوم يختفي الإعلان من الجرس. لو تركته فاضي يبقى.",POS Announcement
+Sent At,وقت الإرسال,POS Announcement
+Sent By,أرسله,POS Announcement
+Who Receives It,مين يستلمه,POS Announcement
+"Leave all three empty to send it to everyone who works a till. Branches and roles narrow it; people named here receive it whatever else is chosen.","اتركها الثلاث فاضية عشان يوصل لكل من يشتغل على الكاشير. الفروع والأدوار تحدّده، والأشخاص اللي تسمّيهم هنا يوصلهم مهما اخترت.",POS Announcement
+Branches,الفروع,POS Announcement
+Roles,الأدوار,POS Announcement
+People,الأشخاص,POS Announcement
+Who Has Read It,مين قرأه,POS Announcement
+Read,قرأه,POS Announcement
+Recipients,المستلمون,POS Announcement
+Read At,وقت القراءة,POS Announcement Recipient
+Name,الاسم,POS Announcement Recipient
+{0} of {1},{0} من {1}
+Nobody would receive this announcement. Choose other branches, roles or people.,ما أحد بيستلم هذا الإعلان. اختر فروع أو أدوار أو أشخاص غيرهم.
+Staff Announcements,إعلانات الموظفين

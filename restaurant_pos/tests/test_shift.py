@@ -19,7 +19,7 @@ Refs: FR-8.1..8.3, BR-040..BR-045, D-029, D-046, D-047
 from unittest.mock import patch
 
 import frappe
-from frappe.utils import flt, now_datetime
+from frappe.utils import add_to_date, flt, now_datetime
 
 from restaurant_pos.tests.test_order import BRANCH, ITEM, OrderTestBase
 from restaurant_pos.tests.test_payment import CASH, _ensure_fiscal_year
@@ -222,6 +222,20 @@ class TestTheFinancialReport(ShiftTestBase):
 
 		self.assertEqual(after["voids"] - before["voids"], 1)
 		self.assertAlmostEqual(after["void_amount"] - before["void_amount"], flt(line.amount), places=2)
+
+	def test_a_clock_that_stepped_back_does_not_leave_the_bill_out_of_its_drawer(self):
+		"""`D-297` — the gate lost runs to this: paid in the second after the drawer opened."""
+		entry = self._opened("multi")
+		opened = frappe.db.get_value("POS Opening Entry", entry, "period_start_date")
+		order = self._order()
+		orders.add_item(order, item=ITEM, qty=1)
+		order.reload()
+
+		with patch("restaurant_pos.utils.payment.now_datetime", return_value=add_to_date(opened, seconds=-2)):
+			payment.process_payment(order, payments=[{"method": CASH, "amount": order.total_amount}])
+
+		self.assertEqual(frappe.db.get_value("Restaurant Order", order.name, "closed_at"), opened)
+		self.assertIn(order.name, [row["name"] for row in service._ended_in([opened, now_datetime()])])
 
 	def test_an_open_bill_is_counted_by_its_amount_in_the_day(self):
 		outcome = service.open_till(pos_profile=self.profile)

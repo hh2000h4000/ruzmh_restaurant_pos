@@ -20,7 +20,7 @@ Refs: BR-016, BR-020..BR-024, FR-2.7, FR-10.2, FR-10.3, FR-10.4
 
 import frappe
 from frappe import _
-from frappe.utils import cint, flt, now_datetime
+from frappe.utils import cint, flt, get_datetime, now_datetime
 
 from restaurant_pos.utils import (
 	activity,
@@ -143,6 +143,12 @@ def process_payment(
 
 	drawer = selling_till(order.pos_profile)
 	order.pos_opening_entry = drawer.name if drawer else None
+	# **Never before the drawer it went into** (`D-297`, the family of `D-261`).
+	# A clock stepped back by NTP stamped a bill paid in the second after the
+	# drawer opened *earlier* than the opening, and the drawer's window, which
+	# reads `closed_at`, left the notes out of what it expected to hold.
+	if drawer and get_datetime(order.closed_at) < get_datetime(drawer.period_start_date):
+		order.closed_at = drawer.period_start_date
 	order.save(ignore_permissions=True)
 
 	# BR-061 / FR-2.7g — the table is not free until it has been cleaned, and not

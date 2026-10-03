@@ -57,7 +57,12 @@ describe("the card's menu", () => {
 
     // The options button, and the tap that opens the menu also reaches the
     // document — with no anchor it would close what it just opened.
-    await wrapper.get(`[aria-label="${t("card.options")}"]`).trigger("click");
+    const options = wrapper.get(`[aria-label="${t("card.options")}"]`);
+    await options.trigger("click");
+    // Said apart from the text below: this failed about once in four full runs
+    // and never alone, and `toContain` printed a truncated text that could not
+    // tell "never opened" from "opened without the entry" (`D-297`).
+    expect(options.attributes("aria-expanded")).toBe("true");
     expect(wrapper.text()).toContain(t("print.receiptAgain"));
 
     const elsewhere = document.createElement("div");

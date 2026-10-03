@@ -26,7 +26,7 @@ Refs: BR-073, BR-074, BR-075, FR-2.3, FR-2.4, FR-2.5, FR-6.3, FR-6.4
 import frappe
 from frappe import _
 from frappe.query_builder import Order
-from frappe.utils import flt, now_datetime
+from frappe.utils import cint, flt, now_datetime
 
 from restaurant_pos.utils import activity, combos, printing, routing
 from restaurant_pos.utils.audit import log_audit
@@ -54,14 +54,41 @@ def print_state(order_name: str) -> dict:
 		filters={"restaurant_order": order_name, "print_status": PENDING},
 		fields=["production_center"],
 	):
-		if frappe.get_cached_doc("Production Center", ticket.production_center).auto_print_on_send:
+		if prints_on_send(ticket.production_center):
 			printing += 1
 
 	return {"tickets_printing": printing}
 
 
-#: Alerts on one page of the bell (`D-298`). The next page is asked for, never sent unasked.
+def station_of(production_center: str | None) -> tuple[str, str]:
+	"""A ticket's station as the cashier names it, in English and Arabic.
+
+	No station is the cashier's printer (`BR-070` level 7, `D-300`).
+	"""
+	if not production_center:
+		return "Cashier printer", _("Cashier printer")
+	center = frappe.get_cached_doc("Production Center", production_center)
+	return center.title, center.title_ar or center.title
+
+
+def prints_on_send(production_center: str | None) -> bool:
+	"""Whether a new ticket goes to paper by itself.
+
+	A station decides for itself; a ticket with none always does — nobody has
+	a screen for it, so paper is the only way it reaches anyone (`D-300`).
+	"""
+	return not production_center or bool(
+		frappe.get_cached_doc("Production Center", production_center).auto_print_on_send
+	)
+
+
+#: Alerts on one page of the bell when the settings say nothing (`D-298`).
 ALERT_PAGE = 20
+
+
+def alerts_per_page() -> int:
+	"""The bell's page, from the settings (`D-301`) — the next page is asked for, never sent unasked."""
+	return cint(frappe.db.get_single_value("Restaurant POS Settings", "alerts_per_page")) or ALERT_PAGE
 
 
 def print_alerts(branch: str, start: int = 0) -> dict:
@@ -83,10 +110,13 @@ def print_alerts(branch: str, start: int = 0) -> dict:
 	happened, not only what is still wrong. Which of them this till has read is
 	the till's own business (`D-299`), so the badge is counted there.
 
-	**Paged by twenty**, at the user's request: a printer off all evening is a
-	hundred rows nobody reads, and the newest are the ones that matter.
+	**Paged**, at the user's request — twenty unless the settings say otherwise
+	(`D-301`): a printer off all evening is a hundred rows nobody reads, and the
+	newest are the ones that matter. Only that page leaves the server, however
+	many thousand there are, and the index on ``print_failed_at`` reads only it.
 	"""
 	start = max(0, int(start or 0))
+	page = alerts_per_page()
 	ticket = frappe.qb.DocType("Kitchen Order Ticket")
 	rows = (
 		_in_branch(ticket, branch)
@@ -105,14 +135,14 @@ def print_alerts(branch: str, start: int = 0) -> dict:
 		# The name breaks a tie, so a page boundary never shows one ticket twice.
 		.orderby(ticket.print_failed_at, order=Order.desc)
 		.orderby(ticket.name, order=Order.desc)
-		.limit(ALERT_PAGE + 1)
+		.limit(page + 1)
 		.offset(start)
 		.run(as_dict=True)
 	)
 
 	alerts = []
-	for row in rows[:ALERT_PAGE]:
-		center = frappe.get_cached_doc("Production Center", row.production_center)
+	for row in rows[:page]:
+		station, station_ar = station_of(row.production_center)
 		alerts.append(
 			{
 				"kot_name": row.name,
@@ -121,8 +151,8 @@ def print_alerts(branch: str, start: int = 0) -> dict:
 				"call_name": row.call_name,
 				"table_number": row.table
 				and frappe.get_cached_value("Restaurant Table", row.table, "table_number"),
-				"station": center.title,
-				"station_ar": center.title_ar or center.title,
+				"station": station,
+				"station_ar": station_ar,
 				"failed_at": row.print_failed_at,
 				"state": _alert_state(row),
 			}
@@ -130,8 +160,8 @@ def print_alerts(branch: str, start: int = 0) -> dict:
 
 	return {
 		"alerts": alerts,
-		"more": len(rows) > ALERT_PAGE,
-		"page": ALERT_PAGE,
+		"more": len(rows) > page,
+		"page": page,
 	}
 
 
@@ -179,8 +209,7 @@ def mark_kitchen_told(kot_name: str) -> dict:
 		{"kitchen_told_by": frappe.session.user, "kitchen_told_at": now_datetime()},
 		update_modified=False,
 	)
-	center = frappe.get_cached_doc("Production Center", kot.production_center)
-	activity.log(kot.restaurant_order, "kitchen_told", subject=center.title_ar or center.title)
+	activity.log(kot.restaurant_order, "kitchen_told", subject=station_of(kot.production_center)[1])
 	return {"kot_name": kot.name, "state": "told"}
 
 
@@ -197,7 +226,8 @@ def send_to_kitchen(order, *, kot_type: str | None = None) -> dict:
 	kot_type = kot_type or _kot_type_for(order)
 	header = _header(order)
 
-	routed, unrouted = _split_by_center(_tickets_of(order, pending))
+	routed = _split_by_center(_tickets_of(order, pending))
+	unrouted = routed.get(None, [])
 	created = []
 	named: set[int] = set()
 
@@ -234,14 +264,7 @@ def send_to_kitchen(order, *, kot_type: str | None = None) -> dict:
 
 	# Station **names**, not ids. `PC-001, PC-007` is not a sentence anybody
 	# reads — the same lesson the kitchen ticket taught (`D-087`).
-	stations = sorted(
-		{
-			frappe.db.get_value("Production Center", kot.production_center, "title_ar")
-			or frappe.db.get_value("Production Center", kot.production_center, "title")
-			or kot.production_center
-			for kot in created
-		}
-	)
+	stations = sorted({station_of(kot.production_center)[1] for kot in created})
 
 	activity.log(
 		order,
@@ -261,7 +284,7 @@ def send_to_kitchen(order, *, kot_type: str | None = None) -> dict:
 			for kot in created
 		],
 		# BR-070 level 7. Surfaced rather than swallowed: an item nobody routed
-		# is an item no kitchen station is cooking.
+		# went to the cashier's printer, not to a station (`D-300`).
 		"unrouted_items": [row.item_name for row in unrouted],
 	}
 
@@ -277,7 +300,7 @@ def create_void_kot(order, rows) -> list[dict]:
 		return []
 
 	header = _header(order)
-	routed, _unrouted = _split_by_center(_tickets_of(order, rows))
+	routed = _split_by_center(_tickets_of(order, rows))
 
 	created = []
 	for production_center, center_rows in routed.items():
@@ -413,18 +436,19 @@ def _tickets_of(order, rows) -> list[frappe._dict]:
 	return tickets
 
 
-def _split_by_center(rows) -> tuple[dict, list]:
-	"""Group rows by production center; unrouted rows come back separately."""
-	routed: dict[str, list] = {}
-	unrouted = []
+def _split_by_center(rows) -> dict:
+	"""Group rows by production center; rows no rule routed share the key ``None``.
 
+	**They still get a ticket** (`BR-070` level 7, `D-300`). They used to come
+	back on their own and go nowhere: the cashier was told they would print on
+	the cashier's printer, and nothing printed — a Fanta that reached no one,
+	and no alert, because no ticket existed to fail. A ticket with no station
+	prints on the cashier's printer, and fails into the bell like any other.
+	"""
+	grouped: dict = {}
 	for row in rows:
-		if row.production_center:
-			routed.setdefault(row.production_center, []).append(row)
-		else:
-			unrouted.append(row)
-
-	return routed, unrouted
+		grouped.setdefault(row.production_center or None, []).append(row)
+	return grouped
 
 
 def _create_kot(order, *, kot_type, production_center, rows, header, action):
@@ -465,6 +489,9 @@ def _announce(kot, *, reprint: bool = False) -> None:
 	Realtime is a notification, not the delivery mechanism: a KDS that missed
 	the event still finds the ticket by querying.
 	"""
+	if not kot.production_center:
+		return  # No station, so no screen listening for it (`D-300`).
+
 	frappe.publish_realtime(
 		event="rpos:new_kot",
 		message={

@@ -11,7 +11,9 @@
   "display_section",
   "idle_message",
   "banner_seconds",
-  "banners"
+  "banners",
+  "alerts_section",
+  "alerts_per_page"
  ],
  "fields": [
   {
@@ -63,12 +65,25 @@
    "fieldtype": "Table",
    "label": "Banners",
    "options": "POS Display Banner"
+  },
+  {
+   "fieldname": "alerts_section",
+   "fieldtype": "Section Break",
+   "label": "Alerts"
+  },
+  {
+   "default": "20",
+   "description": "How many alerts the bell shows at a time, newest first. The older ones come a page at a time when asked for. Between 5 and 50.",
+   "fieldname": "alerts_per_page",
+   "fieldtype": "Int",
+   "label": "Alerts per page",
+   "non_negative": 1
   }
  ],
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2026-09-12 05:00:00.000000",
+ "modified": "2026-10-03 14:23:34.291797",
  "modified_by": "Administrator",
  "module": "Restaurant POS",
  "name": "Restaurant POS Settings",

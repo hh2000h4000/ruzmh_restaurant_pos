@@ -749,6 +749,33 @@ class TheBellSaysWhatDidNotPrint(PrintingTestBase):
 
 		self.assertEqual(self._alert(kot)["state"], "failed")
 
+	def _unrouted_kot(self):
+		order = self._order()
+		row = orders.add_item(order, item=ITEM, qty=1)
+		row.production_center = None
+		order.save(ignore_permissions=True)
+		result = kitchen.send_to_kitchen(order)
+		return frappe.get_doc("Kitchen Order Ticket", result["kots_created"][0]["kot_name"])
+
+	def test_an_item_no_station_takes_prints_on_the_cashier_printer(self):
+		"""`D-300` — BR-070 level 7, which the screen promised and nothing did."""
+		frappe.db.set_value("POS Profile", self.profile, "default_printer", self.printer)
+		kot = self._unrouted_kot()
+
+		job = service.print_kot(kot.name)
+
+		self.assertEqual(frappe.db.get_value("POS Print Job", job, "printer"), self.printer)
+
+	def test_with_no_cashier_printer_it_rings_the_bell(self):
+		frappe.db.set_value("POS Profile", self.profile, "default_printer", None)
+		kot = self._unrouted_kot()
+
+		service.print_kot(kot.name)
+
+		alert = self._alert(kot)
+		self.assertEqual(alert["state"], "failed")
+		self.assertEqual(alert["station"], "Cashier printer")
+
 	def test_the_newest_is_first(self):
 		older = self._failed()
 		newer = self._failed()
@@ -798,10 +825,13 @@ class TheBellSaysWhatDidNotPrint(PrintingTestBase):
 		self.assertEqual(self._alert(kot)["state"], "printed")
 
 	def test_twenty_at_a_time_and_the_next_page_is_asked_for(self):
-		"""The user's rule, with a page of two so the test does not make twenty-one bills."""
+		"""The user's rule, with a page of two so the test does not make twenty-one bills.
+
+		The size is the settings' (`D-301`); patched here, so the test owns it.
+		"""
 		first, second, third = self._failed(), self._failed(), self._failed()
 
-		with patch.object(kitchen, "ALERT_PAGE", 2):
+		with patch.object(kitchen, "alerts_per_page", return_value=2):
 			page = kitchen.print_alerts(BRANCH)
 			after = kitchen.print_alerts(BRANCH, start=2)
 
@@ -1266,3 +1296,29 @@ class TestAskingForThePaperAgain(ReturnTestBase):
 			frappe.set_user("Administrator")
 			frappe.local.rpos_permission_cache = {}
 			frappe.db.set_value("POS Permission Set", "POS Cashier", "can_reprint_receipt", 1)
+
+
+class TheBellIsSetPerTerminal(FrappeTestCase):
+	"""`D-301` — the tone a manager picks is a tone the till can play."""
+
+	def test_every_tone_offered_is_one_the_till_has(self):
+		import json
+		from pathlib import Path
+
+		tones = json.loads(
+			(Path(frappe.get_app_path("restaurant_pos")) / "public" / "alert_tones.json").read_text()
+		)
+		offered = frappe.get_meta("POS Profile").get_field("rpos_alert_tone").options.split("\n")
+
+		self.assertEqual(set(offered), {name for name in tones if not name.startswith("_")})
+
+	def test_the_bells_page_stays_between_five_and_fifty(self):
+		settings = frappe.get_single("Restaurant POS Settings")
+		settings.alerts_per_page = 500
+
+		with self.assertRaises(frappe.ValidationError):
+			settings.validate()
+
+	def test_the_page_follows_the_settings(self):
+		with patch.object(frappe.db, "get_single_value", return_value=10):
+			self.assertEqual(kitchen.alerts_per_page(), 10)

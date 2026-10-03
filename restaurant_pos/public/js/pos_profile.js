@@ -9,6 +9,8 @@ frappe.ui.form.on("POS Profile", {
 		if (frm.is_new()) return;
 
 		frm.add_custom_button(__("Pair a Till"), () => pair_till(frm));
+		// D-301 — heard here, at the volume chosen, before a cashier hears it.
+		frm.add_custom_button(__("Test the Alert Sound"), () => play_alert_tone(frm.doc));
 
 		if (!frm.doc.rpos_device_token_hash) {
 			frm.dashboard.set_headline(
@@ -79,4 +81,32 @@ function unpair_till(frm) {
 			});
 		},
 	);
+}
+
+/**
+ * The bell's tone, as the till plays it (`D-301`).
+ *
+ * The notes are data in `alert_tones.json`, read by this and by the till, so a
+ * tone sounds the same in both places. The few lines that play them are the
+ * one thing written twice: the desk cannot import the till's code.
+ */
+async function play_alert_tone(doc) {
+	const tones = await (await fetch("/assets/restaurant_pos/alert_tones.json")).json();
+	const notes = tones[doc.rpos_alert_tone] || tones.chime;
+	const volume = Math.min(100, Math.max(1, doc.rpos_alert_volume || 70)) / 100;
+	const audio = new (window.AudioContext || window.webkitAudioContext)();
+	for (const note of notes) {
+		const tone = audio.createOscillator();
+		const gain = audio.createGain();
+		tone.type = note.wave;
+		tone.frequency.value = note.hz;
+		tone.connect(gain);
+		gain.connect(audio.destination);
+		const at = audio.currentTime + note.at;
+		gain.gain.setValueAtTime(0.0001, at);
+		gain.gain.exponentialRampToValueAtTime(volume, at + 0.02);
+		gain.gain.exponentialRampToValueAtTime(0.0001, at + note.for);
+		tone.start(at);
+		tone.stop(at + note.for + 0.02);
+	}
 }

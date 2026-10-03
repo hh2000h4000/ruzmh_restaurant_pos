@@ -272,6 +272,10 @@ def _profile(pos_profile: str) -> frappe._dict:
 			"rpos_theme",
 			# Which machine may load this terminal at all (`D-226`).
 			"rpos_device_token_hash",
+			# The bell's sound on this terminal (`D-301`).
+			"rpos_alert_sound",
+			"rpos_alert_tone",
+			"rpos_alert_volume",
 		],
 		as_dict=True,
 	)

@@ -170,8 +170,8 @@ class AFixedPriceCombo(ComboTestBase):
 				"KOT Item", filters={"parent": ticket["kot_name"]}, fields=["item", "notes"]
 			)
 		]
-		# Two items, each to its own station — or said to be unrouted, never lost.
-		self.assertEqual(len(sent) + len(result["unrouted_items"]), 2)
+		# Two items, each on a ticket — a station's, or the cashier printer's (`D-300`).
+		self.assertEqual(len(sent), 2)
 		self.assertLessEqual({row.item for row in sent}, {ITEM, COLA})
 		for row in sent:
 			self.assertIn("Burger meal", row.notes or "")

@@ -1387,3 +1387,19 @@ Kitchen Told By,من أبلغ المطبخ,Kitchen Order Ticket
 Kitchen Told At,وقت إبلاغ المطبخ,Kitchen Order Ticket
 "Who said the kitchen was told by hand, so the unprinted ticket stops alerting (D-298).","من قال إنه أبلغ المطبخ بنفسه، فتوقّف تنبيه التذكرة التي لم تُطبع (D-298).",Kitchen Order Ticket
 This ticket is not waiting on the kitchen.,هذه التذكرة لا تحتاج إبلاغ المطبخ.
+Cashier printer,طابعة الكاشير
+"Empty when no rule routed the items: the ticket goes to the cashier's printer (BR-070 level 7, D-300).","فارغ إذا ما وجّهت أي قاعدة الأصناف: التذكرة تنطبع على طابعة الكاشير (BR-070 المستوى 7، D-300).",Kitchen Order Ticket
+Alerts,التنبيهات,Restaurant POS Settings
+Alerts per page,عدد التنبيهات في الصفحة,Restaurant POS Settings
+"How many alerts the bell shows at a time, newest first. The older ones come a page at a time when asked for. Between 5 and 50.","كم تنبيه يعرض الجرس في المرة، الأحدث أول. والأقدم يجي صفحة صفحة لما تطلبه. من 5 إلى 50.",Restaurant POS Settings
+Alerts per page must be between {0} and {1}.,عدد التنبيهات في الصفحة لازم يكون بين {0} و{1}.
+Alert Sound,صوت التنبيه,POS Profile
+Play a sound for a new alert,رنّة لما يجي تنبيه جديد,POS Profile
+Tone,النغمة,POS Profile
+Volume,مستوى الصوت,POS Profile
+"From 1 to 100. The device's own volume still applies on top.","من 1 إلى 100. وصوت الجهاز نفسه يأثّر فوقها.",POS Profile
+chime,رنّة,POS Profile
+bell,جرس,POS Profile
+beep,صفّارة,POS Profile
+alarm,إنذار,POS Profile
+Test the Alert Sound,جرّب صوت التنبيه

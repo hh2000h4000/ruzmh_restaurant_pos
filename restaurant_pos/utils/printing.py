@@ -470,17 +470,24 @@ def print_kot(kot_name: str, *, force: bool = False) -> str | None:
 	Returns the job, or None when nothing was queued.
 	"""
 	try:
+		from restaurant_pos.utils.kitchen import prints_on_send
+
 		kot = frappe.get_doc("Kitchen Order Ticket", kot_name)
-		center = frappe.get_cached_doc("Production Center", kot.production_center)
-		if not force and not center.auto_print_on_send:
+		center = (
+			frappe.get_cached_doc("Production Center", kot.production_center)
+			if kot.production_center
+			else None
+		)
+		if not force and not prints_on_send(kot.production_center):
 			# Nobody asked for paper. The ticket is on the station's screen and
 			# `pending` is the truth: not printed, and not failed either.
 			return None
 
-		# BR-070 level 7: a station with no printer of its own falls to the
-		# cashier's, which is the one printer somebody is standing next to.
+		# BR-070 level 7: a station with no printer of its own — or no station at
+		# all (`D-300`) — falls to the cashier's, the one printer somebody is
+		# standing next to.
 		profile = frappe.db.get_value("Restaurant Order", kot.restaurant_order, "pos_profile")
-		printer = center.printer or _cashier_printer(profile)
+		printer = (center.printer if center else None) or _cashier_printer(profile)
 		if not printer:
 			_mark_kot_failed(kot_name)
 			return None
@@ -509,7 +516,9 @@ def kot_context(kot, center) -> dict:
 	return {
 		"doc": kot,
 		"center": center,
-		"station": center.title_ar or center.title or kot.production_center,
+		"station": (center.title_ar or center.title or kot.production_center)
+		if center
+		else _("Cashier printer"),
 		"table_number": frappe.db.get_value("Restaurant Table", kot.table, "table_number")
 		if kot.table
 		else None,

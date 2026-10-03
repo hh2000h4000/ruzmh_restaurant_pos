@@ -50,6 +50,7 @@ import { useDismiss } from "@/composables/useDismiss";
 import { useOpenOrders } from "@/composables/useOpenOrders";
 import { formatNumber, t, tn } from "@/i18n";
 import { isMissingScreen } from "@/router/missingScreen";
+import { unlockSound } from "@/sound";
 import { useAlertsStore } from "@/stores/alerts";
 import { useAuthStore } from "@/stores/auth";
 import { useOrderStore } from "@/stores/order";
@@ -160,22 +161,48 @@ watch(
 /**
  * How often the bell asks (`D-298`). A ticket can fail on another till in the
  * branch, or give up twenty minutes after it was sent, with nothing on this
- * screen to prompt a check. Half a minute, because the bell now chimes
- * (`D-299`) and a chime long after the fact is a chime nobody connects to it.
+ * screen to prompt a check. Half a minute, because the bell chimes (`D-299`)
+ * and a chime long after the fact is a chime nobody connects to it.
+ *
+ * **Asking, not listening — for now** (`D-301`). The server could push the
+ * alert the moment it happens (Frappe's socket.io), but this app has no socket
+ * client (`D-162`), and building one for a 2 ms question twice a minute is the
+ * wrong trade. What keeps it cheap is written here: it stops while the screen
+ * is hidden and asks once when it comes back, never asks offline, never asks
+ * twice at once, and only one page ever leaves the server, on an index.
  */
 const ALERTS_EVERY_MS = 30_000;
 let alertsTimer: ReturnType<typeof setInterval> | null = null;
+
+function startAlerts(): void {
+  stopAlerts();
+  void alerts.refresh();
+  alertsTimer = setInterval(() => void alerts.refresh(), ALERTS_EVERY_MS);
+}
+
+function stopAlerts(): void {
+  if (alertsTimer) clearInterval(alertsTimer);
+  alertsTimer = null;
+}
+
+function onAlertsVisibility(): void {
+  if (document.visibilityState === "visible") startAlerts();
+  else stopAlerts();
+}
 
 onMounted(() => {
   // The menu offers what the shift allows, so it has to know the shift.
   void shift.refresh();
   void startFromRoute();
-  void alerts.refresh();
-  alertsTimer = setInterval(() => void alerts.refresh(), ALERTS_EVERY_MS);
+  startAlerts();
+  document.addEventListener("visibilitychange", onAlertsVisibility);
+  // The chime's audio opens on the cashier's first touch (`D-301`).
+  unlockSound();
 });
 
 onUnmounted(() => {
-  if (alertsTimer) clearInterval(alertsTimer);
+  stopAlerts();
+  document.removeEventListener("visibilitychange", onAlertsVisibility);
 });
 
 /**

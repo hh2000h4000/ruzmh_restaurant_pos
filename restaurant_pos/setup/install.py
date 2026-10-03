@@ -661,6 +661,46 @@ CUSTOM_FIELDS = {
 			"no_copy": 1,
 			"insert_after": "rpos_device_token_hash",
 		},
+		# D-301 — the bell's sound, per terminal: a counter by the street and a
+		# pass by the grill are not the same room.
+		{
+			"fieldname": "rpos_alert_section",
+			"fieldtype": "Section Break",
+			"label": "Alert Sound",
+			"collapsible": 1,
+			"insert_after": "rpos_pairing_code_hash",
+		},
+		{
+			"fieldname": "rpos_alert_sound",
+			"fieldtype": "Check",
+			"label": "Play a sound for a new alert",
+			"default": "1",
+			"insert_after": "rpos_alert_section",
+		},
+		{
+			"fieldname": "rpos_alert_tone",
+			"fieldtype": "Select",
+			"label": "Tone",
+			# Keys of `public/alert_tones.json` — a test holds the two together.
+			"options": "chime\nbell\nbeep\nalarm",
+			"default": "chime",
+			"depends_on": "rpos_alert_sound",
+			"insert_after": "rpos_alert_sound",
+		},
+		{
+			"fieldname": "rpos_alert_cb",
+			"fieldtype": "Column Break",
+			"insert_after": "rpos_alert_tone",
+		},
+		{
+			"fieldname": "rpos_alert_volume",
+			"fieldtype": "Int",
+			"label": "Volume",
+			"default": "70",
+			"description": "From 1 to 100. The device's own volume still applies on top.",
+			"depends_on": "rpos_alert_sound",
+			"insert_after": "rpos_alert_cb",
+		},
 	],
 }
 

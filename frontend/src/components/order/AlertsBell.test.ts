@@ -3,7 +3,7 @@
 /**
  * The bell (`D-299`), to the user's design: a small button with an unread
  * count, a panel over the screen, twenty at a time, and a chime when a new
- * alert arrives.
+ * alert arrives — as the terminal is set (`D-301`).
  */
 import { flushPromises, mount } from "@vue/test-utils";
 import { createPinia, setActivePinia } from "pinia";
@@ -13,6 +13,7 @@ import * as kitchenApi from "@/api/kitchen";
 import type { PrintAlert, PrintAlerts } from "@/api/kitchen";
 import AlertsBell from "@/components/order/AlertsBell.vue";
 import { t } from "@/i18n";
+import { playTone } from "@/sound";
 import { useAlertsStore } from "@/stores/alerts";
 import { useSessionStore } from "@/stores/session";
 import type { PosSession } from "@/types/session";
@@ -24,6 +25,8 @@ vi.mock("@/api/kitchen", () => ({
 }));
 
 vi.mock("@/stores/connection", () => ({ useConnectionStore: () => ({ isOnline: true }) }));
+
+vi.mock("@/sound", () => ({ playTone: vi.fn(), unlockSound: vi.fn() }));
 
 const NOW = "2099-01-01 12:00:00";
 
@@ -158,34 +161,53 @@ describe("the bell", () => {
   });
 
   it("chimes for an alert that arrives, not for what was there already", async () => {
-    const played = vi.fn();
-    class FakeAudio {
-      currentTime = 0;
-      destination = {};
-      createOscillator() {
-        played();
-        return { frequency: {}, connect: vi.fn(), start: vi.fn(), stop: vi.fn() };
-      }
-      createGain() {
-        return { gain: { setValueAtTime: vi.fn(), exponentialRampToValueAtTime: vi.fn() }, connect: vi.fn() };
-      }
-      close() {
-        return Promise.resolve();
-      }
-    }
-    vi.stubGlobal("AudioContext", FakeAudio);
-    try {
-      vi.mocked(kitchenApi.getPrintAlerts).mockResolvedValue(answer([alert()]));
-      const alerts = useAlertsStore();
-      await alerts.refresh();
-      await alerts.refresh();
-      expect(played).not.toHaveBeenCalled();
+    useSessionStore().data = {
+      pos_profile: { name: "RPOS Till", rpos_alert_sound: 1, rpos_alert_tone: "bell", rpos_alert_volume: 90 },
+    } as unknown as PosSession;
+    vi.mocked(kitchenApi.getPrintAlerts).mockResolvedValue(answer([alert()]));
+    const alerts = useAlertsStore();
+    await alerts.refresh();
+    await alerts.refresh();
+    expect(playTone).not.toHaveBeenCalled();
 
-      vi.mocked(kitchenApi.getPrintAlerts).mockResolvedValue(answer([alert({ kot_name: "KOT-2" }), alert()]));
-      await alerts.refresh();
-      expect(played).toHaveBeenCalled();
-    } finally {
-      vi.unstubAllGlobals();
-    }
+    vi.mocked(kitchenApi.getPrintAlerts).mockResolvedValue(answer([alert({ kot_name: "KOT-2" }), alert()]));
+    await alerts.refresh();
+
+    expect(playTone).toHaveBeenCalledOnce();
+    expect(playTone).toHaveBeenCalledWith("bell", 90);
+  });
+
+  it("stays silent on a terminal set to no sound", async () => {
+    useSessionStore().data = {
+      pos_profile: { name: "RPOS Till", rpos_alert_sound: 0 },
+    } as unknown as PosSession;
+    vi.mocked(kitchenApi.getPrintAlerts).mockResolvedValue(answer([]));
+    const alerts = useAlertsStore();
+    await alerts.refresh();
+
+    vi.mocked(kitchenApi.getPrintAlerts).mockResolvedValue(answer([alert()]));
+    await alerts.refresh();
+
+    expect(playTone).not.toHaveBeenCalled();
+  });
+
+  it("asks once more when asked while asking, and never twice at once", async () => {
+    let answerNow: (value: PrintAlerts) => void = () => undefined;
+    vi.mocked(kitchenApi.getPrintAlerts)
+      .mockImplementationOnce(() => new Promise((resolve) => (answerNow = resolve)))
+      .mockResolvedValue(answer([alert({ state: "told" })]));
+    const alerts = useAlertsStore();
+
+    const first = alerts.refresh();
+    void alerts.refresh();
+    void alerts.refresh();
+    expect(kitchenApi.getPrintAlerts).toHaveBeenCalledTimes(1);
+
+    answerNow(answer([alert()]));
+    await first;
+    await flushPromises();
+
+    expect(kitchenApi.getPrintAlerts).toHaveBeenCalledTimes(2);
+    expect(alerts.rows[0].state).toBe("told");
   });
 });

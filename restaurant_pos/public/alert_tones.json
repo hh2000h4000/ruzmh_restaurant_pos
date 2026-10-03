@@ -1,0 +1,22 @@
+{
+  "_comment": "The bell's tones (D-301): notes the browser plays, not sound files. One source for the till and the desk's test button. Keys must match POS Profile.rpos_alert_tone.",
+  "chime": [
+    { "hz": 880, "wave": "sine", "at": 0, "for": 0.18 },
+    { "hz": 1320, "wave": "sine", "at": 0.2, "for": 0.32 }
+  ],
+  "bell": [
+    { "hz": 1046, "wave": "triangle", "at": 0, "for": 0.9 },
+    { "hz": 1568, "wave": "sine", "at": 0, "for": 0.6 }
+  ],
+  "beep": [
+    { "hz": 1000, "wave": "square", "at": 0, "for": 0.12 },
+    { "hz": 1000, "wave": "square", "at": 0.22, "for": 0.12 },
+    { "hz": 1000, "wave": "square", "at": 0.44, "for": 0.12 }
+  ],
+  "alarm": [
+    { "hz": 880, "wave": "sawtooth", "at": 0, "for": 0.16 },
+    { "hz": 660, "wave": "sawtooth", "at": 0.18, "for": 0.16 },
+    { "hz": 880, "wave": "sawtooth", "at": 0.36, "for": 0.16 },
+    { "hz": 660, "wave": "sawtooth", "at": 0.54, "for": 0.16 }
+  ]
+}

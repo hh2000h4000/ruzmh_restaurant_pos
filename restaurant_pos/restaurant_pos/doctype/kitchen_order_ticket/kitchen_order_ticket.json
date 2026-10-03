@@ -55,7 +55,8 @@
    "in_standard_filter": 1,
    "label": "Restaurant Order",
    "options": "Restaurant Order",
-   "reqd": 1
+   "reqd": 1,
+   "search_index": 1
   },
   {
    "default": "initial",
@@ -74,7 +75,7 @@
    "in_standard_filter": 1,
    "label": "Production Center",
    "options": "Production Center",
-   "reqd": 1
+   "description": "Empty when no rule routed the items: the ticket goes to the cashier's printer (BR-070 level 7, D-300)."
   },
   {
    "fieldname": "context_cb",
@@ -171,7 +172,8 @@
    "fieldname": "print_failed_at",
    "fieldtype": "Datetime",
    "label": "Print Failed At",
-   "read_only": 1
+   "read_only": 1,
+   "search_index": 1
   },
   {
    "description": "Who said the kitchen was told by hand, so the unprinted ticket stops alerting (D-298).",
@@ -191,7 +193,7 @@
  "index_web_pages_for_search": 1,
  "istable": 0,
  "links": [],
- "modified": "2026-10-03 13:27:01.318966",
+ "modified": "2026-10-03 14:23:34.290500",
  "modified_by": "Administrator",
  "module": "Restaurant POS",
  "name": "Kitchen Order Ticket",

@@ -2,6 +2,7 @@ import { defineStore } from "pinia";
 import { computed, ref } from "vue";
 
 import { getPrintAlerts, type PrintAlert } from "@/api/kitchen";
+import { playTone } from "@/sound";
 import { useConnectionStore } from "@/stores/connection";
 import { useSessionStore } from "@/stores/session";
 
@@ -57,36 +58,6 @@ function today(): string {
   return `${now.getFullYear()}-${month}-${day}`;
 }
 
-/**
- * A short two-note chime, made rather than loaded — no file to ship or cache
- * offline. Once per new alert, never repeated: the user asked to hear one
- * arrive, not to be nagged by it. Silent where the browser will not play.
- */
-function chime(): void {
-  try {
-    const Context =
-      window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-    if (!Context) return;
-    const audio = new Context();
-    [880, 1320].forEach((pitch, step) => {
-      const tone = audio.createOscillator();
-      const volume = audio.createGain();
-      tone.frequency.value = pitch;
-      tone.connect(volume);
-      volume.connect(audio.destination);
-      const at = audio.currentTime + step * 0.18;
-      volume.gain.setValueAtTime(0.0001, at);
-      volume.gain.exponentialRampToValueAtTime(0.2, at + 0.02);
-      volume.gain.exponentialRampToValueAtTime(0.0001, at + 0.16);
-      tone.start(at);
-      tone.stop(at + 0.17);
-    });
-    setTimeout(() => void audio.close(), 600);
-  } catch {
-    // No sound is better than a broken till.
-  }
-}
-
 export const useAlertsStore = defineStore("alerts", () => {
   const seen = ref<Seen>(load());
 
@@ -101,6 +72,8 @@ export const useAlertsStore = defineStore("alerts", () => {
 
   /** Alerts already announced, so a chime is one per alert and never per refresh. */
   let heard: Set<string> | null = null;
+  let asking = false;
+  let again = false;
 
   function isUnread(row: PrintAlert): boolean {
     if (seen.value.read.includes(row.kot_name)) return false;
@@ -122,6 +95,14 @@ export const useAlertsStore = defineStore("alerts", () => {
 
   /** The newest page: the badge, and the list when it is showing the newest. */
   async function refresh(): Promise<void> {
+    // One question at a time, and never a queue of them — the open orders'
+    // rule (`D-180`): asked again while asking, it asks once more when done,
+    // so an answer the cashier just gave is never left out.
+    if (asking) {
+      again = true;
+      return;
+    }
+    asking = true;
     loading.value = true;
     try {
       const answer = await fetch(0);
@@ -138,6 +119,11 @@ export const useAlertsStore = defineStore("alerts", () => {
       failure.value = cause instanceof Error ? cause.message : String(cause);
     } finally {
       loading.value = false;
+      asking = false;
+    }
+    if (again) {
+      again = false;
+      await refresh();
     }
   }
 
@@ -156,6 +142,13 @@ export const useAlertsStore = defineStore("alerts", () => {
     } finally {
       loading.value = false;
     }
+  }
+
+  /** Once per new alert, never repeated (the user's choice), as this terminal is set (`D-301`). */
+  function chime(): void {
+    const profile = useSessionStore().profile;
+    if (profile?.rpos_alert_sound === 0) return;
+    playTone(profile?.rpos_alert_tone, profile?.rpos_alert_volume);
   }
 
   function announce(): void {

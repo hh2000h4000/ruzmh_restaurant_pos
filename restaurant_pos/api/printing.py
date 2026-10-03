@@ -365,7 +365,7 @@ def _sample_context(template_type: str) -> dict | None:
 		if not name:
 			return None
 		kot = frappe.get_doc("Kitchen Order Ticket", name)
-		center = frappe.get_doc("Production Center", kot.production_center)
+		center = frappe.get_doc("Production Center", kot.production_center) if kot.production_center else None
 		return service.kot_context(kot, center) | {"_sample": name}
 
 	if template_type in ("customer_receipt", "bill_preview"):

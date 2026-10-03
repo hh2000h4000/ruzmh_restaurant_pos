@@ -701,6 +701,14 @@ CUSTOM_FIELDS = {
 			"depends_on": "rpos_alert_sound",
 			"insert_after": "rpos_alert_cb",
 		},
+		# Closes ours, so the profile's own fields that follow (customer,
+		# warehouse…) are not drawn inside "Alert Sound". They were inside
+		# "Paired Device" before it — the user saw them mixed in (`D-301`).
+		{
+			"fieldname": "rpos_alert_end",
+			"fieldtype": "Section Break",
+			"insert_after": "rpos_alert_volume",
+		},
 	],
 }
 

@@ -58,8 +58,6 @@ export interface PrintAlert {
 }
 
 export interface PrintAlerts {
-  /** Still needing a hand — the badge. */
-  open: number;
   alerts: PrintAlert[];
   /** An older page exists. */
   more: boolean;

@@ -25,6 +25,7 @@ Refs: BR-073, BR-074, BR-075, FR-2.3, FR-2.4, FR-2.5, FR-6.3, FR-6.4
 
 import frappe
 from frappe import _
+from frappe.query_builder import Order
 from frappe.utils import flt, now_datetime
 
 from restaurant_pos.utils import activity, combos, printing, routing
@@ -71,69 +72,65 @@ def print_alerts(branch: str, start: int = 0) -> dict:
 	paper came — which on a printer that stays off is for ever, over the items.
 	Simphony puts the same alert behind one flashing button; this is that button.
 
+	**Read off the ticket, not off its print jobs.** The first version listed
+	tickets with a failed job, and a station with no printer at all fails
+	without ever making one — the badge counted it and the list could not show
+	it. `print_failed_at` is written on every road to `failed`.
+
 	**A log, not only what is outstanding.** A ticket that failed and was then
 	reprinted, or that the cashier said they told the kitchen about, stays on
 	the list with how it ended — the manager reading it after service sees what
-	happened, not only what is still wrong. ``open`` counts what still needs a
-	hand, and that is the badge.
+	happened, not only what is still wrong. Which of them this till has read is
+	the till's own business (`D-299`), so the badge is counted there.
 
 	**Paged by twenty**, at the user's request: a printer off all evening is a
 	hundred rows nobody reads, and the newest are the ones that matter.
 	"""
 	start = max(0, int(start or 0))
-	failed = frappe.get_all(
-		"POS Print Job",
-		filters={"branch": branch, "reference_doctype": "Kitchen Order Ticket", "status": "failed"},
-		fields=["reference_name", "max(creation) as failed_at"],
-		group_by="reference_name",
-		order_by="failed_at desc",
-		start=start,
-		page_length=ALERT_PAGE + 1,
-	)
-	page = failed[:ALERT_PAGE]
-	tickets = {
-		row.name: row
-		for row in frappe.get_all(
-			"Kitchen Order Ticket",
-			filters={"name": ("in", [row.reference_name for row in page])},
-			fields=[
-				"name",
-				"restaurant_order",
-				"production_center",
-				"print_status",
-				"daily_number",
-				"call_name",
-				"table",
-				"kitchen_told_by",
-			],
+	ticket = frappe.qb.DocType("Kitchen Order Ticket")
+	rows = (
+		_in_branch(ticket, branch)
+		.select(
+			ticket.name,
+			ticket.restaurant_order,
+			ticket.production_center,
+			ticket.print_status,
+			ticket.daily_number,
+			ticket.call_name,
+			ticket.table,
+			ticket.kitchen_told_by,
+			ticket.print_failed_at,
 		)
-	}
+		.where(ticket.print_failed_at.isnotnull())
+		# The name breaks a tie, so a page boundary never shows one ticket twice.
+		.orderby(ticket.print_failed_at, order=Order.desc)
+		.orderby(ticket.name, order=Order.desc)
+		.limit(ALERT_PAGE + 1)
+		.offset(start)
+		.run(as_dict=True)
+	)
 
 	alerts = []
-	for row in page:
-		ticket = tickets.get(row.reference_name)
-		if not ticket:
-			continue
-		center = frappe.get_cached_doc("Production Center", ticket.production_center)
+	for row in rows[:ALERT_PAGE]:
+		center = frappe.get_cached_doc("Production Center", row.production_center)
 		alerts.append(
 			{
-				"kot_name": ticket.name,
-				"restaurant_order": ticket.restaurant_order,
-				"daily_number": ticket.daily_number,
-				"call_name": ticket.call_name,
-				"table_number": ticket.table
-				and frappe.get_cached_value("Restaurant Table", ticket.table, "table_number"),
+				"kot_name": row.name,
+				"restaurant_order": row.restaurant_order,
+				"daily_number": row.daily_number,
+				"call_name": row.call_name,
+				"table_number": row.table
+				and frappe.get_cached_value("Restaurant Table", row.table, "table_number"),
 				"station": center.title,
 				"station_ar": center.title_ar or center.title,
-				"failed_at": row.failed_at,
-				"state": _alert_state(ticket),
+				"failed_at": row.print_failed_at,
+				"state": _alert_state(row),
 			}
 		)
 
 	return {
-		"open": open_print_alerts(branch),
 		"alerts": alerts,
-		"more": len(failed) > ALERT_PAGE,
+		"more": len(rows) > ALERT_PAGE,
 		"page": ALERT_PAGE,
 	}
 
@@ -147,22 +144,16 @@ def _alert_state(ticket) -> str:
 	return "told" if ticket.kitchen_told_by else "failed"
 
 
-def open_print_alerts(branch: str) -> int:
-	"""Tickets that never reached paper and nobody has said the kitchen knows — the badge."""
-	tickets = frappe.get_all(
-		"Kitchen Order Ticket",
-		filters={"print_status": "failed", "kitchen_told_by": ("is", "not set")},
-		pluck="restaurant_order",
+def _in_branch(ticket, branch: str):
+	"""Tickets of this branch's bills, asked by the relation (`D-210`'s lesson):
+	a list of every order name in the branch is not handed to a filter."""
+	order = frappe.qb.DocType("Restaurant Order")
+	return (
+		frappe.qb.from_(ticket)
+		.join(order)
+		.on(order.name == ticket.restaurant_order)
+		.where(order.branch == branch)
 	)
-	if not tickets:
-		return 0
-
-	in_branch = set(
-		frappe.get_all(
-			"Restaurant Order", filters={"name": ("in", list(set(tickets))), "branch": branch}, pluck="name"
-		)
-	)
-	return sum(1 for order in tickets if order in in_branch)
 
 
 def mark_kitchen_told(kot_name: str) -> dict:

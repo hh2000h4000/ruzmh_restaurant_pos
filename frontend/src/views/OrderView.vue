@@ -35,7 +35,7 @@ import ShiftMenu from "@/components/shift/ShiftMenu.vue";
 import FloorPane from "@/components/order/FloorPane.vue";
 import NewOrderPane from "@/components/order/NewOrderPane.vue";
 import ReservationsPane from "@/components/order/ReservationsPane.vue";
-import AlertsPane from "@/components/order/AlertsPane.vue";
+import AlertsBell from "@/components/order/AlertsBell.vue";
 import { seatReservation } from "@/api/reservation";
 import OrderBottomNav, { type NavEntry } from "@/components/order/OrderBottomNav.vue";
 import OpenOrdersPanel from "@/components/pos/OpenOrdersPanel.vue";
@@ -160,9 +160,10 @@ watch(
 /**
  * How often the bell asks (`D-298`). A ticket can fail on another till in the
  * branch, or give up twenty minutes after it was sent, with nothing on this
- * screen to prompt a check — and a minute late is still before the customer asks.
+ * screen to prompt a check. Half a minute, because the bell now chimes
+ * (`D-299`) and a chime long after the fact is a chime nobody connects to it.
  */
-const ALERTS_EVERY_MS = 60_000;
+const ALERTS_EVERY_MS = 30_000;
 let alertsTimer: ReturnType<typeof setInterval> | null = null;
 
 onMounted(() => {
@@ -289,9 +290,6 @@ const navEntries = computed<NavEntry[]>(() => [
     count: floorView.value === "open" ? floorOrders.value.length : 0,
   },
   { key: "tables", label: "nav.tables", icon: "floorPlan" },
-  // D-298 — what did not reach the kitchen, for the whole branch. Its count is
-  // in the alarm colour: the orders' count is news, this one is a problem.
-  { key: "alerts", label: "nav.alerts", icon: "bell", count: alerts.open, alarm: true },
   // D-048 — the till's occasional operations, and the way home. A menu rather
   // than four more places nobody visits during a rush.
   { key: "menu", label: "nav.menu", icon: "more" },
@@ -1416,12 +1414,20 @@ async function send(): Promise<void> {
           <!-- What the order can do. Where the cashier goes is the bar along
                the bottom; the two never mix (D-042). Nothing in hand, nothing
                to act on — the row is not drawn rather than drawn all disabled. -->
-          <OrderActionBar
-            v-if="orders.order"
-            :actions="rowActions"
-            :more="moreActions"
-            @select="onAction"
-          />
+          <!-- D-299 — the bell sits at the row's far end, drawn whether a bill is
+               in hand or not: the row is furniture, like the bill (D-059). The
+               actions take what is left and wrap; the bell never leaves the screen. -->
+          <div class="flex items-start gap-2.5">
+            <div class="min-w-0 flex-1">
+              <OrderActionBar
+                v-if="orders.order"
+                :actions="rowActions"
+                :more="moreActions"
+                @select="onAction"
+              />
+            </div>
+            <AlertsBell :may-reprint="session.can('can_reprint_receipt')" />
+          </div>
 
           <div class="flex flex-col gap-2 empty:hidden">
             <p
@@ -1517,11 +1523,6 @@ async function send(): Promise<void> {
             @seat-booking="seatBooking"
           />
 
-          <AlertsPane
-            v-else-if="pane === 'alerts'"
-            class="min-h-0 flex-1"
-            :may-reprint="session.can('can_reprint_receipt')"
-          />
 
           <ReservationsPane
             v-else-if="pane === 'reservations'"

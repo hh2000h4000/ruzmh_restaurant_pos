@@ -523,7 +523,12 @@ def _mark_kot_failed(kot_name: str) -> None:
 	ticket that will never print while wearing that label is the failure the
 	kitchen finds out about when a customer asks where the food is.
 	"""
-	frappe.db.set_value("Kitchen Order Ticket", kot_name, "print_status", "failed", update_modified=0)
+	frappe.db.set_value(
+		"Kitchen Order Ticket",
+		kot_name,
+		{"print_status": "failed", "print_failed_at": now_datetime()},
+		update_modified=0,
+	)
 
 
 def print_receipt(invoice_name: str, *, order_name: str | None = None) -> str | None:
@@ -921,13 +926,18 @@ def settle(job_name: str, *, printed: bool, error: str | None = None, try_fallba
 	if job.reference_doctype == "Kitchen Order Ticket" and frappe.db.exists(
 		"Kitchen Order Ticket", job.reference_name
 	):
+		status = "printed" if printed else ("pending" if retry else "failed")
 		frappe.db.set_value(
 			"Kitchen Order Ticket",
 			job.reference_name,
 			{
-				"print_status": "printed" if printed else ("pending" if retry else "failed"),
+				"print_status": status,
 				"printed_at": job.printed_at,
 				"printer_used": job.printer,
+				# `D-298` — the bell lists tickets by this, so it is written on
+				# every road to `failed`: a ticket with no printer at all never
+				# had a job, and a list read off the jobs missed it.
+				**({"print_failed_at": now_datetime()} if status == "failed" else {}),
 			},
 			update_modified=False,
 		)

@@ -726,8 +726,7 @@ class TheBellSaysWhatDidNotPrint(PrintingTestBase):
 	def _alert(self, kot) -> dict:
 		return next(row for row in kitchen.print_alerts(BRANCH)["alerts"] if row["kot_name"] == kot.name)
 
-	def test_a_ticket_that_did_not_print_is_named_with_its_station_and_counted(self):
-		before = kitchen.open_print_alerts(BRANCH)
+	def test_a_ticket_that_did_not_print_is_named_with_its_station(self):
 		kot = self._failed()
 
 		alert = self._alert(kot)
@@ -736,7 +735,19 @@ class TheBellSaysWhatDidNotPrint(PrintingTestBase):
 		self.assertEqual((alert["station"], alert["station_ar"]), (title, title_ar or title))
 		self.assertEqual(alert["state"], "failed")
 		self.assertEqual(alert["restaurant_order"], kot.restaurant_order)
-		self.assertEqual(kitchen.open_print_alerts(BRANCH), before + 1)
+
+	def test_a_ticket_that_never_got_a_print_job_is_listed_too(self):
+		"""The user's site: the badge said one and the list showed nothing to act on.
+
+		A ticket that fails before any job is made — no printer anywhere, or a
+		template that will not render — was counted off the ticket and listed
+		off the jobs, so the two disagreed.
+		"""
+		kot = self._sent_kot()
+		with patch.object(service, "print_document", side_effect=RuntimeError("no renderer")):
+			service.print_kot(kot.name)
+
+		self.assertEqual(self._alert(kot)["state"], "failed")
 
 	def test_the_newest_is_first(self):
 		older = self._failed()
@@ -746,14 +757,12 @@ class TheBellSaysWhatDidNotPrint(PrintingTestBase):
 
 		self.assertLess(names.index(newer.name), names.index(older.name))
 
-	def test_told_by_hand_it_stops_counting_and_stays_on_the_list(self):
+	def test_told_by_hand_it_stays_on_the_list_with_who_answered(self):
 		"""Recorded, not hidden: the paper never came, and the list says who answered for it."""
 		kot = self._failed()
-		before = kitchen.open_print_alerts(BRANCH)
 
 		kitchen.mark_kitchen_told(kot.name)
 
-		self.assertEqual(kitchen.open_print_alerts(BRANCH), before - 1)
 		self.assertEqual(self._alert(kot)["state"], "told")
 		self.assertEqual(frappe.db.get_value("Kitchen Order Ticket", kot.name, "print_status"), "failed")
 		self.assertEqual(

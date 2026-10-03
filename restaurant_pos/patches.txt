@@ -16,3 +16,4 @@ restaurant_pos.patches.v1_0.retire_replace_price_effect
 restaurant_pos.patches.v1_0.add_cash_reasons
 restaurant_pos.patches.v1_0.add_cash_reason_accounts
 restaurant_pos.patches.v1_0.combo_choices_from_slots
+restaurant_pos.patches.v1_0.stamp_print_failed_at

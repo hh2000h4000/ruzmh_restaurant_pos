@@ -27,6 +27,7 @@
   "print_cb",
   "print_status",
   "printer_used",
+  "print_failed_at",
   "kitchen_told_by",
   "kitchen_told_at"
  ],
@@ -166,6 +167,13 @@
    "read_only": 1
   },
   {
+   "description": "The last time this ticket failed to reach paper. Kept after a reprint, so the bell's log still lists it (D-298).",
+   "fieldname": "print_failed_at",
+   "fieldtype": "Datetime",
+   "label": "Print Failed At",
+   "read_only": 1
+  },
+  {
    "description": "Who said the kitchen was told by hand, so the unprinted ticket stops alerting (D-298).",
    "fieldname": "kitchen_told_by",
    "fieldtype": "Link",
@@ -183,7 +191,7 @@
  "index_web_pages_for_search": 1,
  "istable": 0,
  "links": [],
- "modified": "2026-10-03 12:37:29.364267",
+ "modified": "2026-10-03 13:27:01.318966",
  "modified_by": "Administrator",
  "module": "Restaurant POS",
  "name": "Kitchen Order Ticket",

@@ -687,39 +687,118 @@ class TestWhatTheAgentReports(PrintingTestBase):
 		self.assertEqual(frappe.db.get_value("Kitchen Order Ticket", kot.name, "print_status"), "failed")
 
 
-class TheOrderScreenIsToldWhatDidNotPrint(PrintingTestBase):
-	"""`D-211` — a printer that is off used to fail in silence: the ticket said
-	`failed` on a desk form, and the cook simply got nothing."""
+class TheOrderScreenFollowsWhatIsPrinting(PrintingTestBase):
+	"""`D-211` — the screen checks back while a ticket is on its way, and stops.
 
-	def test_a_ticket_that_did_not_print_is_named_with_its_station(self):
-		frappe.db.set_value("POS Printer", self.printer, "fallback_printer", None)
-		kot = self._sent_kot()
-		service.settle(service.print_kot(kot.name), printed=False, error="Out of paper")
+	What did *not* print is the bell's to say now (`D-298`), not the bill's.
+	"""
 
-		state = order_api.get_order(kot.restaurant_order)
-
-		self.assertEqual([row["kot_name"] for row in state["unprinted_tickets"]], [kot.name])
-		title, title_ar = frappe.db.get_value("Production Center", self.grill, ["title", "title_ar"])
-		self.assertEqual(state["unprinted_tickets"][0]["station"], title)
-		self.assertEqual(state["unprinted_tickets"][0]["station_ar"], title_ar or title)
-		self.assertEqual(state["tickets_printing"], 0)
-
-	def test_a_ticket_on_its_way_is_counted_not_warned_about(self):
+	def test_a_ticket_on_its_way_is_counted(self):
 		kot = self._sent_kot()
 		service.print_kot(kot.name)
 
-		state = order_api.get_order(kot.restaurant_order)
+		self.assertEqual(order_api.get_order(kot.restaurant_order)["tickets_printing"], 1)
 
-		self.assertEqual(state["unprinted_tickets"], [])
-		self.assertEqual(state["tickets_printing"], 1)
-
-	def test_a_printed_ticket_is_neither(self):
+	def test_a_printed_ticket_is_not(self):
 		kot = self._sent_kot()
 		service.settle(service.print_kot(kot.name), printed=True)
 
-		state = order_api.get_order(kot.restaurant_order)
+		self.assertEqual(order_api.get_order(kot.restaurant_order)["tickets_printing"], 0)
 
-		self.assertEqual((state["unprinted_tickets"], state["tickets_printing"]), ([], 0))
+
+class TheBellSaysWhatDidNotPrint(PrintingTestBase):
+	"""`D-298` — one bell for the branch instead of a banner per ticket on the bill.
+
+	Simphony's flashing Alerts button: what did not reach the kitchen, the
+	station it was for, and a way to answer for it.
+	"""
+
+	def setUp(self):
+		super().setUp()
+		# No backup: with one, a failed ticket is still on its way (`D-211`).
+		frappe.db.set_value("POS Printer", self.printer, "fallback_printer", None)
+
+	def _failed(self):
+		kot = self._sent_kot()
+		service.settle(service.print_kot(kot.name), printed=False, error="Out of paper")
+		return kot
+
+	def _alert(self, kot) -> dict:
+		return next(row for row in kitchen.print_alerts(BRANCH)["alerts"] if row["kot_name"] == kot.name)
+
+	def test_a_ticket_that_did_not_print_is_named_with_its_station_and_counted(self):
+		before = kitchen.open_print_alerts(BRANCH)
+		kot = self._failed()
+
+		alert = self._alert(kot)
+
+		title, title_ar = frappe.db.get_value("Production Center", self.grill, ["title", "title_ar"])
+		self.assertEqual((alert["station"], alert["station_ar"]), (title, title_ar or title))
+		self.assertEqual(alert["state"], "failed")
+		self.assertEqual(alert["restaurant_order"], kot.restaurant_order)
+		self.assertEqual(kitchen.open_print_alerts(BRANCH), before + 1)
+
+	def test_the_newest_is_first(self):
+		older = self._failed()
+		newer = self._failed()
+
+		names = [row["kot_name"] for row in kitchen.print_alerts(BRANCH)["alerts"]]
+
+		self.assertLess(names.index(newer.name), names.index(older.name))
+
+	def test_told_by_hand_it_stops_counting_and_stays_on_the_list(self):
+		"""Recorded, not hidden: the paper never came, and the list says who answered for it."""
+		kot = self._failed()
+		before = kitchen.open_print_alerts(BRANCH)
+
+		kitchen.mark_kitchen_told(kot.name)
+
+		self.assertEqual(kitchen.open_print_alerts(BRANCH), before - 1)
+		self.assertEqual(self._alert(kot)["state"], "told")
+		self.assertEqual(frappe.db.get_value("Kitchen Order Ticket", kot.name, "print_status"), "failed")
+		self.assertEqual(
+			frappe.db.get_value("Kitchen Order Ticket", kot.name, "kitchen_told_by"), frappe.session.user
+		)
+		self.assertTrue(
+			frappe.db.exists(
+				"POS Order Activity", {"restaurant_order": kot.restaurant_order, "action": "kitchen_told"}
+			)
+		)
+
+	def test_a_ticket_that_printed_cannot_be_told(self):
+		kot = self._sent_kot()
+		service.settle(service.print_kot(kot.name), printed=True)
+
+		with self.assertRaises(frappe.ValidationError):
+			kitchen.mark_kitchen_told(kot.name)
+
+	def test_a_reprint_asks_the_question_again(self):
+		"""If the next try fails too, the bell says so rather than keep the earlier answer."""
+		kot = self._failed()
+		kitchen.mark_kitchen_told(kot.name)
+
+		kitchen.reprint(kot.name)
+
+		self.assertIsNone(frappe.db.get_value("Kitchen Order Ticket", kot.name, "kitchen_told_by"))
+		self.assertEqual(self._alert(kot)["state"], "printing")
+
+	def test_a_ticket_reprinted_onto_paper_says_so(self):
+		kot = self._failed()
+		frappe.db.set_value("Kitchen Order Ticket", kot.name, "print_status", "printed")
+
+		self.assertEqual(self._alert(kot)["state"], "printed")
+
+	def test_twenty_at_a_time_and_the_next_page_is_asked_for(self):
+		"""The user's rule, with a page of two so the test does not make twenty-one bills."""
+		first, second, third = self._failed(), self._failed(), self._failed()
+
+		with patch.object(kitchen, "ALERT_PAGE", 2):
+			page = kitchen.print_alerts(BRANCH)
+			after = kitchen.print_alerts(BRANCH, start=2)
+
+		self.assertEqual([row["kot_name"] for row in page["alerts"]], [third.name, second.name])
+		self.assertTrue(page["more"])
+		self.assertEqual(after["alerts"][0]["kot_name"], first.name)
 
 
 class TestTheShippedTemplates(FrappeTestCase):

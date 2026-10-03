@@ -1,5 +1,5 @@
 ﻿<script setup lang="ts">
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 
 import { recordView } from "@/api/activity";
@@ -23,7 +23,6 @@ import ActivityDialog from "@/components/order/ActivityDialog.vue";
 import JoinBillDialog from "@/components/order/JoinBillDialog.vue";
 import JoinTablesDialog from "@/components/order/JoinTablesDialog.vue";
 import SplitBillDialog from "@/components/order/SplitBillDialog.vue";
-import UnprintedTickets from "@/components/order/UnprintedTickets.vue";
 import ReturnDialog from "@/components/order/ReturnDialog.vue";
 import CloseDayDialog from "@/components/shift/CloseDayDialog.vue";
 import CloseTillDialog from "@/components/shift/CloseTillDialog.vue";
@@ -36,6 +35,7 @@ import ShiftMenu from "@/components/shift/ShiftMenu.vue";
 import FloorPane from "@/components/order/FloorPane.vue";
 import NewOrderPane from "@/components/order/NewOrderPane.vue";
 import ReservationsPane from "@/components/order/ReservationsPane.vue";
+import AlertsPane from "@/components/order/AlertsPane.vue";
 import { seatReservation } from "@/api/reservation";
 import OrderBottomNav, { type NavEntry } from "@/components/order/OrderBottomNav.vue";
 import OpenOrdersPanel from "@/components/pos/OpenOrdersPanel.vue";
@@ -50,6 +50,7 @@ import { useDismiss } from "@/composables/useDismiss";
 import { useOpenOrders } from "@/composables/useOpenOrders";
 import { formatNumber, t, tn } from "@/i18n";
 import { isMissingScreen } from "@/router/missingScreen";
+import { useAlertsStore } from "@/stores/alerts";
 import { useAuthStore } from "@/stores/auth";
 import { useOrderStore } from "@/stores/order";
 import { useSessionStore } from "@/stores/session";
@@ -81,6 +82,7 @@ const router = useRouter();
 const session = useSessionStore();
 const orders = useOrderStore();
 const shift = useShiftStore();
+const alerts = useAlertsStore();
 
 const startupError = ref<string | null>(null);
 const pendingItem = ref<CatalogItem | null>(null);
@@ -155,10 +157,24 @@ watch(
   { deep: true, immediate: true },
 );
 
+/**
+ * How often the bell asks (`D-298`). A ticket can fail on another till in the
+ * branch, or give up twenty minutes after it was sent, with nothing on this
+ * screen to prompt a check — and a minute late is still before the customer asks.
+ */
+const ALERTS_EVERY_MS = 60_000;
+let alertsTimer: ReturnType<typeof setInterval> | null = null;
+
 onMounted(() => {
   // The menu offers what the shift allows, so it has to know the shift.
   void shift.refresh();
   void startFromRoute();
+  void alerts.refresh();
+  alertsTimer = setInterval(() => void alerts.refresh(), ALERTS_EVERY_MS);
+});
+
+onUnmounted(() => {
+  if (alertsTimer) clearInterval(alertsTimer);
 });
 
 /**
@@ -273,6 +289,9 @@ const navEntries = computed<NavEntry[]>(() => [
     count: floorView.value === "open" ? floorOrders.value.length : 0,
   },
   { key: "tables", label: "nav.tables", icon: "floorPlan" },
+  // D-298 — what did not reach the kitchen, for the whole branch. Its count is
+  // in the alarm colour: the orders' count is news, this one is a problem.
+  { key: "alerts", label: "nav.alerts", icon: "bell", count: alerts.open, alarm: true },
   // D-048 — the till's occasional operations, and the way home. A menu rather
   // than four more places nobody visits during a rush.
   { key: "menu", label: "nav.menu", icon: "more" },
@@ -1421,16 +1440,6 @@ async function send(): Promise<void> {
               {{ orders.error }}
             </p>
 
-            <!-- D-211 — a kitchen ticket whose paper never came, said on the
-                 order instead of on a desk form nobody opens during service. -->
-            <UnprintedTickets
-              v-if="orders.order?.unprinted_tickets?.length"
-              :tickets="orders.order?.unprinted_tickets ?? []"
-              :may-reprint="session.can('can_reprint_receipt')"
-              :busy="orders.busy"
-              @reprint="orders.reprintTicket"
-            />
-
             <!-- 09 §5, D-073 — a bill that lives on this device says so. It is
                  sellable and priced correctly, but nobody else can see it and a
                  wiped browser would lose it. -->
@@ -1458,14 +1467,6 @@ async function send(): Promise<void> {
                 :size="18"
               />
               {{ t("order.pendingSync") }}
-            </p>
-
-            <p
-              v-if="orders.unrouted.length"
-              role="status"
-              class="rounded-rpos bg-status-reserved/10 p-3 text-sm text-status-reserved"
-            >
-              {{ t("order.notRouted", { items: orders.unrouted.join(t("common.listSeparator")) }) }}
             </p>
           </div>
 
@@ -1514,6 +1515,12 @@ async function send(): Promise<void> {
             @seat="seat"
             @open="openOrder"
             @seat-booking="seatBooking"
+          />
+
+          <AlertsPane
+            v-else-if="pane === 'alerts'"
+            class="min-h-0 flex-1"
+            :may-reprint="session.can('can_reprint_receipt')"
           />
 
           <ReservationsPane

@@ -11,7 +11,7 @@ from frappe import _
 
 from restaurant_pos.utils import idempotency
 from restaurant_pos.utils import kitchen as service
-from restaurant_pos.utils.order import assert_mutable
+from restaurant_pos.utils.order import assert_mutable, branch_of_profile
 from restaurant_pos.utils.permissions import (
 	assert_permission,
 	validate_branch_access,
@@ -65,6 +65,39 @@ def reprint_kot(kot_name: str, queue_id: str | None = None) -> dict:
 	idempotency.remember(
 		queue_id,
 		"reprint_kot",
+		result,
+		reference_doctype="Kitchen Order Ticket",
+		reference_name=kot_name,
+	)
+	return result
+
+
+@frappe.whitelist()
+def get_print_alerts(pos_profile: str, start: int = 0) -> dict:
+	"""The bell (`D-298`): this branch's unprinted tickets, twenty at a time."""
+	branch = branch_of_profile(pos_profile)
+	if not branch:
+		frappe.throw(_("POS Profile {0} has no Restaurant Section configured.").format(pos_profile))
+	validate_branch_access(branch)
+	return service.print_alerts(branch, start=start)
+
+
+@frappe.whitelist()
+def mark_kitchen_told(kot_name: str, queue_id: str | None = None) -> dict:
+	"""Say the kitchen was told by hand, so an unprinted ticket stops alerting (`D-298`)."""
+	replay = idempotency.previous_result(queue_id)
+	if replay is not None:
+		return replay
+
+	order_name = frappe.db.get_value("Kitchen Order Ticket", kot_name, "restaurant_order")
+	if not order_name:
+		frappe.throw(_("Kitchen Order Ticket {0} does not exist.").format(kot_name))
+	validate_branch_access(frappe.db.get_value("Restaurant Order", order_name, "branch"))
+
+	result = service.mark_kitchen_told(kot_name)
+	idempotency.remember(
+		queue_id,
+		"mark_kitchen_told",
 		result,
 		reference_doctype="Kitchen Order Ticket",
 		reference_name=kot_name,

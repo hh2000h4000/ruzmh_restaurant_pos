@@ -50,6 +50,8 @@ export interface NavEntry {
   icon: IconName;
   /** Shown as a badge; omitted when there is nothing to count. */
   count?: number;
+  /** The count is a problem, not news — drawn in the danger colour (`D-298`). */
+  alarm?: boolean;
 }
 
 defineProps<{ entries: NavEntry[]; active: string }>();
@@ -58,7 +60,7 @@ const emit = defineEmits<{ select: [key: string] }>();
 
 <template>
   <nav
-    class="grid shrink-0 grid-cols-5 gap-2 rounded-rpos-lg border border-line bg-surface p-2.5 max-sm:gap-1 max-sm:p-1.5"
+    class="grid shrink-0 auto-cols-fr grid-flow-col gap-2 rounded-rpos-lg border border-line bg-surface p-2.5 max-sm:gap-1 max-sm:p-1.5"
   >
     <button
       v-for="entry in entries"
@@ -92,9 +94,11 @@ const emit = defineEmits<{ select: [key: string] }>();
           v-if="entry.count"
           class="rpos-numeric grid h-[1.375rem] min-w-[1.375rem] shrink-0 place-items-center rounded-full px-1.5 text-xs sm:order-last"
           :class="
-            active === entry.key
-              ? 'bg-primary-contrast/20 text-primary-contrast'
-              : 'bg-primary text-primary-contrast'
+            entry.alarm
+              ? 'bg-danger text-white'
+              : active === entry.key
+                ? 'bg-primary-contrast/20 text-primary-contrast'
+                : 'bg-primary text-primary-contrast'
           "
         >{{ formatNumber(entry.count) }}</span>
       </span>

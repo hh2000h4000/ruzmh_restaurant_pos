@@ -41,3 +41,43 @@ export function reprintKot(kotName: string): Promise<{ kot_name: string; print_s
 export function getKots(orderName: string): Promise<KotCreated[]> {
   return query("kitchen.get_kots", { order_name: orderName });
 }
+
+/** How an unprinted ticket ended — the one word the bell shows (`D-298`). */
+export type PrintAlertState = "failed" | "printing" | "printed" | "told";
+
+export interface PrintAlert {
+  kot_name: string;
+  restaurant_order: string;
+  daily_number: number | null;
+  call_name: string | null;
+  table_number: string | null;
+  station: string;
+  station_ar: string;
+  failed_at: string;
+  state: PrintAlertState;
+}
+
+export interface PrintAlerts {
+  /** Still needing a hand — the badge. */
+  open: number;
+  alerts: PrintAlert[];
+  /** An older page exists. */
+  more: boolean;
+  /** Rows on a page — the server's number, so the two never step differently. */
+  page: number;
+}
+
+/** The bell: this branch's unprinted tickets, newest first, twenty at a time (`D-298`). */
+export function getPrintAlerts(posProfile: string, start = 0): Promise<PrintAlerts> {
+  return query("kitchen.get_print_alerts", { pos_profile: posProfile, start });
+}
+
+/**
+ * The kitchen was told by hand, so the ticket stops alerting (`D-298`).
+ *
+ * Not deferrable, like the reprint: it answers an alert the server raised, and
+ * the answer is only worth anything once the server has it.
+ */
+export function markKitchenTold(kotName: string): Promise<{ kot_name: string; state: PrintAlertState }> {
+  return mutate("kitchen.mark_kitchen_told", { kot_name: kotName });
+}

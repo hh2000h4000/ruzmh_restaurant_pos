@@ -37,38 +37,160 @@ VOID = "void"
 
 
 def print_state(order_name: str) -> dict:
-	"""Whether an order's kitchen tickets reached paper — for the order screen (`D-211`).
+	"""How many of an order's tickets are still on their way to paper (`D-211`).
 
-	A station whose printer was off failed in silence: the ticket said `failed`
-	on a desk form nobody opens during service, the cook got nothing, and the
-	first anyone heard was a customer asking where the food was.
+	The order screen checks back while this is above zero, and stops. What did
+	**not** print is not said here any more: it is the bell's, for the whole
+	branch (`D-298`) — a banner per ticket on the bill stood over the items for
+	as long as a printer stayed off.
 
-	- ``unprinted_tickets`` — `failed` only, with the station as a cashier names
-	  it. `pending` is not a failure: it is on its way, or its station asked for
-	  no paper at all.
-	- ``tickets_printing`` — still on the way to a printer that was asked for
-	  paper, so the screen knows to check back, and when to stop.
+	`pending` on a station that asked for no paper is not on its way anywhere,
+	so it is not counted.
 	"""
-	unprinted, printing = [], 0
+	printing = 0
 	for ticket in frappe.get_all(
 		"Kitchen Order Ticket",
-		filters={"restaurant_order": order_name, "print_status": ("in", ["failed", PENDING])},
-		fields=["name", "production_center", "print_status"],
-		order_by="sent_at asc",
+		filters={"restaurant_order": order_name, "print_status": PENDING},
+		fields=["production_center"],
 	):
-		center = frappe.get_cached_doc("Production Center", ticket.production_center)
-		if ticket.print_status == "failed":
-			unprinted.append(
-				{
-					"kot_name": ticket.name,
-					"station": center.title,
-					"station_ar": center.title_ar or center.title,
-				}
-			)
-		elif center.auto_print_on_send:
+		if frappe.get_cached_doc("Production Center", ticket.production_center).auto_print_on_send:
 			printing += 1
 
-	return {"unprinted_tickets": unprinted, "tickets_printing": printing}
+	return {"tickets_printing": printing}
+
+
+#: Alerts on one page of the bell (`D-298`). The next page is asked for, never sent unasked.
+ALERT_PAGE = 20
+
+
+def print_alerts(branch: str, start: int = 0) -> dict:
+	"""The bell: every ticket in the branch that failed to print, newest first (`D-298`).
+
+	**One place for the whole branch**, not a banner per order. The banner said
+	it only on the bill in hand, one line per ticket, and stood there until
+	paper came — which on a printer that stays off is for ever, over the items.
+	Simphony puts the same alert behind one flashing button; this is that button.
+
+	**A log, not only what is outstanding.** A ticket that failed and was then
+	reprinted, or that the cashier said they told the kitchen about, stays on
+	the list with how it ended — the manager reading it after service sees what
+	happened, not only what is still wrong. ``open`` counts what still needs a
+	hand, and that is the badge.
+
+	**Paged by twenty**, at the user's request: a printer off all evening is a
+	hundred rows nobody reads, and the newest are the ones that matter.
+	"""
+	start = max(0, int(start or 0))
+	failed = frappe.get_all(
+		"POS Print Job",
+		filters={"branch": branch, "reference_doctype": "Kitchen Order Ticket", "status": "failed"},
+		fields=["reference_name", "max(creation) as failed_at"],
+		group_by="reference_name",
+		order_by="failed_at desc",
+		start=start,
+		page_length=ALERT_PAGE + 1,
+	)
+	page = failed[:ALERT_PAGE]
+	tickets = {
+		row.name: row
+		for row in frappe.get_all(
+			"Kitchen Order Ticket",
+			filters={"name": ("in", [row.reference_name for row in page])},
+			fields=[
+				"name",
+				"restaurant_order",
+				"production_center",
+				"print_status",
+				"daily_number",
+				"call_name",
+				"table",
+				"kitchen_told_by",
+			],
+		)
+	}
+
+	alerts = []
+	for row in page:
+		ticket = tickets.get(row.reference_name)
+		if not ticket:
+			continue
+		center = frappe.get_cached_doc("Production Center", ticket.production_center)
+		alerts.append(
+			{
+				"kot_name": ticket.name,
+				"restaurant_order": ticket.restaurant_order,
+				"daily_number": ticket.daily_number,
+				"call_name": ticket.call_name,
+				"table_number": ticket.table
+				and frappe.get_cached_value("Restaurant Table", ticket.table, "table_number"),
+				"station": center.title,
+				"station_ar": center.title_ar or center.title,
+				"failed_at": row.failed_at,
+				"state": _alert_state(ticket),
+			}
+		)
+
+	return {
+		"open": open_print_alerts(branch),
+		"alerts": alerts,
+		"more": len(failed) > ALERT_PAGE,
+		"page": ALERT_PAGE,
+	}
+
+
+def _alert_state(ticket) -> str:
+	"""How an unprinted ticket ended, in the one word the bell shows."""
+	if ticket.print_status == "printed":
+		return "printed"
+	if ticket.print_status == PENDING:
+		return "printing"
+	return "told" if ticket.kitchen_told_by else "failed"
+
+
+def open_print_alerts(branch: str) -> int:
+	"""Tickets that never reached paper and nobody has said the kitchen knows — the badge."""
+	tickets = frappe.get_all(
+		"Kitchen Order Ticket",
+		filters={"print_status": "failed", "kitchen_told_by": ("is", "not set")},
+		pluck="restaurant_order",
+	)
+	if not tickets:
+		return 0
+
+	in_branch = set(
+		frappe.get_all(
+			"Restaurant Order", filters={"name": ("in", list(set(tickets))), "branch": branch}, pluck="name"
+		)
+	)
+	return sum(1 for order in tickets if order in in_branch)
+
+
+def mark_kitchen_told(kot_name: str) -> dict:
+	"""The cashier told the kitchen by hand, so the ticket stops alerting (`D-298`).
+
+	Simphony asks the same of its operator: confirm the items did not reach the
+	kitchen, and tell the kitchen. **Recorded, not hidden** — the ticket keeps
+	`failed`, because the paper never came, and says who answered for it and
+	when; the bill's story says it too.
+	"""
+	kot = frappe.db.get_value(
+		"Kitchen Order Ticket",
+		kot_name,
+		["name", "restaurant_order", "production_center", "print_status"],
+		as_dict=True,
+	)
+	if kot.print_status != "failed":
+		frappe.throw(_("This ticket is not waiting on the kitchen."))
+
+	frappe.db.set_value(
+		"Kitchen Order Ticket",
+		kot.name,
+		{"kitchen_told_by": frappe.session.user, "kitchen_told_at": now_datetime()},
+		update_modified=False,
+	)
+	center = frappe.get_cached_doc("Production Center", kot.production_center)
+	activity.log(kot.restaurant_order, "kitchen_told", subject=center.title_ar or center.title)
+	return {"kot_name": kot.name, "state": "told"}
 
 
 def send_to_kitchen(order, *, kot_type: str | None = None) -> dict:
@@ -204,7 +326,12 @@ def reprint(kot_name: str) -> dict:
 		"Restaurant Order", kot.restaurant_order, ["branch", "pos_profile"], as_dict=True
 	)
 
-	kot.db_set("print_status", "pending", update_modified=False)
+	# A fresh try is a fresh question: if this one fails too, the bell says so
+	# again rather than keeping the earlier "the kitchen was told" (`D-298`).
+	kot.db_set(
+		{"print_status": "pending", "kitchen_told_by": None, "kitchen_told_at": None},
+		update_modified=False,
+	)
 	printing.enqueue_print("print_kot", kot_name=kot.name, force=True)
 
 	log_audit(

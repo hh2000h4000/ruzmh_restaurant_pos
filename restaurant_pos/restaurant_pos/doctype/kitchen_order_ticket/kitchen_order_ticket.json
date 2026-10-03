@@ -26,7 +26,9 @@
   "printed_at",
   "print_cb",
   "print_status",
-  "printer_used"
+  "printer_used",
+  "kitchen_told_by",
+  "kitchen_told_at"
  ],
  "fields": [
   {
@@ -162,12 +164,26 @@
    "label": "Printer Used",
    "options": "POS Printer",
    "read_only": 1
+  },
+  {
+   "description": "Who said the kitchen was told by hand, so the unprinted ticket stops alerting (D-298).",
+   "fieldname": "kitchen_told_by",
+   "fieldtype": "Link",
+   "label": "Kitchen Told By",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "kitchen_told_at",
+   "fieldtype": "Datetime",
+   "label": "Kitchen Told At",
+   "read_only": 1
   }
  ],
  "index_web_pages_for_search": 1,
  "istable": 0,
  "links": [],
- "modified": "2026-08-09 00:00:00.000000",
+ "modified": "2026-10-03 12:37:29.364267",
  "modified_by": "Administrator",
  "module": "Restaurant POS",
  "name": "Kitchen Order Ticket",

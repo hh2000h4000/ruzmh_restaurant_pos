@@ -19,6 +19,8 @@ import * as kitchenApi from "@/api/kitchen";
 import type { OrderDetail } from "@/api/order";
 import * as orderApi from "@/api/order";
 import { t } from "@/i18n";
+import { useAlertsStore } from "@/stores/alerts";
+import { useNoticeStore } from "@/stores/notice";
 import { useOrderStore } from "@/stores/order";
 import { useSessionStore } from "@/stores/session";
 import type { PosSession } from "@/types/session";
@@ -32,9 +34,13 @@ vi.mock("@/api/order", () => ({
 }));
 
 vi.mock("@/api/kitchen", () => ({
-  reprintKot: vi.fn(),
   sendToKitchen: vi.fn(),
 }));
+
+vi.mock("@/stores/alerts", () => {
+  const refresh = vi.fn();
+  return { useAlertsStore: () => ({ refresh }) };
+});
 
 function bill(): OrderDetail {
   return { order_name: ORDER, items: [] } as unknown as OrderDetail;
@@ -88,33 +94,38 @@ describe("putting a bill down", () => {
 /**
  * `D-211` — the agent reports seconds after the send, so the store checks back.
  * What it must not do: stop before the answer lands, keep asking after it, or
- * paint one bill's failure onto another the cashier has opened since.
+ * ask about one bill once another has been opened. And once it settles, the
+ * bell is asked (`D-298`) — a ticket that gave up is said there, not here.
  */
-describe("a kitchen ticket that did not print", () => {
-  const TICKET = { kot_name: "KOT-2026-09-00001", station: "Grill", station_ar: "الشواية" };
-
+describe("a kitchen ticket on its way", () => {
   function printing(over: Partial<OrderDetail>): OrderDetail {
-    return { ...bill(), unprinted_tickets: [], tickets_printing: 0, ...over } as OrderDetail;
+    return { ...bill(), tickets_printing: 0, ...over } as OrderDetail;
   }
 
-  it("keeps asking while a ticket is on its way, shows the failure, then stops", async () => {
+  function sent(): ReturnType<typeof useOrderStore> {
+    const orders = useOrderStore();
+    orders.order = printing({ tickets_printing: 1 });
+    vi.mocked(kitchenApi.sendToKitchen).mockResolvedValue({ kots_created: [], unrouted_items: [] } as never);
+    return orders;
+  }
+
+  it("keeps asking while a ticket is on its way, then asks the bell and stops", async () => {
     vi.useFakeTimers();
     try {
-      const orders = useOrderStore();
-      orders.order = printing({ tickets_printing: 1 });
-      vi.mocked(kitchenApi.reprintKot).mockResolvedValue({ kot_name: TICKET.kot_name, print_status: "pending" });
+      const orders = sent();
       vi.mocked(orderApi.getOrder)
-        .mockResolvedValueOnce(printing({ tickets_printing: 1 })) // the reload after asking
+        .mockResolvedValueOnce(printing({ tickets_printing: 1 })) // the reload after sending
         .mockResolvedValueOnce(printing({ tickets_printing: 1 })) // first check: still on its way
-        .mockResolvedValueOnce(printing({ unprinted_tickets: [TICKET] })); // second: it gave up
+        .mockResolvedValueOnce(printing({ tickets_printing: 0 })); // second: settled
 
-      await orders.reprintTicket(TICKET.kot_name);
-
-      await vi.advanceTimersByTimeAsync(5000);
-      expect(orders.order?.unprinted_tickets).toEqual([]);
+      await orders.sendToKitchen();
 
       await vi.advanceTimersByTimeAsync(5000);
-      expect(orders.order?.unprinted_tickets).toEqual([TICKET]);
+      expect(useAlertsStore().refresh).not.toHaveBeenCalled();
+
+      await vi.advanceTimersByTimeAsync(5000);
+      expect(orders.order?.tickets_printing).toBe(0);
+      expect(useAlertsStore().refresh).toHaveBeenCalledTimes(1);
 
       await vi.advanceTimersByTimeAsync(60000);
       expect(orderApi.getOrder).toHaveBeenCalledTimes(3);
@@ -123,26 +134,32 @@ describe("a kitchen ticket that did not print", () => {
     }
   });
 
-  it("does not paint one bill's ticket onto another opened since", async () => {
+  it("does not keep asking about a bill once another is opened", async () => {
     vi.useFakeTimers();
     try {
-      const orders = useOrderStore();
-      orders.order = printing({ tickets_printing: 1 });
-      vi.mocked(kitchenApi.reprintKot).mockResolvedValue({ kot_name: TICKET.kot_name, print_status: "pending" });
-      vi.mocked(orderApi.getOrder)
-        .mockResolvedValueOnce(printing({ tickets_printing: 1 }))
-        .mockResolvedValue(printing({ unprinted_tickets: [TICKET] }));
+      const orders = sent();
+      vi.mocked(orderApi.getOrder).mockResolvedValueOnce(printing({ tickets_printing: 1 }));
 
-      await orders.reprintTicket(TICKET.kot_name);
+      await orders.sendToKitchen();
       orders.order = { ...printing({}), order_name: "RO-2026-09-00002" };
 
       await vi.advanceTimersByTimeAsync(5000);
 
-      expect(orders.order?.unprinted_tickets).toEqual([]);
       expect(orderApi.getOrder).toHaveBeenCalledTimes(1);
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it("says a dish no station takes once, as a notice, not a banner", async () => {
+    const orders = sent();
+    vi.mocked(kitchenApi.sendToKitchen).mockResolvedValue({ kots_created: [], unrouted_items: ["Fanta"] } as never);
+    vi.mocked(orderApi.getOrder).mockResolvedValue(printing({}));
+
+    await orders.sendToKitchen();
+
+    expect(useNoticeStore().current?.kind).toBe("info");
+    expect(useNoticeStore().current?.text).toContain("Fanta");
   });
 });
 

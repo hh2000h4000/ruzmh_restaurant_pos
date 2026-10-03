@@ -1383,3 +1383,7 @@ Item Group,مجموعة الأصناف,POS Combo Choice
 Leave empty to offer the choice's whole item group.,اتركه فاضي عشان تطلع كل أصناف مجموعة الخيار.
 "Row #{0}: Choose an item, or a choice that has an item group.",سطر {0}: اختر صنفاً، أو خياراً له مجموعة أصناف.
 "{0} buttons do not fit on a grid of {1} columns and {2} rows.",{0} زر ما تكفيهم شبكة {1} أعمدة و{2} صفوف. زِد الأعمدة أو الصفوف.
+Kitchen Told By,من أبلغ المطبخ,Kitchen Order Ticket
+Kitchen Told At,وقت إبلاغ المطبخ,Kitchen Order Ticket
+"Who said the kitchen was told by hand, so the unprinted ticket stops alerting (D-298).","من قال إنه أبلغ المطبخ بنفسه، فتوقّف تنبيه التذكرة التي لم تُطبع (D-298).",Kitchen Order Ticket
+This ticket is not waiting on the kitchen.,هذه التذكرة لا تحتاج إبلاغ المطبخ.

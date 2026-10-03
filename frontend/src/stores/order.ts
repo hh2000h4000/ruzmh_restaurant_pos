@@ -8,7 +8,9 @@ import type { ModifierChoice, OrderDetail, OrderSummary } from "@/api/order";
 import { t } from "@/i18n";
 import * as local from "@/offline/localOrder";
 import { isQueued } from "@/offline/queue";
+import { useAlertsStore } from "@/stores/alerts";
 import { useConnectionStore } from "@/stores/connection";
+import { useNoticeStore } from "@/stores/notice";
 import { useSessionStore } from "@/stores/session";
 
 /**
@@ -23,7 +25,6 @@ export const useOrderStore = defineStore("order", () => {
   const busy = ref(false);
   const error = ref<string | null>(null);
   /** Set after a send, so the screen can warn about items no station received. */
-  const unrouted = ref<string[]>([]);
   /**
    * An action for this order is sitting in the offline queue.
    *
@@ -504,7 +505,13 @@ export const useOrderStore = defineStore("order", () => {
     }
 
     const name = order.value.order_name;
-    unrouted.value = result.unrouted_items;
+    // Said once and gone, not a banner over the items: the tickets are already
+    // on their way to the cashier's printer, and nothing waits on the cashier.
+    if (result.unrouted_items.length) {
+      useNoticeStore().info(
+        t("order.notRouted", { items: result.unrouted_items.join(t("common.listSeparator")) }),
+      );
+    }
     await open(name);
     void followPrinting(name);
     return true;
@@ -530,19 +537,6 @@ export const useOrderStore = defineStore("order", () => {
     await sendToKitchen();
   }
 
-  /** Put a kitchen ticket that did not print on paper again (FR-6.4, `D-211`). */
-  async function reprintTicket(kotName: string): Promise<boolean> {
-    if (!order.value) return false;
-
-    const name = order.value.order_name;
-    const result = await run(() => kitchenApi.reprintKot(kotName));
-    if (!result) return false;
-
-    await open(name);
-    void followPrinting(name);
-    return true;
-  }
-
   /**
    * Check back while tickets are on their way to a printer (`D-211`).
    *
@@ -551,9 +545,12 @@ export const useOrderStore = defineStore("order", () => {
    * screen asks again a few times and stops as soon as nothing is still printing
    * — after that, whatever the cashier does next reloads the order anyway.
    *
+   * **And when it stops, the bell asks** (`D-298`): a ticket that gave up is the
+   * bell's to say now, not a banner on this bill.
+   *
    * **Not through `run`.** A timer is exactly the programmatic caller `run`
-   * turns away with "still busy" (`D-128`). And it only reads: it copies the two
-   * print fields and nothing else, so a line the cashier is editing is never
+   * turns away with "still busy" (`D-128`). And it only reads: it copies the one
+   * print field and nothing else, so a line the cashier is editing is never
    * overwritten by an older copy of the bill.
    */
   async function followPrinting(orderName: string): Promise<void> {
@@ -568,8 +565,8 @@ export const useOrderStore = defineStore("order", () => {
       try {
         const fresh = await orderApi.getOrder(orderName);
         if (watch !== printWatch || order.value?.order_name !== orderName) return;
-        order.value.unprinted_tickets = fresh.unprinted_tickets;
         order.value.tickets_printing = fresh.tickets_printing;
+        if (!fresh.tickets_printing) void useAlertsStore().refresh();
       } catch {
         // The next action reloads the order; a missed check is not worth a
         // message on the screen.
@@ -628,7 +625,6 @@ export const useOrderStore = defineStore("order", () => {
     order.value = null;
     offline.value = null;
     error.value = null;
-    unrouted.value = [];
     pendingSync.value = false;
   }
 
@@ -637,7 +633,6 @@ export const useOrderStore = defineStore("order", () => {
     offline,
     busy,
     error,
-    unrouted,
     pendingSync,
     settledAt,
     payOffline,
@@ -661,7 +656,6 @@ export const useOrderStore = defineStore("order", () => {
     cancel,
     sendToKitchen,
     putDown,
-    reprintTicket,
     clear,
   };
 });

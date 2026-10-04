@@ -7,8 +7,10 @@ Refs: BR-016, BR-020..BR-024, FR-2.7, FR-10.2, FR-10.3, FR-10.4
 """
 
 import uuid
+from unittest.mock import patch
 
 import frappe
+from frappe.tests.utils import FrappeTestCase
 from frappe.utils import add_to_date, flt, getdate, now_datetime
 
 from restaurant_pos.api import payment as api
@@ -651,3 +653,42 @@ class TheBillIsFiledUnderWhoeverTookTheMoney(PaymentTestBase):
 		self.assertEqual(
 			frappe.db.get_value("Restaurant Order", order.name, "pos_opening_entry"), drawer.name
 		)
+
+
+class TheZATCAAppsPaymentCode(FrappeTestCase):
+	"""`D-306` — the ZATCA app makes a payment-means code mandatory on every Mode of Payment.
+
+	The first install on a site that had it was refused while creating the
+	delivery platforms' methods. Tested on the meta, so the suite needs no
+	ZATCA app of its own.
+	"""
+
+	def _method(self):
+		return frappe.new_doc("Mode of Payment")
+
+	def test_it_is_filled_when_the_zatca_field_exists(self):
+		from restaurant_pos.setup.defaults import ZATCA_MEANS_CREDIT, ZATCA_MEANS_FIELD, fill_zatca_means
+
+		doc = self._method()
+		with patch.object(doc.meta, "has_field", return_value=True):
+			fill_zatca_means(doc, ZATCA_MEANS_CREDIT)
+
+		self.assertEqual(doc.get(ZATCA_MEANS_FIELD), "30")
+
+	def test_a_code_somebody_chose_is_kept(self):
+		from restaurant_pos.setup.defaults import ZATCA_MEANS_FIELD, fill_zatca_means
+
+		doc = self._method()
+		doc.set(ZATCA_MEANS_FIELD, "48")
+		with patch.object(doc.meta, "has_field", return_value=True):
+			fill_zatca_means(doc, "30")
+
+		self.assertEqual(doc.get(ZATCA_MEANS_FIELD), "48")
+
+	def test_a_site_without_the_zatca_app_is_untouched(self):
+		from restaurant_pos.setup.defaults import ZATCA_MEANS_FIELD, fill_zatca_means
+
+		doc = self._method()
+		fill_zatca_means(doc, "30")
+
+		self.assertIsNone(doc.get(ZATCA_MEANS_FIELD))

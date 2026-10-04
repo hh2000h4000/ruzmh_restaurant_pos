@@ -29,6 +29,7 @@ Refs: FR-11.5, D-246, D-256
 
 import frappe
 
+from restaurant_pos.setup.defaults import ZATCA_MEANS_UNDEFINED, fill_zatca_means
 from restaurant_pos.utils.company import site_company
 
 #: The liability. Under Current Liabilities, where ERPNext's standard chart puts
@@ -120,19 +121,17 @@ def _ensure_mode(company: str, account: str | None) -> str | None:
 		name = MODE_OF_PAYMENT
 		frappe.db.set_value("Mode of Payment", name, "rpos_is_gift_card", 1)
 	if not name:
-		name = (
-			frappe.get_doc(
-				{
-					"doctype": "Mode of Payment",
-					"mode_of_payment": MODE_OF_PAYMENT,
-					"enabled": 1,
-					"type": "General",
-					"rpos_is_gift_card": 1,
-				}
-			)
-			.insert(ignore_permissions=True)
-			.name
+		mode = frappe.get_doc(
+			{
+				"doctype": "Mode of Payment",
+				"mode_of_payment": MODE_OF_PAYMENT,
+				"enabled": 1,
+				"type": "General",
+				"rpos_is_gift_card": 1,
+			}
 		)
+		fill_zatca_means(mode, ZATCA_MEANS_UNDEFINED)
+		name = mode.insert(ignore_permissions=True).name
 
 	# **Not credit, and this is enforced rather than left to whoever edited it**
 	# (`D-257`). `rpos_is_credit` means *the money is still owed* — a delivery
@@ -152,5 +151,8 @@ def _ensure_mode(company: str, account: str | None) -> str | None:
 		return name
 
 	mode.append("accounts", {"company": company, "default_account": account})
+	# A method made before the ZATCA app was installed has no code, and saving it
+	# would be refused for the field that app made mandatory (`D-306`).
+	fill_zatca_means(mode, ZATCA_MEANS_UNDEFINED)
 	mode.save(ignore_permissions=True)
 	return name

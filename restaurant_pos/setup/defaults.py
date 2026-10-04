@@ -409,6 +409,27 @@ def _create_quick_notes():
 	return created
 
 
+#: The ZATCA app's mandatory field on Mode of Payment (`D-306`), and its codes
+#: from UN/EDIFACT 4461: the platform or the company settles later — credit;
+#: a gift card is a balance, no instrument of its own.
+ZATCA_MEANS_FIELD = "custom_zatca_payment_means_code"
+ZATCA_MEANS_CREDIT = "30"
+ZATCA_MEANS_UNDEFINED = "1"
+
+
+def fill_zatca_means(doc, code: str) -> None:
+	"""Give a payment method the ZATCA code the ZATCA app makes mandatory, if it is installed.
+
+	`ksa_compliance` (Lavaloon's ZATCA app) adds a **required** field to every
+	Mode of Payment. On a site that has it, the methods this app creates were
+	refused on install — the first real install found it, on the user's cloud
+	demo. Only filled when the field exists and is empty: a site without the app
+	is untouched, and a code somebody chose is kept.
+	"""
+	if doc.meta.has_field(ZATCA_MEANS_FIELD) and not doc.get(ZATCA_MEANS_FIELD):
+		doc.set(ZATCA_MEANS_FIELD, code)
+
+
 def _create_credit_payment_methods():
 	"""One credit method per platform, plus a general one for corporate accounts.
 
@@ -430,6 +451,7 @@ def _create_credit_payment_methods():
 				"rpos_is_credit": 1,
 			}
 		)
+		fill_zatca_means(doc, ZATCA_MEANS_CREDIT)
 		doc.insert(ignore_permissions=True)
 		created.append(doc.name)
 

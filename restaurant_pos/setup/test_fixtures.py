@@ -20,6 +20,8 @@ the site can tell fixture from real data.
 import frappe
 from frappe.utils import nowdate
 
+from restaurant_pos.utils import quick_setup
+
 BRANCH = "Riyadh"
 SECTION_TITLE = "RPOS Test Hall"
 PROFILE = "RPOS Test Terminal"
@@ -27,7 +29,6 @@ PROFILE = "RPOS Test Terminal"
 #: The suite's till is a paired device like any other (`D-226`): the session
 #: refuses a machine that holds no token, so the fixtures hold one.
 DEVICE_TOKEN = "rpos-test-device-token"
-COMPANY_ABBR_FALLBACK = "RTC"
 
 #: Enough to seat the table tests, and few enough to read in a failure message.
 TABLE_COUNT = 6
@@ -196,14 +197,14 @@ def _branch(company: str) -> str:
 	if frappe.db.exists("Branch", BRANCH):
 		return BRANCH
 
-	abbr = frappe.db.get_value("Company", company, "abbr") or COMPANY_ABBR_FALLBACK
+	basics = quick_setup.company_basics(company)
 	frappe.get_doc(
 		{
 			"doctype": "Branch",
 			"branch": BRANCH,
 			"company": company,
-			"default_warehouse": _warehouse(company),
-			"default_cost_center": _cost_center(company, abbr),
+			"default_warehouse": basics.warehouse,
+			"default_cost_center": basics.cost_center,
 		}
 	).insert(ignore_permissions=True)
 	return BRANCH
@@ -260,7 +261,7 @@ def _pos_profile(company: str, section: str) -> str:
 		_pair_test_device(PROFILE)
 		return PROFILE
 
-	abbr = frappe.db.get_value("Company", company, "abbr") or COMPANY_ABBR_FALLBACK
+	basics = quick_setup.company_basics(company)
 
 	profile = frappe.get_doc(
 		{
@@ -268,13 +269,13 @@ def _pos_profile(company: str, section: str) -> str:
 			"name": PROFILE,
 			"company": company,
 			"currency": frappe.db.get_value("Company", company, "default_currency"),
-			"warehouse": _warehouse(company),
-			"write_off_account": _account(company, "Write Off", abbr),
-			"write_off_cost_center": _cost_center(company, abbr),
+			"warehouse": basics.warehouse,
+			"write_off_account": basics.write_off,
+			"write_off_cost_center": basics.cost_center,
 			"write_off_limit": 1,
-			"customer": _walk_in_customer(),
+			"customer": quick_setup.walk_in_customer(),
 			"restaurant_section": section,
-			"payments": [{"mode_of_payment": _cash_method(company), "default": 1}],
+			"payments": [{"mode_of_payment": quick_setup.cash_method(company), "default": 1}],
 		}
 	)
 	profile.insert(ignore_permissions=True)
@@ -294,70 +295,6 @@ def _pair_test_device(profile: str) -> None:
 		},
 		update_modified=False,
 	)
-
-
-def _warehouse(company: str) -> str:
-	warehouse = frappe.db.get_value("Warehouse", {"company": company, "is_group": 0}, "name")
-	if not warehouse:
-		frappe.throw("No Warehouse on this site; ERPNext's setup did not complete.")
-	return warehouse
-
-
-def _account(company: str, name: str, abbr: str) -> str:
-	account = frappe.db.get_value("Account", f"{name} - {abbr}", "name")
-	if account:
-		return account
-
-	# Fall back to any leaf expense account rather than inventing one: the
-	# chart of accounts belongs to ERPNext's setup, not to a fixture.
-	account = frappe.db.get_value(
-		"Account", {"company": company, "is_group": 0, "root_type": "Expense"}, "name"
-	)
-	if not account:
-		frappe.throw("No expense account on this site; ERPNext's setup did not complete.")
-	return account
-
-
-def _cost_center(company: str, abbr: str) -> str:
-	center = frappe.db.get_value("Cost Center", f"Main - {abbr}", "name")
-	return center or frappe.db.get_value("Cost Center", {"company": company, "is_group": 0}, "name")
-
-
-def _walk_in_customer() -> str:
-	name = "RPOS Walk-in"
-	if not frappe.db.exists("Customer", name):
-		frappe.get_doc(
-			{
-				"doctype": "Customer",
-				"customer_name": name,
-				"customer_type": "Individual",
-				"customer_group": frappe.db.get_value("Customer Group", {"is_group": 0}, "name"),
-				"territory": frappe.db.get_value("Territory", {"is_group": 0}, "name"),
-			}
-		).insert(ignore_permissions=True)
-	return name
-
-
-def _cash_method(company: str) -> str:
-	"""Cash, with an account for this company, so a POS invoice can settle."""
-	if not frappe.db.exists("Mode of Payment", "Cash"):
-		frappe.get_doc({"doctype": "Mode of Payment", "mode_of_payment": "Cash", "type": "Cash"}).insert(
-			ignore_permissions=True
-		)
-
-	method = frappe.get_doc("Mode of Payment", "Cash")
-	if not any(row.company == company for row in method.accounts):
-		account = frappe.db.get_value(
-			"Account", {"company": company, "account_type": "Cash", "is_group": 0}, "name"
-		) or frappe.db.get_value(
-			"Account", {"company": company, "account_type": "Bank", "is_group": 0}, "name"
-		)
-
-		if account:
-			method.append("accounts", {"company": company, "default_account": account})
-			method.save(ignore_permissions=True)
-
-	return "Cash"
 
 
 def open_test_shift(profile: str = PROFILE) -> str:

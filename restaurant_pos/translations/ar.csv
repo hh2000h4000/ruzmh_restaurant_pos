@@ -1428,3 +1428,39 @@ Name,الاسم,POS Announcement Recipient
 {0} of {1},{0} من {1}
 Nobody would receive this announcement. Choose other branches, roles or people.,ما أحد بيستلم هذا الإعلان. اختر فروع أو أدوار أو أشخاص غيرهم.
 Staff Announcements,إعلانات الموظفين
+Quick Setup,الإعداد السريع
+"A few answers, and the branch, its sections and tables, and a cashier terminal are made for you. You can change any of them later from their own pages.","كم سؤال، ويتسوّى لك الفرع وأقسامه وطاولاته وجهاز الكاشير. وتقدر تعدّل أي شي منها بعدين من شاشته."
+Branch Name,اسم الفرع
+"As your staff call it, for example Olaya Branch.","مثل ما يسمّيه موظفينك، مثلاً فرع العليا."
+What does the branch have?,وش فيه الفرع؟
+Dining Hall,الصالة
+Number of Tables,عدد الطاولات
+Takeaway,السفري
+Delivery,التوصيل
+Cashier Terminal,جهاز الكاشير
+Terminal Name,اسم الجهاز
+Cashier 1,كاشير 1
+Menu Price List,قائمة أسعار المنيو
+Empty takes the first selling price list.,لو تركته فاضي ياخذ أول قائمة أسعار بيع.
+VAT Template,قالب الضريبة
+Empty takes the company's default template.,لو تركته فاضي ياخذ القالب الافتراضي للشركة.
+Create,إنشاء
+Setting up the branch…,جاري إعداد الفرع…
+Set Up Another Branch,إعداد فرع ثاني
+Done.,تم.
+Terminal,الجهاز
+{0} tables,{0} طاولة
+On the till, open the cashier screen and enter this pairing code:,على جهاز الكاشير، افتح شاشة الكاشير واكتب رمز الربط هذا:
+"It works once, for {0} minutes. A new one can be issued from the terminal's page.","يشتغل مرة وحدة، لمدة {0} دقيقة. وتقدر تطلع رمز جديد من صفحة الجهاز."
+"Next: add your menu items and prices, then your staff and their PINs.","الخطوة الجاية: أضف أصناف المنيو وأسعارها، وبعدها الموظفين وأرقامهم السرية."
+Open the guide,افتح الدليل
+Choose the company this branch belongs to.,اختر الشركة اللي يتبع لها الفرع.
+Give the branch a name.,اكتب اسم الفرع.
+A branch called {0} already exists. Choose another name.,فيه فرع اسمه {0} من قبل. اختر اسم ثاني.
+Give the cashier terminal a name.,اكتب اسم جهاز الكاشير.
+A terminal called {0} already exists. Choose another name.,فيه جهاز اسمه {0} من قبل. اختر اسم ثاني.
+"Choose at least one: dining hall, takeaway or delivery.","اختر واحد على الأقل: صالة أو سفري أو توصيل."
+A dining hall needs between 1 and {0} tables.,الصالة تحتاج من 1 إلى {0} طاولة.
+{0} has no warehouse yet. Finish ERPNext's setup first.,{0} ما لها مستودع للحين. كمّل إعداد ERPNext أول.
+{0} has no expense account yet. Finish ERPNext's setup first.,{0} ما لها حساب مصروفات للحين. كمّل إعداد ERPNext أول.
+"You may not create a {0}, so quick setup cannot run for you.","ما عندك صلاحية إنشاء {0}، فما تقدر تشغّل الإعداد السريع."

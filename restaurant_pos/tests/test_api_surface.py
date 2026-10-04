@@ -89,6 +89,7 @@ UNSCOPED = {
 	"api.session.issue_device_code": (
 		"desk action on the POS Profile, behind ERPNext document permissions (D-226)"
 	),
+	"api.quick_setup.run": ("desk page, inserting as the caller behind ERPNext document permissions (D-307)"),
 	"api.session.unpair_device": (
 		"desk action on the POS Profile, behind ERPNext document permissions (D-226)"
 	),

@@ -18,3 +18,4 @@ restaurant_pos.patches.v1_0.add_cash_reason_accounts
 restaurant_pos.patches.v1_0.combo_choices_from_slots
 restaurant_pos.patches.v1_0.stamp_print_failed_at
 restaurant_pos.patches.v1_0.default_alerts_per_page
+restaurant_pos.patches.v1_0.drop_corporate_credit

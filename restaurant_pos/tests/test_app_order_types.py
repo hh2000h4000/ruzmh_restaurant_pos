@@ -222,9 +222,8 @@ class TestAppOrderTypes(PaymentTestBase):
 				],
 			)
 
-	def test_corporate_ships_and_is_credit(self):
-		"""02 §3 — restored: BR-022 never forbade credit, only partial payment."""
-		config = frappe.get_doc("Restaurant Order Type", {"title": "Corporate"})
-		self.assertEqual(config.customer_mode, "required")
-		self.assertEqual(config.allowed_payment_methods[0].payment_method, "Credit")
-		self.assertEqual(config.allowed_payment_methods[0].is_forced, 1)
+	def test_no_corporate_type_ships(self):
+		"""`D-320` — a sale billed to a company is a Sales Invoice in ERPNext, not a till sale."""
+		from restaurant_pos.setup.defaults import APP_ORDER_TYPES, ORDER_TYPES
+
+		self.assertNotIn("Corporate", [values["title"] for values in ORDER_TYPES + APP_ORDER_TYPES])

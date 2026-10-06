@@ -186,9 +186,6 @@ DELIVERY_APPS = [
 	{"title": "Talabat", "title_ar": "طلبات", "icon": "mobile", "color": "#22C55E", "sort_order": 6},
 ]
 
-#: A general credit method for corporate accounts (02 §3, "Invoice/Credit").
-CREDIT_METHOD = "Credit"
-
 APP_ORDER_TYPES = [
 	{
 		"title": app["title"],
@@ -297,23 +294,6 @@ QUICK_NOTES = [
 		"sort_order": 63,
 	},
 ]
-
-
-#: 02 §3 — billed to the company, settled on a statement like the apps.
-CORPORATE_ORDER_TYPE = {
-	"title": "Corporate",
-	"title_ar": "شركات",
-	"icon": "users",
-	"color": "#6B7280",
-	"requires_table": 0,
-	"requires_cover_count": 0,
-	"counterparty": "account",
-	"customer_mode": "required",
-	"send_to_kitchen_on": "manual",
-	"sort_order": 7,
-	"is_active": 0,
-	"allowed_payment_methods": [{"payment_method": CREDIT_METHOD, "is_forced": 1, "is_default": 1}],
-}
 
 
 # --------------------------------------------------------------------------- #
@@ -431,15 +411,18 @@ def fill_zatca_means(doc, code: str) -> None:
 
 
 def _create_credit_payment_methods():
-	"""One credit method per platform, plus a general one for corporate accounts.
+	"""One credit method per delivery platform.
 
-	``type = General`` with ``rpos_is_credit = 1``: no till, no bank account,
-	nothing to reconcile at close of shift. One method per platform rather than
-	a single shared "Credit" is what lets a statement be pulled per platform —
-	HungerStation and Jahez owe separately (``DECISIONS.md`` D-029).
+	``type = General`` with ``rpos_is_credit = 1``: nothing in the drawer and
+	nothing to count at close of shift. One method per platform, each with its
+	own account (`D-319`), so HungerStation and Jahez owe separately.
+
+	**None for corporate accounts** (`D-320`): a sale billed to a company is a
+	Sales Invoice in ERPNext, with its receivable, terms and statement — not a
+	till sale.
 	"""
 	created = []
-	for title in [app["title"] for app in DELIVERY_APPS] + [CREDIT_METHOD]:
+	for title in [app["title"] for app in DELIVERY_APPS]:
 		if frappe.db.exists("Mode of Payment", title):
 			continue
 
@@ -460,7 +443,7 @@ def _create_credit_payment_methods():
 
 def _create_order_types():
 	created = []
-	for values in ORDER_TYPES + APP_ORDER_TYPES + [CORPORATE_ORDER_TYPE]:
+	for values in ORDER_TYPES + APP_ORDER_TYPES:
 		if frappe.db.exists("Restaurant Order Type", {"title": values["title"]}):
 			continue
 

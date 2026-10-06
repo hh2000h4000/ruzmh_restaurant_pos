@@ -16,7 +16,7 @@ from frappe.model.naming import NamingSeries
 
 from restaurant_pos.tests.test_order import BRANCH, OrderTestBase, _ensure_shift
 from restaurant_pos.tests.test_permissions import _make_user
-from restaurant_pos.utils import idempotency
+from restaurant_pos.utils import idempotency, invoice_number
 from restaurant_pos.utils.audit import log_audit
 
 #: Setup a restaurant made before its first order. Never touched.
@@ -60,9 +60,8 @@ class TestDeleteTransactionsClearsTheTill(OrderTestBase):
 		frappe.db.delete("Transaction Deletion Record", {"name": record.name})
 
 	def _order_series(self) -> NamingSeries:
-		return NamingSeries(
-			frappe.get_meta("Restaurant Order").get_field("naming_series").options.split("\n")[0]
-		)
+		"""The terminal's own order series — `RO-1002-01-` and a count (`D-310`)."""
+		return NamingSeries(invoice_number.order_series_for(self.profile))
 
 	def test_the_long_number_starts_again_when_no_order_is_left(self):
 		"""The user's report on the first real try: `RO-2026-09-00067` after a
@@ -81,11 +80,11 @@ class TestDeleteTransactionsClearsTheTill(OrderTestBase):
 		self.assertEqual(series.get_current_value(), 0)
 		# The deletion took the day with it; a new bill needs one.
 		_ensure_shift(self.profile)
-		self.assertTrue(self._order().name.endswith("-00001"))
+		self.assertTrue(self._order().name.endswith("-000001"))
 
 	def test_a_number_still_standing_is_never_handed_out_again(self):
-		"""The counter is shared by the site. An order the deletion did not reach —
-		another company's — keeps its number, and the next bill goes after it."""
+		"""An order the deletion did not reach — moved to another company's branch —
+		keeps its number, and the terminal's next bill goes after it."""
 		kept = self._order()
 		frappe.db.set_value("Restaurant Order", kept.name, "branch", "_RPOS Another Branch")
 		# The class rolls back once, at the end: left standing, this order breaks

@@ -37,6 +37,18 @@ CLOCK_SLACK = timedelta(seconds=5)
 
 
 class RestaurantOrder(Document):
+	def before_naming(self):
+		"""An order counts on its terminal's own series: `RO-1002-01-000001` (`D-310`).
+
+		One counter for every order in the company made tills wait for each other
+		to open a bill — ERPNext holds the counter row until the transaction ends.
+		An order with no terminal, or a terminal that is not a till, keeps the
+		shared series on the form.
+		"""
+		from restaurant_pos.utils import invoice_number
+
+		self.naming_series = invoice_number.order_series_for(self.pos_profile) or self.naming_series
+
 	def validate(self):
 		self.validate_order_type_change()
 		self.validate_cover_count()

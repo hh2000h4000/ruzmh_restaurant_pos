@@ -202,3 +202,44 @@ class TheInvoiceCarriesTheNumber(ReturnTestBase):
 		branch.set(numbers.BRANCH_NUMBER, "888888")
 		with self.assertRaises(frappe.ValidationError):
 			branch.save()
+
+
+class OrdersCountOnTheTerminalToo(ReturnTestBase):
+	"""`D-310` — opening a bill does not wait for another till's bill either."""
+
+	def test_an_order_is_named_on_its_terminals_series(self):
+		order = self._order()
+
+		series = numbers.series_for(self.profile)
+		self.assertTrue(order.name.startswith("RO-" + series.split(".")[0]), order.name)
+		self.assertRegex(order.name, r"^RO-\d+-\d{2}-\d{6}$")
+
+	def test_two_orders_on_a_terminal_follow_one_another(self):
+		first, second = self._order().name, self._order().name
+
+		self.assertEqual(int(second.rsplit("-", 1)[1]), int(first.rsplit("-", 1)[1]) + 1)
+
+	def test_the_order_counter_exists_with_the_terminal(self):
+		made = _branch_with_a_till()
+
+		prefix = NamingSeries("RO-" + numbers.series_for(made["pos_profile"])).get_prefix()
+
+		self.assertEqual(frappe.db.get_value("Series", prefix, "current", order_by="name"), 0)
+
+
+class WhatNobodyReadsHasNoCounter(ReturnTestBase):
+	"""`D-310` — a ticket, an activity row and a print job each took a number from a
+	counter the whole company shared, on every tap. Nobody ever read those numbers."""
+
+	def test_activity_rows_tickets_and_print_jobs_are_not_numbered(self):
+		order = self._paid()
+
+		rows = frappe.get_all("POS Order Activity", filters={"restaurant_order": order.name}, pluck="name")
+		self.assertTrue(rows, "paying a bill is on its story")
+		for name in rows:
+			self.assertFalse(name.startswith("ACT-"), name)
+
+		for doctype in ("POS Order Activity", "Kitchen Order Ticket", "POS Print Job"):
+			meta = frappe.get_meta(doctype)
+			self.assertEqual(meta.autoname, "hash", doctype)
+			self.assertIsNone(meta.get_field("naming_series"), doctype)

@@ -44,6 +44,12 @@ DEVICE_WIDTH = 2
 #: Six digits: a terminal selling a thousand bills a day runs for 2.7 years.
 COUNT = ".######"
 
+#: What else counts on the terminal's own series, and the prefix that tells it
+#: apart: an order is `RO-1002-01-000001` (`D-310`). Its short daily number is
+#: what the guest hears; this is the name the office reads.
+ORDER_PREFIX = "RO-"
+NUMBERED_PER_TERMINAL = (("Sales Invoice", ""), ("Restaurant Order", ORDER_PREFIX))
+
 
 def number_branch(doc, method=None) -> None:
 	"""`Branch.validate` — give the branch its number, or check the one typed."""
@@ -109,10 +115,14 @@ def number_device(doc, method=None) -> None:
 
 
 def make_counter(doc, method=None) -> None:
-	"""`POS Profile.on_update` — the terminal's counter exists before it sells."""
-	series = series_for(doc.name, number_now=False)
-	if series:
-		_ensure_counter(series)
+	"""`POS Profile.on_update` — the terminal's counters exist before it sells."""
+	_ensure_counters(series_for(doc.name, number_now=False))
+
+
+def order_series_for(pos_profile: str | None) -> str | None:
+	"""The naming series a terminal's orders take: its invoice series behind `RO-`."""
+	series = series_for(pos_profile)
+	return ORDER_PREFIX + series if series else None
 
 
 def series_for(pos_profile: str | None, *, number_now: bool = True) -> str | None:
@@ -128,15 +138,16 @@ def series_for(pos_profile: str | None, *, number_now: bool = True) -> str | Non
 	branch_number = frappe.db.get_value("Branch", branch, BRANCH_NUMBER)
 	device_number = frappe.db.get_value("POS Profile", pos_profile, DEVICE_NUMBER)
 
-	if not (branch_number and device_number):
+	numbered_here = not (branch_number and device_number)
+	if numbered_here:
 		if not number_now:
 			return None
 		branch_number = branch_number or _number_branch_now(branch)
 		device_number = device_number or _number_device_now(pos_profile, branch)
 
 	series = f"{branch_number}-{device_number}-{COUNT}"
-	if number_now:
-		_ensure_counter(series)
+	if numbered_here:
+		_ensure_counters(series)
 	return series
 
 
@@ -153,25 +164,28 @@ def number_existing() -> None:
 		pluck="name",
 		order_by="creation",
 	):
-		series_for(profile)
+		# Counters too, whether or not the numbers are new: a terminal numbered
+		# before orders took its series has an invoice counter and no order one.
+		_ensure_counters(series_for(profile))
 
 
 def restart_counters() -> None:
-	"""After the invoices are deleted, each terminal counts on from the last one still standing."""
-	invoices = frappe.qb.DocType("Sales Invoice")
+	"""After the books are cleared, each terminal counts on from the last document still standing."""
 	for profile in frappe.get_all("POS Profile", filters={DEVICE_NUMBER: ("is", "set")}, pluck="name"):
 		series = series_for(profile, number_now=False)
 		if not series:
 			continue
-		naming = NamingSeries(series)
-		prefix = naming.get_prefix()
-		last = (
-			frappe.qb.from_(invoices)
-			.select(Max(invoices.name))
-			.where(invoices.name.like(f"{prefix}%"))
-			.run()[0][0]
-		)
-		naming.update_counter(cint(last[len(prefix) :]) if last else 0)
+		for doctype, lead in NUMBERED_PER_TERMINAL:
+			naming = NamingSeries(lead + series)
+			prefix = naming.get_prefix()
+			table = frappe.qb.DocType(doctype)
+			last = (
+				frappe.qb.from_(table)
+				.select(Max(table.name))
+				.where(table.name.like(f"{prefix}%"))
+				.run()[0][0]
+			)
+			naming.update_counter(cint(last[len(prefix) :]) if last else 0)
 
 
 # --------------------------------------------------------------------------- #
@@ -228,7 +242,11 @@ def _has_sold(profiles: list[str]) -> bool:
 	return bool(profiles) and bool(frappe.db.exists("Sales Invoice", {"pos_profile": ("in", profiles)}))
 
 
-def _ensure_counter(series: str) -> None:
-	naming = NamingSeries(series)
-	if frappe.db.get_value("Series", naming.get_prefix(), "name", order_by="name") is None:
-		naming.update_counter(0)
+def _ensure_counters(series: str | None) -> None:
+	"""Make the counter rows of one terminal — now, so no sale ever makes one."""
+	if not series:
+		return
+	for _doctype, prefix in NUMBERED_PER_TERMINAL:
+		naming = NamingSeries(prefix + series)
+		if frappe.db.get_value("Series", naming.get_prefix(), "name", order_by="name") is None:
+			naming.update_counter(0)

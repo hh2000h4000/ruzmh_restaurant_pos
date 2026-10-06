@@ -1,14 +1,13 @@
 {
  "actions": [],
  "allow_rename": 0,
- "autoname": "naming_series:",
+ "autoname": "hash",
  "creation": "2026-08-31 00:00:00.000000",
  "description": "One thing to print, already turned into the bytes a printer understands. The server renders; the agent sends (D-084).",
  "doctype": "DocType",
  "editable_grid": 0,
  "engine": "InnoDB",
  "field_order": [
-  "naming_series",
   "target_section",
   "printer",
   "agent",
@@ -33,17 +32,6 @@
   "payload"
  ],
  "fields": [
-  {
-   "default": "PJOB-.YYYY.-.#####.",
-   "fieldname": "naming_series",
-   "fieldtype": "Select",
-   "label": "Naming Series",
-   "no_copy": 1,
-   "options": "PJOB-.YYYY.-.#####.",
-   "print_hide": 1,
-   "reqd": 1,
-   "set_only_once": 1
-  },
   {
    "fieldname": "target_section",
    "fieldtype": "Section Break",
@@ -193,10 +181,11 @@
  "index_web_pages_for_search": 0,
  "istable": 0,
  "links": [],
- "modified": "2026-08-31 00:00:00.000000",
+ "modified": "2026-10-06 18:00:00.000000",
  "modified_by": "Administrator",
  "module": "Restaurant POS",
  "name": "POS Print Job",
+ "naming_rule": "Random",
  "owner": "Administrator",
  "permissions": [
   {

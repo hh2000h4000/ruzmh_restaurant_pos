@@ -50,13 +50,14 @@ LEFT_BY_SERVICE = ("occupied", "cleaning", "reserved")
 #: restarts a counter only when the pattern is the doctype's own `autoname`, so it
 #: skips these — which is how `RO-2026-09-00067` followed a deletion that left no
 #: orders at all (the user's first try of `D-210`).
+#:
+#: Tickets, activity rows and print jobs are not here: nobody reads their names,
+#: so they have none to count (`D-310`). And a terminal's own order and invoice
+#: counters are restarted by `invoice_number.restart_counters`.
 NUMBERED = (
 	"Restaurant Order",
-	"Kitchen Order Ticket",
 	"Restaurant Shift",
 	"Restaurant Reservation",
-	"POS Order Activity",
-	"POS Print Job",
 )
 
 

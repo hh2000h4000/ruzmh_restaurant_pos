@@ -1,14 +1,13 @@
 {
  "actions": [],
  "allow_rename": 0,
- "autoname": "naming_series:",
+ "autoname": "hash",
  "creation": "2026-09-01 00:00:00.000000",
  "description": "Everything that happened to one bill, in order, with who did it. Written where the intent is known, not inferred from field diffs (D-106).",
  "doctype": "DocType",
  "editable_grid": 0,
  "engine": "InnoDB",
  "field_order": [
-  "naming_series",
   "what_section",
   "restaurant_order",
   "action",
@@ -25,17 +24,6 @@
   "details"
  ],
  "fields": [
-  {
-   "default": "ACT-.YYYY.-.######.",
-   "fieldname": "naming_series",
-   "fieldtype": "Select",
-   "label": "Naming Series",
-   "no_copy": 1,
-   "options": "ACT-.YYYY.-.######.",
-   "print_hide": 1,
-   "reqd": 1,
-   "set_only_once": 1
-  },
   {
    "fieldname": "what_section",
    "fieldtype": "Section Break",
@@ -132,10 +120,11 @@
  "index_web_pages_for_search": 0,
  "istable": 0,
  "links": [],
- "modified": "2026-09-07 16:00:00.000000",
+ "modified": "2026-10-06 18:00:00.000000",
  "modified_by": "Administrator",
  "module": "Restaurant POS",
  "name": "POS Order Activity",
+ "naming_rule": "Random",
  "owner": "Administrator",
  "permissions": [
   {

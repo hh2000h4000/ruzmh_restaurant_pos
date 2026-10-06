@@ -1,13 +1,12 @@
 {
  "actions": [],
  "allow_rename": 1,
- "autoname": "naming_series:",
+ "autoname": "hash",
  "creation": "2026-08-09 00:00:00.000000",
  "doctype": "DocType",
  "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
-  "naming_series",
   "context_section",
   "restaurant_order",
   "kot_type",
@@ -32,17 +31,6 @@
   "kitchen_told_at"
  ],
  "fields": [
-  {
-   "default": "KOT-.YYYY.-.MM.-.#####.",
-   "fieldname": "naming_series",
-   "fieldtype": "Select",
-   "label": "Naming Series",
-   "no_copy": 1,
-   "options": "KOT-.YYYY.-.MM.-.#####.",
-   "print_hide": 1,
-   "reqd": 1,
-   "set_only_once": 1
-  },
   {
    "fieldname": "context_section",
    "fieldtype": "Section Break",
@@ -69,13 +57,13 @@
    "reqd": 1
   },
   {
+   "description": "Empty when no rule routed the items: the ticket goes to the cashier's printer (BR-070 level 7, D-300).",
    "fieldname": "production_center",
    "fieldtype": "Link",
    "in_list_view": 1,
    "in_standard_filter": 1,
    "label": "Production Center",
-   "options": "Production Center",
-   "description": "Empty when no rule routed the items: the ticket goes to the cashier's printer (BR-070 level 7, D-300)."
+   "options": "Production Center"
   },
   {
    "fieldname": "context_cb",
@@ -193,10 +181,11 @@
  "index_web_pages_for_search": 1,
  "istable": 0,
  "links": [],
- "modified": "2026-10-03 14:23:34.290500",
+ "modified": "2026-10-06 18:00:00.000000",
  "modified_by": "Administrator",
  "module": "Restaurant POS",
  "name": "Kitchen Order Ticket",
+ "naming_rule": "Random",
  "owner": "Administrator",
  "permissions": [
   {

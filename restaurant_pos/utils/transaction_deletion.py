@@ -34,6 +34,7 @@ from frappe.model.naming import NamingSeries
 from frappe.query_builder.functions import Count, Max
 from frappe.utils import cint
 
+from restaurant_pos.utils import invoice_number
 from restaurant_pos.utils.order import release_table
 
 #: The ERPNext documents a replay may point at, deleted by the same button — so
@@ -267,3 +268,7 @@ def _restart_numbering() -> None:
 				.run()[0][0]
 			)
 			series.update_counter(cint(last[len(prefix) :]) if last else 0)
+
+	# And every terminal's own invoice counter (`D-309`): ERPNext restarts the
+	# series it knows from the form, and these are not on the form.
+	invoice_number.restart_counters()

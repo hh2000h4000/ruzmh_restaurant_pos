@@ -1464,3 +1464,14 @@ A dining hall needs between 1 and {0} tables.,الصالة تحتاج من 1 إ�
 {0} has no warehouse yet. Finish ERPNext's setup first.,{0} ما لها مستودع للحين. كمّل إعداد ERPNext أول.
 {0} has no expense account yet. Finish ERPNext's setup first.,{0} ما لها حساب مصروفات للحين. كمّل إعداد ERPNext أول.
 "You may not create a {0}, so quick setup cannot run for you.","ما عندك صلاحية إنشاء {0}، فما تقدر تشغّل الإعداد السريع."
+Branch Number,رقم الفرع
+Device Number,رقم الجهاز
+"Starts every invoice number of this branch, e.g. 1002-01-000001. Leave empty and the next free number is taken. It cannot change once the branch has invoices.",يبدأ به رقم كل فاتورة في هذا الفرع، مثل 1002-01-000001. اتركه فاضي وياخذ أول رقم متاح. ما يتغيّر بعد ما يصير للفرع فواتير.
+"This terminal's part of its invoice numbers: branch, device, count — e.g. 1002-01-000001. Leave empty and the next free number in the branch is taken. It cannot change once the terminal has invoices.",رقم هذا الجهاز داخل رقم الفاتورة: الفرع ثم الجهاز ثم التسلسل، مثل 1002-01-000001. اتركه فاضي وياخذ أول رقم متاح في الفرع. ما يتغيّر بعد ما يصير للجهاز فواتير.
+Branch Number {0} belongs to {1}. Choose another.,رقم الفرع {0} مستخدم في {1}. اختر رقم ثاني.
+Device Number {0} belongs to {1} in this branch. Choose another.,رقم الجهاز {0} مستخدم في {1} في نفس الفرع. اختر رقم ثاني.
+Number Taken,الرقم مستخدم
+Number In Use,الرقم عليه فواتير
+"Branch Number cannot change from {0}: this branch has invoices numbered with it, and the sequence would break.",ما ينفع تغيّر رقم الفرع {0}: الفرع له فواتير مرقّمة به، وتغييره يقطع التسلسل.
+"Device Number cannot change from {0}: this terminal has invoices numbered with it, and the sequence would break.",ما ينفع تغيّر رقم الجهاز {0}: الجهاز له فواتير مرقّمة به، وتغييره يقطع التسلسل.
+{0} is digits only: {1} is not a number.,{0} أرقام فقط: {1} مو رقم.

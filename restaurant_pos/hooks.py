@@ -64,6 +64,13 @@ doc_events = {
 	# D-189 — and ERPNext's own loyalty stays off an RPOS invoice. It fetches the
 	# customer's program onto every invoice and grants its own points on submit,
 	# which doubled every balance beside the ledger rows RPOS writes.
+	# D-309 — invoice numbers are branch, terminal, count: both numbers are kept
+	# here, and a terminal's counter exists before its first sale.
+	"Branch": {"validate": "restaurant_pos.utils.invoice_number.number_branch"},
+	"POS Profile": {
+		"validate": "restaurant_pos.utils.invoice_number.number_device",
+		"on_update": "restaurant_pos.utils.invoice_number.make_counter",
+	},
 	"Sales Invoice": {
 		"before_cancel": "restaurant_pos.utils.payment.block_invoice_cancel",
 		"validate": [

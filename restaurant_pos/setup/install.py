@@ -96,10 +96,21 @@ CUSTOM_FIELDS = {
 			"description": "Printed on customer receipts.",
 			"insert_after": "phone",
 		},
+		# **The first part of every invoice number of this branch** (`D-309`):
+		# branch, terminal, count. Data rather than Int, so a number somebody
+		# chose is kept as they wrote it.
+		{
+			"fieldname": "rpos_branch_number",
+			"fieldtype": "Data",
+			"label": "Branch Number",
+			"no_copy": 1,
+			"description": "Starts every invoice number of this branch, e.g. 1002-01-000001. Leave empty and the next free number is taken. It cannot change once the branch has invoices.",
+			"insert_after": "vat_number",
+		},
 		{
 			"fieldname": "rpos_settings_cb",
 			"fieldtype": "Column Break",
-			"insert_after": "vat_number",
+			"insert_after": "rpos_branch_number",
 		},
 		{
 			"fieldname": "default_warehouse",
@@ -533,12 +544,23 @@ CUSTOM_FIELDS = {
 			"label": "Restaurant Section",
 			"insert_after": "rpos_section",
 		},
+		# **The terminal's own part of its invoice numbers** (`D-309`), unique
+		# within the branch. Each terminal counts on its own series, so tills do
+		# not queue behind one counter.
+		{
+			"fieldname": "rpos_device_number",
+			"fieldtype": "Data",
+			"label": "Device Number",
+			"no_copy": 1,
+			"description": "This terminal's part of its invoice numbers: branch, device, count — e.g. 1002-01-000001. Leave empty and the next free number in the branch is taken. It cannot change once the terminal has invoices.",
+			"insert_after": "restaurant_section",
+		},
 		{
 			"fieldname": "screen_layout",
 			"fieldtype": "Link",
 			"options": "POS Screen Layout",
 			"label": "Screen Layout",
-			"insert_after": "restaurant_section",
+			"insert_after": "rpos_device_number",
 		},
 		{
 			"fieldname": "rpos_section_cb",
@@ -885,3 +907,12 @@ def after_migrate():
 
 	# Every site that had the app before the guide was served needs the menu row.
 	add_guide_to_help_menu()
+
+	# `D-309` — here rather than in a patch, because the two number fields are
+	# custom fields and exist only once the line at the top has run. A site from
+	# before invoice numbers were branch-terminal-count gets both numbers and a
+	# counter per terminal now, not inside a customer's first payment. It numbers
+	# only what has none.
+	from restaurant_pos.utils import invoice_number
+
+	invoice_number.number_existing()

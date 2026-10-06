@@ -27,6 +27,7 @@ from restaurant_pos.utils import (
 	addons,
 	combos,
 	coupons,
+	invoice_number,
 	kitchen,
 	loyalty,
 	printing,
@@ -689,6 +690,9 @@ def _create_sales_invoice(order, payments, settlement: str = "till"):
 	invoice = frappe.new_doc("Sales Invoice")
 	invoice.update(
 		{
+			# Branch, terminal, count — and a counter per terminal, so tills do
+			# not queue behind one (`D-309`). None leaves ERPNext's own series.
+			"naming_series": invoice_number.series_for(profile.name) or invoice.naming_series,
 			"customer": customer,
 			"company": profile.company,
 			"pos_profile": profile.name,

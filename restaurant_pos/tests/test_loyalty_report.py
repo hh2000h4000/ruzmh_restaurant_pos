@@ -178,6 +178,9 @@ class TestBalanceReport(LoyaltyTestBase):
 		terminal = frappe.copy_doc(frappe.get_doc("POS Profile", self.profile))
 		terminal.taxes_and_charges = template
 		terminal.applicable_for_users = []
+		# `frappe.copy_doc` keeps `no_copy` fields, unlike the desk's Duplicate:
+		# a second terminal of the branch takes the next device number (`D-309`).
+		terminal.rpos_device_number = None
 		label = "no VAT" if rate is None else f"{rate:g}"
 		terminal.insert(ignore_permissions=True, set_name=f"RPOS Test Terminal {label}")
 		# Registered last so it runs first: the terminal names the template.

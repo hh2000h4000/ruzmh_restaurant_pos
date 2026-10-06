@@ -22,7 +22,7 @@ import frappe
 from frappe import _
 from frappe.utils import flt, get_datetime, now_datetime
 
-from restaurant_pos.utils import addons, loyalty, numbering, payment, printing
+from restaurant_pos.utils import addons, invoice_number, loyalty, numbering, payment, printing
 from restaurant_pos.utils import gift_card as gift_cards
 from restaurant_pos.utils.audit import log_audit
 from restaurant_pos.utils.payment import TOLERANCE, is_credit_method, terminal_methods
@@ -362,6 +362,10 @@ def _compose(invoice: str, wanted: dict[str, float]):
 
 	with server_rights():
 		credit = make_return_doc("Sales Invoice", invoice)
+
+	# A credit note counts on the same series as the terminal's sales (`D-309`):
+	# one unbroken sequence per device is what ZATCA counts too.
+	credit.naming_series = invoice_number.series_for(credit.pos_profile) or credit.naming_series
 
 	kept = []
 	for row in credit.items:

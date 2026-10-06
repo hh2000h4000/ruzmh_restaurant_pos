@@ -23,6 +23,9 @@ What the measurements on the rehearsal site made into rules (`docs/14`):
   halalas by which those sums miss what was paid are rounding, said so (§5.2).
 * **The recipe is read off the bill.** A recipe changed since the sale changes
   nothing that was sold (§4.2).
+* **A failure is said, and tried again** (`D-317`). The person who closed the
+  day has gone home: what failed rings ERPNext's bell for the people who can
+  fix it, and every hour the unfinished batches are run again.
 
 Refs: `docs/14_POS_Posting_Design.md`
 """
@@ -42,6 +45,9 @@ DONE = ("Posted", "Nothing To Post")
 
 SAVEPOINT = "rpos_posting_step"
 
+#: Who hears that a posting failed: the people who own the books and the settings.
+WATCHERS = ("Restaurant Admin", "Accounts Manager")
+
 
 def post_branch(branch: str, shift: str | None = None) -> list[str]:
 	"""Post every sale of ``branch`` that is not posted yet. Returns the batches it ran.
@@ -58,7 +64,34 @@ def post_branch(branch: str, shift: str | None = None) -> list[str]:
 
 	for date in _unclaimed_dates(branch):
 		_claim(branch, date, shift)
+	return _finish(branch)
 
+
+def retry_unfinished() -> None:
+	"""Every hour: run again what an earlier posting left unfinished (`D-317`).
+
+	**Only what was already claimed.** Sales nobody has claimed belong to a day
+	still open, and they wait for its close — or for someone who asks.
+	"""
+	for branch in frappe.get_all(BATCH, filters={"status": ("!=", "Posted")}, pluck="branch", distinct=True):
+		frappe.db.get_value("Branch", branch, "name", for_update=True)
+		_finish(branch)
+
+
+def post_now(branch: str) -> None:
+	"""Somebody in the office asked: post this branch in the background, once."""
+	frappe.enqueue(
+		"restaurant_pos.utils.posting.post_branch",
+		queue="long",
+		# Two taps are one posting; the branch's lock would queue them anyway.
+		job_id=f"rpos_post_branch::{branch}",
+		deduplicate=True,
+		branch=branch,
+	)
+
+
+def _finish(branch: str) -> list[str]:
+	"""Run the branch's unfinished batches, oldest date first. Under the branch's lock."""
 	batches = frappe.get_all(
 		BATCH,
 		filters={"branch": branch, "status": ("!=", "Posted")},
@@ -77,6 +110,9 @@ def run(batch_name: str):
 		return batch
 
 	batch.attempts = cint(batch.attempts) + 1
+	# What it said last time: the hourly retry of a batch waiting on a setting
+	# fails the same way each hour, and that is one error, said once.
+	known = batch.error or ""
 	errors = []
 
 	for field, step in (("accounting_status", _post_accounts), ("stock_status", _post_stock)):
@@ -92,8 +128,9 @@ def run(batch_name: str):
 			frappe.clear_messages()
 			batch.set(field, "Failed")
 			errors.append(_reason(error))
-			# Title only, so the traceback is the message (`D-271`).
-			frappe.log_error(title=f"RPOS posting failed: {batch.name} {field}")
+			if errors[-1] not in known:
+				# Title only, so the traceback is the message (`D-271`).
+				frappe.log_error(title=f"RPOS posting failed: {batch.name} {field}")
 			continue
 
 		batch.update(made)
@@ -106,7 +143,52 @@ def run(batch_name: str):
 
 	batch.flags.ignore_permissions = True
 	batch.save()
+	if batch.error and batch.error != known:
+		_ring(batch)
 	return batch
+
+
+def _ring(batch) -> None:
+	"""Say a failed posting in ERPNext's bell, to the people who can fix it (`D-317`).
+
+	**Not at the till.** Nothing a cashier does posts a day, and the reasons — a
+	missing account, an ingredient with no cost, a closed period — are settled
+	in the office. An Alert sends no email.
+	"""
+	people = frappe.get_all(
+		"User",
+		filters={
+			"enabled": 1,
+			"user_type": "System User",
+			"name": (
+				"in",
+				frappe.get_all(
+					"Has Role",
+					filters={"role": ("in", WATCHERS), "parenttype": "User"},
+					pluck="parent",
+					distinct=True,
+				),
+			),
+		},
+		pluck="name",
+	)
+	if not people:
+		return
+
+	from frappe.desk.doctype.notification_log.notification_log import enqueue_create_notification
+
+	enqueue_create_notification(
+		people,
+		{
+			"type": "Alert",
+			"document_type": BATCH,
+			"document_name": batch.name,
+			"subject": _("The sales of {0} on {1} were not posted in full").format(
+				batch.branch, frappe.format(batch.posting_date, "Date")
+			),
+			"email_content": frappe.utils.escape_html(batch.error),
+		},
+	)
 
 
 def stock_voucher_of(invoice: str) -> str | None:

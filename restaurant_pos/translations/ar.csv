@@ -1515,3 +1515,9 @@ Waste Entry,قيد الهدر
 Returned and thrown away,مرتجع وانرمى
 "Choose the Waste Account of {0} in Restaurant POS Settings: {1} of returned food was thrown away, and it is charged there.",حدّد «حساب الهدر» للشركة {0} في إعدادات نقاط البيع: فيه أكل مرتجع انرمى بقيمة {1}، وتكلفته تنزل على هذا الحساب.
 "What a returned dish that was thrown away cost is moved here from cost of sales, so waste is seen on its own. Required: a day with waste in it does not post its stock without it.",تكلفة الأكل المرتجع اللي انرمى تنتقل هنا من تكلفة المبيعات، عشان الهدر ينشاف لحاله. إجباري: اليوم اللي فيه هدر ما يترحّل مخزونه بدونه.
+The sales of {0} on {1} were not posted in full,مبيعات {0} بتاريخ {1} ما ترحّلت كاملة
+Branch {0} does not exist.,الفرع {0} غير موجود.
+Post now,رحّل الآن
+Post a branch now,رحّل فرع الآن
+Posting {0} has started. This page updates when it is done.,بدأ ترحيل {0}. الصفحة تتحدّث لما يخلص.
+Sales Posting,ترحيل المبيعات

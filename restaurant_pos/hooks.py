@@ -112,6 +112,11 @@ scheduler_events = {
 		# replay that can still land (`idempotency.KEEP_DAYS` says why).
 		"restaurant_pos.utils.idempotency.prune",
 	],
+	"hourly": [
+		# D-317 — a posting that failed is run again; fixed in the office, it
+		# goes through within the hour without anybody pressing anything.
+		"restaurant_pos.utils.posting.retry_unfinished",
+	],
 }
 
 # D-090 — `{{ field | rtl }}` in the print templates. The renderer that turns a

@@ -14,7 +14,7 @@ from unittest.mock import patch
 import frappe
 from frappe.utils import add_days, flt, getdate, nowdate
 
-from restaurant_pos.tests.test_order import BRANCH, ITEM
+from restaurant_pos.tests.test_order import BRANCH, CASHIER, ITEM
 from restaurant_pos.tests.test_recipes import COST_OF_ONE, RECIPE, RecipeTestBase
 from restaurant_pos.utils import posting, returns
 from restaurant_pos.utils.sale_doc import POSTED_ENTRY, SALE
@@ -470,3 +470,98 @@ class TheDayCloseSendsItsSalesToTheBooks(PostingTestBase):
 		self.assertEqual(jobs[0].kwargs["branch"], BRANCH)
 		self.assertEqual(jobs[0].kwargs["shift"], day)
 		self.assertTrue(jobs[0].kwargs["enqueue_after_commit"])
+
+
+class APostingThatFailsIsSaidAndTriedAgain(PostingTestBase):
+	"""`D-317` — whoever closed the day has gone home; the failure must reach somebody."""
+
+	WRONG = frappe.ValidationError("the shelf is wrong")
+
+	def _bells(self, batch) -> int:
+		return frappe.db.count(
+			"Notification Log", {"document_type": posting.BATCH, "document_name": batch.name}
+		)
+
+	def _errors(self, batch) -> int:
+		return frappe.db.count("Error Log", {"method": ("like", f"%{batch.name}%")})
+
+	def _failed(self):
+		self._sold(qty=1)
+		with patch.object(posting, "_stock_entry", side_effect=self.WRONG):
+			(batch,) = self._post()
+		return batch
+
+	def test_it_rings_the_office_bell_with_the_reason(self):
+		batch = self._failed()
+
+		logs = frappe.get_all(
+			"Notification Log",
+			filters={"document_type": posting.BATCH, "document_name": batch.name},
+			fields=["for_user", "type", "email_content"],
+		)
+		self.assertTrue(logs, "nobody was told")
+		self.assertEqual({log.type for log in logs}, {"Alert"})  # Alert sends no email
+		self.assertIn("the shelf is wrong", logs[0].email_content)
+		watchers = set(frappe.get_all("Has Role", filters={"role": ("in", posting.WATCHERS)}, pluck="parent"))
+		self.assertLessEqual({log.for_user for log in logs}, watchers)
+
+	def test_the_same_failure_is_said_once_however_often_it_is_retried(self):
+		batch = self._failed()
+		bells, errors = self._bells(batch), self._errors(batch)
+
+		with patch.object(posting, "_stock_entry", side_effect=self.WRONG):
+			posting.retry_unfinished()
+
+		self.assertEqual(frappe.db.get_value(posting.BATCH, batch.name, "attempts"), 2)
+		self.assertEqual(self._bells(batch), bells)
+		self.assertEqual(self._errors(batch), errors)
+
+	def test_a_different_failure_is_said_again(self):
+		batch = self._failed()
+		bells = self._bells(batch)
+
+		with patch.object(
+			posting, "_stock_entry", side_effect=frappe.ValidationError("the period is closed")
+		):
+			posting.retry_unfinished()
+
+		self.assertGreater(self._bells(batch), bells)
+
+	def test_the_hourly_retry_finishes_it_once_the_cause_is_gone(self):
+		batch = self._failed()
+
+		posting.retry_unfinished()
+
+		batch.reload()
+		self.assertEqual(batch.status, "Posted", batch.error)
+		self.assertTrue(batch.stock_issue)
+
+	def test_the_hourly_retry_claims_nothing_of_a_day_still_open(self):
+		order = self._sold(qty=1)
+
+		posting.retry_unfinished()
+
+		self.assertFalse(frappe.db.get_value(SALE, order.sales_invoice, "rpos_posting_batch"))
+
+	def test_post_now_queues_the_branch_once(self):
+		from restaurant_pos.api import posting as api
+
+		with patch.object(frappe, "enqueue") as queued:
+			api.post_now(BRANCH)
+
+		(job,) = queued.call_args_list
+		self.assertIn("posting.post_branch", job.args[0])
+		self.assertEqual(job.kwargs["branch"], BRANCH)
+		self.assertTrue(job.kwargs["deduplicate"])
+		self.assertIn(BRANCH, job.kwargs["job_id"])
+
+	def test_a_cashier_cannot_ask_for_a_posting(self):
+		from restaurant_pos.api import posting as api
+
+		frappe.set_user(CASHIER)
+		try:
+			with patch.object(frappe, "enqueue") as queued:
+				self.assertRaises(frappe.PermissionError, api.post_now, BRANCH)
+			queued.assert_not_called()
+		finally:
+			frappe.set_user("Administrator")

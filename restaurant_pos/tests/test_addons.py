@@ -19,10 +19,10 @@ import frappe
 from frappe.utils import flt, today
 
 from restaurant_pos.restaurant_pos.report.item_sales import item_sales
-from restaurant_pos.tests.test_order import ITEM
+from restaurant_pos.tests.test_order import BRANCH, ITEM
 from restaurant_pos.tests.test_recipes import COST_OF_ONE, RECIPE, RecipeTestBase
 from restaurant_pos.utils import order as orders
-from restaurant_pos.utils import returns
+from restaurant_pos.utils import posting, returns
 from restaurant_pos.utils.sale_doc import SALE, SALE_ITEM
 
 GROUP = "RPOS Test Extras"
@@ -140,6 +140,8 @@ class AnAddOnIsSoldLikeAnyItem(RecipeTestBase):
 
 	def test_the_report_sells_the_cheese_as_an_item_with_its_cost(self):
 		def row(code):
+			# A sale's cost is known once its day is posted (`D-314`).
+			posting.post_branch(BRANCH)
 			_columns, rows, *_rest = item_sales.execute(
 				frappe._dict(from_date=today(), to_date=today(), pos_profile=self.profile, show_cost=1)
 			)
@@ -178,6 +180,8 @@ class AnAddOnIsSoldLikeAnyItem(RecipeTestBase):
 		_group(EXTRA_PATTY)
 
 		def patty_cost():
+			# A sale's cost is known once its day is posted (`D-314`).
+			posting.post_branch(BRANCH)
 			_columns, rows, *_rest = item_sales.execute(
 				frappe._dict(from_date=today(), to_date=today(), pos_profile=self.profile, show_cost=1)
 			)

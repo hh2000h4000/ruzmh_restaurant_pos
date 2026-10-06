@@ -25,7 +25,7 @@ PACKAGE = pathlib.Path(__file__).resolve().parent.parent
 SPELLED_OUT = {
 	"utils/sale_doc.py": "the one place that names it",
 	"restaurant_pos/report/vat_return/vat_return.py": (
-		"the return's sales side is every sale the company made, the office's own invoices included"
+		"the return's sales side is the till's sales and the office's own Sales Invoices, each named"
 	),
 	"restaurant_pos/report/actual_vs_theoretical_usage/actual_vs_theoretical_usage.py": (
 		"stock ledger voucher types: whatever took the stock, by whichever document"

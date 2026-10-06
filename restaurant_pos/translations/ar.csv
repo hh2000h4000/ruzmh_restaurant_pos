@@ -1505,3 +1505,5 @@ The batch of till sales this document posts.,دفعة مبيعات الكاشي�
 "The stock of {0} is not posted yet, and a day's stock is taken after the day before it.",مخزون الدفعة {0} لسا ما ترحّل، ومخزون اليوم ينخصم بعد اليوم اللي قبله.
 "These items have no cost yet, so what was sold of them cannot be valued: {0}. Enter a purchase for each, or a Valuation Rate on its item card, then post again.",هذي المواد ما لها تكلفة للحين، فما ينحسب اللي انباع منها: {0}. سجّل لكل وحدة شراء، أو حط «سعر التقييم» في بطاقتها، وبعدها رحّل مرة ثانية.
 Till sales of {0} on {1} — {2},مبيعات كاشير {0} بتاريخ {1} — {2}
+RPOS Cost Rate,تكلفة الوحدة
+What one stock unit of this line cost when its day was posted. Empty until then.,تكلفة الوحدة من هذا الصنف وقت ترحيل يومه. فاضي لين يترحّل.

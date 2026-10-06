@@ -38,10 +38,27 @@ from frappe.utils import flt
 
 from restaurant_pos.utils import reporting
 from restaurant_pos.utils.company import site_company
+from restaurant_pos.utils.sale_doc import SALE
 
+#: Each side's **tax documents**: doctype, its tax rows, and which of them count.
+#:
+#: The till's sales are POS Invoices and the office's own are Sales Invoices
+#: (`D-308`). The Sales Invoice a day of till sales is *posted* as is their sum,
+#: not a sale — it is left out, or every till sale would be in the return twice.
+#: And the return reads the documents, not the postings: a day not posted yet
+#: is still in it, on the date it was sold.
 SIDES = {
-	"sales": ("Sales Invoice", "Sales Taxes and Charges", "Sales Taxes and Charges Template"),
-	"purchases": ("Purchase Invoice", "Purchase Taxes and Charges", "Purchase Taxes and Charges Template"),
+	"sales": (
+		(SALE, "Sales Taxes and Charges", {}),
+		("Sales Invoice", "Sales Taxes and Charges", {"is_consolidated": 0}),
+	),
+	"purchases": (("Purchase Invoice", "Purchase Taxes and Charges", {}),),
+}
+
+#: The tax templates whose accounts are VAT accounts, by the rows they hold.
+TEMPLATES = {
+	"Sales Taxes and Charges": "Sales Taxes and Charges Template",
+	"Purchase Taxes and Charges": "Purchase Taxes and Charges Template",
 }
 
 
@@ -66,7 +83,7 @@ def execute(filters=None):
 def vat_accounts(company: str) -> set[str]:
 	"""Every account a tax template of this company charges VAT to."""
 	accounts: set[str] = set()
-	for _doctype, child, template in SIDES.values():
+	for child, template in TEMPLATES.items():
 		templates = frappe.get_all(template, filters={"company": company}, pluck="name")
 		if templates:
 			accounts.update(
@@ -81,28 +98,32 @@ def vat_accounts(company: str) -> set[str]:
 
 def _side(side: str, company: str, from_date: str, to_date: str, accounts: set[str]) -> dict:
 	"""Net and VAT, split into taxed and untaxed, sales against their credit notes."""
-	doctype, child, _template = SIDES[side]
-	invoices = frappe.get_all(
-		doctype,
-		filters={"company": company, "docstatus": 1, "posting_date": ("between", [from_date, to_date])},
-		fields=["name", "is_return", "base_net_total"],
-	)
-
-	vat = _vat_by_invoice(doctype, child, [row.name for row in invoices], accounts) if invoices else {}
-
 	totals = {
 		kind: {"amount": 0.0, "adjustment": 0.0, "vat": 0.0, "vat_adjustment": 0.0}
 		for kind in ("taxed", "untaxed")
 	}
-	for row in invoices:
-		tax = vat.get(row.name, 0.0)
-		line = totals["taxed" if tax else "untaxed"]
-		if row.is_return:
-			line["adjustment"] += flt(row.base_net_total)
-			line["vat_adjustment"] += tax
-		else:
-			line["amount"] += flt(row.base_net_total)
-			line["vat"] += tax
+	for doctype, child, which in SIDES[side]:
+		invoices = frappe.get_all(
+			doctype,
+			filters={
+				"company": company,
+				"docstatus": 1,
+				"posting_date": ("between", [from_date, to_date]),
+				**which,
+			},
+			fields=["name", "is_return", "base_net_total"],
+		)
+		vat = _vat_by_invoice(doctype, child, [row.name for row in invoices], accounts) if invoices else {}
+
+		for row in invoices:
+			tax = vat.get(row.name, 0.0)
+			line = totals["taxed" if tax else "untaxed"]
+			if row.is_return:
+				line["adjustment"] += flt(row.base_net_total)
+				line["vat_adjustment"] += tax
+			else:
+				line["amount"] += flt(row.base_net_total)
+				line["vat"] += tax
 	return totals
 
 

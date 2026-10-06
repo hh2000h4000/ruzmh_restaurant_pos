@@ -15,9 +15,9 @@ import frappe
 from frappe.utils import flt
 
 from restaurant_pos.api import session
-from restaurant_pos.tests.test_order import ITEM, TEST_ITEM_RATE, TEST_PRICE_LIST
+from restaurant_pos.tests.test_order import BRANCH, ITEM, TEST_ITEM_RATE, TEST_PRICE_LIST
 from restaurant_pos.tests.test_recipes import COST_OF_ONE, RecipeTestBase
-from restaurant_pos.utils import combos, kitchen, returns
+from restaurant_pos.utils import combos, kitchen, posting, returns
 from restaurant_pos.utils import order as orders
 from restaurant_pos.utils.sale_doc import SALE_ITEM
 
@@ -416,6 +416,8 @@ class TheComboInItemSales(ComboTestBase):
 
 		from restaurant_pos.restaurant_pos.report.item_sales import item_sales
 
+		# A sale's cost is known once its day is posted (`D-314`).
+		posting.post_branch(BRANCH)
 		_columns, rows, *_rest = item_sales.execute(
 			frappe._dict(from_date=today(), to_date=today(), pos_profile=self.profile, show_cost=1, **flags)
 		)

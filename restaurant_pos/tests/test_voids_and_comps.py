@@ -16,9 +16,9 @@ from frappe.utils import flt, today
 
 from restaurant_pos.restaurant_pos.report.voids_and_comps_cost import voids_and_comps_cost as report
 from restaurant_pos.tests import test_addons
-from restaurant_pos.tests.test_order import ITEM
+from restaurant_pos.tests.test_order import BRANCH, ITEM
 from restaurant_pos.tests.test_recipes import COST_OF_ONE, RecipeTestBase
-from restaurant_pos.utils import kitchen
+from restaurant_pos.utils import kitchen, posting
 from restaurant_pos.utils import order as orders
 
 REASON = "Dropped on the floor"
@@ -26,6 +26,8 @@ REASON = "Dropped on the floor"
 
 class VoidsAndComps(RecipeTestBase):
 	def _row(self, kind: str, item: str, reason: str = "") -> dict:
+		# A sale's cost is known once its day is posted (`D-314`).
+		posting.post_branch(BRANCH)
 		_columns, rows, *_rest = report.execute(
 			frappe._dict(from_date=today(), to_date=today(), pos_profile=self.profile)
 		)

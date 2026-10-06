@@ -16,7 +16,7 @@ from frappe.custom.doctype.custom_field.custom_field import create_custom_fields
 from restaurant_pos.setup import cash_accounts, gift_card_accounts
 from restaurant_pos.setup.defaults import create_default_data
 from restaurant_pos.setup.print_templates import create_default_templates
-from restaurant_pos.utils.sale_doc import POSTED_ENTRY, SALE, SALE_ITEM
+from restaurant_pos.utils.sale_doc import LINE_COST, POSTED_ENTRY, SALE, SALE_ITEM
 
 
 # ``Restaurant Branch`` in the database design is the ERPNext ``Branch`` DocType
@@ -469,6 +469,20 @@ CUSTOM_FIELDS = {
 	# on. Copied onto a credit note by `make_return_doc`, which is how a return
 	# of the dish finds its add-ons and a recipe keeps its removals.
 	SALE_ITEM: [
+		# `D-314` — what a unit of this line cost, stamped by the posting that took
+		# it from the warehouse. A POS Invoice has no stock ledger of its own to
+		# read a cost from, and a cost is a fact about the day it was posted: it is
+		# written once, here, where every report already looks.
+		{
+			"fieldname": LINE_COST,
+			"fieldtype": "Float",
+			"precision": "6",
+			"label": "RPOS Cost Rate",
+			"read_only": 1,
+			"no_copy": 1,
+			"description": "What one stock unit of this line cost when its day was posted. Empty until then.",
+			"insert_after": "stock_qty",
+		},
 		{
 			"fieldname": "rpos_order_item",
 			"fieldtype": "Data",

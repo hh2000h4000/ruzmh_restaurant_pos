@@ -21,10 +21,11 @@ import frappe
 from frappe.utils import add_days, flt, today
 
 from restaurant_pos.restaurant_pos.report.item_sales import item_sales as report
-from restaurant_pos.tests.test_order import ITEM
+from restaurant_pos.tests.test_order import BRANCH, ITEM
 from restaurant_pos.tests.test_payment import PaymentTestBase
-from restaurant_pos.utils import returns
-from restaurant_pos.utils.sale_doc import SALE
+from restaurant_pos.tests.test_recipes import _drop_bundle
+from restaurant_pos.utils import posting, returns
+from restaurant_pos.utils.sale_doc import LINE_COST, SALE
 
 REASON = "goods_returned"
 
@@ -32,6 +33,8 @@ EMPTY = {"qty": 0.0, "returned_qty": 0.0, "net_qty": 0.0, "amount": 0.0, "cost":
 
 
 def _run(**filters):
+	# A sale's cost is known once its day is posted (`D-314`).
+	posting.post_branch(BRANCH)
 	return report.execute({"from_date": today(), "to_date": today(), **filters})
 
 
@@ -136,6 +139,14 @@ class TestTheWindowAndTheScope(PaymentTestBase):
 class TestCostAndProfit(PaymentTestBase):
 	"""`D-244` — asked for, never assumed."""
 
+	def setUp(self):
+		super().setUp()
+		# These tests sell the burger as a dish with **no recipe**. A recipe left
+		# behind by another class — committed mid-run by something that issues
+		# DDL, so that class's own rollback brings it back — would cost the dish
+		# from ingredients instead, and the figure below would be somebody else's.
+		_drop_bundle()
+
 	def test_the_columns_are_absent_until_they_are_asked_for(self):
 		"""A restaurant without stock has no cost, and a blank column is not one."""
 		asked, unasked = _run(show_cost=1)[0], _run()[0]
@@ -156,7 +167,7 @@ class TestCostAndProfit(PaymentTestBase):
 
 		moved = _delta(before, _row(show_cost=1))
 		line = frappe.get_doc(SALE, order.sales_invoice).items[0]
-		self.assertAlmostEqual(moved["cost"], flt(line.incoming_rate) * 2, places=2)
+		self.assertAlmostEqual(moved["cost"], flt(line.get(LINE_COST)) * 2, places=2)
 		self.assertAlmostEqual(moved["profit"], moved["amount"] - moved["cost"], places=2)
 
 	def test_a_dish_with_no_cost_is_said_aloud_not_counted_as_free(self):

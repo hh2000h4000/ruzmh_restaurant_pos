@@ -29,10 +29,11 @@ Refs: `docs/14_POS_Posting_Design.md`
 
 import frappe
 from frappe import _
+from frappe.query_builder.functions import Sum
 from frappe.utils import cint, flt, getdate, now_datetime, nowdate, nowtime
 
 from restaurant_pos.utils.permissions import server_rights
-from restaurant_pos.utils.sale_doc import POSTED_ENTRY, SALE, SALE_ITEM
+from restaurant_pos.utils.sale_doc import LINE_COST, POSTED_ENTRY, SALE, SALE_ITEM
 
 BATCH = "POS Posting Batch"
 
@@ -361,6 +362,7 @@ def _post_stock(batch) -> dict:
 		)
 
 	rows = _invoices(batch)
+	_stamp_standard_costs(batch)
 	sold = _moved([row.name for row in rows if not cint(row.is_return)])
 	back = _moved([row.name for row in rows if cint(row.is_return)])
 	if not sold and not back:
@@ -371,9 +373,101 @@ def _post_stock(batch) -> dict:
 	made = {"stock_status": "Posted"}
 	if sold:
 		made["stock_issue"] = _stock_entry(batch, "Material Issue", sold)
+		_stamp_costs(batch, made["stock_issue"], is_return=0)
 	if back:
 		made["stock_receipt"] = _stock_entry(batch, "Material Receipt", back)
+		_stamp_costs(batch, made["stock_receipt"], is_return=1)
 	return made
+
+
+def _invoices_in(batch, is_return: int | None = None):
+	"""The batch's invoices, as a subquery — a day's bills are too many to list by name."""
+	invoice = frappe.qb.DocType(SALE)
+	of_batch = invoice.rpos_posting_batch == batch.name
+	return (
+		frappe.qb.from_(invoice)
+		.select(invoice.name)
+		.where(of_batch if is_return is None else of_batch & (invoice.is_return == is_return))
+	)
+
+
+def _stamp_standard_costs(batch) -> None:
+	"""A dish kept without stock and without a recipe costs what its item card says (`D-314`).
+
+	That is the whole cost model of a restaurant that keeps no stock: a
+	Valuation Rate typed on the dish. ERPNext read it onto every Sales Invoice
+	line; a POS Invoice line has nowhere to carry it until this writes it.
+	"""
+	line = frappe.qb.DocType(SALE_ITEM)
+	in_batch = _invoices_in(batch)
+	sold = (
+		frappe.qb.from_(line)
+		.select(line.item_code)
+		.distinct()
+		.where(line.parent.isin(in_batch) & (line.parenttype == SALE))
+		.run(pluck=True)
+	)
+	if not sold:
+		return
+
+	recipes = set(
+		frappe.get_all("Product Bundle", filters={"new_item_code": ("in", sold)}, pluck="new_item_code")
+	)
+	for item in frappe.get_all(
+		"Item",
+		filters={"name": ("in", sold), "is_stock_item": 0, "valuation_rate": (">", 0)},
+		fields=["name", "valuation_rate"],
+	):
+		if item.name in recipes:
+			# Its ingredients carry the cost, each on its own recipe row.
+			continue
+		(
+			frappe.qb.update(line)
+			.set(line[LINE_COST], flt(item.valuation_rate))
+			.where(line.parent.isin(in_batch) & (line.parenttype == SALE) & (line.item_code == item.name))
+			.run()
+		)
+
+
+def _stamp_costs(batch, stock_entry: str, *, is_return: int) -> None:
+	"""Write what each item cost onto the bills that sold it (`D-314`).
+
+	The stock ledger knows the cost of the day's cheese; it does not know which
+	bill sold which slice, and a POS Invoice has no ledger of its own. So the
+	rate the ledger used is written back onto the lines and recipe rows of the
+	batch's invoices — once, when the stock is taken — and a report reads a
+	sale's cost off the sale, as it did when every sale posted itself.
+
+	**A fact about the day it was posted, not a live figure.** A purchase keyed
+	later with an older date makes ERPNext re-value the issue in the ledger; the
+	rate stamped here stays what it was.
+	"""
+	ledger = frappe.qb.DocType("Stock Ledger Entry")
+	in_batch = _invoices_in(batch, is_return)
+
+	for item, warehouse, qty, value in (
+		frappe.qb.from_(ledger)
+		.select(
+			ledger.item_code, ledger.warehouse, Sum(ledger.actual_qty), Sum(ledger.stock_value_difference)
+		)
+		.where((ledger.voucher_no == stock_entry) & (ledger.is_cancelled == 0))
+		.groupby(ledger.item_code, ledger.warehouse)
+		.run()
+	):
+		rate = abs(flt(value) / flt(qty)) if flt(qty) else 0.0
+		for doctype, field in ((SALE_ITEM, LINE_COST), ("Packed Item", "incoming_rate")):
+			row = frappe.qb.DocType(doctype)
+			(
+				frappe.qb.update(row)
+				.set(row[field], rate)
+				.where(
+					row.parent.isin(in_batch)
+					& (row.parenttype == SALE)
+					& (row.item_code == item)
+					& (row.warehouse == warehouse)
+				)
+				.run()
+			)
 
 
 def _moved(invoices: list[str]) -> dict[tuple[str, str], float]:

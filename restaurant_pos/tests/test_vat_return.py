@@ -17,8 +17,9 @@ import frappe
 from frappe.utils import flt, today
 
 from restaurant_pos.restaurant_pos.report.vat_return import vat_return as report
+from restaurant_pos.tests.test_order import BRANCH
 from restaurant_pos.tests.test_payment import PaymentTestBase
-from restaurant_pos.utils import returns
+from restaurant_pos.utils import posting, returns
 from restaurant_pos.utils.sale_doc import SALE
 
 REASON = "goods_returned"
@@ -80,8 +81,12 @@ class TestTheReturn(PaymentTestBase):
 		self.assertAlmostEqual(boxes["13"]["vat"], boxes["6"]["vat"] - boxes["12"]["vat"], places=2)
 
 	def test_the_ledger_moves_with_box_thirteen(self):
+		"""Once the day is posted (`D-313`): the return reads the tax documents, the
+		books line reads the ledger, and the ledger is written by the posting."""
+		posting.post_branch(BRANCH)
 		before = self._boxes()
 		self._sold()
+		posting.post_branch(BRANCH)
 		after = self._boxes()
 
 		self.assertAlmostEqual(

@@ -35,7 +35,7 @@ from frappe import _
 from frappe.utils import flt
 
 from restaurant_pos.utils import reporting
-from restaurant_pos.utils.sale_doc import SALE, SALE_ITEM
+from restaurant_pos.utils.sale_doc import LINE_COST, SALE, SALE_ITEM
 
 
 def execute(filters=None):
@@ -93,7 +93,9 @@ def _lines_of(invoices: list[str], item_group: str | None) -> list[frappe._dict]
 			"qty",
 			"stock_qty",
 			"net_amount",
-			"incoming_rate",
+			# Stamped by the posting that took the line from the warehouse
+			# (`D-314`): nothing until the sale's day is posted.
+			f"{LINE_COST} as incoming_rate",
 		],
 	)
 	recipes = _recipe_costs(invoices)

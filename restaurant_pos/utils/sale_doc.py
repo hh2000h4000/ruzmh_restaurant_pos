@@ -23,6 +23,11 @@ SALE = "POS Invoice"
 #: `Sales Taxes and Charges` on either document — told apart by `parenttype`.)
 SALE_ITEM = "POS Invoice Item"
 
+#: On a line: what one unit of it cost, written by the posting that took it from
+#: the warehouse (`D-314`). A recipe's rows carry theirs in ERPNext's own
+#: `Packed Item.incoming_rate`. Empty until the sale's day is posted.
+LINE_COST = "rpos_cost_rate"
+
 #: What a day of till sales is posted to the accounts as (`D-313`): ERPNext's own
 #: consolidated Sales Invoice. Not the sale — the entry the sales add up to.
 POSTED_ENTRY = "Sales Invoice"

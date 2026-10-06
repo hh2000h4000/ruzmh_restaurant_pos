@@ -150,6 +150,8 @@ class TheRecipeLeavesTheWarehouse(RecipeTestBase):
 
 	def _row(self) -> dict:
 		"""The dish's row today — other tests sell it too, so tests compare before and after."""
+		# A sale's cost is known once its day is posted (`D-314`).
+		posting.post_branch(BRANCH)
 		_columns, rows, *_rest = item_sales.execute(
 			frappe._dict(from_date=today(), to_date=today(), pos_profile=self.profile, show_cost=1)
 		)
@@ -188,6 +190,8 @@ class TheRecipeLeavesTheWarehouse(RecipeTestBase):
 		"""
 		before = self._row()
 		order = self._sold(qty=2)
+		# A sale's cost is known once its day is posted (`D-314`).
+		posting.post_branch(BRANCH)
 		# An ingredient that came into stock with no worth, as a receipt without a rate does.
 		frappe.db.set_value(
 			"Packed Item",
@@ -204,7 +208,7 @@ class TheRecipeLeavesTheWarehouse(RecipeTestBase):
 
 		self.assertAlmostEqual(after["cost"] - before["cost"], 2 * (COST_OF_ONE - bun), places=2)
 		self.assertEqual(after["uncosted_qty"], before["uncosted_qty"])
-		self.assertEqual(after["short_costed_qty"], 2)
+		self.assertEqual(after["short_costed_qty"] - before["short_costed_qty"], 2)
 		self.assertIn("carried at zero cost", message)
 
 

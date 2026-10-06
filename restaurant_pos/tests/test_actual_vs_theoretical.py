@@ -24,6 +24,7 @@ from restaurant_pos.restaurant_pos.report.actual_vs_theoretical_usage import (
 from restaurant_pos.tests.test_order import TEST_PRICE_LIST
 from restaurant_pos.tests.test_payment import PaymentTestBase
 from restaurant_pos.utils import order as orders
+from restaurant_pos.utils.sale_doc import SALE
 
 COST = 2.00
 
@@ -107,7 +108,7 @@ class ActualAgainstTheoretical(PaymentTestBase):
 		order.reload()
 		self._pay(order)
 		order.reload()
-		posted = frappe.db.get_value("Sales Invoice", order.sales_invoice, ["posting_date", "posting_time"])
+		posted = frappe.db.get_value(SALE, order.sales_invoice, ["posting_date", "posting_time"])
 		return get_datetime(f"{posted[0]} {posted[1]}")
 
 	def _row(self, opening: str, closing: str | None) -> dict:

@@ -16,6 +16,7 @@ from restaurant_pos.api import offline as api
 from restaurant_pos.tests.test_order import ITEM, TEST_ITEM_RATE, OrderTestBase
 from restaurant_pos.tests.test_payment import CASH, _ensure_fiscal_year
 from restaurant_pos.utils import totals
+from restaurant_pos.utils.sale_doc import SALE
 
 
 class OfflineTestBase(OrderTestBase):
@@ -50,7 +51,7 @@ class TestABillSoldOffline(OfflineTestBase):
 		self.assertEqual(order.status, "closed")
 		self.assertEqual(order.is_offline_order, 1)
 		self.assertTrue(order.sales_invoice)
-		self.assertEqual(frappe.db.get_value("Sales Invoice", order.sales_invoice, "docstatus"), 1)
+		self.assertEqual(frappe.db.get_value(SALE, order.sales_invoice, "docstatus"), 1)
 
 	def test_the_totals_it_quoted_are_the_totals_it_gets(self):
 		"""D-071 — the contract's whole purpose, end to end."""

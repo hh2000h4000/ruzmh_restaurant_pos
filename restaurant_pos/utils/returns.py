@@ -32,7 +32,7 @@ from restaurant_pos.utils.permissions import (
 	server_rights,
 	validate_branch_access,
 )
-from restaurant_pos.utils.sale_doc import SALE, SALE_ITEM
+from restaurant_pos.utils.sale_doc import RETURNED_LINE, SALE, SALE_ITEM
 from restaurant_pos.utils.shift import assert_may_sell, selling_till
 from restaurant_pos.utils.totals import money
 
@@ -145,10 +145,10 @@ def _returned_quantities(rows: list[str]) -> dict[str, float]:
 	taken: dict[str, float] = {}
 	for row in frappe.get_all(
 		SALE_ITEM,
-		filters={"sales_invoice_item": ("in", rows), "docstatus": 1},
-		fields=["sales_invoice_item", "qty"],
+		filters={RETURNED_LINE: ("in", rows), "docstatus": 1},
+		fields=[RETURNED_LINE, "qty"],
 	):
-		taken[row.sales_invoice_item] = taken.get(row.sales_invoice_item, 0.0) + abs(flt(row.qty))
+		taken[row[RETURNED_LINE]] = taken.get(row[RETURNED_LINE], 0.0) + abs(flt(row.qty))
 
 	return taken
 
@@ -370,7 +370,7 @@ def _compose(invoice: str, wanted: dict[str, float]):
 
 	kept = []
 	for row in credit.items:
-		qty = wanted.get(row.sales_invoice_item)
+		qty = wanted.get(row.get(RETURNED_LINE))
 		if not qty:
 			continue
 
@@ -502,6 +502,10 @@ def _apply_refund(credit, refund_method: str | None) -> None:
 
 	if credit.is_pos:
 		credit.append("payments", {"mode_of_payment": method, "amount": -abs(due)})
+		# The mapped credit note still carries the **whole** bill as paid, and a
+		# POS Invoice does not work it out again from the rows: a part return was
+		# refused for paying back more than it came to. It pays back its own total.
+		credit.paid_amount = credit.base_paid_amount = -abs(due)
 
 	credit.set_posting_time = 1
 	# **One instant, read once** (`D-261`). These were two calls to the clock, so

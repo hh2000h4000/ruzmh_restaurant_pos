@@ -19,6 +19,7 @@ from restaurant_pos.tests.test_order import ITEM, TEST_ITEM_RATE, TEST_PRICE_LIS
 from restaurant_pos.tests.test_recipes import COST_OF_ONE, RecipeTestBase
 from restaurant_pos.utils import combos, kitchen, returns
 from restaurant_pos.utils import order as orders
+from restaurant_pos.utils.sale_doc import SALE_ITEM
 
 MEAL = "RPOS-TEST-CMB-MEAL"
 COLA = "RPOS-TEST-CMB-COLA"
@@ -118,7 +119,7 @@ class ComboTestBase(RecipeTestBase):
 
 	def _lines(self, invoice: str) -> list:
 		return frappe.get_all(
-			"Sales Invoice Item",
+			SALE_ITEM,
 			filters={"parent": invoice},
 			fields=["name", "item_code", "qty", "rate", "amount", "rpos_combo", "is_free_item"],
 			order_by="idx",
@@ -444,7 +445,7 @@ class TheComboInItemSales(ComboTestBase):
 		net = sum(
 			flt(line.net_amount)
 			for line in frappe.get_all(
-				"Sales Invoice Item", filters={"parent": order.sales_invoice}, fields=["net_amount"]
+				SALE_ITEM, filters={"parent": order.sales_invoice}, fields=["net_amount"]
 			)
 		)
 		self.assertEqual(after["qty"] - before["qty"], 2)

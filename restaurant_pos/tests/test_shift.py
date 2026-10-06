@@ -26,6 +26,7 @@ from restaurant_pos.tests.test_payment import CASH, _ensure_fiscal_year
 from restaurant_pos.utils import order as orders
 from restaurant_pos.utils import payment, returns
 from restaurant_pos.utils import shift as service
+from restaurant_pos.utils.sale_doc import SALE, SALE_ITEM
 
 #: Somebody other than whoever opened the drawer. Written onto the bill after it
 #: is paid — the one field the drawer's count reads to decide whose sale it was.
@@ -142,7 +143,7 @@ class ShiftTestBase(OrderTestBase):
 		return service.open_till(pos_profile=self.profile, opening_floats={"Cash": 100})["entry"]
 
 	def _refund_one(self, order) -> dict:
-		row = frappe.db.get_value("Sales Invoice Item", {"parent": order.sales_invoice}, "name")
+		row = frappe.db.get_value(SALE_ITEM, {"parent": order.sales_invoice}, "name")
 		return returns.create_return(order, items=[{"row": row, "qty": 1}], reason_code="goods_returned")
 
 
@@ -207,7 +208,7 @@ class TestTheFinancialReport(ShiftTestBase):
 		self.assertTrue(taxes)
 		gross = sum(row["gross"] for row in taxes)
 		self.assertAlmostEqual(
-			gross, flt(frappe.db.get_value("Sales Invoice", order.sales_invoice, "grand_total")), places=2
+			gross, flt(frappe.db.get_value(SALE, order.sales_invoice, "grand_total")), places=2
 		)
 		self.assertAlmostEqual(sum(row["net"] + row["tax"] for row in taxes), gross, places=2)
 
@@ -430,13 +431,11 @@ class TestASharedDrawerCountsEveryone(ShiftTestBase):
 	def test_and_so_does_a_refund_they_paid_out_of_it(self):
 		entry = self._opened("single")
 		order = self._sold_by(SECOND_CASHIER)
-		row = frappe.db.get_value("Sales Invoice Item", {"parent": order.sales_invoice}, "name")
+		row = frappe.db.get_value(SALE_ITEM, {"parent": order.sales_invoice}, "name")
 		before = service.summarise_till(entry)
 
 		refund = returns.create_return(order, items=[{"row": row, "qty": 1}], reason_code="goods_returned")
-		frappe.db.set_value(
-			"Sales Invoice", refund["credit_note"], "owner", SECOND_CASHIER, update_modified=False
-		)
+		frappe.db.set_value(SALE, refund["credit_note"], "owner", SECOND_CASHIER, update_modified=False)
 		after = service.summarise_till(entry)
 
 		self.assertAlmostEqual(after["returns"] - before["returns"], refund["refund_amount"], places=2)

@@ -18,6 +18,7 @@ from restaurant_pos.tests.test_order import ITEM, OrderTestBase, _make_cashier, 
 from restaurant_pos.utils import order as orders
 from restaurant_pos.utils import payment as service
 from restaurant_pos.utils import totals
+from restaurant_pos.utils.sale_doc import SALE
 
 CASH = "Cash"
 
@@ -68,10 +69,10 @@ class TestAPosInvoiceIsNotCancelled(OrderTestBase):
 		order = self._paid()
 
 		with self.assertRaises(frappe.ValidationError):
-			frappe.get_doc("Sales Invoice", order.sales_invoice).cancel()
+			frappe.get_doc(SALE, order.sales_invoice).cancel()
 
 		self.assertEqual(
-			frappe.db.get_value("Sales Invoice", order.sales_invoice, "docstatus"),
+			frappe.db.get_value(SALE, order.sales_invoice, "docstatus"),
 			1,
 			"the invoice must still stand",
 		)
@@ -83,9 +84,9 @@ class TestAPosInvoiceIsNotCancelled(OrderTestBase):
 
 		# Detach it, the way any invoice raised outside the till already is.
 		frappe.db.set_value("Restaurant Order", order.name, "sales_invoice", None)
-		frappe.get_doc("Sales Invoice", invoice).cancel()
+		frappe.get_doc(SALE, invoice).cancel()
 
-		self.assertEqual(frappe.db.get_value("Sales Invoice", invoice, "docstatus"), 2)
+		self.assertEqual(frappe.db.get_value(SALE, invoice, "docstatus"), 2)
 
 	def test_a_cancelled_invoice_stops_being_expected_in_the_till(self):
 		"""D-062 — money the books gave back is not money in the till.
@@ -104,7 +105,7 @@ class TestAPosInvoiceIsNotCancelled(OrderTestBase):
 		expected = shift_service.summarise_till(entry)["till_expected"]
 		self.assertGreater(expected, 0, "the sale should be expected in the drawer")
 
-		frappe.db.set_value("Sales Invoice", order.sales_invoice, "docstatus", 2)
+		frappe.db.set_value(SALE, order.sales_invoice, "docstatus", 2)
 
 		after = shift_service.summarise_till(entry)["till_expected"]
 		self.assertLess(after, expected, "a reversed sale must not stay in the count")
@@ -234,7 +235,7 @@ class TestPaymentValidation(PaymentTestBase):
 			],
 		)
 
-		invoice = frappe.get_doc("Sales Invoice", result["sales_invoice"])
+		invoice = frappe.get_doc(SALE, result["sales_invoice"])
 		self.assertEqual(len(invoice.payments), 2)
 
 
@@ -360,7 +361,7 @@ class TestSalesInvoice(PaymentTestBase):
 		order = self._payable_order()
 		result = self._pay(order)
 
-		invoice = frappe.get_doc("Sales Invoice", result["sales_invoice"])
+		invoice = frappe.get_doc(SALE, result["sales_invoice"])
 		self.assertEqual(invoice.docstatus, 1)
 		self.assertEqual(invoice.is_pos, 1)
 		self.assertEqual(order.status, "closed")
@@ -375,7 +376,7 @@ class TestSalesInvoice(PaymentTestBase):
 		self.assertEqual(
 			frappe.db.count(
 				"Payment Entry Reference",
-				{"reference_doctype": "Sales Invoice", "reference_name": result["sales_invoice"]},
+				{"reference_doctype": SALE, "reference_name": result["sales_invoice"]},
 			),
 			0,
 		)
@@ -384,7 +385,7 @@ class TestSalesInvoice(PaymentTestBase):
 		order = self._payable_order()
 		result = self._pay(order)
 
-		invoice = frappe.get_doc("Sales Invoice", result["sales_invoice"])
+		invoice = frappe.get_doc(SALE, result["sales_invoice"])
 		self.assertAlmostEqual(flt(invoice.outstanding_amount), 0, places=2)
 
 	def test_voided_lines_do_not_reach_the_invoice(self):
@@ -393,7 +394,7 @@ class TestSalesInvoice(PaymentTestBase):
 		orders.void_item(order, item_idx=2, reason="Changed mind")
 
 		result = self._pay(order)
-		invoice = frappe.get_doc("Sales Invoice", result["sales_invoice"])
+		invoice = frappe.get_doc(SALE, result["sales_invoice"])
 		self.assertEqual(len(invoice.items), 1)
 
 	def test_the_order_total_matches_the_invoice(self):
@@ -402,7 +403,7 @@ class TestSalesInvoice(PaymentTestBase):
 		expected = flt(order.total_amount)
 
 		result = self._pay(order)
-		invoice = frappe.get_doc("Sales Invoice", result["sales_invoice"])
+		invoice = frappe.get_doc(SALE, result["sales_invoice"])
 
 		self.assertAlmostEqual(flt(invoice.rounded_total or invoice.grand_total), expected, places=2)
 		self.assertAlmostEqual(result["total_amount"], expected, places=2)
@@ -410,7 +411,7 @@ class TestSalesInvoice(PaymentTestBase):
 	def test_the_invoice_links_back_to_the_order(self):
 		order = self._payable_order()
 		result = self._pay(order)
-		invoice = frappe.get_doc("Sales Invoice", result["sales_invoice"])
+		invoice = frappe.get_doc(SALE, result["sales_invoice"])
 		self.assertIn(order.name, invoice.remarks or "")
 
 
@@ -499,7 +500,7 @@ class TestPaymentDiscount(PaymentTestBase):
 			discount_value=10,
 		)
 
-		invoice = frappe.get_doc("Sales Invoice", result["sales_invoice"])
+		invoice = frappe.get_doc(SALE, result["sales_invoice"])
 		self.assertEqual(invoice.apply_discount_on, "Net Total")
 		self.assertGreater(flt(invoice.discount_amount), 0)
 
@@ -527,7 +528,7 @@ class TestPaymentIdempotency(PaymentTestBase):
 
 		self.assertEqual(first["sales_invoice"], second["sales_invoice"])
 		self.assertTrue(second.get("already_processed"))
-		self.assertEqual(frappe.db.count("Sales Invoice", {"remarks": ("like", f"%{order.name}%")}), 1)
+		self.assertEqual(frappe.db.count(SALE, {"remarks": ("like", f"%{order.name}%")}), 1)
 
 
 def _make_settler() -> str:

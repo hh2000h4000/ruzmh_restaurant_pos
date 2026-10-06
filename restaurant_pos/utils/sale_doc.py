@@ -17,8 +17,12 @@ No imports, on purpose: `hooks.py` and the installer read this too.
 """
 
 #: What one sale at the till is saved as.
-SALE = "Sales Invoice"
+SALE = "POS Invoice"
 
 #: A line of it. (Its payments and taxes are `Sales Invoice Payment` and
 #: `Sales Taxes and Charges` on either document — told apart by `parenttype`.)
-SALE_ITEM = "Sales Invoice Item"
+SALE_ITEM = "POS Invoice Item"
+
+#: On a credit note's line: the sold line it takes back. ERPNext counts what has
+#: already come back through this field, and so do we.
+RETURNED_LINE = "pos_invoice_item"

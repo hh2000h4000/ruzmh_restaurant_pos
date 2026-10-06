@@ -372,7 +372,7 @@
    "fieldtype": "Link",
    "label": "Sales Invoice",
    "no_copy": 1,
-   "options": "Sales Invoice",
+   "options": "POS Invoice",
    "read_only": 1
   },
   {

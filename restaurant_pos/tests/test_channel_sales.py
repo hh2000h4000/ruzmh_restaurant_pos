@@ -18,6 +18,7 @@ from frappe.utils import flt, today
 from restaurant_pos.restaurant_pos.report.channel_sales import channel_sales as report
 from restaurant_pos.tests.test_payment import PaymentTestBase
 from restaurant_pos.utils import returns
+from restaurant_pos.utils.sale_doc import SALE
 
 REASON = "goods_returned"
 EMPTY = {"bills": 0, "total": 0.0, "returns": 0.0, "net": 0.0}
@@ -37,7 +38,7 @@ class TestTheChannels(PaymentTestBase):
 		self._pay(order)
 
 		after = self._line(order.order_type)
-		invoice = frappe.get_doc("Sales Invoice", order.sales_invoice)
+		invoice = frappe.get_doc(SALE, order.sales_invoice)
 		self.assertEqual(after["bills"] - before["bills"], 1)
 		self.assertAlmostEqual(after["total"] - before["total"], flt(invoice.grand_total), places=2)
 

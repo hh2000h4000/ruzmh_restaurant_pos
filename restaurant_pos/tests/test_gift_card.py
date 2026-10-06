@@ -26,6 +26,7 @@ from restaurant_pos.utils import gift_card as cards
 from restaurant_pos.utils import order as orders
 from restaurant_pos.utils import payment, returns
 from restaurant_pos.utils import shift as service
+from restaurant_pos.utils.sale_doc import SALE, SALE_ITEM
 
 PREFIX = "RPOSGC"
 
@@ -110,11 +111,11 @@ class SellingACard(GiftCardTestBase):
 		"""**Article 19.** A face-value voucher sold at face value is no supply,
 		so there is no sale to invoice and no VAT to charge — the tax falls later,
 		on the food."""
-		before = frappe.db.count("Sales Invoice")
+		before = frappe.db.count(SALE)
 
 		self._sell()
 
-		self.assertEqual(frappe.db.count("Sales Invoice"), before)
+		self.assertEqual(frappe.db.count(SALE), before)
 
 	def test_the_number_is_read_however_it_was_typed(self):
 		self._sell(number=f"{PREFIX}1")
@@ -182,8 +183,8 @@ class SpendingACard(GiftCardTestBase):
 
 		by_card.reload()
 		in_cash.reload()
-		card_invoice = frappe.get_doc("Sales Invoice", by_card.sales_invoice)
-		cash_invoice = frappe.get_doc("Sales Invoice", in_cash.sales_invoice)
+		card_invoice = frappe.get_doc(SALE, by_card.sales_invoice)
+		cash_invoice = frappe.get_doc(SALE, in_cash.sales_invoice)
 
 		self.assertAlmostEqual(flt(card_invoice.grand_total), flt(cash_invoice.grand_total), places=2)
 		self.assertAlmostEqual(
@@ -197,7 +198,7 @@ class SpendingACard(GiftCardTestBase):
 	def test_a_card_without_enough_left_is_refused_before_anything_posts(self):
 		self._sell(amount=1)
 		order = self._bill()
-		invoices = frappe.db.count("Sales Invoice")
+		invoices = frappe.db.count(SALE)
 
 		with self.assertRaises(frappe.ValidationError):
 			payment.process_payment(
@@ -213,7 +214,7 @@ class SpendingACard(GiftCardTestBase):
 
 		order.reload()
 		self.assertNotEqual(order.status, "closed")
-		self.assertEqual(frappe.db.count("Sales Invoice"), invoices, "nothing was posted")
+		self.assertEqual(frappe.db.count(SALE), invoices, "nothing was posted")
 
 	def test_a_payment_row_that_names_no_card_is_refused(self):
 		order = self._bill()
@@ -312,7 +313,7 @@ class TheLedgerActuallyMoves(GiftCardTestBase):
 
 		order.reload()
 		self.assertAlmostEqual(
-			flt(frappe.db.get_value("Sales Invoice", order.sales_invoice, "outstanding_amount")),
+			flt(frappe.db.get_value(SALE, order.sales_invoice, "outstanding_amount")),
 			0,
 			places=2,
 		)
@@ -346,7 +347,7 @@ class ReturningABillACardPaid(GiftCardTestBase):
 	"""
 
 	def _row(self, order) -> str:
-		return frappe.db.get_value("Sales Invoice Item", {"parent": order.sales_invoice}, "name")
+		return frappe.db.get_value(SALE_ITEM, {"parent": order.sales_invoice}, "name")
 
 	def _paid_by_card(self, loaded: float = 200):
 		self._sell(amount=loaded)

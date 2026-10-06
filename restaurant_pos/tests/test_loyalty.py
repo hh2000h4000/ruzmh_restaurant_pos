@@ -21,6 +21,7 @@ from restaurant_pos.tests.test_payment import CASH, PaymentTestBase
 from restaurant_pos.utils import loyalty, returns, totals
 from restaurant_pos.utils import order as orders
 from restaurant_pos.utils import payment as service
+from restaurant_pos.utils.sale_doc import SALE
 
 PROGRAM = "RPOS Test Loyalty"
 LEDGER = "Loyalty Point Entry"
@@ -166,7 +167,7 @@ class LoyaltyTestBase(PaymentTestBase):
 		return loyalty.balance(customer, self.program)
 
 	def _invoice(self, order):
-		return frappe.get_doc("Sales Invoice", order.sales_invoice)
+		return frappe.get_doc(SALE, order.sales_invoice)
 
 	def _return(self, order, qty: int) -> dict:
 		row = returns.returnable(order)["items"][0]["row"]
@@ -547,7 +548,7 @@ class TestTheReceipt(LoyaltyTestBase):
 		order = self._bill(guest, qty=8)
 		self._settle(order, points=200)
 
-		credit = frappe.get_doc("Sales Invoice", self._return(order, qty=8)["credit_note"])
+		credit = frappe.get_doc(SALE, self._return(order, qty=8)["credit_note"])
 
 		self.assertIsNone(self._context(credit, order)["loyalty"])
 

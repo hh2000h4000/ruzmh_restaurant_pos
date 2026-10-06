@@ -32,7 +32,9 @@ SPELLED_OUT = {
 	),
 }
 
-NAMES = {"Sales Invoice", "Sales Invoice Item"}
+#: Both spellings: what the till's sale was, and what it is now (`D-308`). Code
+#: that writes either one has stopped asking `sale_doc` what a sale is.
+NAMES = {"Sales Invoice", "Sales Invoice Item", "POS Invoice", "POS Invoice Item"}
 
 
 def _spelled_out_in(path: pathlib.Path) -> list[int]:

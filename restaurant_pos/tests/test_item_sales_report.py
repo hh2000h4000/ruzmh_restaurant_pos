@@ -24,6 +24,7 @@ from restaurant_pos.restaurant_pos.report.item_sales import item_sales as report
 from restaurant_pos.tests.test_order import ITEM
 from restaurant_pos.tests.test_payment import PaymentTestBase
 from restaurant_pos.utils import returns
+from restaurant_pos.utils.sale_doc import SALE
 
 REASON = "goods_returned"
 
@@ -96,7 +97,7 @@ class TestWhatSold(PaymentTestBase):
 		order = self._payable_order(qty=1)
 		self._pay(order)
 
-		invoice = frappe.get_doc("Sales Invoice", order.sales_invoice)
+		invoice = frappe.get_doc(SALE, order.sales_invoice)
 		self.assertAlmostEqual(_delta(before, _row())["amount"], invoice.items[0].net_amount, places=2)
 
 
@@ -154,7 +155,7 @@ class TestCostAndProfit(PaymentTestBase):
 		self._pay(order)
 
 		moved = _delta(before, _row(show_cost=1))
-		line = frappe.get_doc("Sales Invoice", order.sales_invoice).items[0]
+		line = frappe.get_doc(SALE, order.sales_invoice).items[0]
 		self.assertAlmostEqual(moved["cost"], flt(line.incoming_rate) * 2, places=2)
 		self.assertAlmostEqual(moved["profit"], moved["amount"] - moved["cost"], places=2)
 

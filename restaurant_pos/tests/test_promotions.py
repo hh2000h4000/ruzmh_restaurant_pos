@@ -32,6 +32,7 @@ from restaurant_pos.tests.test_payment import CASH
 from restaurant_pos.utils import activity, promotions, totals
 from restaurant_pos.utils import order as orders
 from restaurant_pos.utils import payment as payment_service
+from restaurant_pos.utils.sale_doc import SALE
 
 
 class PromotionTestBase(OrderTestBase):
@@ -537,7 +538,7 @@ class ChoosingOneIsSpendingTheShopsMoney(PromotionTestBase):
 		self._pay(order, promo.name)
 		order.reload()
 
-		remarks = frappe.db.get_value("Sales Invoice", order.sales_invoice, "remarks") or ""
+		remarks = frappe.db.get_value(SALE, order.sales_invoice, "remarks") or ""
 		self.assertIn("RPOS test manual", remarks)
 
 
@@ -1497,7 +1498,7 @@ class ABillAnOfferMadeFree(PromotionTestBase):
 
 		order.reload()
 		self.assertEqual(order.status, "closed")
-		invoice = frappe.get_doc("Sales Invoice", order.sales_invoice)
+		invoice = frappe.get_doc(SALE, order.sales_invoice)
 		self.assertEqual(invoice.docstatus, 1)
 		self.assertAlmostEqual(flt(invoice.grand_total), 0, places=2)
 		self.assertTrue(invoice.items, "the free item is on the invoice")

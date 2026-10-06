@@ -16,6 +16,7 @@ from frappe.utils import flt, today
 from restaurant_pos.restaurant_pos.report.invoice_sales import invoice_sales as report
 from restaurant_pos.tests.test_payment import CASH, PaymentTestBase
 from restaurant_pos.utils import reporting, returns
+from restaurant_pos.utils.sale_doc import SALE
 
 REASON = "goods_returned"
 
@@ -39,13 +40,13 @@ class TestTheBills(PaymentTestBase):
 		self.assertIn(CASH, row["paid_by"])
 		self.assertAlmostEqual(
 			row["total"],
-			flt(frappe.db.get_value("Sales Invoice", order.sales_invoice, "grand_total")),
+			flt(frappe.db.get_value(SALE, order.sales_invoice, "grand_total")),
 			places=2,
 		)
 
 	def test_the_item_lines_add_up_to_the_bill(self):
 		order = self._sold()
-		invoice = frappe.get_doc("Sales Invoice", order.sales_invoice)
+		invoice = frappe.get_doc(SALE, order.sales_invoice)
 
 		lines = [row for row in self._rows("item") if row.get("invoice") == order.sales_invoice]
 		self.assertEqual(len(lines), len(invoice.items))

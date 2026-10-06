@@ -19,6 +19,7 @@ from frappe.utils import flt, today
 from restaurant_pos.restaurant_pos.report.vat_return import vat_return as report
 from restaurant_pos.tests.test_payment import PaymentTestBase
 from restaurant_pos.utils import returns
+from restaurant_pos.utils.sale_doc import SALE
 
 REASON = "goods_returned"
 
@@ -42,7 +43,7 @@ class TestTheReturn(PaymentTestBase):
 	def _sold(self, qty: float = 2):
 		order = self._payable_order(qty=qty)
 		self._pay(order)
-		return order, frappe.get_doc("Sales Invoice", order.sales_invoice)
+		return order, frappe.get_doc(SALE, order.sales_invoice)
 
 	def test_a_sale_lands_in_box_one_with_its_vat(self):
 		before = self._boxes()
@@ -63,7 +64,7 @@ class TestTheReturn(PaymentTestBase):
 
 		line = returns.returnable(order)["items"][0]["row"]
 		refund = returns.create_return(order, items=[{"row": line, "qty": 1}], reason_code=REASON)
-		credit = frappe.get_doc("Sales Invoice", refund["credit_note"])
+		credit = frappe.get_doc(SALE, refund["credit_note"])
 
 		after = self._boxes()
 		self.assertEqual(after["1"]["amount"], before["1"]["amount"], "a refund is not a sale")

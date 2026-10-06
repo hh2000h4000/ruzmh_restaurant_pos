@@ -24,6 +24,7 @@ from restaurant_pos.restaurant_pos.report.staff_sales import staff_sales as staf
 from restaurant_pos.tests.test_payment import CASH, PaymentTestBase
 from restaurant_pos.utils import order as orders
 from restaurant_pos.utils import returns
+from restaurant_pos.utils.sale_doc import SALE
 
 REASON = "goods_returned"
 
@@ -148,7 +149,7 @@ class TestPaymentTypes(PaymentTestBase):
 		order = self._payable_order(qty=1)
 		self._pay(order)
 
-		paid = flt(frappe.db.get_value("Sales Invoice", order.sales_invoice, "grand_total"))
+		paid = flt(frappe.db.get_value(SALE, order.sales_invoice, "grand_total"))
 		self.assertAlmostEqual(_method_row(CASH)["taken"] - before["taken"], paid, places=2)
 
 	def test_a_refund_is_listed_apart_from_the_takings(self):

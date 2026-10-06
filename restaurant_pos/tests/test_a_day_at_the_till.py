@@ -41,6 +41,7 @@ from restaurant_pos.tests.test_returns import REASON
 from restaurant_pos.tests.test_shift import ShiftTestBase
 from restaurant_pos.utils import loyalty, totals
 from restaurant_pos.utils import shift as shift_service
+from restaurant_pos.utils.sale_doc import SALE
 
 #: The manager who approves the evening's discount, and the PIN they type.
 DINNER_MANAGER = "rpos_dinner_manager@example.com"
@@ -127,8 +128,8 @@ class TestADayAtTheTill(ShiftTestBase, PaymentTestBase):
 			shift_api.close_day(shift=till["shift"], pos_profile=self.profile)
 			day = shift_api.get_day_summary(till["shift"])
 
-		invoice = frappe.get_doc("Sales Invoice", paid["sales_invoice"])
-		credit = frappe.get_doc("Sales Invoice", refund["credit_note"])
+		invoice = frappe.get_doc(SALE, paid["sales_invoice"])
+		credit = frappe.get_doc(SALE, refund["credit_note"])
 
 		with self.subTest("the kitchen got its ticket, at the station the rule names"):
 			self.assertEqual(len(sent["kots_created"]), 1)
@@ -374,7 +375,7 @@ class TestADinnerService(ShiftTestBase, LoyaltyTestBase):
 			self.assertAlmostEqual(flt(dinner_doc.total_amount), due, places=2)
 
 		with self.subTest("the table's two payments are both on its invoice"):
-			invoice = frappe.get_doc("Sales Invoice", dinner_doc.sales_invoice)
+			invoice = frappe.get_doc(SALE, dinner_doc.sales_invoice)
 			self.assertEqual(len(invoice.payments), 2)
 			self.assertAlmostEqual(sum(flt(row.amount) for row in invoice.payments), due, places=2)
 

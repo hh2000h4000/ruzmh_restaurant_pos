@@ -16,6 +16,7 @@ from restaurant_pos.tests.test_order import ITEM, OrderTestBase, _make_cashier
 from restaurant_pos.tests.test_returns import REASON, ReturnTestBase
 from restaurant_pos.utils import order as service
 from restaurant_pos.utils import returns
+from restaurant_pos.utils.sale_doc import SALE
 
 #: A bill from before midnight — the case every history tab used to lose.
 YESTERDAY = add_days(nowdate(), -1)
@@ -349,7 +350,7 @@ class TestEachTabIsBoundedByItsOwnEvent(ReturnTestBase):
 		order = self._paid()
 		refund = returns.create_return(order, items=[{"row": self._row(order), "qty": 1}], reason_code=REASON)
 		frappe.db.set_value(
-			"Sales Invoice", refund["credit_note"], "creation", f"{YESTERDAY} 20:00:00", update_modified=False
+			SALE, refund["credit_note"], "creation", f"{YESTERDAY} 20:00:00", update_modified=False
 		)
 
 		rows = api.list_orders(self.profile, view="returned")
@@ -361,7 +362,7 @@ class TestEachTabIsBoundedByItsOwnEvent(ReturnTestBase):
 		order = self._paid()
 		refund = returns.create_return(order, items=[{"row": self._row(order), "qty": 1}], reason_code=REASON)
 		frappe.db.set_value(
-			"Sales Invoice",
+			SALE,
 			refund["credit_note"],
 			"creation",
 			f"{add_days(nowdate(), -2)} 20:00:00",

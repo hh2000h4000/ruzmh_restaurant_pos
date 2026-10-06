@@ -13,6 +13,7 @@ from restaurant_pos.setup.defaults import DELIVERY_APPS, create_default_data
 from restaurant_pos.tests.test_payment import CASH, PaymentTestBase
 from restaurant_pos.utils import order as orders
 from restaurant_pos.utils import payment as payment_service
+from restaurant_pos.utils.sale_doc import SALE
 
 
 class TestAppOrderTypes(PaymentTestBase):
@@ -153,7 +154,7 @@ class TestAppOrderTypes(PaymentTestBase):
 		self.assertEqual(result["settlement"], "credit")
 		self.assertEqual(order.status, "closed")
 
-		invoice = frappe.get_doc("Sales Invoice", result["sales_invoice"])
+		invoice = frappe.get_doc(SALE, result["sales_invoice"])
 		self.assertEqual(invoice.docstatus, 1)
 		self.assertEqual(invoice.customer, customer)
 		# Not a till sale: no POS settlement rows, and the money is still owed.

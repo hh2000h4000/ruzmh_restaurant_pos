@@ -23,6 +23,7 @@ from restaurant_pos.tests.test_order import ITEM
 from restaurant_pos.tests.test_recipes import COST_OF_ONE, RECIPE, RecipeTestBase
 from restaurant_pos.utils import order as orders
 from restaurant_pos.utils import returns
+from restaurant_pos.utils.sale_doc import SALE, SALE_ITEM
 
 GROUP = "RPOS Test Extras"
 CHEESE = "RPOS-TEST-CHEESE"
@@ -96,7 +97,7 @@ class AnAddOnIsSoldLikeAnyItem(RecipeTestBase):
 
 	def _lines(self, invoice: str) -> list:
 		return frappe.get_all(
-			"Sales Invoice Item",
+			SALE_ITEM,
 			filters={"parent": invoice},
 			fields=["name", "item_code", "qty", "rate", "amount", "rpos_is_addon", "rpos_order_item"],
 			order_by="idx",
@@ -209,7 +210,7 @@ class AnAddOnIsSoldLikeAnyItem(RecipeTestBase):
 		order = self._sold_with("Extra cheese")
 
 		cheese = frappe.get_all(
-			"Sales Invoice Item",
+			SALE_ITEM,
 			filters={"parent": order.sales_invoice, "item_code": CHEESE},
 			fields=["amount", "discount_percentage", "discount_amount", "is_free_item"],
 		)[0]
@@ -217,7 +218,7 @@ class AnAddOnIsSoldLikeAnyItem(RecipeTestBase):
 		self.assertEqual((flt(cheese.discount_percentage), flt(cheese.discount_amount)), (0, 0))
 		self.assertEqual(cheese.is_free_item, 1)
 		self.assertAlmostEqual(
-			flt(frappe.db.get_value("Sales Invoice", order.sales_invoice, "grand_total")),
+			flt(frappe.db.get_value(SALE, order.sales_invoice, "grand_total")),
 			flt(order.total_amount),
 			places=2,
 		)

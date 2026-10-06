@@ -22,6 +22,7 @@ from restaurant_pos.utils import order as orders
 from restaurant_pos.utils import payment, totals
 from restaurant_pos.utils import returns as service
 from restaurant_pos.utils import shift as shift_service
+from restaurant_pos.utils.sale_doc import SALE
 
 REASON = "goods_returned"
 
@@ -126,7 +127,7 @@ class TestReturningPartOfABill(ReturnTestBase):
 			note="cold when it arrived",
 		)
 
-		remarks = frappe.db.get_value("Sales Invoice", result["credit_note"], "remarks")
+		remarks = frappe.db.get_value(SALE, result["credit_note"], "remarks")
 		self.assertIn("quality_complaint", remarks)
 		self.assertIn("goods return", remarks)
 		self.assertIn("cold when it arrived", remarks)
@@ -139,7 +140,7 @@ class TestTheCreditNote(ReturnTestBase):
 
 		result = service.create_return(order, items=[{"row": self._row(order), "qty": 1}], reason_code=REASON)
 
-		note = frappe.get_doc("Sales Invoice", result["credit_note"])
+		note = frappe.get_doc(SALE, result["credit_note"])
 		self.assertEqual(note.docstatus, 1)
 		self.assertEqual(note.is_return, 1)
 		self.assertEqual(note.return_against, order.sales_invoice)
@@ -152,7 +153,7 @@ class TestTheCreditNote(ReturnTestBase):
 
 		result = service.create_return(order, items=[{"row": self._row(order), "qty": 1}], reason_code=REASON)
 
-		note = frappe.get_doc("Sales Invoice", result["credit_note"])
+		note = frappe.get_doc(SALE, result["credit_note"])
 		self.assertEqual(note.payments[0].mode_of_payment, CASH)
 		self.assertLess(note.payments[0].amount, 0)
 		self.assertGreater(result["refund_amount"], 0)
@@ -176,7 +177,7 @@ class TestTheCreditNote(ReturnTestBase):
 		a sale backdated a year is still returnable today.
 		"""
 		order = self._paid()
-		frappe.db.set_value("Sales Invoice", order.sales_invoice, "posting_date", "2025-01-01")
+		frappe.db.set_value(SALE, order.sales_invoice, "posting_date", "2025-01-01")
 
 		result = service.create_return(order, items=[{"row": self._row(order), "qty": 1}], reason_code=REASON)
 		self.assertTrue(result["credit_note"])
@@ -188,7 +189,7 @@ class TestTheCreditNote(ReturnTestBase):
 		run to exactly this: the clock stepped back between the sale and the refund.
 		"""
 		order = self._paid()
-		sold = frappe.db.get_value("Sales Invoice", order.sales_invoice, ["posting_date", "posting_time"])
+		sold = frappe.db.get_value(SALE, order.sales_invoice, ["posting_date", "posting_time"])
 		sold_at = get_datetime(f"{sold[0]} {sold[1]}")
 
 		with patch(
@@ -198,7 +199,7 @@ class TestTheCreditNote(ReturnTestBase):
 				order, items=[{"row": self._row(order), "qty": 1}], reason_code=REASON
 			)
 
-		note = frappe.db.get_value("Sales Invoice", result["credit_note"], ["posting_date", "posting_time"])
+		note = frappe.db.get_value(SALE, result["credit_note"], ["posting_date", "posting_time"])
 		self.assertEqual(get_datetime(f"{note[0]} {note[1]}"), sold_at)
 
 	def test_the_original_invoice_still_stands(self):
@@ -206,7 +207,7 @@ class TestTheCreditNote(ReturnTestBase):
 		order = self._paid(qty=2)
 		service.create_return(order, items=[{"row": self._row(order), "qty": 2}], reason_code=REASON)
 
-		self.assertEqual(frappe.db.get_value("Sales Invoice", order.sales_invoice, "docstatus"), 1)
+		self.assertEqual(frappe.db.get_value(SALE, order.sales_invoice, "docstatus"), 1)
 		self.assertEqual(frappe.db.get_value("Restaurant Order", order.name, "status"), "closed")
 
 
@@ -378,7 +379,7 @@ class TestAReturnIsADocumentOfItsOwn(ReturnTestBase):
 		result = service.create_return(order, items=[{"row": self._row(order), "qty": 1}], reason_code=REASON)
 
 		self.assertEqual(
-			frappe.db.get_value("Sales Invoice", result["credit_note"], "rpos_daily_number"),
+			frappe.db.get_value(SALE, result["credit_note"], "rpos_daily_number"),
 			result["daily_number"],
 		)
 
@@ -557,7 +558,7 @@ class TestARealCashierCanRefund(ReturnTestBase):
 		"""The rights are borrowed for the mapping only, never for the document."""
 		result = service.create_return(self.order, items=[{"row": self.row, "qty": 1}], reason_code=REASON)
 
-		self.assertEqual(frappe.db.get_value("Sales Invoice", result["credit_note"], "owner"), self.senior)
+		self.assertEqual(frappe.db.get_value(SALE, result["credit_note"], "owner"), self.senior)
 
 	def test_the_session_is_handed_back(self):
 		service.create_return(self.order, items=[{"row": self.row, "qty": 1}], reason_code=REASON)
@@ -684,7 +685,7 @@ class TestADiscountedBillComesBackInShares(ReturnTestBase):
 
 	def _paid_for(self, order) -> float:
 		invoice = frappe.db.get_value(
-			"Sales Invoice", order.sales_invoice, ["rounded_total", "grand_total"], as_dict=True
+			SALE, order.sales_invoice, ["rounded_total", "grand_total"], as_dict=True
 		)
 		return flt(invoice.rounded_total or invoice.grand_total)
 

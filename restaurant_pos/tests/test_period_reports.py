@@ -23,6 +23,7 @@ from restaurant_pos.restaurant_pos.report.daily_sales import daily_sales as dail
 from restaurant_pos.restaurant_pos.report.hourly_sales import hourly_sales as hourly
 from restaurant_pos.tests.test_payment import PaymentTestBase
 from restaurant_pos.utils import returns
+from restaurant_pos.utils.sale_doc import SALE
 
 REASON = "goods_returned"
 
@@ -65,7 +66,7 @@ class TestTheDay(PaymentTestBase):
 		order = self._payable_order(qty=1)
 		self._pay(order)
 
-		invoice = frappe.get_doc("Sales Invoice", order.sales_invoice)
+		invoice = frappe.get_doc(SALE, order.sales_invoice)
 		after = _today_row()
 		self.assertAlmostEqual(after["total"] - before["total"], flt(invoice.grand_total), places=2)
 		self.assertAlmostEqual(after["sales"] - before["sales"], flt(invoice.net_total), places=2)

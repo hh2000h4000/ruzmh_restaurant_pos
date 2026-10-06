@@ -21,6 +21,7 @@ from restaurant_pos.tests.test_payment import CASH, PaymentTestBase
 from restaurant_pos.utils import cash_movement
 from restaurant_pos.utils import shift as shifts
 from restaurant_pos.utils.permissions import issue_override_token
+from restaurant_pos.utils.sale_doc import SALE
 
 REASON = "bag of ice"
 
@@ -59,7 +60,7 @@ class TestTheDrawerAgreesAfterwards(CashMovementTestBase):
 		self._pay(order)
 		self._move("out", 20)
 
-		paid = flt(frappe.db.get_value("Sales Invoice", order.sales_invoice, "grand_total"))
+		paid = flt(frappe.db.get_value(SALE, order.sales_invoice, "grand_total"))
 		self.assertAlmostEqual(self._expected(), before + paid - 20, places=2)
 
 	def test_it_is_listed_on_the_drawer_s_report_with_its_reason(self):

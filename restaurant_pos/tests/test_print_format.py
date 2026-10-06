@@ -16,6 +16,7 @@ import frappe
 
 from restaurant_pos.tests.test_returns import REASON, ReturnTestBase
 from restaurant_pos.utils import returns as service
+from restaurant_pos.utils.sale_doc import SALE
 
 FORMAT = "RPOS Tax Invoice"
 
@@ -56,7 +57,7 @@ class TestTheA4Invoice(ReturnTestBase):
 		frappe.clear_document_cache("Company", self.company)
 
 	def _printed(self, invoice: str) -> str:
-		return frappe.get_print("Sales Invoice", invoice, print_format=FORMAT)
+		return frappe.get_print(SALE, invoice, print_format=FORMAT)
 
 	def test_the_format_is_installed_by_the_app(self):
 		"""Shipped, not drawn by hand on one site."""

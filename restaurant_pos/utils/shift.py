@@ -261,6 +261,17 @@ def close_day(*, shift_name: str, force: bool = False, pos_profile: str | None =
 	if closing_terminal:
 		printing.enqueue_print("print_shift_report", pos_profile=closing_terminal, shift=day.name)
 
+	# **And the day's sales go to the books** (`D-313`) — after this request has
+	# committed, and in the background: the person closing the day goes home, and
+	# a posting that fails is tried again and said in the bell, not on their screen.
+	frappe.enqueue(
+		"restaurant_pos.utils.posting.post_branch",
+		queue="long",
+		enqueue_after_commit=True,
+		branch=day.branch,
+		shift=day.name,
+	)
+
 	return {
 		"shift": day.name,
 		"report": report,

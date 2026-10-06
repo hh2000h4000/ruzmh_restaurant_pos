@@ -16,10 +16,24 @@ from frappe.custom.doctype.custom_field.custom_field import create_custom_fields
 from restaurant_pos.setup import cash_accounts, gift_card_accounts
 from restaurant_pos.setup.defaults import create_default_data
 from restaurant_pos.setup.print_templates import create_default_templates
-from restaurant_pos.utils.sale_doc import SALE, SALE_ITEM
+from restaurant_pos.utils.sale_doc import POSTED_ENTRY, SALE, SALE_ITEM
+
 
 # ``Restaurant Branch`` in the database design is the ERPNext ``Branch`` DocType
 # extended with restaurant configuration (see 10_Implementation_Plan.md, Phase 1).
+def _made_by_a_batch(after: str) -> dict:
+	return {
+		"fieldname": "rpos_posting_batch",
+		"fieldtype": "Link",
+		"options": "POS Posting Batch",
+		"label": "RPOS Posting Batch",
+		"read_only": 1,
+		"no_copy": 1,
+		"description": "The batch of till sales this document posts.",
+		"insert_after": after,
+	}
+
+
 CUSTOM_FIELDS = {
 	# The till session is ERPNext's own POS Opening Entry (D-047); all it lacks
 	# is which business day it was taken in, because ERPNext has no such thing.
@@ -423,7 +437,34 @@ CUSTOM_FIELDS = {
 			"description": "The short number the till shows for this document, in the branch's daily sequence.",
 			"insert_after": "is_return",
 		},
+		# `D-313` — which branch sold it, and which batch took it to the books.
+		# Together they are how a posting finds a day's unposted sales without
+		# reading every invoice the company has (`after_migrate` indexes the pair).
+		{
+			"fieldname": "rpos_branch",
+			"fieldtype": "Link",
+			"options": "Branch",
+			"label": "RPOS Branch",
+			"read_only": 1,
+			"insert_after": "rpos_daily_number",
+		},
+		{
+			"fieldname": "rpos_posting_batch",
+			"fieldtype": "Link",
+			"options": "POS Posting Batch",
+			"label": "RPOS Posting Batch",
+			"read_only": 1,
+			# A credit note is copied from its sale, and must not arrive already
+			# claimed by the batch that posted the sale.
+			"no_copy": 1,
+			"description": "The batch that posted this sale to the accounts and the stock ledger. Empty means it is not posted yet.",
+			"insert_after": "rpos_branch",
+		},
 	],
+	# `D-313` — what a posting made names the batch it was made for, so an
+	# accountant can go from an entry in the books to the day at the till.
+	POSTED_ENTRY: [_made_by_a_batch("is_consolidated")],
+	"Stock Entry": [_made_by_a_batch("stock_entry_type")],
 	# `D-284` — an add-on sold as its own line, bound to the dish it was chosen
 	# on. Copied onto a credit note by `make_return_doc`, which is how a return
 	# of the dish finds its add-ons and a recipe keeps its removals.
@@ -917,3 +958,8 @@ def after_migrate():
 	from restaurant_pos.utils import invoice_number
 
 	invoice_number.number_existing()
+
+	# `D-313` — a posting asks "this branch's sales no batch has taken", on every
+	# day close, over a table that only grows. Without the pair indexed that
+	# question read a million invoices to find forty (38 s, measured).
+	frappe.db.add_index(SALE, ["rpos_branch", "rpos_posting_batch"], "rpos_unposted")

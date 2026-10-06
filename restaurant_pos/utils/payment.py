@@ -697,6 +697,8 @@ def _create_sales_invoice(order, payments, settlement: str = "till"):
 			"customer": customer,
 			"company": profile.company,
 			"pos_profile": profile.name,
+			# Which branch sold it: how the posting finds a day's sales (`D-313`).
+			"rpos_branch": order.branch,
 			# A till sale settles itself through the `payments` table. A credit
 			# sale must stay outstanding against the customer, so it is an
 			# ordinary invoice and a Payment Entry clears it at month end

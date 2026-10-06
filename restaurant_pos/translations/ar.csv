@@ -1479,3 +1479,29 @@ No open POS Opening Entry found for POS Profile {0}.,ما فيه درج مفتو
 POS Opening Entry Missing,الدرج مو مفتوح
 Close this drawer from the till. A closing entry that lists its invoices would post them twice: Restaurant POS posts a terminal's sales itself.,أقفل الدرج من شاشة الكاشير. الإقفال اللي يحمل الفواتير يرحّلها مرتين: نقاط البيع ترحّل مبيعات الجهاز لحالها.
 Not From Here,مو من هنا
+POS Posting Batch,دفعة ترحيل نقاط البيع
+The Day,اليوم
+Sales Date,تاريخ المبيعات
+POS Day,يوم نقاط البيع
+Invoices,الفواتير
+Attempts,المحاولات
+Posted At,وقت الترحيل
+Sales Entry,قيد المبيعات
+Returns Entry,قيد المرتجعات
+Stock Issue,سند صرف المخزون
+Stock Returned,سند ما رجع للمخزون
+What Went Wrong,سبب الفشل
+RPOS Branch,فرع نقاط البيع
+RPOS Posting Batch,دفعة الترحيل
+Claimed,محجوزة,POS Posting Batch
+Posted,مرحّلة,POS Posting Batch
+Failed,فشلت,POS Posting Batch
+Pending,تنتظر,POS Posting Batch
+Nothing To Post,ما فيه شي يترحّل,POS Posting Batch
+"The calendar date of the sales in this batch. A service that runs past midnight makes two batches, each posted on its own date.",تاريخ المبيعات اللي في هذي الدفعة. السهرة اللي تعدّي نص الليل تطلع لها دفعتين، كل وحدة بتاريخها.
+The day at the till that was being closed when this batch was made. Filter by it to see a day's postings together.,يوم الكاشير اللي كان ينقفل لما انعملت هذي الدفعة. فلتر به عشان تشوف ترحيلات اليوم مع بعض.
+The batch that posted this sale to the accounts and the stock ledger. Empty means it is not posted yet.,الدفعة اللي رحّلت هذي البيعة للحسابات والمخزون. فاضي يعني لسا ما ترحّلت.
+The batch of till sales this document posts.,دفعة مبيعات الكاشير اللي يرحّلها هذا المستند.
+"The stock of {0} is not posted yet, and a day's stock is taken after the day before it.",مخزون الدفعة {0} لسا ما ترحّل، ومخزون اليوم ينخصم بعد اليوم اللي قبله.
+"These items have no cost yet, so what was sold of them cannot be valued: {0}. Enter a purchase for each, or a Valuation Rate on its item card, then post again.",هذي المواد ما لها تكلفة للحين، فما ينحسب اللي انباع منها: {0}. سجّل لكل وحدة شراء، أو حط «سعر التقييم» في بطاقتها، وبعدها رحّل مرة ثانية.
+Till sales of {0} on {1} — {2},مبيعات كاشير {0} بتاريخ {1} — {2}

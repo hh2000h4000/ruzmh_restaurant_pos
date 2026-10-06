@@ -1,0 +1,257 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "naming_series:",
+ "creation": "2026-10-07 00:00:00.000000",
+ "description": "One branch's till sales for one date, posted to the accounts and the stock ledger together (D-313). Made and updated by the system; nobody edits it.",
+ "doctype": "DocType",
+ "editable_grid": 0,
+ "engine": "InnoDB",
+ "field_order": [
+  "naming_series",
+  "day_section",
+  "branch",
+  "posting_date",
+  "company",
+  "restaurant_shift",
+  "day_cb",
+  "status",
+  "invoices",
+  "attempts",
+  "posted_at",
+  "accounts_section",
+  "accounting_status",
+  "sales_invoice",
+  "accounts_cb",
+  "credit_note",
+  "stock_section",
+  "stock_status",
+  "stock_issue",
+  "stock_cb",
+  "stock_receipt",
+  "error_section",
+  "error"
+ ],
+ "fields": [
+  {
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "hidden": 1,
+   "label": "Naming Series",
+   "options": "POST-.YYYY.-.#####.",
+   "reqd": 1
+  },
+  {
+   "fieldname": "day_section",
+   "fieldtype": "Section Break",
+   "label": "The Day"
+  },
+  {
+   "fieldname": "branch",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Branch",
+   "options": "Branch",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "description": "The calendar date of the sales in this batch. A service that runs past midnight makes two batches, each posted on its own date.",
+   "fieldname": "posting_date",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Sales Date",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "label": "Company",
+   "options": "Company",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "description": "The day at the till that was being closed when this batch was made. Filter by it to see a day's postings together.",
+   "fieldname": "restaurant_shift",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "POS Day",
+   "options": "Restaurant Shift",
+   "read_only": 1
+  },
+  {
+   "fieldname": "day_cb",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Status",
+   "options": "Claimed\nPosted\nFailed",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "invoices",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "Invoices",
+   "read_only": 1
+  },
+  {
+   "fieldname": "attempts",
+   "fieldtype": "Int",
+   "label": "Attempts",
+   "read_only": 1
+  },
+  {
+   "fieldname": "posted_at",
+   "fieldtype": "Datetime",
+   "label": "Posted At",
+   "read_only": 1
+  },
+  {
+   "fieldname": "accounts_section",
+   "fieldtype": "Section Break",
+   "label": "Accounts"
+  },
+  {
+   "default": "Pending",
+   "fieldname": "accounting_status",
+   "fieldtype": "Select",
+   "label": "Accounts",
+   "options": "Pending\nPosted\nFailed\nNothing To Post",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sales_invoice",
+   "fieldtype": "Link",
+   "label": "Sales Entry",
+   "options": "Sales Invoice",
+   "read_only": 1
+  },
+  {
+   "fieldname": "accounts_cb",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "credit_note",
+   "fieldtype": "Link",
+   "label": "Returns Entry",
+   "options": "Sales Invoice",
+   "read_only": 1
+  },
+  {
+   "fieldname": "stock_section",
+   "fieldtype": "Section Break",
+   "label": "Stock"
+  },
+  {
+   "default": "Pending",
+   "fieldname": "stock_status",
+   "fieldtype": "Select",
+   "label": "Stock",
+   "options": "Pending\nPosted\nFailed\nNothing To Post",
+   "read_only": 1
+  },
+  {
+   "fieldname": "stock_issue",
+   "fieldtype": "Link",
+   "label": "Stock Issue",
+   "options": "Stock Entry",
+   "read_only": 1
+  },
+  {
+   "fieldname": "stock_cb",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "stock_receipt",
+   "fieldtype": "Link",
+   "label": "Stock Returned",
+   "options": "Stock Entry",
+   "read_only": 1
+  },
+  {
+   "depends_on": "eval:doc.error",
+   "fieldname": "error_section",
+   "fieldtype": "Section Break",
+   "label": "What Went Wrong"
+  },
+  {
+   "fieldname": "error",
+   "fieldtype": "Small Text",
+   "label": "Reason",
+   "read_only": 1
+  }
+ ],
+ "in_create": 1,
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-10-07 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Restaurant POS",
+ "name": "POS Posting Batch",
+ "naming_rule": "By \"Naming Series\" field",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 0,
+   "delete": 0,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Restaurant Admin",
+   "share": 1,
+   "write": 0
+  },
+  {
+   "create": 0,
+   "delete": 0,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Restaurant Manager",
+   "share": 1,
+   "write": 0
+  },
+  {
+   "create": 0,
+   "delete": 0,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Accounts Manager",
+   "share": 1,
+   "write": 0
+  },
+  {
+   "create": 0,
+   "delete": 0,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Accounts User",
+   "share": 1,
+   "write": 0
+  }
+ ],
+ "sort_field": "posting_date",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 0
+}

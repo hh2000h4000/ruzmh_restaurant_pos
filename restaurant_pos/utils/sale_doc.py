@@ -23,6 +23,10 @@ SALE = "POS Invoice"
 #: `Sales Taxes and Charges` on either document — told apart by `parenttype`.)
 SALE_ITEM = "POS Invoice Item"
 
+#: What a day of till sales is posted to the accounts as (`D-313`): ERPNext's own
+#: consolidated Sales Invoice. Not the sale — the entry the sales add up to.
+POSTED_ENTRY = "Sales Invoice"
+
 #: On a credit note's line: the sold line it takes back. ERPNext counts what has
 #: already come back through this field, and so do we.
 RETURNED_LINE = "pos_invoice_item"

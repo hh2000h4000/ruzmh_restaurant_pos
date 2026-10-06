@@ -19,7 +19,7 @@ import frappe
 from frappe import _
 from frappe.utils import cint, flt, now_datetime
 
-from restaurant_pos.utils import activity, addons, combos, kitchen, numbering, routing, totals
+from restaurant_pos.utils import activity, addons, availability, combos, kitchen, numbering, routing, totals
 from restaurant_pos.utils.audit import log_audit
 from restaurant_pos.utils.permissions import (
 	assert_permission,
@@ -506,6 +506,8 @@ def add_item(
 		frappe.throw(_("Quantity must be greater than zero."))
 
 	details = _load_item(item)
+	# `D-321` — a branch that enforces its stock refuses the bottle it has not got.
+	availability.assert_can_sell(order, item, qty)
 	resolved_modifiers, modifier_delta = _resolve_modifiers(
 		item, modifiers, price_list_for(order.order_type, order.pos_profile)
 	)
@@ -730,6 +732,7 @@ def set_item_qty(order, *, item_idx: int, qty: float) -> dict:
 		)
 
 	before = flt(row.qty)
+	availability.assert_can_sell(order, row.item, flt(qty) - before)
 
 	# The modifiers were priced when the line was added, and re-resolving them
 	# now would silently re-price the options at today's amounts. Recover the

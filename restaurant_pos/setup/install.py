@@ -136,13 +136,23 @@ CUSTOM_FIELDS = {
 			"reqd": 1,
 			"insert_after": "rpos_settings_cb",
 		},
+		# `D-321` — the branch's stock mode (`docs/14` §5): off, the till never
+		# refuses and the shelf may go below zero; on, what is sold as it came
+		# is refused when there is none left.
+		{
+			"fieldname": "rpos_enforce_stock",
+			"fieldtype": "Check",
+			"label": "Refuse a Sale When Stock Is Short",
+			"description": "For items sold as they come (a bottle, a can): the till refuses one it has none of. Dishes with a recipe are never refused from their ingredients; mark a dish sold out instead. Off, nothing is refused and stock may go below zero.",
+			"insert_after": "default_warehouse",
+		},
 		{
 			"fieldname": "default_cost_center",
 			"fieldtype": "Link",
 			"options": "Cost Center",
 			"label": "Default Cost Center",
 			"reqd": 1,
-			"insert_after": "default_warehouse",
+			"insert_after": "rpos_enforce_stock",
 		},
 		{
 			"fieldname": "shift_type",
@@ -1002,3 +1012,5 @@ def after_migrate():
 	# day close, over a table that only grows. Without the pair indexed that
 	# question read a million invoices to find forty (38 s, measured).
 	frappe.db.add_index(SALE, ["rpos_branch", "rpos_posting_batch"], "rpos_unposted")
+	# `D-321` — what is on bills still open, for the same count.
+	frappe.db.add_index("Restaurant Order", ["branch", "status"], "rpos_open_bills")

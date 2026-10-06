@@ -28,6 +28,10 @@ SALE_ITEM = "POS Invoice Item"
 #: `Packed Item.incoming_rate`. Empty until the sale's day is posted.
 LINE_COST = "rpos_cost_rate"
 
+#: On a credit note's line: it came back and was thrown away (`D-315`). Its
+#: stock does not return to the shelf, and its cost is waste, not cost of sales.
+WASTED = "rpos_wasted"
+
 #: What a day of till sales is posted to the accounts as (`D-313`): ERPNext's own
 #: consolidated Sales Invoice. Not the sale — the entry the sales add up to.
 POSTED_ENTRY = "Sales Invoice"

@@ -1507,3 +1507,9 @@ The batch of till sales this document posts.,دفعة مبيعات الكاشي�
 Till sales of {0} on {1} — {2},مبيعات كاشير {0} بتاريخ {1} — {2}
 RPOS Cost Rate,تكلفة الوحدة
 What one stock unit of this line cost when its day was posted. Empty until then.,تكلفة الوحدة من هذا الصنف وقت ترحيل يومه. فاضي لين يترحّل.
+RPOS Wasted,هدر
+"On a return: this line was thrown away, so its stock does not go back to the warehouse.",في المرتجع: هذا الصنف انرمى، فمخزونه ما يرجع للمستودع.
+Waste Account,حساب الهدر
+"What a returned dish that was thrown away costs is charged here instead of to cost of sales. Left empty, it stays in cost of sales.",تكلفة الأكل المرتجع اللي انرمى تنزل هنا بدل تكلفة المبيعات. لو تركته فاضي تبقى في تكلفة المبيعات.
+Waste Entry,قيد الهدر
+Returned and thrown away,مرتجع وانرمى

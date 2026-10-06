@@ -162,8 +162,9 @@ class AnAddOnIsSoldLikeAnyItem(RecipeTestBase):
 		burger_rate = flt(self._lines(order.sales_invoice)[0].rate)
 		self.assertAlmostEqual(offered[0]["rate"], burger_rate + EXTRA, places=2)
 
+		# Back on the shelf, said outright: a dish is waste unless the cashier says not (`D-315`).
 		result = returns.create_return(
-			order, items=[{"row": offered[0]["row"], "qty": 1}], reason_code="goods_returned"
+			order, items=[{"row": offered[0]["row"], "qty": 1, "wasted": 0}], reason_code="goods_returned"
 		)
 
 		back = self._moved(result["credit_note"])

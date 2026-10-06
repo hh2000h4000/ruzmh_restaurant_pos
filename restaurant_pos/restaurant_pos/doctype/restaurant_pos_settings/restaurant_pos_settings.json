@@ -13,7 +13,9 @@
   "banner_seconds",
   "banners",
   "alerts_section",
-  "alerts_per_page"
+  "alerts_per_page",
+  "accounts_section",
+  "waste_account"
  ],
  "fields": [
   {
@@ -78,12 +80,24 @@
    "fieldtype": "Int",
    "label": "Alerts per page",
    "non_negative": 1
+  },
+  {
+   "fieldname": "accounts_section",
+   "fieldtype": "Section Break",
+   "label": "Accounts"
+  },
+  {
+   "description": "What a returned dish that was thrown away costs is charged here instead of to cost of sales. Left empty, it stays in cost of sales.",
+   "fieldname": "waste_account",
+   "fieldtype": "Link",
+   "label": "Waste Account",
+   "options": "Account"
   }
  ],
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2026-10-03 14:23:34.291797",
+ "modified": "2026-10-07 18:00:00.000000",
  "modified_by": "Administrator",
  "module": "Restaurant POS",
  "name": "Restaurant POS Settings",

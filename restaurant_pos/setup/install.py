@@ -13,10 +13,10 @@ modified - every extension is a ``Custom Field``.
 import frappe
 from frappe.custom.doctype.custom_field.custom_field import create_custom_fields
 
-from restaurant_pos.setup import cash_accounts, gift_card_accounts
+from restaurant_pos.setup import cash_accounts, gift_card_accounts, waste_account
 from restaurant_pos.setup.defaults import create_default_data
 from restaurant_pos.setup.print_templates import create_default_templates
-from restaurant_pos.utils.sale_doc import LINE_COST, POSTED_ENTRY, SALE, SALE_ITEM
+from restaurant_pos.utils.sale_doc import LINE_COST, POSTED_ENTRY, SALE, SALE_ITEM, WASTED
 
 
 # ``Restaurant Branch`` in the database design is the ERPNext ``Branch`` DocType
@@ -465,6 +465,7 @@ CUSTOM_FIELDS = {
 	# accountant can go from an entry in the books to the day at the till.
 	POSTED_ENTRY: [_made_by_a_batch("is_consolidated")],
 	"Stock Entry": [_made_by_a_batch("stock_entry_type")],
+	"Journal Entry": [_made_by_a_batch("voucher_type")],
 	# `D-284` — an add-on sold as its own line, bound to the dish it was chosen
 	# on. Copied onto a credit note by `make_return_doc`, which is how a return
 	# of the dish finds its add-ons and a recipe keeps its removals.
@@ -482,6 +483,18 @@ CUSTOM_FIELDS = {
 			"no_copy": 1,
 			"description": "What one stock unit of this line cost when its day was posted. Empty until then.",
 			"insert_after": "stock_qty",
+		},
+		# `D-315` — on a credit note: this line came back and was thrown away. A
+		# returned bottle of water goes back on the shelf; a returned burger does
+		# not, and its cost is waste rather than cost of sales.
+		{
+			"fieldname": WASTED,
+			"fieldtype": "Check",
+			"label": "RPOS Wasted",
+			"read_only": 1,
+			"no_copy": 1,
+			"description": "On a return: this line was thrown away, so its stock does not go back to the warehouse.",
+			"insert_after": LINE_COST,
 		},
 		{
 			"fieldname": "rpos_order_item",
@@ -960,6 +973,10 @@ def after_migrate():
 	# account and the payment mode, or the feature is simply absent there. It
 	# creates nothing that is already present and overwrites nothing at all.
 	gift_card_accounts.setup()
+
+	# `D-315` — the account a thrown-away return is charged to. Created once and
+	# never overwritten, like the gift cards' and the drawer's.
+	waste_account.setup()
 
 	# Every site that had the app before the guide was served needs the menu row.
 	add_guide_to_help_menu()

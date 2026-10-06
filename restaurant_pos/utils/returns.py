@@ -20,7 +20,7 @@ Refs: FR-9.1..FR-9.3, BR-050..BR-055, D-064
 
 import frappe
 from frappe import _
-from frappe.utils import flt, get_datetime, now_datetime
+from frappe.utils import cint, flt, get_datetime, now_datetime
 
 from restaurant_pos.utils import addons, invoice_number, loyalty, numbering, payment, printing
 from restaurant_pos.utils import gift_card as gift_cards
@@ -32,7 +32,7 @@ from restaurant_pos.utils.permissions import (
 	server_rights,
 	validate_branch_access,
 )
-from restaurant_pos.utils.sale_doc import RETURNED_LINE, SALE, SALE_ITEM
+from restaurant_pos.utils.sale_doc import RETURNED_LINE, SALE, SALE_ITEM, WASTED
 from restaurant_pos.utils.shift import assert_may_sell, selling_till
 from restaurant_pos.utils.totals import money
 
@@ -110,6 +110,8 @@ def returnable(order) -> dict:
 				"amount": flt(row.amount),
 				"returned": returned,
 				"returnable": flt(row.qty) - returned,
+				# `D-315` — what the screen opens on; the cashier may say otherwise.
+				"wasted": wasted_by_default(row.item_code),
 			}
 		)
 
@@ -203,7 +205,7 @@ def create_return(
 	approved_by = _authorise_return(order, override_token)
 	wanted = _validate_quantities(order, items)
 
-	credit = _build_credit_note(order, invoice, wanted, reason, refund_method)
+	credit = _build_credit_note(order, invoice, wanted, reason, refund_method, _waste_choices(items))
 
 	# D-189 — the points follow the money back, in the same transaction: what the
 	# returned share earned is taken back and what it spent is given back.
@@ -349,7 +351,46 @@ def preview(order, *, items: list) -> dict:
 	}
 
 
-def _compose(invoice: str, wanted: dict[str, float]):
+def wasted_by_default(item_code: str) -> bool:
+	"""Does a returned line of this item go in the bin, unless the cashier says otherwise?
+
+	**A dish does; a thing sold as it came does not** (`D-315`). A burger sent
+	back is not put back in the fridge, and a sealed bottle of water is put
+	back on the shelf — the example Foodics gives its own cashiers. The line
+	between them is one the item card already draws: what is kept in stock *as
+	itself* is the bottle, and everything else was prepared.
+	"""
+	return not cint(frappe.get_cached_value("Item", item_code, "is_stock_item"))
+
+
+def _waste_choices(items: list) -> dict[str, bool]:
+	"""sold line -> thrown away, for the lines the cashier said so about."""
+	return {entry["row"]: bool(cint(entry["wasted"])) for entry in items if entry.get("wasted") is not None}
+
+
+def _mark_wasted(credit, choices: dict[str, bool]) -> None:
+	"""Say on each line whether it was thrown away: as chosen, else by what the item is.
+
+	**An add-on goes where its dish goes.** It comes back with the dish, never
+	on its own (`D-284`), and the extra cheese on a burger that was binned was
+	binned with it.
+	"""
+	of_dish: dict[str, int] = {}
+	for row in credit.items:
+		if cint(row.get("rpos_is_addon")):
+			continue
+		chosen = choices.get(row.get(RETURNED_LINE))
+		row.set(WASTED, cint(wasted_by_default(row.item_code) if chosen is None else chosen))
+		if row.get("rpos_order_item"):
+			of_dish[row.rpos_order_item] = row.get(WASTED)
+
+	for row in credit.items:
+		if cint(row.get("rpos_is_addon")):
+			dish = of_dish.get(row.get("rpos_order_item"))
+			row.set(WASTED, cint(wasted_by_default(row.item_code) if dish is None else dish))
+
+
+def _compose(invoice: str, wanted: dict[str, float], wasted: dict[str, bool] | None = None):
 	"""ERPNext builds it; we trim it to what is actually coming back.
 
 	`make_return_doc` produces a full reversal of the invoice. Dropping the rows
@@ -380,6 +421,7 @@ def _compose(invoice: str, wanted: dict[str, float]):
 		kept.append(row)
 
 	credit.set("items", kept)
+	_mark_wasted(credit, wasted or {})
 	_share_the_discount(credit, invoice, wanted)
 	credit.set_missing_values()
 	credit.calculate_taxes_and_totals()
@@ -441,8 +483,15 @@ def _completes(invoice: str, wanted: dict[str, float]) -> bool:
 	return all(flt(taken.get(row.name)) + flt(wanted.get(row.name)) >= flt(row.qty) - 0.0001 for row in rows)
 
 
-def _build_credit_note(order, invoice: str, wanted: dict[str, float], reason: str, refund_method: str | None):
-	credit = _compose(invoice, wanted)
+def _build_credit_note(
+	order,
+	invoice: str,
+	wanted: dict[str, float],
+	reason: str,
+	refund_method: str | None,
+	wasted: dict[str, bool] | None = None,
+):
+	credit = _compose(invoice, wanted, wasted)
 
 	_apply_refund(credit, refund_method)
 	# The reason travels on the document, not only in our audit log: a KSA

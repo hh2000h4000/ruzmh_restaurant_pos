@@ -35,7 +35,7 @@ from frappe import _
 from frappe.utils import flt
 
 from restaurant_pos.utils import reporting
-from restaurant_pos.utils.sale_doc import LINE_COST, SALE, SALE_ITEM
+from restaurant_pos.utils.sale_doc import LINE_COST, SALE, SALE_ITEM, WASTED
 
 
 def execute(filters=None):
@@ -96,6 +96,7 @@ def _lines_of(invoices: list[str], item_group: str | None) -> list[frappe._dict]
 			# Stamped by the posting that took the line from the warehouse
 			# (`D-314`): nothing until the sale's day is posted.
 			f"{LINE_COST} as incoming_rate",
+			WASTED,
 		],
 	)
 	recipes = _recipe_costs(invoices)
@@ -225,6 +226,11 @@ def _as_meals(lines: list) -> list:
 
 def _add_cost(row: dict, line) -> None:
 	"""What the stock was worth as it left — and how much left with no worth at all."""
+	if line.get(WASTED):
+		# Returned and thrown away (`D-315`): the money went back and the food did
+		# not, so no cost comes back with it. It is waste, and the books say so.
+		return
+
 	if "recipe_cost" in line:
 		# Sold adds its cost; a credit note, whose quantity is negative, takes it back.
 		row["cost"] += line.recipe_cost if flt(line.qty) > 0 else -line.recipe_cost

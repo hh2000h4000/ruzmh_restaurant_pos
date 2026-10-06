@@ -233,8 +233,9 @@ class PostingIsSafeToRunAgain(PostingTestBase):
 
 class ReturnsArePostedAsReturns(PostingTestBase):
 	def _returned(self, order, qty: float = 1):
+		"""Back on the shelf: said outright, because a dish is waste unless the cashier says not."""
 		row = returns.returnable(order)["items"][0]["row"]
-		return returns.create_return(order, items=[{"row": row, "qty": qty}], reason_code=REASON)
+		return returns.create_return(order, items=[{"row": row, "qty": qty, "wasted": 0}], reason_code=REASON)
 
 	def test_a_sale_and_its_return_are_two_entries(self):
 		order = self._sold(qty=2)
@@ -273,6 +274,119 @@ class ReturnsArePostedAsReturns(PostingTestBase):
 		self.assertEqual(
 			self._stock_moved(batch.stock_receipt), {code: flt(qty, 3) for code, _uom, qty, _rate in RECIPE}
 		)
+
+
+class WhatCameBackGoesOnTheShelfOrInTheBin(PostingTestBase):
+	"""`D-315` — a bottle of water is sold again; a burger is not."""
+
+	COLA = "RPOS-TEST-POST-COLA"
+
+	def _cola(self) -> None:
+		"""Something sold as it came: kept in stock as itself, with a price on the till's list."""
+		self._ingredient(self.COLA, "Nos")
+		self._receive(self.COLA, 50, 2.0)
+		price_list = frappe.db.get_value("POS Profile", self.profile, "selling_price_list")
+		if not frappe.db.exists("Item Price", {"item_code": self.COLA, "price_list": price_list}):
+			frappe.get_doc(
+				{
+					"doctype": "Item Price",
+					"item_code": self.COLA,
+					"price_list": price_list,
+					"price_list_rate": 5,
+				}
+			).insert(ignore_permissions=True)
+
+	def _waste_account(self) -> str:
+		from restaurant_pos.setup import waste_account
+
+		return waste_account.setup()
+
+	def _returned(self, order, **said):
+		row = returns.returnable(order)["items"][0]["row"]
+		return returns.create_return(order, items=[{"row": row, "qty": 1, **said}], reason_code=REASON)
+
+	def test_a_dish_is_waste_and_a_thing_sold_as_it_came_is_not_unless_told_otherwise(self):
+		self._cola()
+
+		self.assertTrue(returns.wasted_by_default(ITEM), "a burger sent back is not put back in the fridge")
+		self.assertFalse(returns.wasted_by_default(self.COLA), "a sealed can goes back on the shelf")
+
+	def test_the_screen_is_told_what_each_line_opens_on(self):
+		order = self._sold(qty=1)
+
+		self.assertTrue(returns.returnable(order)["items"][0]["wasted"])
+
+	def test_a_returned_dish_stays_out_of_the_warehouse(self):
+		order = self._sold(qty=2)
+		self._post()
+
+		refund = self._returned(order)
+		(batch,) = self._post()
+
+		self.assertEqual(batch.status, "Posted", batch.error)
+		self.assertFalse(batch.stock_receipt, "nothing goes back on the shelf")
+		note = frappe.get_doc(SALE, refund["credit_note"])
+		self.assertEqual([row.rpos_wasted for row in note.items], [1])
+
+	def test_and_its_cost_leaves_cost_of_sales_for_the_waste_account(self):
+		account = self._waste_account()
+		order = self._sold(qty=2)
+		self._post()
+
+		self._returned(order)
+		(batch,) = self._post()
+
+		self.assertTrue(batch.waste_entry, batch.error)
+		rows = frappe.get_all(
+			"GL Entry",
+			filters={"voucher_no": batch.waste_entry, "is_cancelled": 0},
+			fields=["account", "debit", "credit"],
+		)
+		waste = sum(flt(row.debit) - flt(row.credit) for row in rows if row.account == account)
+		elsewhere = sum(flt(row.debit) - flt(row.credit) for row in rows if row.account != account)
+		self.assertAlmostEqual(waste, COST_OF_ONE, places=2, msg="one burger, at what it cost when sold")
+		self.assertAlmostEqual(elsewhere, -COST_OF_ONE, places=2, msg="and out of cost of sales")
+		self.assertEqual(
+			frappe.db.get_value("Journal Entry", batch.waste_entry, "rpos_posting_batch"), batch.name
+		)
+
+	def test_the_cashier_can_say_a_dish_went_back_on_the_shelf(self):
+		order = self._sold(qty=2)
+		self._post()
+
+		self._returned(order, wasted=0)
+		(batch,) = self._post()
+
+		self.assertFalse(batch.waste_entry)
+		self.assertEqual(
+			self._stock_moved(batch.stock_receipt), {code: flt(qty, 3) for code, _uom, qty, _rate in RECIPE}
+		)
+
+	def test_a_sale_and_its_wasted_return_in_one_day_cost_the_waste_too(self):
+		"""The sale's cost is written when its stock is taken — in this same posting — and
+		the waste entry reads it a step later."""
+		self._waste_account()
+		order = self._sold(qty=2)
+		self._returned(order)
+
+		(batch,) = self._post()
+
+		self.assertEqual(batch.status, "Posted", batch.error)
+		self.assertTrue(batch.waste_entry)
+		self.assertAlmostEqual(
+			frappe.db.get_value("Journal Entry", batch.waste_entry, "total_debit"), COST_OF_ONE, places=2
+		)
+
+	def test_with_no_waste_account_the_cost_stays_where_it_was(self):
+		frappe.db.set_single_value("Restaurant POS Settings", "waste_account", None)
+		order = self._sold(qty=2)
+		self._post()
+
+		self._returned(order)
+		(batch,) = self._post()
+
+		self.assertEqual(batch.status, "Posted", batch.error)
+		self.assertFalse(batch.waste_entry)
 
 
 class ADayIsACalendarDate(PostingTestBase):

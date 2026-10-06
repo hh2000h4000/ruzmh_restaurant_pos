@@ -209,8 +209,9 @@ class AFixedPriceCombo(ComboTestBase):
 		self.assertEqual(offered[0]["item"], MEAL)
 		self.assertAlmostEqual(offered[0]["amount"], MEAL_PRICE + UPGRADE, places=2)
 
+		# Back on the shelf, said outright: a meal is waste unless the cashier says not (`D-315`).
 		result = returns.create_return(
-			order, items=[{"row": offered[0]["row"], "qty": 1}], reason_code="goods_returned"
+			order, items=[{"row": offered[0]["row"], "qty": 1, "wasted": 0}], reason_code="goods_returned"
 		)
 		back = self._moved(result["credit_note"])
 		self.assertEqual(back[JUICE], 1)
@@ -451,7 +452,9 @@ class TheComboInItemSales(ComboTestBase):
 		order = self._paid(COLA)
 		before = self._rows(combos_as_meals=1)[MEAL]
 		row = returns.returnable(order)["items"][0]["row"]
-		returns.create_return(order, items=[{"row": row, "qty": 1}], reason_code="goods_returned")
+		returns.create_return(
+			order, items=[{"row": row, "qty": 1, "wasted": 0}], reason_code="goods_returned"
+		)
 		after = self._rows(combos_as_meals=1)[MEAL]
 
 		self.assertEqual(after["returned_qty"] - before["returned_qty"], 1)

@@ -171,15 +171,29 @@ class TheRecipeLeavesTheWarehouse(RecipeTestBase):
 		# Food cost as the Uniform System of Accounts for Restaurants states it.
 		self.assertAlmostEqual(after["cost_ratio"], after["cost"] / after["amount"] * 100, places=1)
 
-	def test_a_refunded_dish_takes_its_recipe_cost_back(self):
+	def test_a_refunded_dish_put_back_on_the_shelf_takes_its_recipe_cost_back(self):
+		before = self._row()
+		order = self._sold(qty=2)
+		line = returns.returnable(order)["items"][0]["row"]
+		returns.create_return(
+			order, items=[{"row": line, "qty": 1, "wasted": 0}], reason_code="goods_returned"
+		)
+		after = self._row()
+
+		self.assertAlmostEqual(after["cost"] - before["cost"], COST_OF_ONE, places=2)
+		self.assertEqual(after["uncosted_qty"], before["uncosted_qty"])
+
+	def test_a_refunded_dish_thrown_away_takes_no_cost_back(self):
+		"""`D-315` — the money went back and the food did not: the dish still cost what it cost."""
 		before = self._row()
 		order = self._sold(qty=2)
 		line = returns.returnable(order)["items"][0]["row"]
 		returns.create_return(order, items=[{"row": line, "qty": 1}], reason_code="goods_returned")
 		after = self._row()
 
-		self.assertAlmostEqual(after["cost"] - before["cost"], COST_OF_ONE, places=2)
+		self.assertAlmostEqual(after["cost"] - before["cost"], 2 * COST_OF_ONE, places=2)
 		self.assertEqual(after["uncosted_qty"], before["uncosted_qty"])
+		self.assertEqual(after["short_costed_qty"], before["short_costed_qty"])
 
 	def test_an_ingredient_with_no_cost_counts_as_nothing_and_the_rest_still_count(self):
 		"""`D-282` — a bun carried at zero made the whole burger uncosted; now it costs nothing.

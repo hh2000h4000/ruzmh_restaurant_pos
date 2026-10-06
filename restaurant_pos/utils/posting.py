@@ -33,7 +33,7 @@ from frappe.query_builder.functions import Sum
 from frappe.utils import cint, flt, getdate, now_datetime, nowdate, nowtime
 
 from restaurant_pos.utils.permissions import server_rights
-from restaurant_pos.utils.sale_doc import LINE_COST, POSTED_ENTRY, SALE, SALE_ITEM
+from restaurant_pos.utils.sale_doc import LINE_COST, POSTED_ENTRY, RETURNED_LINE, SALE, SALE_ITEM, WASTED
 
 BATCH = "POS Posting Batch"
 
@@ -363,20 +363,28 @@ def _post_stock(batch) -> dict:
 
 	rows = _invoices(batch)
 	_stamp_standard_costs(batch)
-	sold = _moved([row.name for row in rows if not cint(row.is_return)])
-	back = _moved([row.name for row in rows if cint(row.is_return)])
-	if not sold and not back:
+	sold = _stock_rows([row.name for row in rows if not cint(row.is_return)])
+	returned = _stock_rows([row.name for row in rows if cint(row.is_return)])
+	if not sold and not returned:
 		return {"stock_status": "Nothing To Post"}
 
-	_assert_priced(sold, batch)
+	_assert_priced(_by_shelf(sold), batch)
+
+	# **What came back goes on the shelf, or it is waste** (`D-315`): a bottle of
+	# water is sold again, a burger is not. Waste stays out of the warehouse —
+	# it was used — and its cost leaves cost of sales for the waste account.
+	back = [row for row in returned if not row.wasted]
+	wasted = [row for row in returned if row.wasted]
 
 	made = {"stock_status": "Posted"}
 	if sold:
-		made["stock_issue"] = _stock_entry(batch, "Material Issue", sold)
+		made["stock_issue"] = _stock_entry(batch, "Material Issue", _by_shelf(sold))
 		_stamp_costs(batch, made["stock_issue"], is_return=0)
 	if back:
-		made["stock_receipt"] = _stock_entry(batch, "Material Receipt", back)
+		made["stock_receipt"] = _stock_entry(batch, "Material Receipt", _by_shelf(back))
 		_stamp_costs(batch, made["stock_receipt"], is_return=1)
+	if wasted:
+		made["waste_entry"] = _waste_entry(batch, wasted)
 	return made
 
 
@@ -443,7 +451,14 @@ def _stamp_costs(batch, stock_entry: str, *, is_return: int) -> None:
 	rate stamped here stays what it was.
 	"""
 	ledger = frappe.qb.DocType("Stock Ledger Entry")
+	line = frappe.qb.DocType(SALE_ITEM)
 	in_batch = _invoices_in(batch, is_return)
+	# What was thrown away did not come back at any rate: its rows stay empty.
+	thrown = frappe.qb.from_(line).select(line.name).where(line.parent.isin(in_batch) & (line[WASTED] == 1))
+	kept = {
+		SALE_ITEM: lambda row: row[WASTED] == 0,
+		"Packed Item": lambda row: row.parent_detail_docname.notin(thrown),
+	}
 
 	for item, warehouse, qty, value in (
 		frappe.qb.from_(ledger)
@@ -465,26 +480,46 @@ def _stamp_costs(batch, stock_entry: str, *, is_return: int) -> None:
 					& (row.parenttype == SALE)
 					& (row.item_code == item)
 					& (row.warehouse == warehouse)
+					& kept[doctype](row)
 				)
 				.run()
 			)
 
 
-def _moved(invoices: list[str]) -> dict[tuple[str, str], float]:
-	"""(item, warehouse) -> quantity, read off the bills: their stock lines and their recipe rows."""
-	if not invoices:
-		return {}
+def _stock_rows(invoices: list[str]) -> list[frappe._dict]:
+	"""What the bills moved, read off the bills: their stock lines and their recipe rows.
 
-	moved: dict[tuple[str, str], float] = {}
-	rows = frappe.get_all(
+	Each row knows the line it belongs to — itself, or the dish whose recipe it
+	is — and, on a credit note, the sold line that one takes back and whether it
+	was thrown away.
+	"""
+	if not invoices:
+		return []
+
+	lines = frappe.get_all(
 		SALE_ITEM,
 		filters={"parent": ("in", invoices), "parenttype": SALE},
-		fields=["item_code", "warehouse", "stock_qty as qty"],
-	) + frappe.get_all(
+		fields=[
+			"name as line",
+			"item_code",
+			"warehouse",
+			"stock_qty as qty",
+			f"{RETURNED_LINE} as sold_line",
+			WASTED,
+		],
+	)
+	of_line = {line.line: line for line in lines}
+	recipe = frappe.get_all(
 		"Packed Item",
 		filters={"parent": ("in", invoices), "parenttype": SALE},
-		fields=["item_code", "warehouse", "qty"],
+		fields=["parent_detail_docname as line", "item_code", "warehouse", "qty"],
 	)
+	for row in recipe:
+		dish = of_line.get(row.line) or frappe._dict()
+		row.update(sold_line=dish.get("sold_line"), is_recipe_row=True)
+		row[WASTED] = dish.get(WASTED)
+
+	rows = lines + recipe
 	stocked = set(
 		frappe.get_all(
 			"Item",
@@ -492,13 +527,97 @@ def _moved(invoices: list[str]) -> dict[tuple[str, str], float]:
 			pluck="name",
 		)
 	)
+	# An item kept without stock moves nothing: a restaurant that keeps no stock
+	# at all posts its accounts and no stock entry (`docs/14` §5.2).
+	kept = [row for row in rows if row.item_code in stocked and flt(row.qty)]
+	for row in kept:
+		row.qty = abs(flt(row.qty))
+		row.wasted = cint(row.get(WASTED))
+	return kept
+
+
+def _by_shelf(rows: list) -> dict[tuple[str, str], float]:
+	"""(item, warehouse) -> quantity."""
+	shelf: dict[tuple[str, str], float] = {}
 	for row in rows:
-		# An item kept without stock moves nothing: a restaurant that keeps no
-		# stock at all posts its accounts and no stock entry (`docs/14` §5.2).
-		if row.item_code in stocked and flt(row.qty):
-			key = (row.item_code, row.warehouse)
-			moved[key] = moved.get(key, 0.0) + abs(flt(row.qty))
-	return moved
+		key = (row.item_code, row.warehouse)
+		shelf[key] = shelf.get(key, 0.0) + row.qty
+	return shelf
+
+
+def _waste_entry(batch, wasted: list) -> str | None:
+	"""Move what was thrown away from cost of sales to the waste account (`D-315`).
+
+	**At what it cost when it was sold** — read off the sale's own rows, where
+	the posting that took it wrote it (`D-314`) — so the entry undoes exactly
+	what the sale charged. No stock moves: the food was used either way.
+
+	None, and the cost stays in cost of sales, when the settings name no waste
+	account for this company or the sale's cost is not known.
+	"""
+	account = frappe.db.get_single_value("Restaurant POS Settings", "waste_account")
+	if not account or frappe.db.get_value("Account", account, "company") != batch.company:
+		return None
+
+	sold_lines = list({row.sold_line for row in wasted if row.sold_line})
+	line_cost = dict(
+		frappe.get_all(
+			SALE_ITEM, filters={"name": ("in", sold_lines)}, fields=["name", LINE_COST], as_list=True
+		)
+	)
+	recipe_cost = {
+		(row.parent_detail_docname, row.item_code): flt(row.incoming_rate)
+		for row in frappe.get_all(
+			"Packed Item",
+			filters={"parent_detail_docname": ("in", sold_lines), "parenttype": SALE},
+			fields=["parent_detail_docname", "item_code", "incoming_rate"],
+		)
+	}
+
+	by_cost_account: dict[str, float] = {}
+	for row in wasted:
+		rate = (
+			recipe_cost.get((row.sold_line, row.item_code))
+			if row.get("is_recipe_row")
+			else flt(line_cost.get(row.sold_line))
+		)
+		if rate:
+			credit = _cost_account(row.item_code, batch.company)
+			by_cost_account[credit] = by_cost_account.get(credit, 0.0) + row.qty * rate
+
+	total = flt(sum(by_cost_account.values()), 2)
+	if not total:
+		return None
+
+	date = getdate(batch.posting_date)
+	center = frappe.get_cached_value("Company", batch.company, "cost_center")
+	entry = frappe.get_doc(
+		{
+			"doctype": "Journal Entry",
+			"voucher_type": "Journal Entry",
+			"company": batch.company,
+			"posting_date": date,
+			"rpos_posting_batch": batch.name,
+			"user_remark": _("Returned and thrown away") + " — " + _remark(batch),
+			"accounts": [
+				{"account": account, "debit_in_account_currency": total, "cost_center": center},
+				*(
+					{"account": credit, "credit_in_account_currency": flt(amount, 2), "cost_center": center}
+					for credit, amount in sorted(by_cost_account.items())
+				),
+			],
+		}
+	)
+	# The parts are rounded one by one and the whole once: the halala between
+	# them goes on the last credit, or the entry does not balance.
+	drift = flt(total - sum(row.credit_in_account_currency for row in entry.accounts[1:]), 2)
+	entry.accounts[-1].credit_in_account_currency = flt(
+		entry.accounts[-1].credit_in_account_currency + drift, 2
+	)
+	entry.flags.ignore_permissions = True
+	entry.insert()
+	entry.submit()
+	return entry.name
 
 
 def _assert_priced(sold: dict, batch) -> None:

@@ -12,7 +12,7 @@ Refs: 07_API_Design.md §3, FR-2.1..FR-2.8
 
 import frappe
 from frappe import _
-from frappe.utils import add_days, cint, flt, get_datetime, now_datetime, nowdate, time_diff_in_seconds
+from frappe.utils import add_days, cint, flt, get_datetime, nowdate
 
 from restaurant_pos.utils import customer as customer_service
 from restaurant_pos.utils import idempotency, kitchen, promotions

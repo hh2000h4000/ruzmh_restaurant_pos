@@ -24,7 +24,7 @@ from restaurant_pos.tests.test_order import ITEM
 from restaurant_pos.tests.test_payment import CASH, PaymentTestBase
 from restaurant_pos.utils import gift_card as cards
 from restaurant_pos.utils import order as orders
-from restaurant_pos.utils import payment, returns
+from restaurant_pos.utils import payment, posting, returns
 from restaurant_pos.utils import shift as service
 from restaurant_pos.utils.sale_doc import SALE, SALE_ITEM
 
@@ -283,6 +283,9 @@ class TheLedgerActuallyMoves(GiftCardTestBase):
 		self._sell(amount=200)
 		order = self._bill()
 		due = flt(order.total_amount)
+		# What the tests before this one sold goes to the books first, so the entry
+		# read below is this bill's alone.
+		posting.post_branch(order.branch)
 
 		payment.process_payment(
 			order,
@@ -290,13 +293,20 @@ class TheLedgerActuallyMoves(GiftCardTestBase):
 		)
 
 		order.reload()
+		# The ledger is written when the day is posted (`D-313`), on the entry the
+		# day's sales add up to.
+		posting.post_branch(order.branch)
+		batch = frappe.db.get_value(SALE, order.sales_invoice, "rpos_posting_batch")
 		posted = frappe.get_all(
 			"GL Entry",
-			filters={"voucher_no": order.sales_invoice, "account": self._liability()},
+			filters={
+				"voucher_no": frappe.db.get_value("POS Posting Batch", batch, "sales_invoice"),
+				"account": self._liability(),
+			},
 			fields=["debit", "credit"],
 		)
 
-		self.assertTrue(posted, "the liability account is not in this invoice's ledger at all")
+		self.assertTrue(posted, "the liability account is not in the posted entry's ledger at all")
 		self.assertAlmostEqual(sum(flt(row.debit) for row in posted), due, places=2)
 
 	def test_a_card_paid_bill_leaves_nothing_outstanding(self):

@@ -36,23 +36,20 @@ def _ledger(voucher: str) -> dict[str, float]:
 
 
 class PostingTestBase(RecipeTestBase):
-	def setUp(self):
-		super().setUp()
-		# Whatever the tests before this one sold is taken to the books first, and
-		# what could not be is set aside: each test then reads only its own day.
-		posting.post_branch(BRANCH)
-		frappe.db.set_value(
-			posting.BATCH,
-			{"branch": BRANCH, "status": ("!=", "Posted")},
-			{"status": "Posted", "accounting_status": "Nothing To Post", "stock_status": "Nothing To Post"},
-		)
-
 	def _post(self):
 		names = posting.post_branch(BRANCH)
 		return [frappe.get_doc(posting.BATCH, name) for name in names]
 
 	def _stock_moved(self, voucher: str) -> dict[str, float]:
-		return self._moved(voucher)
+		"""What each item did in the warehouse on one stock document of a batch."""
+		moved: dict[str, float] = {}
+		for row in frappe.get_all(
+			"Stock Ledger Entry",
+			filters={"voucher_no": voucher, "is_cancelled": 0},
+			fields=["item_code", "actual_qty"],
+		):
+			moved[row.item_code] = flt(moved.get(row.item_code, 0) + flt(row.actual_qty), 3)
+		return moved
 
 
 class ASaleReachesTheBooksWhenItIsPosted(PostingTestBase):

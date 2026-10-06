@@ -150,14 +150,7 @@ class AFixedPriceCombo(ComboTestBase):
 		self.assertEqual(moved[COLA], -2)
 		self.assertEqual(moved["RPOS-TEST-PATTY"], -0.3)
 		self.assertNotIn(MEAL, moved)
-		cost = -sum(
-			flt(row.stock_value_difference)
-			for row in frappe.get_all(
-				"Stock Ledger Entry",
-				filters={"voucher_no": order.sales_invoice, "is_cancelled": 0},
-				fields=["stock_value_difference"],
-			)
-		)
+		cost = self._cost(order.sales_invoice)
 		self.assertAlmostEqual(cost, 2 * (COST_OF_ONE + 1.00), places=2)
 
 	def test_each_item_reaches_the_kitchen_saying_which_meal_it_is_from(self):

@@ -101,13 +101,17 @@ def run(batch_name: str):
 	return batch
 
 
-def stock_vouchers_of(invoice: str) -> list[str]:
-	"""The stock documents that carry what ``invoice`` took or gave back — its batch's."""
-	batch = frappe.db.get_value(SALE, invoice, "rpos_posting_batch")
+def stock_voucher_of(invoice: str) -> str | None:
+	"""The stock document that carries what ``invoice`` moved, once it is posted.
+
+	A sale's ingredients are on its batch's issue; what a credit note brought
+	back is on its batch's receipt. None while the invoice is not posted, or
+	when nothing on it is kept in stock.
+	"""
+	batch, is_return = frappe.db.get_value(SALE, invoice, ["rpos_posting_batch", "is_return"]) or (None, 0)
 	if not batch:
-		return []
-	made = frappe.db.get_value(BATCH, batch, ["stock_issue", "stock_receipt"])
-	return [name for name in made or [] if name]
+		return None
+	return frappe.db.get_value(BATCH, batch, "stock_receipt" if cint(is_return) else "stock_issue")
 
 
 # --------------------------------------------------------------------------- #

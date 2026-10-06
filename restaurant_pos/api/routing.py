@@ -24,7 +24,6 @@ Refs: BR-070, FR-7.1, D-017, D-095
 from __future__ import annotations
 
 import frappe
-from frappe import _
 
 # **Guarded by the Production Center form's own permission** (`D-208`), not the
 # till's role check: these serve that desk form, so whoever may read or write it

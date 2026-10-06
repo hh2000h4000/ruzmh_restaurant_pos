@@ -90,7 +90,9 @@ def _tally(filters, start, end) -> list[dict]:
 		fields=fields,
 		order_by="posting_datetime asc, creation asc",
 	)
-	waste = _material_issues({e.voucher_no for e in entries if e.voucher_type == "Stock Entry"})
+	stock_entries = {e.voucher_no for e in entries if e.voucher_type == "Stock Entry"}
+	sales = _posted_sales(stock_entries)
+	waste = _material_issues(stock_entries - sales)
 
 	held = set(
 		frappe.get_all(
@@ -128,7 +130,7 @@ def _tally(filters, start, end) -> list[dict]:
 			# A count records the balance, not the change; the change is what the
 			# balances leave unexplained, worked out below.
 			continue
-		if entry.voucher_type in SALES:
+		if entry.voucher_type in SALES or entry.voucher_no in sales:
 			row["sold"] -= qty
 		elif entry.voucher_no in waste:
 			row["waste"] -= qty
@@ -179,6 +181,25 @@ def _stock_items(item_group: str | None) -> dict[str, frappe._dict]:
 		row.name: row
 		for row in frappe.get_all("Item", filters=filters, fields=["name", "item_name", "stock_uom"])
 	}
+
+
+def _posted_sales(entries: set[str]) -> set[str]:
+	"""The till's sales, as the stock ledger sees them (`D-313`).
+
+	A day's sales leave the warehouse on one stock issue made by its posting
+	batch, and what was returned comes back on one receipt. Both are *sales* —
+	the theoretical side of this report — and the issue is a Material Issue, so
+	left to the rule below every burger sold would read as waste.
+	"""
+	if not entries:
+		return set()
+	return set(
+		frappe.get_all(
+			"Stock Entry",
+			filters={"name": ("in", list(entries)), "rpos_posting_batch": ("is", "set"), "docstatus": 1},
+			pluck="name",
+		)
+	)
 
 
 def _material_issues(entries: set[str]) -> set[str]:

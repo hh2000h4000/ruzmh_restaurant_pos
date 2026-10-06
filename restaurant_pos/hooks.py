@@ -1,7 +1,5 @@
 from restaurant_pos.utils.sale_doc import SALE
 
-from . import __version__ as app_version
-
 app_name = "restaurant_pos"
 app_title = "Restaurant POS"
 app_publisher = "RPOS"

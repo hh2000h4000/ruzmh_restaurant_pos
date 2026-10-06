@@ -15,7 +15,6 @@ import frappe
 
 from restaurant_pos.setup import test_fixtures
 from restaurant_pos.tests.test_order import BRANCH, OrderTestBase
-from restaurant_pos.utils import order as service
 
 OTHER_SECTION = "RPOS Test Family Hall"
 OTHER_TABLE = "RPOS Test Family Table"

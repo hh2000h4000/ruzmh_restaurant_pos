@@ -14,7 +14,7 @@ from frappe import _
 
 from restaurant_pos.utils import manager_pin as pins
 from restaurant_pos.utils import permissions as perms
-from restaurant_pos.utils.audit import log_audit, log_permission_change, log_refusal
+from restaurant_pos.utils.audit import log_audit, log_refusal
 
 
 @frappe.whitelist()

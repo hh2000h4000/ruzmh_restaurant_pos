@@ -20,9 +20,9 @@ import frappe
 from frappe.utils import flt, today
 
 from restaurant_pos.restaurant_pos.report.item_sales import item_sales
-from restaurant_pos.tests.test_order import ITEM
+from restaurant_pos.tests.test_order import BRANCH, ITEM
 from restaurant_pos.tests.test_payment import PaymentTestBase
-from restaurant_pos.utils import returns
+from restaurant_pos.utils import posting, returns
 
 #: code, stock unit, how much one burger takes, what a unit cost.
 RECIPE = (
@@ -46,6 +46,22 @@ class RecipeTestBase(PaymentTestBase):
 			self._ingredient(code, uom)
 			self._receive(code, 100, rate)
 		self._bundle()
+		self._start_from_a_posted_branch()
+
+	def _start_from_a_posted_branch(self) -> None:
+		"""Take what earlier tests sold to the books, so a test's batch holds its own sales.
+
+		Stock leaves when a day is posted (`D-313`), a batch is every unposted
+		sale of the branch, and the class rolls back only once at its end. What
+		an earlier test could not post is set aside rather than left to be
+		retried into this one.
+		"""
+		posting.post_branch(BRANCH)
+		frappe.db.set_value(
+			posting.BATCH,
+			{"branch": BRANCH, "status": ("!=", "Posted")},
+			{"status": "Posted", "accounting_status": "Nothing To Post", "stock_status": "Nothing To Post"},
+		)
 
 	def _ingredient(self, code: str, uom: str) -> None:
 		if frappe.db.exists("Item", code):
@@ -95,44 +111,42 @@ class RecipeTestBase(PaymentTestBase):
 		order.reload()
 		return order
 
-	def _moved(self, voucher: str) -> dict[str, float]:
-		"""What each item did in the warehouse on one document."""
+	def _stock_rows(self, invoice: str, *fields: str) -> list:
+		"""The stock ledger's rows for one sale or credit note — posted first, as a day close would."""
+		posting.post_branch(BRANCH)
+		voucher = posting.stock_voucher_of(invoice)
+		if not voucher:
+			return []
+		return frappe.get_all(
+			"Stock Ledger Entry", filters={"voucher_no": voucher, "is_cancelled": 0}, fields=list(fields)
+		)
+
+	def _moved(self, invoice: str) -> dict[str, float]:
+		"""What each item did in the warehouse for one sale or credit note."""
 		moved: dict[str, float] = {}
-		for row in frappe.get_all(
-			"Stock Ledger Entry",
-			filters={"voucher_no": voucher, "is_cancelled": 0},
-			fields=["item_code", "actual_qty"],
-		):
+		for row in self._stock_rows(invoice, "item_code", "actual_qty"):
 			moved[row.item_code] = flt(moved.get(row.item_code, 0) + flt(row.actual_qty), 3)
 		return moved
+
+	def _cost(self, invoice: str) -> float:
+		"""What the stock one sale took was worth."""
+		return -sum(
+			flt(row.stock_value_difference) for row in self._stock_rows(invoice, "stock_value_difference")
+		)
 
 
 class TheRecipeLeavesTheWarehouse(RecipeTestBase):
 	def test_each_ingredient_leaves_the_warehouse_in_its_recipe_quantity(self):
 		order = self._sold(qty=2)
 
-		moved = {
-			row.item_code: flt(row.actual_qty, 3)
-			for row in frappe.get_all(
-				"Stock Ledger Entry",
-				filters={"voucher_no": order.sales_invoice, "is_cancelled": 0},
-				fields=["item_code", "actual_qty"],
-			)
-		}
-		self.assertEqual(moved, {code: flt(-2 * qty, 3) for code, _uom, qty, _rate in RECIPE})
+		self.assertEqual(
+			self._moved(order.sales_invoice), {code: flt(-2 * qty, 3) for code, _uom, qty, _rate in RECIPE}
+		)
 
 	def test_the_dish_costs_what_its_recipe_cost(self):
 		order = self._sold(qty=2)
 
-		cost = sum(
-			flt(row.stock_value_difference)
-			for row in frappe.get_all(
-				"Stock Ledger Entry",
-				filters={"voucher_no": order.sales_invoice, "is_cancelled": 0},
-				fields=["stock_value_difference"],
-			)
-		)
-		self.assertAlmostEqual(-cost, 2 * COST_OF_ONE, places=2)
+		self.assertAlmostEqual(self._cost(order.sales_invoice), 2 * COST_OF_ONE, places=2)
 
 	def _row(self) -> dict:
 		"""The dish's row today — other tests sell it too, so tests compare before and after."""

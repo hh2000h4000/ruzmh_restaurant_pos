@@ -87,17 +87,18 @@
    "label": "Accounts"
   },
   {
-   "description": "What a returned dish that was thrown away costs is charged here instead of to cost of sales. Left empty, it stays in cost of sales.",
+   "description": "What a returned dish that was thrown away cost is moved here from cost of sales, so waste is seen on its own. Required: a day with waste in it does not post its stock without it.",
    "fieldname": "waste_account",
    "fieldtype": "Link",
    "label": "Waste Account",
-   "options": "Account"
+   "options": "Account",
+   "reqd": 1
   }
  ],
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2026-10-07 18:00:00.000000",
+ "modified": "2026-10-07 20:00:00.000000",
  "modified_by": "Administrator",
  "module": "Restaurant POS",
  "name": "Restaurant POS Settings",

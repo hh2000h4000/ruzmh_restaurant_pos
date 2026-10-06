@@ -173,6 +173,22 @@ class PostingIsSafeToRunAgain(PostingTestBase):
 		self.assertEqual(frappe.db.count(POSTED_ENTRY, {"rpos_posting_batch": batch.name}), entries)
 		self.assertEqual(frappe.db.count("Stock Entry", {"rpos_posting_batch": batch.name}), issues)
 
+	def test_one_posting_of_a_branch_at_a_time(self):
+		"""Two postings of one branch deadlocked on each other's claims; the branch's row
+		is the queue, so the second waits and then finds nothing left to do."""
+		real = frappe.db.get_value
+		locked = []
+
+		def watching(doctype, *args, **kwargs):
+			if kwargs.get("for_update"):
+				locked.append((doctype, args[0] if args else None))
+			return real(doctype, *args, **kwargs)
+
+		with patch.object(frappe.db, "get_value", side_effect=watching):
+			self._post()
+
+		self.assertEqual(locked[0], ("Branch", BRANCH), "taken before anything is claimed")
+
 	def test_a_sale_rung_up_after_the_claim_waits_for_the_next_batch(self):
 		self._sold(qty=1)
 		(first,) = self._post()
@@ -281,6 +297,11 @@ class WhatCameBackGoesOnTheShelfOrInTheBin(PostingTestBase):
 
 	COLA = "RPOS-TEST-POST-COLA"
 
+	def setUp(self):
+		super().setUp()
+		# Required by the settings; a site that has been migrated has one.
+		self._waste_account()
+
 	def _cola(self) -> None:
 		"""Something sold as it came: kept in stock as itself, with a price on the till's list."""
 		self._ingredient(self.COLA, "Nos")
@@ -377,16 +398,41 @@ class WhatCameBackGoesOnTheShelfOrInTheBin(PostingTestBase):
 			frappe.db.get_value("Journal Entry", batch.waste_entry, "total_debit"), COST_OF_ONE, places=2
 		)
 
-	def test_with_no_waste_account_the_cost_stays_where_it_was(self):
+	def test_with_no_waste_account_the_day_s_stock_waits_and_says_what_for(self):
+		"""Required (the owner's call): waste left in cost of sales hides inside the food cost
+		of what did sell. The accounts are posted; the stock waits for the setting."""
+		chosen = frappe.db.get_single_value("Restaurant POS Settings", "waste_account")
 		frappe.db.set_single_value("Restaurant POS Settings", "waste_account", None)
+		self.addCleanup(frappe.db.set_single_value, "Restaurant POS Settings", "waste_account", chosen)
 		order = self._sold(qty=2)
 		self._post()
 
 		self._returned(order)
 		(batch,) = self._post()
 
-		self.assertEqual(batch.status, "Posted", batch.error)
+		self.assertEqual((batch.accounting_status, batch.stock_status), ("Posted", "Failed"))
+		self.assertIn("Waste Account", batch.error)
 		self.assertFalse(batch.waste_entry)
+
+	def test_and_posts_once_the_account_is_chosen(self):
+		chosen = self._waste_account()
+		frappe.db.set_single_value("Restaurant POS Settings", "waste_account", None)
+		order = self._sold(qty=2)
+		self._post()
+		self._returned(order)
+		(failed,) = self._post()
+
+		frappe.db.set_single_value("Restaurant POS Settings", "waste_account", chosen)
+		(batch,) = self._post()
+
+		self.assertEqual(batch.name, failed.name)
+		self.assertEqual(batch.status, "Posted", batch.error)
+		self.assertTrue(batch.waste_entry)
+
+	def test_the_settings_cannot_be_saved_without_a_waste_account(self):
+		field = frappe.get_meta("Restaurant POS Settings").get_field("waste_account")
+
+		self.assertEqual(field.reqd, 1)
 
 
 class ADayIsACalendarDate(PostingTestBase):

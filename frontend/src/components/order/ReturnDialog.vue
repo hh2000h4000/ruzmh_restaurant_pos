@@ -69,6 +69,17 @@ const bill = ref<Returnable | null>(null);
 /** Row name → how much of it is going back. */
 const chosen = ref<Record<string, number>>({});
 /**
+ * Row name → thrown away (`D-315`).
+ *
+ * **What comes back is not always sold again.** A sealed bottle of water goes
+ * back on the shelf; a burger does not go back in the fridge. The till used to
+ * put every return back in stock, so the warehouse on screen grew past the real
+ * one with each refund. Each line opens on what the server says its item is —
+ * a dish is waste, a thing sold as it came is not — and the cashier, who can
+ * see the plate, has the last word.
+ */
+const wasted = ref<Record<string, boolean>>({});
+/**
  * BR-052 and KSA-10 (D-065) — a code, not a sentence.
  *
  * The reason on a Saudi credit note has to map to one of five triggers ZATCA
@@ -97,6 +108,7 @@ watch(
   async (isOpen) => {
     bill.value = null;
     chosen.value = {};
+    wasted.value = {};
     reason.value = "";
     note.value = "";
     method.value = "";
@@ -110,6 +122,7 @@ watch(
     busy.value = true;
     try {
       bill.value = await getReturnable(props.orderName);
+      wasted.value = Object.fromEntries(bill.value.items.map((line) => [line.row, line.wasted]));
       // BR-054 — the way it was paid is where the choice *starts*, not what it
       // is limited to (D-066).
       method.value = bill.value.paid_with.length === 1 ? bill.value.paid_with[0].method : "";
@@ -127,11 +140,19 @@ const paidWith = computed(() => new Set((bill.value?.paid_with ?? []).map((row) 
 const lines = computed<ReturnLine[]>(() =>
   Object.entries(chosen.value)
     .filter(([, qty]) => qty > 0)
-    .map(([row, qty]) => ({ row, qty })),
+    .map(([row, qty]) => ({ row, qty, wasted: Boolean(wasted.value[row]) })),
 );
 
-/** Ask the server what this comes to, whenever the selection changes. */
-watch(lines, async (selection) => {
+/**
+ * What is coming back and how much of it — the only part of the selection the
+ * refund depends on. Where a line goes afterwards changes the stock and not the
+ * money, so flipping it must not ask the server for the same figure again.
+ */
+const quantities = computed(() => lines.value.map((line) => `${line.row}:${line.qty}`).join("|"));
+
+/** Ask the server what this comes to, whenever the quantities change. */
+watch(quantities, async () => {
+  const selection = lines.value;
   if (!props.orderName || !selection.length) {
     refund.value = 0;
     return;
@@ -317,6 +338,24 @@ function money(value: number): string {
                 {{ t("ret.leftOf", { left: formatNumber(line.returnable), sold: formatNumber(line.qty) }) }}
               </span>
             </span>
+
+            <!--
+              `D-315` — shown once the line is actually coming back, so a bill of
+              twelve lines is not twelve switches. One button that says where it
+              goes and flips when tapped; the two states are two words, readable
+              without the colour.
+            -->
+            <button
+              v-if="(chosen[line.row] ?? 0) > 0"
+              type="button"
+              class="min-h-9 shrink-0 rounded-full px-3 text-xs font-semibold transition duration-200 ease-rpos"
+              :class="wasted[line.row] ? 'bg-danger/10 text-danger' : 'bg-status-available/10 text-status-available'"
+              :aria-pressed="Boolean(wasted[line.row])"
+              :aria-label="t('ret.whereItGoes', { item: line.item_name })"
+              @click="wasted = { ...wasted, [line.row]: !wasted[line.row] }"
+            >
+              {{ wasted[line.row] ? t("ret.wasted") : t("ret.restocked") }}
+            </button>
 
             <span
               v-if="line.returnable > 0"

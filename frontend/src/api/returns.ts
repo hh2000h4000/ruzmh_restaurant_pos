@@ -20,6 +20,12 @@ export interface ReturnableLine {
   amount: number;
   returned: number;
   returnable: number;
+  /**
+   * `D-315` — thrown away when it comes back, unless the cashier says otherwise.
+   * A prepared dish opens as waste; something sold as it came (a bottle of
+   * water) opens as going back on the shelf. The server decides which.
+   */
+  wasted: boolean;
 }
 
 /**
@@ -61,6 +67,8 @@ export interface Returnable {
 export interface ReturnLine {
   row: string;
   qty: number;
+  /** Thrown away, so its stock does not go back to the warehouse (`D-315`). */
+  wasted: boolean;
 }
 
 export function getReturnable(orderName: string): Promise<Returnable> {

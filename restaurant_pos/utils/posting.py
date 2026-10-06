@@ -49,6 +49,13 @@ def post_branch(branch: str, shift: str | None = None) -> list[str]:
 	Batches left unfinished by an earlier run are finished first, oldest date
 	first: a day's stock is not taken before the day before it (`docs/14` §7.1).
 	"""
+	# **One posting of a branch at a time.** Two of them — the day close's and a
+	# retry, say — each claiming and each locking the same invoices deadlocked,
+	# caught by the suite running beside a live worker. The branch's own row is
+	# the queue, as it is for the Z number (`D-253`): the second waits, then finds
+	# everything claimed and posted.
+	frappe.db.get_value("Branch", branch, "name", for_update=True)
+
 	for date in _unclaimed_dates(branch):
 		_claim(branch, date, shift)
 
@@ -552,13 +559,9 @@ def _waste_entry(batch, wasted: list) -> str | None:
 	the posting that took it wrote it (`D-314`) — so the entry undoes exactly
 	what the sale charged. No stock moves: the food was used either way.
 
-	None, and the cost stays in cost of sales, when the settings name no waste
-	account for this company or the sale's cost is not known.
+	None when what was thrown away had no cost to move: a dish with no recipe
+	and no price on its card.
 	"""
-	account = frappe.db.get_single_value("Restaurant POS Settings", "waste_account")
-	if not account or frappe.db.get_value("Account", account, "company") != batch.company:
-		return None
-
 	sold_lines = list({row.sold_line for row in wasted if row.sold_line})
 	line_cost = dict(
 		frappe.get_all(
@@ -588,6 +591,18 @@ def _waste_entry(batch, wasted: list) -> str | None:
 	total = flt(sum(by_cost_account.values()), 2)
 	if not total:
 		return None
+
+	# **Required, not optional** (the owner's call). Waste left in cost of sales
+	# hides inside the food cost of what did sell; a day with waste in it is not
+	# posted until somebody says where waste goes.
+	account = frappe.db.get_single_value("Restaurant POS Settings", "waste_account")
+	if not account or frappe.db.get_value("Account", account, "company") != batch.company:
+		frappe.throw(
+			_(
+				"Choose the Waste Account of {0} in Restaurant POS Settings: {1} of returned food was "
+				"thrown away, and it is charged there."
+			).format(batch.company, frappe.format_value(total, {"fieldtype": "Currency"}))
+		)
 
 	date = getdate(batch.posting_date)
 	center = frappe.get_cached_value("Company", batch.company, "cost_center")

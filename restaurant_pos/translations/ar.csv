@@ -1513,3 +1513,5 @@ Waste Account,حساب الهدر
 "What a returned dish that was thrown away costs is charged here instead of to cost of sales. Left empty, it stays in cost of sales.",تكلفة الأكل المرتجع اللي انرمى تنزل هنا بدل تكلفة المبيعات. لو تركته فاضي تبقى في تكلفة المبيعات.
 Waste Entry,قيد الهدر
 Returned and thrown away,مرتجع وانرمى
+"Choose the Waste Account of {0} in Restaurant POS Settings: {1} of returned food was thrown away, and it is charged there.",حدّد «حساب الهدر» للشركة {0} في إعدادات نقاط البيع: فيه أكل مرتجع انرمى بقيمة {1}، وتكلفته تنزل على هذا الحساب.
+"What a returned dish that was thrown away cost is moved here from cost of sales, so waste is seen on its own. Required: a day with waste in it does not post its stock without it.",تكلفة الأكل المرتجع اللي انرمى تنتقل هنا من تكلفة المبيعات، عشان الهدر ينشاف لحاله. إجباري: اليوم اللي فيه هدر ما يترحّل مخزونه بدونه.

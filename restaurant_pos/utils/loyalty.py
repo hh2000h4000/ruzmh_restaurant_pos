@@ -38,6 +38,8 @@ from frappe import _
 from frappe.query_builder.functions import Sum
 from frappe.utils import add_days, cint, flt, getdate, today
 
+from restaurant_pos.utils.sale_doc import SALE
+
 LEDGER = "Loyalty Point Entry"
 
 #: Below this a quotient is float noise, not a missing point: 15.00 / 0.05 is
@@ -462,7 +464,7 @@ def _grant(*, customer: str, program, points: int, invoice, basis: float, expire
 			"loyalty_program": program.name,
 			"loyalty_program_tier": program.collection_rules[0].tier_name,
 			"customer": customer,
-			"invoice_type": "Sales Invoice",
+			"invoice_type": SALE,
 			"invoice": invoice.name,
 			"loyalty_points": points,
 			# ERPNext reads this as "spent" when it works out a tier. Only a real
@@ -485,7 +487,7 @@ def _move(grant, points: int, invoice) -> None:
 			or frappe.db.get_value(LEDGER, grant.name, "loyalty_program"),
 			"loyalty_program_tier": grant.loyalty_program_tier,
 			"customer": grant.customer or frappe.db.get_value(LEDGER, grant.name, "customer"),
-			"invoice_type": "Sales Invoice",
+			"invoice_type": SALE,
 			"invoice": invoice.name,
 			"redeem_against": grant.name,
 			"loyalty_points": points,
@@ -575,7 +577,7 @@ def reverse(order, credit, *, completes: bool) -> dict:
 	if not grant and not spent:
 		return {}
 
-	notes = frappe.get_all("Sales Invoice", filters={"return_against": sale, "docstatus": 1}, pluck="name")
+	notes = frappe.get_all(SALE, filters={"return_against": sale, "docstatus": 1}, pluck="name")
 	share = 1.0 if completes else _share_returned(sale, notes)
 	result = {}
 
@@ -617,13 +619,12 @@ def reverse(order, credit, *, completes: bool) -> dict:
 
 def _share_returned(sale: str, notes: list[str]) -> float:
 	"""How much of the bill has come back so far, by the value of its lines."""
-	whole = flt(frappe.db.get_value("Sales Invoice", sale, "total"))
+	whole = flt(frappe.db.get_value(SALE, sale, "total"))
 	if not whole or not notes:
 		return 0.0
 
 	back = sum(
-		abs(flt(total))
-		for total in frappe.get_all("Sales Invoice", filters={"name": ("in", notes)}, pluck="total")
+		abs(flt(total)) for total in frappe.get_all(SALE, filters={"name": ("in", notes)}, pluck="total")
 	)
 	return min(1.0, back / whole)
 

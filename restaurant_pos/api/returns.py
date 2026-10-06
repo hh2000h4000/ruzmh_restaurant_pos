@@ -14,6 +14,7 @@ import frappe
 from restaurant_pos.utils import idempotency
 from restaurant_pos.utils import returns as service
 from restaurant_pos.utils.permissions import validate_branch_access
+from restaurant_pos.utils.sale_doc import SALE
 
 
 def _load(order_name: str):
@@ -71,7 +72,7 @@ def create_return(
 		queue_id,
 		"create_return",
 		result,
-		reference_doctype="Sales Invoice",
+		reference_doctype=SALE,
 		reference_name=result["credit_note"],
 	)
 	return result

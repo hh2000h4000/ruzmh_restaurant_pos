@@ -22,6 +22,7 @@ from frappe.utils import flt
 
 from restaurant_pos.restaurant_pos.report.daily_sales.daily_sales import add_sale, finish, money_of
 from restaurant_pos.utils import reporting
+from restaurant_pos.utils.sale_doc import SALE
 
 
 def execute(filters=None):
@@ -71,9 +72,7 @@ def _refunds_by_channel(filters, from_date: str, to_date: str) -> dict[str, floa
 	if not credits:
 		return {}
 
-	notes = frappe.get_all(
-		"Sales Invoice", filters={"name": ("in", credits)}, fields=["return_against", "grand_total"]
-	)
+	notes = frappe.get_all(SALE, filters={"name": ("in", credits)}, fields=["return_against", "grand_total"])
 	channel_of = dict(
 		frappe.get_all(
 			"Restaurant Order",

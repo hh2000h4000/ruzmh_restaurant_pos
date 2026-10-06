@@ -1,3 +1,5 @@
+from restaurant_pos.utils.sale_doc import SALE
+
 from . import __version__ as app_version
 
 app_name = "restaurant_pos"
@@ -71,7 +73,7 @@ doc_events = {
 		"validate": "restaurant_pos.utils.invoice_number.number_device",
 		"on_update": "restaurant_pos.utils.invoice_number.make_counter",
 	},
-	"Sales Invoice": {
+	SALE: {
 		"before_cancel": "restaurant_pos.utils.payment.block_invoice_cancel",
 		"validate": [
 			"restaurant_pos.utils.loyalty.keep_erpnext_out",

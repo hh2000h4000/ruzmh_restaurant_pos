@@ -26,6 +26,7 @@ from restaurant_pos.utils import idempotency
 from restaurant_pos.utils import printing as service
 from restaurant_pos.utils.audit import log_audit
 from restaurant_pos.utils.permissions import assert_permission, validate_branch_access
+from restaurant_pos.utils.sale_doc import SALE
 
 #: How long a job may sit with an agent before another claim may take it back.
 #:
@@ -209,7 +210,7 @@ def reprint_receipt(invoice_name: str, queue_id: str | None = None) -> dict:
 		return replay
 
 	invoice = frappe.db.get_value(
-		"Sales Invoice", invoice_name, ["name", "docstatus", "is_return", "return_against"], as_dict=True
+		SALE, invoice_name, ["name", "docstatus", "is_return", "return_against"], as_dict=True
 	)
 	if not invoice:
 		frappe.throw(_("Invoice {0} does not exist.").format(invoice_name))
@@ -239,7 +240,7 @@ def reprint_receipt(invoice_name: str, queue_id: str | None = None) -> dict:
 	# moved and a printer must never undo that — and the screen would have said
 	# "sent to the printer" over a queue that produced nothing. Found by pressing
 	# the button on a live till and watching no job appear.
-	profile = frappe.db.get_value("Sales Invoice", invoice.name, "pos_profile")
+	profile = frappe.db.get_value(SALE, invoice.name, "pos_profile")
 	if not service.receipt_printer(profile, order.name):
 		frappe.throw(_("No printer is linked to this terminal, so nothing can be printed."))
 
@@ -258,7 +259,7 @@ def reprint_receipt(invoice_name: str, queue_id: str | None = None) -> dict:
 		queue_id,
 		"reprint_receipt",
 		result,
-		reference_doctype="Sales Invoice",
+		reference_doctype=SALE,
 		reference_name=invoice.name,
 	)
 	return result
@@ -369,12 +370,10 @@ def _sample_context(template_type: str) -> dict | None:
 		return service.kot_context(kot, center) | {"_sample": name}
 
 	if template_type in ("customer_receipt", "bill_preview"):
-		name = frappe.db.get_value(
-			"Sales Invoice", {"docstatus": 1, "is_pos": 1}, "name", order_by="creation desc"
-		)
+		name = frappe.db.get_value(SALE, {"docstatus": 1, "is_pos": 1}, "name", order_by="creation desc")
 		if not name:
 			return None
-		invoice = frappe.get_doc("Sales Invoice", name)
+		invoice = frappe.get_doc(SALE, name)
 		order = frappe.db.get_value("Restaurant Order", {"sales_invoice": name}, "name")
 		return service.receipt_context(invoice, service._receipt_order(order)) | {"_sample": name}
 

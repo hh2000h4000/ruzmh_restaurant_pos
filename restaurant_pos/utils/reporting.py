@@ -19,6 +19,8 @@ import frappe
 from frappe import _
 from frappe.utils import getdate
 
+from restaurant_pos.utils.sale_doc import SALE
+
 #: A bill that took money. Cancelled ones sold nothing.
 SETTLED = "closed"
 
@@ -74,7 +76,7 @@ def credit_notes(filters, from_date: str, to_date: str) -> list[str]:
 	of its own — the same walk `utils/returns` makes to find a refund's order.
 	"""
 	credits = frappe.get_all(
-		"Sales Invoice",
+		SALE,
 		filters={
 			"is_return": 1,
 			"docstatus": 1,

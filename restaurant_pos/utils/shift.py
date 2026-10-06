@@ -45,6 +45,7 @@ from restaurant_pos.utils.permissions import (
 	server_rights,
 	validate_branch_access,
 )
+from restaurant_pos.utils.sale_doc import SALE
 from restaurant_pos.utils.totals import money
 
 #: An order still on the floor. Closing over one strands a bill nobody can pay.
@@ -624,7 +625,7 @@ def _ended_in(window: list, **filters) -> list:
 def _refunds_in(window: list, **filters) -> list[str]:
 	"""Credit notes made inside the window, against a sale of any age (`D-217`, `BR-055`)."""
 	return frappe.get_all(
-		"Sales Invoice",
+		SALE,
 		filters={**filters, "is_return": 1, "docstatus": 1, "creation": ("between", window)},
 		pluck="name",
 	)
@@ -644,7 +645,7 @@ def _report(
 	sold = [row.sales_invoice for row in closed if row.sales_invoice]
 	methods = _by_method(sold, refunds, opening, moved or {}, cards_sold or {})
 	refund_rows = (
-		frappe.get_all("Sales Invoice", filters={"name": ("in", refunds)}, fields=["owner", "grand_total"])
+		frappe.get_all(SALE, filters={"name": ("in", refunds)}, fields=["owner", "grand_total"])
 		if refunds
 		else []
 	)
@@ -781,7 +782,7 @@ def _by_method(
 	expected figure did not move when a paid invoice was cancelled.
 	"""
 	live = (
-		frappe.get_all("Sales Invoice", filters={"name": ("in", invoices), "docstatus": 1}, pluck="name")
+		frappe.get_all(SALE, filters={"name": ("in", invoices), "docstatus": 1}, pluck="name")
 		if invoices
 		else []
 	)
@@ -797,7 +798,7 @@ def _by_method(
 	rows = (
 		frappe.get_all(
 			"Sales Invoice Payment",
-			filters={"parent": ("in", live), "parenttype": "Sales Invoice"},
+			filters={"parent": ("in", live), "parenttype": SALE},
 			fields=["mode_of_payment", "amount"],
 		)
 		if live
@@ -1013,7 +1014,7 @@ def _by_tax_rate(invoices: list[str]) -> list[dict]:
 	"""
 	docs = (
 		frappe.get_all(
-			"Sales Invoice",
+			SALE,
 			filters={"name": ("in", invoices), "docstatus": 1},
 			fields=["name", "net_total", "total_taxes_and_charges", "grand_total"],
 		)
@@ -1026,7 +1027,7 @@ def _by_tax_rate(invoices: list[str]) -> list[dict]:
 	rates: dict[str, float] = {}
 	for row in frappe.get_all(
 		"Sales Taxes and Charges",
-		filters={"parent": ("in", [doc.name for doc in docs]), "parenttype": "Sales Invoice"},
+		filters={"parent": ("in", [doc.name for doc in docs]), "parenttype": SALE},
 		fields=["parent", "rate"],
 		order_by="idx asc",
 	):

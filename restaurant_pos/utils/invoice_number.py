@@ -32,6 +32,7 @@ from frappe.query_builder.functions import Max
 from frappe.utils import cint
 
 from restaurant_pos.utils.order import branch_of_profile, profiles_in, table_section_branch
+from restaurant_pos.utils.sale_doc import SALE
 
 BRANCH_NUMBER = "rpos_branch_number"
 DEVICE_NUMBER = "rpos_device_number"
@@ -48,7 +49,7 @@ COUNT = ".######"
 #: apart: an order is `RO-1002-01-000001` (`D-310`). Its short daily number is
 #: what the guest hears; this is the name the office reads.
 ORDER_PREFIX = "RO-"
-NUMBERED_PER_TERMINAL = (("Sales Invoice", ""), ("Restaurant Order", ORDER_PREFIX))
+NUMBERED_PER_TERMINAL = ((SALE, ""), ("Restaurant Order", ORDER_PREFIX))
 
 
 def number_branch(doc, method=None) -> None:
@@ -239,7 +240,7 @@ def _number_device_now(pos_profile: str, branch: str) -> str:
 
 
 def _has_sold(profiles: list[str]) -> bool:
-	return bool(profiles) and bool(frappe.db.exists("Sales Invoice", {"pos_profile": ("in", profiles)}))
+	return bool(profiles) and bool(frappe.db.exists(SALE, {"pos_profile": ("in", profiles)}))
 
 
 def _ensure_counters(series: str | None) -> None:

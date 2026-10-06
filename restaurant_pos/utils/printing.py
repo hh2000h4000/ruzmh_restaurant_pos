@@ -30,6 +30,8 @@ import frappe
 from frappe import _
 from frappe.utils import add_days, cint, flt, now_datetime, nowdate
 
+from restaurant_pos.utils.sale_doc import SALE
+
 #: Printable width in dots, by paper size, at the 203 dpi every one of these
 #: printers uses. The paper is wider than the print head can reach — 80mm paper
 #: prints 72mm — which is why these are not the millimetre figures times eight.
@@ -554,7 +556,7 @@ def print_receipt(invoice_name: str, *, order_name: str | None = None) -> str | 
 	# of those is a lookup, and a lookup that raises here would undo a payment
 	# that has already been taken.
 	try:
-		invoice = frappe.get_doc("Sales Invoice", invoice_name)
+		invoice = frappe.get_doc(SALE, invoice_name)
 		order = _receipt_order(order_name)
 
 		printer = receipt_printer(invoice.pos_profile, order_name)
@@ -568,7 +570,7 @@ def print_receipt(invoice_name: str, *, order_name: str | None = None) -> str | 
 			# D-214 — the terminal's own choice, sent as it is: a design for other
 			# paper prints at this printer's width, and the paper is the judge.
 			template=frappe.db.get_value("POS Profile", invoice.pos_profile, "receipt_template"),
-			reference_doctype="Sales Invoice",
+			reference_doctype=SALE,
 			reference_name=invoice.name,
 		)
 	except Exception:

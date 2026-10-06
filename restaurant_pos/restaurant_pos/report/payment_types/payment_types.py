@@ -25,6 +25,7 @@ from frappe.utils import flt
 
 from restaurant_pos.utils import reporting
 from restaurant_pos.utils.payment import is_credit_method
+from restaurant_pos.utils.sale_doc import SALE
 
 
 def execute(filters=None):
@@ -47,7 +48,7 @@ def _submitted(invoices: list[str]) -> list[str]:
 	if not invoices:
 		return []
 
-	return frappe.get_all("Sales Invoice", filters={"name": ("in", invoices), "docstatus": 1}, pluck="name")
+	return frappe.get_all(SALE, filters={"name": ("in", invoices), "docstatus": 1}, pluck="name")
 
 
 def _tally(invoices: list[str]) -> list[dict]:
@@ -58,7 +59,7 @@ def _tally(invoices: list[str]) -> list[dict]:
 	tally: dict[str, dict] = {}
 	for row in frappe.get_all(
 		"Sales Invoice Payment",
-		filters={"parent": ("in", invoices), "parenttype": "Sales Invoice"},
+		filters={"parent": ("in", invoices), "parenttype": SALE},
 		fields=["mode_of_payment", "amount"],
 	):
 		line = tally.setdefault(

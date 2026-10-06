@@ -23,6 +23,7 @@ from frappe import _
 from frappe.utils import flt, getdate
 
 from restaurant_pos.utils import reporting
+from restaurant_pos.utils.sale_doc import SALE
 
 #: Weekdays as Python numbers them, in the order a Saudi week is read.
 ARABIC_WEEKDAY = {
@@ -86,7 +87,7 @@ def money_of(invoices: list[str]) -> dict[str, frappe._dict]:
 		return {}
 
 	rows = frappe.get_all(
-		"Sales Invoice",
+		SALE,
 		filters={"name": ("in", invoices), "docstatus": 1},
 		fields=["name", "posting_date", "net_total", "total_taxes_and_charges", "grand_total"],
 	)

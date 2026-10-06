@@ -18,6 +18,7 @@ from restaurant_pos.utils import customer as customer_service
 from restaurant_pos.utils import idempotency, kitchen, promotions
 from restaurant_pos.utils import order as service
 from restaurant_pos.utils.permissions import get_pos_permission_set, validate_branch_access
+from restaurant_pos.utils.sale_doc import SALE
 
 
 def _load(order_name: str):
@@ -914,7 +915,7 @@ def _refunds_this_day(scope: dict, *, mine_only: bool) -> list[dict]:
 	back out since the day opened, reconcilable line by line against a count.
 	"""
 	credits = frappe.get_all(
-		"Sales Invoice",
+		SALE,
 		filters={
 			"is_return": 1,
 			"docstatus": 1,
@@ -1015,7 +1016,7 @@ def _annotate_refunds(orders: list) -> None:
 	refunded: dict[str, float] = {}
 	if invoices:
 		for row in frappe.get_all(
-			"Sales Invoice",
+			SALE,
 			filters={"return_against": ("in", invoices), "docstatus": 1},
 			fields=["return_against", "grand_total"],
 		):

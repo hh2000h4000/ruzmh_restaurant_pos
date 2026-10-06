@@ -23,6 +23,7 @@ from frappe import _
 from frappe.utils import add_days, getdate
 
 from restaurant_pos.utils.gift_card import ADDS
+from restaurant_pos.utils.sale_doc import SALE
 from restaurant_pos.utils.totals import money
 
 KINDS = ("issue", "top_up", "redeem", "refund", "void")
@@ -126,7 +127,7 @@ def _columns() -> list[dict]:
 			"fieldname": "sales_invoice",
 			"label": _("Invoice", context="RPOS report"),
 			"fieldtype": "Link",
-			"options": "Sales Invoice",
+			"options": SALE,
 			"width": 150,
 		},
 		{

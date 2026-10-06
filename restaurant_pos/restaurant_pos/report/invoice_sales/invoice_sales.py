@@ -32,6 +32,7 @@ from frappe import _
 from frappe.utils import flt
 
 from restaurant_pos.utils import reporting
+from restaurant_pos.utils.sale_doc import SALE, SALE_ITEM
 
 ORDER_FIELDS = [
 	"name",
@@ -81,7 +82,7 @@ def _bills(orders: list, credits: list[str]) -> dict[str, dict]:
 	invoices = {
 		row.name: row
 		for row in frappe.get_all(
-			"Sales Invoice",
+			SALE,
 			filters={"name": ("in", names), "docstatus": 1},
 			fields=[
 				"name",
@@ -184,7 +185,7 @@ def _payments(invoices: list[str]) -> dict[str, str]:
 	lines: dict[str, list[str]] = {}
 	for row in frappe.get_all(
 		"Sales Invoice Payment",
-		filters={"parenttype": "Sales Invoice", "parent": ("in", invoices)},
+		filters={"parenttype": SALE, "parent": ("in", invoices)},
 		fields=["parent", "mode_of_payment", "amount"],
 		order_by="idx asc",
 	):
@@ -223,8 +224,8 @@ def _items(bills: dict[str, dict]) -> list[dict]:
 
 	rows = []
 	for line in frappe.get_all(
-		"Sales Invoice Item",
-		filters={"parenttype": "Sales Invoice", "parent": ("in", list(bills))},
+		SALE_ITEM,
+		filters={"parenttype": SALE, "parent": ("in", list(bills))},
 		fields=["parent", "item_code", "item_name", "qty", "rate", "net_amount", "amount", "idx"],
 		order_by="parent asc, idx asc",
 	):
@@ -275,14 +276,14 @@ def _invoice_columns() -> list[dict]:
 			"fieldname": "invoice",
 			"label": _("Invoice", context="RPOS report"),
 			"fieldtype": "Link",
-			"options": "Sales Invoice",
+			"options": SALE,
 			"width": 150,
 		},
 		{
 			"fieldname": "against",
 			"label": _("Returns", context="RPOS report"),
 			"fieldtype": "Link",
-			"options": "Sales Invoice",
+			"options": SALE,
 			"width": 150,
 		},
 		{"fieldname": "order_type", "label": _("Order Type"), "fieldtype": "Data", "width": 110},
@@ -352,7 +353,7 @@ def _item_columns() -> list[dict]:
 			"fieldname": "invoice",
 			"label": _("Invoice", context="RPOS report"),
 			"fieldtype": "Link",
-			"options": "Sales Invoice",
+			"options": SALE,
 			"width": 150,
 		},
 		{"fieldname": "order_type", "label": _("Order Type"), "fieldtype": "Data", "width": 110},

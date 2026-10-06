@@ -23,6 +23,7 @@ from frappe import _
 from frappe.utils import flt
 
 from restaurant_pos.utils import reporting
+from restaurant_pos.utils.sale_doc import SALE
 
 
 def execute(filters=None):
@@ -64,9 +65,7 @@ def _refunds(credits: list[str]) -> dict[str, float]:
 		return {}
 
 	tally: dict[str, float] = {}
-	for row in frappe.get_all(
-		"Sales Invoice", filters={"name": ("in", credits)}, fields=["owner", "grand_total"]
-	):
+	for row in frappe.get_all(SALE, filters={"name": ("in", credits)}, fields=["owner", "grand_total"]):
 		tally[row.owner] = tally.get(row.owner, 0.0) + abs(flt(row.grand_total))
 
 	return tally

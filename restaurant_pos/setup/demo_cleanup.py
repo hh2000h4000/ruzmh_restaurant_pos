@@ -24,6 +24,7 @@ not the same thing, and only one of them is safe to delete.
 import frappe
 
 from restaurant_pos.utils.order import release_table
+from restaurant_pos.utils.sale_doc import SALE_ITEM
 
 #: Documents whose names or titles mark them as smoke-test leftovers.
 RESIDUE_PATTERNS = ("RPOS-TEST-%", "RPOS-PLAN-%", "RPOS Test%", "E2E %")
@@ -279,7 +280,7 @@ def _tidy_printers(report: Report) -> None:
 
 def _drop_items(report: Report) -> None:
 	for item in frappe.get_all("Item", filters={"name": ("like", "RPOS-TEST-%")}, pluck="name"):
-		if frappe.db.count("Sales Invoice Item", {"item_code": item}):
+		if frappe.db.count(SALE_ITEM, {"item_code": item}):
 			report.spared(f"{item} — sold on an invoice")
 			continue
 

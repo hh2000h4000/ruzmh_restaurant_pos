@@ -32,6 +32,7 @@ from restaurant_pos.utils.permissions import (
 	server_rights,
 	validate_branch_access,
 )
+from restaurant_pos.utils.sale_doc import SALE, SALE_ITEM
 from restaurant_pos.utils.shift import assert_may_sell, selling_till
 from restaurant_pos.utils.totals import money
 
@@ -58,7 +59,7 @@ def assert_returnable(order) -> str:
 	if order.status != "closed" or not order.sales_invoice:
 		frappe.throw(_("Order {0} has not been paid, so there is nothing to return.").format(order.name))
 
-	if frappe.db.get_value("Sales Invoice", order.sales_invoice, "docstatus") != 1:
+	if frappe.db.get_value(SALE, order.sales_invoice, "docstatus") != 1:
 		frappe.throw(_("Invoice {0} is not submitted.").format(order.sales_invoice))
 
 	return order.sales_invoice
@@ -74,8 +75,8 @@ def returnable(order) -> dict:
 	invoice = assert_returnable(order)
 
 	rows = frappe.get_all(
-		"Sales Invoice Item",
-		filters={"parent": invoice, "parenttype": "Sales Invoice"},
+		SALE_ITEM,
+		filters={"parent": invoice, "parenttype": SALE},
 		fields=[
 			"name",
 			"idx",
@@ -143,7 +144,7 @@ def _returned_quantities(rows: list[str]) -> dict[str, float]:
 
 	taken: dict[str, float] = {}
 	for row in frappe.get_all(
-		"Sales Invoice Item",
+		SALE_ITEM,
 		filters={"sales_invoice_item": ("in", rows), "docstatus": 1},
 		fields=["sales_invoice_item", "qty"],
 	):
@@ -157,7 +158,7 @@ def _paid_with(invoice: str) -> list[dict]:
 		{"method": row.mode_of_payment, "amount": flt(row.amount)}
 		for row in frappe.get_all(
 			"Sales Invoice Payment",
-			filters={"parent": invoice, "parenttype": "Sales Invoice"},
+			filters={"parent": invoice, "parenttype": SALE},
 			fields=["mode_of_payment", "amount"],
 			order_by="idx",
 		)
@@ -166,7 +167,7 @@ def _paid_with(invoice: str) -> list[dict]:
 
 def _existing_returns(invoice: str) -> list[dict]:
 	return frappe.get_all(
-		"Sales Invoice",
+		SALE,
 		filters={"return_against": invoice, "docstatus": 1},
 		fields=["name", "posting_date", "grand_total", "remarks"],
 		order_by="creation",
@@ -361,7 +362,7 @@ def _compose(invoice: str, wanted: dict[str, float]):
 	from erpnext.controllers.sales_and_purchase_return import make_return_doc
 
 	with server_rights():
-		credit = make_return_doc("Sales Invoice", invoice)
+		credit = make_return_doc(SALE, invoice)
 
 	# A credit note counts on the same series as the terminal's sales (`D-309`):
 	# one unbroken sequence per device is what ZATCA counts too.
@@ -401,7 +402,7 @@ def _share_the_discount(credit, invoice: str, wanted: dict[str, float]) -> None:
 	**whatever is left** rather than its own share, so a bill returned in parts
 	gives back every riyal of its discount, not that less a halala of rounding.
 	"""
-	whole = abs(flt(frappe.db.get_value("Sales Invoice", invoice, "discount_amount")))
+	whole = abs(flt(frappe.db.get_value(SALE, invoice, "discount_amount")))
 	if not whole:
 		return
 
@@ -409,14 +410,14 @@ def _share_the_discount(credit, invoice: str, wanted: dict[str, float]) -> None:
 		earlier = sum(
 			abs(flt(amount))
 			for amount in frappe.get_all(
-				"Sales Invoice",
+				SALE,
 				filters={"return_against": invoice, "docstatus": 1},
 				pluck="discount_amount",
 			)
 		)
 		share = whole - earlier
 	else:
-		sale = flt(frappe.db.get_value("Sales Invoice", invoice, "total"))
+		sale = flt(frappe.db.get_value(SALE, invoice, "total"))
 		coming_back = sum(abs(flt(row.qty)) * flt(row.rate) for row in credit.items)
 		share = whole * coming_back / sale if sale else 0.0
 
@@ -431,8 +432,8 @@ def _completes(invoice: str, wanted: dict[str, float]) -> bool:
 	submitted, because `_returned_quantities` already counts it by then.
 	"""
 	rows = frappe.get_all(
-		"Sales Invoice Item",
-		filters={"parent": invoice, "parenttype": "Sales Invoice"},
+		SALE_ITEM,
+		filters={"parent": invoice, "parenttype": SALE},
 		fields=["name", "qty"],
 	)
 	taken = _returned_quantities([row.name for row in rows])
@@ -512,7 +513,7 @@ def _apply_refund(credit, refund_method: str | None) -> None:
 	# **And never before the sale it reverses.** ERPNext refuses a return dated
 	# earlier than its invoice, so a step back landing between the sale and a
 	# refund taken the same second refused the refund — the gate caught it.
-	sold = frappe.db.get_value("Sales Invoice", credit.return_against, ["posting_date", "posting_time"])
+	sold = frappe.db.get_value(SALE, credit.return_against, ["posting_date", "posting_time"])
 	stamp = max(now_datetime(), get_datetime(f"{sold[0]} {sold[1]}"))
 	credit.posting_date = stamp.date()
 	credit.posting_time = stamp.time()
@@ -559,15 +560,13 @@ def _assert_within_what_that_method_paid(credit, method: str, due: float, origin
 
 def _already_refunded_to(invoice: str, method: str) -> float:
 	"""What earlier credit notes against this bill already gave back that way."""
-	credits = frappe.get_all(
-		"Sales Invoice", filters={"return_against": invoice, "docstatus": 1}, pluck="name"
-	)
+	credits = frappe.get_all(SALE, filters={"return_against": invoice, "docstatus": 1}, pluck="name")
 	if not credits:
 		return 0.0
 
 	rows = frappe.get_all(
 		"Sales Invoice Payment",
-		filters={"parent": ("in", credits), "parenttype": "Sales Invoice", "mode_of_payment": method},
+		filters={"parent": ("in", credits), "parenttype": SALE, "mode_of_payment": method},
 		fields=["amount"],
 	)
 	return abs(sum(flt(row.amount) for row in rows))
@@ -588,7 +587,7 @@ def refund_detail(credit_note: str) -> dict:
 	Read-only, and it stays that way: a credit note is submitted accounting. The
 	one thing a cashier does with it here is look at it, and reprint it.
 	"""
-	credit = frappe.get_doc("Sales Invoice", credit_note)
+	credit = frappe.get_doc(SALE, credit_note)
 
 	if not credit.is_return or credit.docstatus != 1:
 		frappe.throw(_("{0} is not a refund.").format(credit_note))

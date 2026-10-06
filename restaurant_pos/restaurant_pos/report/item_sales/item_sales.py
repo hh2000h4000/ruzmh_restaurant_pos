@@ -35,6 +35,7 @@ from frappe import _
 from frappe.utils import flt
 
 from restaurant_pos.utils import reporting
+from restaurant_pos.utils.sale_doc import SALE, SALE_ITEM
 
 
 def execute(filters=None):
@@ -79,7 +80,7 @@ def _lines_of(invoices: list[str], item_group: str | None) -> list[frappe._dict]
 		filters["item_group"] = item_group
 
 	lines = frappe.get_all(
-		"Sales Invoice Item",
+		SALE_ITEM,
 		filters=filters,
 		fields=[
 			"name",
@@ -120,7 +121,7 @@ def _recipe_costs(invoices: list[str]) -> dict[str, tuple[float, bool]]:
 	costs: dict[str, tuple[float, bool]] = {}
 	for packed in frappe.get_all(
 		"Packed Item",
-		filters={"parenttype": "Sales Invoice", "parent": ("in", invoices)},
+		filters={"parenttype": SALE, "parent": ("in", invoices)},
 		fields=["parent_detail_docname", "qty", "incoming_rate"],
 	):
 		cost, short = costs.get(packed.parent_detail_docname, (0.0, False))

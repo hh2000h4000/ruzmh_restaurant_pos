@@ -16,6 +16,7 @@ from frappe.custom.doctype.custom_field.custom_field import create_custom_fields
 from restaurant_pos.setup import cash_accounts, gift_card_accounts
 from restaurant_pos.setup.defaults import create_default_data
 from restaurant_pos.setup.print_templates import create_default_templates
+from restaurant_pos.utils.sale_doc import SALE, SALE_ITEM
 
 # ``Restaurant Branch`` in the database design is the ERPNext ``Branch`` DocType
 # extended with restaurant configuration (see 10_Implementation_Plan.md, Phase 1).
@@ -412,7 +413,7 @@ CUSTOM_FIELDS = {
 	# the sale and 21 for the return of part of it. `Restaurant Order` carries
 	# the same number for a sale; this is where a document that is *not* an
 	# order carries one.
-	"Sales Invoice": [
+	SALE: [
 		{
 			"fieldname": "rpos_daily_number",
 			"fieldtype": "Int",
@@ -426,7 +427,7 @@ CUSTOM_FIELDS = {
 	# `D-284` — an add-on sold as its own line, bound to the dish it was chosen
 	# on. Copied onto a credit note by `make_return_doc`, which is how a return
 	# of the dish finds its add-ons and a recipe keeps its removals.
-	"Sales Invoice Item": [
+	SALE_ITEM: [
 		{
 			"fieldname": "rpos_order_item",
 			"fieldtype": "Data",

@@ -32,6 +32,8 @@ import json
 import frappe
 from frappe.utils import flt
 
+from restaurant_pos.utils.sale_doc import SALE, SALE_ITEM
+
 #: The unit an add-on is sold in when one choice is not one stock unit (0.02 kg
 #: of sauce is one portion). Created by `setup.install`.
 PORTION = "Portion"
@@ -238,8 +240,8 @@ def dish_rows(rows: list) -> list:
 def with_addons(invoice: str, wanted: dict[str, float]) -> dict[str, float]:
 	"""A dish coming back brings its add-ons — a combo, its items — in the same share."""
 	rows = frappe.get_all(
-		"Sales Invoice Item",
-		filters={"parent": invoice, "parenttype": "Sales Invoice"},
+		SALE_ITEM,
+		filters={"parent": invoice, "parenttype": SALE},
 		fields=["name", "qty", "rpos_order_item"],
 		order_by="idx",
 	)

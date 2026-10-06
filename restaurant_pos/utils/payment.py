@@ -47,6 +47,7 @@ from restaurant_pos.utils.permissions import (
 	discount_override_action,
 	get_pos_permission_set,
 )
+from restaurant_pos.utils.sale_doc import SALE
 
 #: Anything below this is float noise, not a shortfall (BR-022).
 TOLERANCE = 0.005
@@ -440,7 +441,7 @@ def _erpnext_would_refuse(item: str, warehouse: str, profile) -> bool:
 		get_valuation_rate(
 			item,
 			warehouse,
-			"Sales Invoice",
+			SALE,
 			"",
 			currency=profile.currency,
 			company=profile.company,
@@ -687,7 +688,7 @@ def _create_sales_invoice(order, payments, settlement: str = "till"):
 	# before anything is charged, and the payment screen says so before that.
 	customer = order.customer or profile.customer
 
-	invoice = frappe.new_doc("Sales Invoice")
+	invoice = frappe.new_doc(SALE)
 	invoice.update(
 		{
 			# Branch, terminal, count — and a counter per terminal, so tills do

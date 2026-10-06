@@ -36,11 +36,12 @@ from frappe.utils import cint
 
 from restaurant_pos.utils import invoice_number
 from restaurant_pos.utils.order import release_table
+from restaurant_pos.utils.sale_doc import SALE
 
 #: The ERPNext documents a replay may point at, deleted by the same button — so
 #: their replay records go too. Customers and addresses are not on ERPNext's
 #: list, so replays that made one are kept with it.
-ERPNEXT_REPLAYED = ("Sales Invoice", "POS Opening Entry", "POS Closing Entry")
+ERPNEXT_REPLAYED = (SALE, "POS Opening Entry", "POS Closing Entry")
 
 #: Floor states a trial leaves behind. `inactive` is not one: a table taken out
 #: of service is setup, and stays out.
@@ -192,7 +193,7 @@ def _gift_cards_of(company: str, branches: list[str]) -> list[str]:
 	"""
 	entry = frappe.qb.DocType("POS Gift Card Entry")
 	journal = frappe.qb.DocType("Journal Entry")
-	invoice = frappe.qb.DocType("Sales Invoice")
+	invoice = frappe.qb.DocType(SALE)
 	journals = frappe.qb.from_(journal).select(journal.name).where(journal.company == company)
 	invoices = frappe.qb.from_(invoice).select(invoice.name).where(invoice.company == company)
 

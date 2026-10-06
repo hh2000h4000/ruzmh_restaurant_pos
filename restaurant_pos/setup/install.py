@@ -13,7 +13,7 @@ modified - every extension is a ``Custom Field``.
 import frappe
 from frappe.custom.doctype.custom_field.custom_field import create_custom_fields
 
-from restaurant_pos.setup import cash_accounts, gift_card_accounts, waste_account
+from restaurant_pos.setup import cash_accounts, gift_card_accounts, platform_accounts, waste_account
 from restaurant_pos.setup.defaults import create_default_data
 from restaurant_pos.setup.print_templates import create_default_templates
 from restaurant_pos.utils.sale_doc import LINE_COST, POSTED_ENTRY, SALE, SALE_ITEM, WASTED
@@ -955,6 +955,10 @@ def after_install():
 	# land. Never overwrites an account or a mapping somebody already chose.
 	cash_accounts.setup()
 
+	# `D-319` — and the delivery platforms' payment methods, made just above,
+	# somewhere to keep what each platform owes.
+	platform_accounts.setup()
+
 
 def after_migrate():
 	create_custom_fields(CUSTOM_FIELDS, ignore_validate=True)
@@ -977,6 +981,10 @@ def after_migrate():
 	# `D-315` — the account a thrown-away return is charged to. Created once and
 	# never overwritten, like the gift cards' and the drawer's.
 	waste_account.setup()
+
+	# `D-319` — what a delivery platform owes sits on an account its payment
+	# method names. A site from before this has the methods and no accounts.
+	platform_accounts.setup()
 
 	# Every site that had the app before the guide was served needs the menu row.
 	add_guide_to_help_menu()

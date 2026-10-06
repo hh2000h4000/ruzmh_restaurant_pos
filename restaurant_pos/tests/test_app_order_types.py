@@ -9,10 +9,12 @@ Refs: 02_Business_Requirements.md §3, BR-002, BR-004, FR-1.1
 import frappe
 from frappe.utils import flt
 
+from restaurant_pos.setup import platform_accounts
 from restaurant_pos.setup.defaults import DELIVERY_APPS, create_default_data
 from restaurant_pos.tests.test_payment import CASH, PaymentTestBase
 from restaurant_pos.utils import order as orders
 from restaurant_pos.utils import payment as payment_service
+from restaurant_pos.utils import posting
 from restaurant_pos.utils.sale_doc import SALE
 
 
@@ -25,13 +27,9 @@ class TestAppOrderTypes(PaymentTestBase):
 		cls.customer = frappe.db.get_value("POS Profile", cls.profile, "customer")
 		cls.company = frappe.db.get_value("POS Profile", cls.profile, "company")
 
-		# Strip any account rows a bank-typed ancestor of this method left behind,
-		# so the credit path is proved without one rather than merely observed.
-		for app in DELIVERY_APPS:
-			method = frappe.get_doc("Mode of Payment", app["title"])
-			if method.accounts:
-				method.accounts = []
-				method.save(ignore_permissions=True)
+		# What a migrate does on a real site: each platform's method gets the
+		# account that holds what the platform owes (`D-319`).
+		platform_accounts.setup(cls.company)
 
 		frappe.db.commit()
 
@@ -141,8 +139,9 @@ class TestAppOrderTypes(PaymentTestBase):
 	def test_the_platform_owes_the_money_it_already_took(self):
 		"""D-029 — an app order is credit: nothing enters the till.
 
-		The customer paid HungerStation, not the restaurant. The invoice stays
-		outstanding against the platform until the monthly statement settles.
+		The customer paid HungerStation, not the restaurant. The bill is paid —
+		with the platform's method — and what the platform owes sits on that
+		method's account until its transfer lands (`D-319`).
 		"""
 		order, customer = self._activated_app_order()
 		total = flt(order.total_amount)
@@ -157,17 +156,53 @@ class TestAppOrderTypes(PaymentTestBase):
 		invoice = frappe.get_doc(SALE, result["sales_invoice"])
 		self.assertEqual(invoice.docstatus, 1)
 		self.assertEqual(invoice.customer, customer)
-		# Not a till sale: no POS settlement rows, and the money is still owed.
-		self.assertEqual(invoice.is_pos, 0)
-		self.assertEqual(len(invoice.payments), 0)
-		self.assertAlmostEqual(flt(invoice.outstanding_amount), total, places=2)
+		(paid,) = invoice.payments
+		self.assertEqual(paid.mode_of_payment, "HungerStation")
+		self.assertAlmostEqual(flt(paid.amount), total, places=2)
+		self.assertAlmostEqual(flt(invoice.outstanding_amount), 0, places=2)
+
+	def test_and_the_day_s_posting_puts_it_on_the_platform_s_account(self):
+		"""The accountant reads what HungerStation owes off one account, and clears it there."""
+		order, _customer = self._activated_app_order()
+		total = flt(order.total_amount)
+		payment_service.process_payment(order, payments=[{"method": "HungerStation", "amount": total}])
+		account = frappe.db.get_value(
+			"Mode of Payment Account", {"parent": "HungerStation", "company": self.company}, "default_account"
+		)
+		# An asset, and not a Receivable: that type wants a customer on every line.
+		root, kind = frappe.db.get_value("Account", account, ["root_type", "account_type"])
+		self.assertEqual((root, kind or ""), ("Asset", ""))
+
+		batch = frappe.get_doc(posting.BATCH, posting.post_branch(order.branch)[-1])
+
+		self.assertEqual(batch.status, "Posted", batch.error)
+		owed = frappe.get_all(
+			"GL Entry",
+			filters={"voucher_no": batch.sales_invoice, "account": account, "is_cancelled": 0},
+			fields=["sum(debit) as debit", "sum(credit) as credit"],
+		)[0]
+		self.assertAlmostEqual(flt(owed.debit) - flt(owed.credit), total, places=2)
+
+	def test_a_platform_the_restaurant_added_says_it_needs_an_account(self):
+		order, _customer = self._activated_app_order()
+		frappe.db.delete("Mode of Payment Account", {"parent": "HungerStation"})
+
+		try:
+			with self.assertRaises(frappe.ValidationError) as refused:
+				payment_service.process_payment(
+					order, payments=[{"method": "HungerStation", "amount": flt(order.total_amount)}]
+				)
+		finally:
+			# This class's tearDown commits: the account must be back before it does.
+			frappe.db.rollback()
+
+		self.assertIn("HungerStation", str(refused.exception))
 
 	def test_a_credit_method_is_not_a_bank_transfer(self):
-		"""The original mistake: shipping these as Bank and demanding an account.
+		"""The original mistake: shipping these as Bank, which put them in the drawer's count.
 
-		That a credit sale posts with no account configured is proved by
-		:meth:`test_the_platform_owes_the_money_it_already_took`, which runs
-		against these same account-free methods.
+		They are General and marked credit, so no drawer expects them — and each
+		ships with the account that holds what its platform owes (`D-319`).
 		"""
 		for app in DELIVERY_APPS:
 			method = frappe.get_doc("Mode of Payment", app["title"])

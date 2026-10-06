@@ -1521,3 +1521,4 @@ Post now,رحّل الآن
 Post a branch now,رحّل فرع الآن
 Posting {0} has started. This page updates when it is done.,بدأ ترحيل {0}. الصفحة تتحدّث لما يخلص.
 Sales Posting,ترحيل المبيعات
+"Payment method {0} has no account for {1}. Choose one on the payment method in ERPNext: what is paid with it is posted there.",طريقة الدفع {0} ما لها حساب للشركة {1}. حدّد لها حساب من نموذج طريقة الدفع في ERPNext: اللي يندفع بها ينزل عليه.

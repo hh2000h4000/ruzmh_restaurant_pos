@@ -100,7 +100,7 @@ def process_payment(
 	settlement = _settlement_of(payments)
 	change = _validate_amounts(order, payments) if settlement == "till" else 0.0
 
-	invoice = _create_sales_invoice(order, payments, settlement)
+	invoice = _create_sales_invoice(order, payments)
 	_assert_invoice_matches_order(order, invoice)
 
 	# BR-016 — closed only once the invoice is submitted.
@@ -455,9 +455,28 @@ def is_credit_method(method: str) -> bool:
 
 	A delivery platform has already taken the customer's money; a corporate
 	account will pay on a statement. Either way nothing enters the till
-	(``DECISIONS.md`` D-029).
+	(``DECISIONS.md`` D-029) — and what is owed sits on the method's own
+	account, where the accountant clears it when the transfer lands (`D-319`).
 	"""
 	return bool(frappe.db.get_value("Mode of Payment", method, "rpos_is_credit"))
+
+
+def _assert_has_account(method: str, company: str) -> None:
+	"""A payment method posts to an account, and says so before the sale rather than after.
+
+	ERPNext asks the same, in an accountant's words and with a link a cashier
+	cannot open. The one this is written for is a delivery platform made by the
+	restaurant itself (`D-319`): its method works the moment it has an account.
+	"""
+	if not frappe.db.get_value(
+		"Mode of Payment Account", {"parent": method, "company": company}, "default_account"
+	):
+		frappe.throw(
+			_(
+				"Payment method {0} has no account for {1}. Choose one on the payment method in ERPNext: "
+				"what is paid with it is posted there."
+			).format(method, company)
+		)
 
 
 def is_cash(method: str) -> bool:
@@ -677,7 +696,7 @@ def _apply_promotion(order, promotion: str | None) -> None:
 	)
 
 
-def _create_sales_invoice(order, payments, settlement: str = "till"):
+def _create_sales_invoice(order, payments):
 	"""Build and submit the invoice through ERPNext's own controller.
 
 	Never bypassed (`10` critical note 9): the controller is what computes tax,
@@ -699,11 +718,11 @@ def _create_sales_invoice(order, payments, settlement: str = "till"):
 			"pos_profile": profile.name,
 			# Which branch sold it: how the posting finds a day's sales (`D-313`).
 			"rpos_branch": order.branch,
-			# A till sale settles itself through the `payments` table. A credit
-			# sale must stay outstanding against the customer, so it is an
-			# ordinary invoice and a Payment Entry clears it at month end
-			# (D-022, D-029).
-			"is_pos": 1 if settlement == "till" else 0,
+			# **Every sale settles itself through the `payments` table** — the
+			# delivery platform's too (`D-319`). The guest paid the platform; what
+			# is owed is the platform's transfer, and it sits on the account its
+			# payment method names, not on an unpaid invoice.
+			"is_pos": 1,
 			"currency": profile.currency,
 			"selling_price_list": profile.selling_price_list,
 			"set_posting_time": 1,
@@ -779,6 +798,7 @@ def _create_sales_invoice(order, payments, settlement: str = "till"):
 		invoice.discount_amount = flt(order.discount_amount)
 
 	for row in payments:
+		_assert_has_account(row["method"], profile.company)
 		invoice.append("payments", {"mode_of_payment": row["method"], "amount": row["amount"]})
 
 	if not payments:

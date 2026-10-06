@@ -25,7 +25,7 @@ from frappe.utils import cint, flt, get_datetime, now_datetime
 from restaurant_pos.utils import addons, invoice_number, loyalty, numbering, payment, printing
 from restaurant_pos.utils import gift_card as gift_cards
 from restaurant_pos.utils.audit import log_audit
-from restaurant_pos.utils.payment import TOLERANCE, is_credit_method, terminal_methods
+from restaurant_pos.utils.payment import TOLERANCE, terminal_methods
 from restaurant_pos.utils.permissions import (
 	consume_override_token,
 	get_pos_permission_set,
@@ -545,16 +545,15 @@ def _apply_refund(credit, refund_method: str | None) -> None:
 	_assert_within_what_that_method_paid(credit, method, due, original)
 
 	# D-029 — money that never entered a drawer does not come out of one. A
-	# platform's order is settled on a statement, and so is its reversal.
-	credit.is_pos = 0 if is_credit_method(method) else 1
+	# platform's order goes back onto the platform's account (`D-319`): the
+	# reversal is paid with the same method, and no drawer opens for it.
+	credit.is_pos = 1
 	credit.set("payments", [])
-
-	if credit.is_pos:
-		credit.append("payments", {"mode_of_payment": method, "amount": -abs(due)})
-		# The mapped credit note still carries the **whole** bill as paid, and a
-		# POS Invoice does not work it out again from the rows: a part return was
-		# refused for paying back more than it came to. It pays back its own total.
-		credit.paid_amount = credit.base_paid_amount = -abs(due)
+	credit.append("payments", {"mode_of_payment": method, "amount": -abs(due)})
+	# The mapped credit note still carries the **whole** bill as paid, and a
+	# POS Invoice does not work it out again from the rows: a part return was
+	# refused for paying back more than it came to. It pays back its own total.
+	credit.paid_amount = credit.base_paid_amount = -abs(due)
 
 	credit.set_posting_time = 1
 	# **One instant, read once** (`D-261`). These were two calls to the clock, so
@@ -574,7 +573,7 @@ def _apply_refund(credit, refund_method: str | None) -> None:
 	# D-093 — a cash refund is money leaving the drawer, so the drawer opens.
 	# The same rule as taking cash, for the same reason and in the same place as
 	# the decision about which method it is.
-	if credit.is_pos and payment.is_cash(method):
+	if payment.is_cash(method):
 		printing.open_drawer(credit.pos_profile, reason=f"cash refund on {credit.return_against}")
 
 

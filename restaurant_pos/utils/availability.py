@@ -22,6 +22,10 @@ which knows that, reads every POS Invoice ever made (28 s over 200,000 on the
 rehearsal site, `docs/14` §5.4). This reads only what is not posted, through the
 index the posting itself claims by.
 
+**And a person's word beats the count** (`D-322`): anything — a dish too — can
+be marked sold out for the day, which takes it off sale in every kind of
+branch until it is brought back or the day closes. A mark, not a movement.
+
 **Information for the screen, a decision at the bill.** The till shows a number
 that may be seconds old (`for_terminal`, cached); the refusal reads it fresh, for
 the one item asked for (`assert_can_sell`). No lock: two tills racing for the
@@ -33,12 +37,17 @@ Refs: `docs/14_POS_Posting_Design.md` §5
 import frappe
 from frappe import _
 from frappe.query_builder.functions import Sum
-from frappe.utils import cint, flt
+from frappe.utils import cint, flt, now_datetime
 
 from restaurant_pos.utils.sale_doc import SALE, SALE_ITEM, WASTED
 
 #: How long one branch's figures are shared between its tills.
 SHARED_FOR_SECONDS = 15
+
+SOLD_OUT = "POS Sold Out"
+
+#: Tiles show what is left from this many down, when the settings say nothing.
+LOW_AT = 10
 
 #: A bill in any of these still holds what is on it.
 OPEN = ("draft", "active", "in_kitchen", "pending_payment")
@@ -73,7 +82,13 @@ def assert_can_sell(order, item: str, more: float) -> None:
 	Asked when the line is added or raised — never at payment: by then the
 	guest has eaten, and a bill that cannot close helps nobody.
 	"""
-	if flt(more) <= 0 or not is_enforced(order.branch):
+	if flt(more) <= 0:
+		return
+
+	if frappe.db.exists(SOLD_OUT, {"branch": order.branch, "item": item}):
+		frappe.throw(_("{0} is sold out.").format(_name_of(item)))
+
+	if not is_enforced(order.branch):
 		return
 
 	_branch, warehouse = _place(order.pos_profile)
@@ -85,12 +100,71 @@ def assert_can_sell(order, item: str, more: float) -> None:
 	if left[item] + 1e-9 >= flt(more):
 		return
 
-	name = frappe.get_cached_value("Item", item, "pos_display_name_ar") or frappe.get_cached_value(
+	if left[item] <= 0:
+		frappe.throw(_("{0} is sold out.").format(_name_of(item)))
+	frappe.throw(_("Only {0} of {1} left.").format(f"{left[item]:g}", _name_of(item)))
+
+
+def _name_of(item: str) -> str:
+	return frappe.get_cached_value("Item", item, "pos_display_name_ar") or frappe.get_cached_value(
 		"Item", item, "item_name"
 	)
-	if left[item] <= 0:
-		frappe.throw(_("{0} is sold out.").format(name))
-	frappe.throw(_("Only {0} of {1} left.").format(f"{left[item]:g}", name))
+
+
+# --------------------------------------------------------------------------- #
+# Sold out for the day
+# --------------------------------------------------------------------------- #
+
+
+def sold_out(branch: str) -> list[str]:
+	"""The items this branch has marked as finished today."""
+	return frappe.get_all(SOLD_OUT, filters={"branch": branch}, pluck="item")
+
+
+def set_sold_out(branch: str, item: str, finished: bool) -> list[str]:
+	"""Mark ``item`` finished in ``branch``, or bring it back. Returns what is finished now."""
+	if not frappe.db.exists("Item", item):
+		frappe.throw(_("Item {0} does not exist.").format(item))
+
+	marked = frappe.db.exists(SOLD_OUT, {"branch": branch, "item": item})
+	if finished and not marked:
+		frappe.get_doc(
+			{
+				"doctype": SOLD_OUT,
+				"branch": branch,
+				"item": item,
+				"marked_by": frappe.session.user,
+				"marked_at": now_datetime(),
+			}
+		).insert(ignore_permissions=True)
+	elif not finished and marked:
+		frappe.db.delete(SOLD_OUT, {"branch": branch, "item": item})
+	return sold_out(branch)
+
+
+def start_the_day_clean(branch: str) -> None:
+	"""Closing the day brings everything back: "finished today" is about today.
+
+	Left standing, a dish stays off the menu for a week because nobody
+	remembered it was marked.
+	"""
+	frappe.db.delete(SOLD_OUT, {"branch": branch})
+
+
+def for_till(pos_profile: str) -> dict:
+	"""What the tiles show: who is finished, and who is running low.
+
+	Only the low ones are sent — a tile above the line shows no number, and a
+	menu of two thousand items is not two thousand figures every half minute.
+	"""
+	branch, _warehouse = _place(pos_profile)
+	low_at = cint(frappe.db.get_single_value("Restaurant POS Settings", "low_stock_at") or LOW_AT)
+	return {
+		"enforced": is_enforced(branch) if branch else False,
+		"low_at": low_at,
+		"left": {item: qty for item, qty in for_terminal(pos_profile).items() if qty <= low_at},
+		"sold_out": sold_out(branch) if branch else [],
+	}
 
 
 def left_in(branch: str, warehouse: str, items: list[str] | None = None) -> dict[str, float]:

@@ -1,0 +1,97 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "hash",
+ "creation": "2026-10-08 12:00:00.000000",
+ "description": "A dish or item a branch has run out of today (D-322). Marked and brought back at the till; cleared when the day is closed. It moves no stock and writes no entry.",
+ "doctype": "DocType",
+ "editable_grid": 0,
+ "engine": "InnoDB",
+ "field_order": [
+  "branch",
+  "item",
+  "column_break_1",
+  "marked_by",
+  "marked_at"
+ ],
+ "fields": [
+  {
+   "fieldname": "branch",
+   "fieldtype": "Link",
+   "options": "Branch",
+   "label": "Branch",
+   "reqd": 1,
+   "read_only": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "item",
+   "fieldtype": "Link",
+   "options": "Item",
+   "label": "Item",
+   "reqd": 1,
+   "read_only": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "column_break_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "marked_by",
+   "fieldtype": "Link",
+   "options": "User",
+   "label": "Marked By",
+   "read_only": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "marked_at",
+   "fieldtype": "Datetime",
+   "label": "Marked At",
+   "read_only": 1,
+   "in_list_view": 1
+  }
+ ],
+ "in_create": 1,
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-10-08 12:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Restaurant POS",
+ "name": "POS Sold Out",
+ "naming_rule": "Random",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "role": "Restaurant Admin",
+   "read": 1,
+   "report": 1,
+   "export": 1,
+   "print": 1,
+   "email": 1,
+   "share": 1,
+   "create": 0,
+   "write": 0,
+   "delete": 0
+  },
+  {
+   "role": "Restaurant Manager",
+   "read": 1,
+   "report": 1,
+   "export": 1,
+   "print": 1,
+   "email": 1,
+   "share": 1,
+   "create": 0,
+   "write": 0,
+   "delete": 0
+  }
+ ],
+ "sort_field": "marked_at",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 0
+}

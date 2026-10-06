@@ -148,6 +148,8 @@ def delete_pos_transactions(company: str) -> dict[str, int]:
 		("POS Cash Movement", frappe.get_all("POS Cash Movement", filters=in_branches, pluck="name")),
 		("POS Gift Card Entry", _gift_card_entries(cards)),
 		("POS Gift Card", cards),
+		# `D-322` — a mark about a day that is being deleted.
+		("POS Sold Out", frappe.get_all("POS Sold Out", filters=in_branches, pluck="name")),
 	):
 		_delete(doctype, names, gone)
 

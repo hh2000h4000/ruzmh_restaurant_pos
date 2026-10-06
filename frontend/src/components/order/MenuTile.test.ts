@@ -72,3 +72,13 @@ describe("the rest of the tile", () => {
     expect(wrapper.emitted("select")).toBeUndefined();
   });
 });
+
+describe("the word over the picture", () => {
+  it("is absent until there is something to say", () => {
+    expect(tile().find("[data-badge]").exists()).toBe(false);
+  });
+
+  it("carries what it is given", () => {
+    expect(tile({ badge: "متبقي ٨" }).find("[data-badge]").text()).toBe("متبقي ٨");
+  });
+});

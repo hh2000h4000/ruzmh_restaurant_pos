@@ -7,6 +7,7 @@ import AppIcon from "@/components/AppIcon.vue";
 import MenuTile from "@/components/order/MenuTile.vue";
 import { formatNumber, pick as localized, t } from "@/i18n";
 import { useSessionStore } from "@/stores/session";
+import { useStockStore } from "@/stores/stock";
 import type { CatalogItem, LayoutButton, OrderType } from "@/types/session";
 
 /**
@@ -18,10 +19,44 @@ import type { CatalogItem, LayoutButton, OrderType } from "@/types/session";
  *
  * Search is always available: on a long menu it beats any grid (Screen 3).
  */
-const props = defineProps<{ orderType: OrderType | null; disabled?: boolean }>();
-const emit = defineEmits<{ pick: [item: CatalogItem, qty: number] }>();
+const props = defineProps<{
+  orderType: OrderType | null;
+  disabled?: boolean;
+  /**
+   * Marking what is finished for today (`D-322`): a tap marks the item, or
+   * brings it back, instead of adding it to the bill.
+   *
+   * **The menu itself is the list.** A cashier already knows where the soup is
+   * on this screen; a second list of every item, with a search box on a till
+   * that has no keyboard, would be a second thing to learn. Toast marks its
+   * items the same way — on the buttons, in an edit mode.
+   */
+  marking?: boolean;
+}>();
+const emit = defineEmits<{
+  pick: [item: CatalogItem, qty: number];
+  failed: [cause: unknown];
+  done: [];
+}>();
 
 const session = useSessionStore();
+const stock = useStockStore();
+
+/** What the tile says about stock: nothing, "8 left", or "Sold out" (`D-321`). */
+function stockBadge(item: CatalogItem | undefined): string | null {
+  const mark = item ? stock.of(item.item_code) : null;
+  if (!mark) return null;
+  return mark.finished ? t("stock.soldOut") : t("stock.left", { count: formatNumber(mark.left ?? 0) });
+}
+
+function stockFinished(item: CatalogItem | undefined): boolean {
+  return Boolean(item && stock.of(item.item_code)?.finished);
+}
+
+/** The server would refuse it, so the tile does not offer it. */
+function stockBlocked(item: CatalogItem | undefined): boolean {
+  return Boolean(item && stock.of(item.item_code)?.blocked);
+}
 
 const search = ref("");
 const activeGroup = ref<string | null>(null);
@@ -88,8 +123,26 @@ function itemFor(code: string | null): CatalogItem | undefined {
   return code ? session.itemsByCode.get(code) : undefined;
 }
 
+/** Whether a dish's tile takes a tap — when marking, every dish does. */
+function tileOff(item: CatalogItem | undefined): boolean {
+  if (props.marking) return !item;
+  return !item || priceOf(item) === null || Boolean(props.disabled) || stockBlocked(item);
+}
+
+async function toggleFinished(item: CatalogItem): Promise<void> {
+  try {
+    await stock.mark(item.item_code, !stock.soldOut.has(item.item_code));
+  } catch (cause) {
+    emit("failed", cause);
+  }
+}
+
 function pick(item: CatalogItem | undefined): void {
-  if (!item || priceOf(item) === null || props.disabled) return;
+  if (tileOff(item) || !item) return;
+  if (props.marking) {
+    void toggleFinished(item);
+    return;
+  }
 
   emit("pick", item, qty.value);
   qty.value = 1;
@@ -266,6 +319,23 @@ function priceOf(item: CatalogItem): number | null {
        for, it is the only thing on this panel that moves. -->
   <div class="grid min-h-0 grid-rows-[auto_minmax(0,1fr)] gap-2">
     <div class="flex flex-col gap-2.5">
+      <!-- `D-322` — said for as long as a tap means something else. -->
+      <div
+        v-if="marking"
+        data-marking
+        class="flex items-center justify-between gap-3 rounded-rpos border border-danger bg-danger/10 px-4 py-2.5"
+      >
+        <p class="min-w-0 text-sm font-semibold text-danger">
+          {{ t("stock.markingHint") }}
+        </p>
+        <button
+          type="button"
+          class="min-h-11 shrink-0 rounded-rpos bg-primary px-5 text-sm font-semibold text-primary-contrast"
+          @click="emit('done')"
+        >
+          {{ t("stock.markingDone") }}
+        </button>
+      </div>
       <div class="flex flex-wrap items-center gap-2.5">
         <label
           class="sr-only"
@@ -351,7 +421,9 @@ function priceOf(item: CatalogItem): number | null {
         placeholder="cloche"
         :detail="priceLine(item)"
         :detail-danger="priceOf(item) === null"
-        :disabled="priceOf(item) === null || disabled"
+        :badge="stockBadge(item)"
+        :badge-danger="stockFinished(item)"
+        :disabled="tileOff(item)"
         @select="pick(item)"
       />
       <p
@@ -389,7 +461,9 @@ function priceOf(item: CatalogItem): number | null {
           placeholder="cloche"
           :detail="priceLine(item)"
           :detail-danger="priceOf(item) === null"
-          :disabled="priceOf(item) === null || disabled"
+          :badge="stockBadge(item)"
+          :badge-danger="stockFinished(item)"
+          :disabled="tileOff(item)"
           @select="pick(item)"
         />
       </div>
@@ -422,7 +496,9 @@ function priceOf(item: CatalogItem): number | null {
         :font-size="button.font_size"
         :detail="dishOf(button) ? priceLine(dishOf(button)!) : null"
         :detail-danger="dishOf(button) ? priceOf(dishOf(button)!) === null : false"
-        :disabled="disabled || !isUsable(button)"
+        :badge="stockBadge(dishOf(button))"
+        :badge-danger="stockFinished(dishOf(button))"
+        :disabled="button.button_type === 'item' ? tileOff(dishOf(button)) : (disabled && !marking) || !isUsable(button)"
         @select="onLayoutButton(button)"
       />
     </div>

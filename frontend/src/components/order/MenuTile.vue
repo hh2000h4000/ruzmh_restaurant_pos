@@ -42,6 +42,17 @@ const props = withDefaults(
     detailDanger?: boolean;
     disabled?: boolean;
     fontSize?: number | null;
+    /**
+     * A word over the picture's corner: "8 left", "Sold out" (`D-321`).
+     *
+     * **Only when there is something to say.** A tile with plenty behind it
+     * shows nothing — "347" on every dish is a warehouse screen, and the
+     * cashier's job is the queue. Two words in two tones, readable without the
+     * colour.
+     */
+    badge?: string | null;
+    /** The badge says it is gone, not merely running low. */
+    badgeDanger?: boolean;
   }>(),
   {
     image: null,
@@ -51,6 +62,8 @@ const props = withDefaults(
     detailDanger: false,
     disabled: false,
     fontSize: null,
+    badge: null,
+    badgeDanger: false,
   },
 );
 
@@ -91,6 +104,12 @@ watch(
         data-placeholder
         class="text-muted"
       />
+      <span
+        v-if="badge"
+        data-badge
+        class="absolute start-1.5 top-1.5 rounded-full px-2 py-0.5 text-xs font-bold shadow-card"
+        :class="badgeDanger ? 'bg-danger text-white' : 'border border-line-strong bg-surface text-content'"
+      >{{ badge }}</span>
     </span>
 
     <span class="flex shrink-0 flex-col gap-0.5 px-2 py-2.5">

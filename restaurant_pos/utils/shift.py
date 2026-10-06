@@ -37,7 +37,7 @@ import frappe
 from frappe import _
 from frappe.utils import cint, flt, format_datetime, now_datetime, nowdate, nowtime
 
-from restaurant_pos.utils import cash_movement, gift_card, printing
+from restaurant_pos.utils import availability, cash_movement, gift_card, printing
 from restaurant_pos.utils.order import profiles_in, table_section_branch
 from restaurant_pos.utils.payment import is_credit_method
 from restaurant_pos.utils.permissions import (
@@ -49,7 +49,7 @@ from restaurant_pos.utils.sale_doc import SALE
 from restaurant_pos.utils.totals import money
 
 #: An order still on the floor. Closing over one strands a bill nobody can pay.
-OPEN_ORDER_STATUSES = ("draft", "active", "in_kitchen", "pending_payment")
+OPEN_ORDER_STATUSES = availability.OPEN
 
 #: An order that has ended — paid or cancelled — and so counts where it ended.
 ENDED_ORDER_STATUSES = ("closed", "cancelled")
@@ -253,6 +253,9 @@ def close_day(*, shift_name: str, force: bool = False, pos_profile: str | None =
 	from restaurant_pos.utils import reservation
 
 	no_shows = reservation.close_out(day.branch, at=day.closed_at)
+
+	# **And what was "finished today" is on the menu again tomorrow** (`D-322`).
+	availability.start_the_day_clean(day.branch)
 
 	# **And its Z on paper** (`D-219`), from the terminal it was closed at. The
 	# drawers swept up above print none of their own: nobody counted them, and the

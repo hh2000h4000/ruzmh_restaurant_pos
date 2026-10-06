@@ -56,6 +56,7 @@ import { useAuthStore } from "@/stores/auth";
 import { useOrderStore } from "@/stores/order";
 import { useSessionStore } from "@/stores/session";
 import { useNoticeStore } from "@/stores/notice";
+import { useStockStore } from "@/stores/stock";
 import { useShiftStore } from "@/stores/shift";
 import type { FloorTable } from "@/api/table";
 import type { CatalogItem, OrderType } from "@/types/session";
@@ -84,6 +85,7 @@ const session = useSessionStore();
 const orders = useOrderStore();
 const shift = useShiftStore();
 const alerts = useAlertsStore();
+const stock = useStockStore();
 
 const startupError = ref<string | null>(null);
 const pendingItem = ref<CatalogItem | null>(null);
@@ -177,7 +179,13 @@ let alertsTimer: ReturnType<typeof setInterval> | null = null;
 function startAlerts(): void {
   stopAlerts();
   void alerts.refresh();
-  alertsTimer = setInterval(() => void alerts.refresh(), ALERTS_EVERY_MS);
+  // What is finished or running low rides the same clock (`D-321`): another
+  // till marks the soup, and this one hears within half a minute.
+  void stock.refresh();
+  alertsTimer = setInterval(() => {
+    void alerts.refresh();
+    void stock.refresh();
+  }, ALERTS_EVERY_MS);
 }
 
 function stopAlerts(): void {
@@ -549,6 +557,8 @@ async function openBill(payload: Parameters<typeof orders.create>[0]): Promise<v
 
 const pickingCustomer = ref(false);
 const enteringCoupon = ref(false);
+/** `D-322` — taps on the menu mark what is finished for today instead of selling it. */
+const markingFinished = ref(false);
 
 /**
  * The type waiting for a customer, when it cannot be opened without one.
@@ -1178,6 +1188,10 @@ const moreActions = computed<OrderAction[]>(() => {
     disabled: locked.value,
   });
 
+  // `D-322` — "the soup is finished". Never disabled: it is about the branch,
+  // not this bill, and it is said whether or not a bill is open.
+  entries.push({ key: "soldOut", label: "stock.markAction", icon: "cloche" });
+
   // FR-2.12 — both move food between bills, so both live here rather than in
   // the row: a hand that lands without looking must not rearrange two bills.
   // Foodics keeps them in the same menu, next to Assign Table (`D-120`).
@@ -1221,6 +1235,7 @@ function onAction(action: OrderAction): void {
   else if (action.key === "callName") openCallName();
   else if (action.key === "customer") pickingCustomer.value = true;
   else if (action.key === "coupon") enteringCoupon.value = maySell();
+  else if (action.key === "soldOut") markingFinished.value = true;
   // BR-044 — both change the bill: one re-prices every line, the other ends it.
   else if (action.key === "convert") converting.value = maySell();
   else if (action.key === "cancel") cancelling.value = maySell();
@@ -1523,7 +1538,10 @@ async function send(): Promise<void> {
             <ItemPicker
               :order-type="orderType"
               :disabled="locked"
+              :marking="markingFinished"
               @pick="onPick"
+              @failed="(cause) => notice.error(said(cause))"
+              @done="markingFinished = false"
             />
           </div>
 

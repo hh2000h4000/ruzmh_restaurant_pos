@@ -29,7 +29,19 @@ class AvailabilityTestBase(RecipeTestBase):
 				{"doctype": "Item Price", "item_code": WATER, "price_list": price_list, "price_list_rate": 2}
 			).insert(ignore_permissions=True)
 		self._receive(WATER, 10, 0.5)
+		# The class rolls back once, at its end: each test starts with nothing marked.
+		availability.start_the_day_clean(BRANCH)
 		self.shelf = self._left()
+
+	def tearDown(self):
+		# **Before the base class's tearDown, which commits.** A mark or a mode
+		# left standing there is on the site for every module after this one —
+		# 504 tests refused a burger "sold out" by a test that had long finished.
+		availability.start_the_day_clean(BRANCH)
+		frappe.db.set_value("Branch", BRANCH, "rpos_enforce_stock", 0)
+		frappe.db.set_single_value("Restaurant POS Settings", "low_stock_at", availability.LOW_AT)
+		frappe.clear_document_cache("Branch", BRANCH)
+		super().tearDown()
 
 	def _left(self, item: str = WATER) -> float | None:
 		return availability.left_in(BRANCH, self.warehouse).get(item)
@@ -127,3 +139,64 @@ class ABranchThatDoesNotEnforceRefusesNothing(AvailabilityTestBase):
 		orders.add_item(order, item=WATER, qty=self.shelf + 2)
 
 		self.assertEqual(self._left(), -2)
+
+
+class FinishedForToday(AvailabilityTestBase):
+	"""`D-322` — the cook says the soup is finished; the till believes the cook."""
+
+	def test_a_dish_marked_finished_is_refused_in_a_branch_that_enforces_nothing(self):
+		self._enforce(0)
+		availability.set_sold_out(BRANCH, ITEM, True)
+
+		order = self._order()
+		with self.assertRaises(frappe.ValidationError):
+			orders.add_item(order, item=ITEM, qty=1)
+
+	def test_brought_back_it_sells_again(self):
+		availability.set_sold_out(BRANCH, ITEM, True)
+		self.assertEqual(availability.set_sold_out(BRANCH, ITEM, False), [])
+
+		order = self._order()
+		orders.add_item(order, item=ITEM, qty=1)
+
+	def test_marking_twice_is_one_mark(self):
+		availability.set_sold_out(BRANCH, ITEM, True)
+
+		self.assertEqual(availability.set_sold_out(BRANCH, ITEM, True), [ITEM])
+
+	def test_it_moves_no_stock(self):
+		before = frappe.db.count("Stock Ledger Entry")
+
+		availability.set_sold_out(BRANCH, WATER, True)
+
+		self.assertEqual(frappe.db.count("Stock Ledger Entry"), before)
+		self.assertEqual(self._left(), self.shelf)
+
+	def test_closing_the_day_brings_everything_back(self):
+		from restaurant_pos.utils import shift as shift_service
+
+		# The bottle, not the burger: closing a day commits on the way, and a
+		# mark committed on the dish every other module sells stops all of them.
+		availability.set_sold_out(BRANCH, WATER, True)
+		day = frappe.db.get_value("POS Profile", self.profile, "restaurant_shift")
+
+		shift_service.close_day(shift_name=day, force=True, pos_profile=self.profile)
+
+		self.assertEqual(availability.sold_out(BRANCH), [])
+
+	def test_the_till_is_told_who_is_finished_and_who_is_low(self):
+		frappe.cache().delete_keys("rpos_left::")
+		frappe.db.set_single_value("Restaurant POS Settings", "low_stock_at", int(self.shelf))
+		availability.set_sold_out(BRANCH, ITEM, True)
+
+		told = availability.for_till(self.profile)
+
+		self.assertEqual(told["sold_out"], [ITEM])
+		self.assertEqual(told["left"].get(WATER), self.shelf)
+		self.assertEqual(told["low_at"], int(self.shelf))
+
+	def test_an_item_above_the_line_sends_no_number(self):
+		frappe.cache().delete_keys("rpos_left::")
+		frappe.db.set_single_value("Restaurant POS Settings", "low_stock_at", int(self.shelf) - 1)
+
+		self.assertNotIn(WATER, availability.for_till(self.profile)["left"])

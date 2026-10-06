@@ -15,7 +15,9 @@
   "alerts_section",
   "alerts_per_page",
   "accounts_section",
-  "waste_account"
+  "waste_account",
+  "stock_section",
+  "low_stock_at"
  ],
  "fields": [
   {
@@ -93,12 +95,25 @@
    "label": "Waste Account",
    "options": "Account",
    "reqd": 1
+  },
+  {
+   "fieldname": "stock_section",
+   "fieldtype": "Section Break",
+   "label": "Stock at the Till"
+  },
+  {
+   "fieldname": "low_stock_at",
+   "fieldtype": "Int",
+   "label": "Show What Is Left From",
+   "default": "10",
+   "non_negative": 1,
+   "description": "An item sold as it comes (a bottle, a can) shows how many are left on its tile once that many or fewer remain. Above it the tile shows no number."
   }
  ],
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2026-10-07 20:00:00.000000",
+ "modified": "2026-10-08 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Restaurant POS",
  "name": "Restaurant POS Settings",

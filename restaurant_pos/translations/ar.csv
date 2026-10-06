@@ -1526,3 +1526,9 @@ Sales Posting,ترحيل المبيعات
 Only {0} of {1} left.,باقي {0} بس من {1}.
 Refuse a Sale When Stock Is Short,امنع البيع لما المخزون ما يكفي
 "For items sold as they come (a bottle, a can): the till refuses one it has none of. Dishes with a recipe are never refused from their ingredients; mark a dish sold out instead. Off, nothing is refused and stock may go below zero.",للأصناف اللي تنباع زي ما هي (قارورة، علبة): الكاشير يرفض اللي ما عنده منه. الأطباق اللي لها وصفة ما تنرفض بسبب مكوّناتها؛ علّم الطبق «خلص» بدالها. لو مطفي، ما ينرفض شي والمخزون ممكن ينزل تحت الصفر.
+POS Sold Out,خلص اليوم
+Marked By,علّمه
+Marked At,وقت التعليم
+Stock at the Till,المخزون عند الكاشير
+Show What Is Left From,اعرض المتبقي من
+"An item sold as it comes (a bottle, a can) shows how many are left on its tile once that many or fewer remain. Above it the tile shows no number.",الصنف اللي ينباع زي ما هو (قارورة، علبة) يطلع على بطاقته كم باقي منه لما يوصل لهذا العدد أو أقل. فوقه البطاقة ما تعرض رقم.

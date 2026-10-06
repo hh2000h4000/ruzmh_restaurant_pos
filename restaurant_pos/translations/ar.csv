@@ -1475,3 +1475,7 @@ Number In Use,الرقم عليه فواتير
 "Branch Number cannot change from {0}: this branch has invoices numbered with it, and the sequence would break.",ما ينفع تغيّر رقم الفرع {0}: الفرع له فواتير مرقّمة به، وتغييره يقطع التسلسل.
 "Device Number cannot change from {0}: this terminal has invoices numbered with it, and the sequence would break.",ما ينفع تغيّر رقم الجهاز {0}: الجهاز له فواتير مرقّمة به، وتغييره يقطع التسلسل.
 {0} is digits only: {1} is not a number.,{0} أرقام فقط: {1} مو رقم.
+No open POS Opening Entry found for POS Profile {0}.,ما فيه درج مفتوح للجهاز {0}.
+POS Opening Entry Missing,الدرج مو مفتوح
+Close this drawer from the till. A closing entry that lists its invoices would post them twice: Restaurant POS posts a terminal's sales itself.,أقفل الدرج من شاشة الكاشير. الإقفال اللي يحمل الفواتير يرحّلها مرتين: نقاط البيع ترحّل مبيعات الجهاز لحالها.
+Not From Here,مو من هنا

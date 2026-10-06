@@ -707,11 +707,9 @@ def _create_sales_invoice(order, payments, settlement: str = "till"):
 			"set_posting_time": 1,
 			"posting_date": now_datetime().date(),
 			"posting_time": now_datetime().time(),
-			# 04 §6 — stock leaves through the Sales Invoice. ERPNext skips
-			# non-stock items, so a menu of prepared dishes is unaffected, and an
-			# item the restaurant sells faster than it can enter deliveries is
-			# marked **Allow Negative Stock** on the item itself (`D-233`).
-			"update_stock": 1,
+			# **Nothing leaves the warehouse here** (`D-308`). A POS Invoice
+			# records the recipe as it stood — ERPNext unpacks it onto the bill —
+			# and the posting takes the stock from that record, once for the day.
 			"set_warehouse": profile.warehouse,
 			# **The till prices the bill; ERPNext's pricing rules do not** (`D-284`).
 			# Every price here was fixed on the order, and the guard below refuses
@@ -780,6 +778,13 @@ def _create_sales_invoice(order, payments, settlement: str = "till"):
 
 	for row in payments:
 		invoice.append("payments", {"mode_of_payment": row["method"], "amount": row["amount"]})
+
+	if not payments:
+		# A bill that came to nothing closes with no tender (`D-275`) — and a POS
+		# Invoice will not be saved without a payment row. So it carries one, for
+		# nothing, on the terminal's own first method: the document is true, and
+		# no drawer is expected to hold anything for it.
+		invoice.append("payments", {"mode_of_payment": profile.payments[0].mode_of_payment, "amount": 0})
 
 	# **The promotion that applied, read off the order** (`D-165`). This used to
 	# be a string the client sent, written onto a submitted financial document

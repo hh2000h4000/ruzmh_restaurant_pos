@@ -44,6 +44,10 @@ has_permission = {
 # The manager PIN is a Password custom field on User. Frappe would persist it
 # reversibly and check_password() would never see it, so it is intercepted and
 # stored as a one-way hash instead (DECISIONS.md D-015, D-016).
+# D-312 — a till sale is ERPNext's POS Invoice with two checks asked our way:
+# the open drawer without needing to read it, and no all-time stock sum.
+override_doctype_class = {SALE: "restaurant_pos.overrides.pos_invoice.RPOSInvoice"}
+
 doc_events = {
 	# D-285 — a combo the till can sell, or a refusal the manager can read.
 	"Item": {"validate": "restaurant_pos.utils.combos.validate_item"},
@@ -69,6 +73,9 @@ doc_events = {
 	# D-309 — invoice numbers are branch, terminal, count: both numbers are kept
 	# here, and a terminal's counter exists before its first sale.
 	"Branch": {"validate": "restaurant_pos.utils.invoice_number.number_branch"},
+	# D-312 — our drawers close with an empty invoice list; one that lists them
+	# would have ERPNext post every sale a second time.
+	"POS Closing Entry": {"validate": "restaurant_pos.overrides.pos_invoice.keep_sales_out_of_the_closing"},
 	"POS Profile": {
 		"validate": "restaurant_pos.utils.invoice_number.number_device",
 		"on_update": "restaurant_pos.utils.invoice_number.make_counter",

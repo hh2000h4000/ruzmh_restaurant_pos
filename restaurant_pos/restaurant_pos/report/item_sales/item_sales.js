@@ -63,4 +63,32 @@ frappe.query_reports["Item Sales"] = {
 			fieldtype: "Check",
 		},
 	],
+
+	/**
+	 * The total of a ratio is the ratio of the totals (`D-332`).
+	 *
+	 * Frappe's total row adds a column up, which for "Food Cost %" and
+	 * "Margin %" adds percentages: the owner's report read 516.68 under food
+	 * cost. The table works its totals out in the browser, over the rows on
+	 * screen, so the right figure is worked out there too — cost over sales,
+	 * profit over sales — and follows a filter typed into a column.
+	 */
+	get_datatable_options(options) {
+		const RATIOS = { cost_ratio: "cost", margin: "profit" };
+		const standard = options.hooks && options.hooks.columnTotal;
+
+		options.hooks = Object.assign({}, options.hooks, {
+			columnTotal(values, cell) {
+				const over = RATIOS[cell.column.id];
+				if (!over) return standard ? standard.call(this, values, cell) : null;
+
+				const at = (id) => this.datamanager.getColumns().findIndex((column) => column.id === id);
+				const sum = (id) =>
+					this.bodyRenderer.visibleRows.reduce((total, row) => total + flt(row[at(id)].content), 0);
+				const sales = sum("amount");
+				return sales ? (sum(over) / sales) * 100 : 0;
+			},
+		});
+		return options;
+	},
 };

@@ -93,19 +93,68 @@ def _lines_of(invoices: list[str], item_group: str | None) -> list[frappe._dict]
 			"qty",
 			"stock_qty",
 			"net_amount",
+			"warehouse",
 			# Stamped by the posting that took the line from the warehouse
 			# (`D-314`): nothing until the sale's day is posted.
 			f"{LINE_COST} as incoming_rate",
 			WASTED,
 		],
 	)
-	recipes = _recipe_costs(invoices)
-	costed = _with_their_cost_written(invoices)
+	posted = _with_their_cost_written(invoices)
+	recipe_rows = frappe.get_all(
+		"Packed Item",
+		filters={"parenttype": SALE, "parent": ("in", invoices)},
+		fields=["parent", "parent_detail_docname", "item_code", "warehouse", "qty", "incoming_rate"],
+	)
+	expected = _expected_rates([row for row in lines + recipe_rows if row.parent not in posted])
+	for row in recipe_rows:
+		if row.parent not in posted:
+			row.incoming_rate = expected(row.item_code, row.warehouse)
+
+	recipes = _recipe_costs(recipe_rows)
 	for line in lines:
-		line.posted = line.parent in costed
+		line.posted = line.parent in posted
+		if not line.posted:
+			line.incoming_rate = expected(line.item_code, line.warehouse)
 		if line.name in recipes:
 			line.recipe_cost, line.recipe_short = recipes[line.name]
 	return lines
+
+
+def _expected_rates(waiting: list):
+	"""What a sale not posted yet is expected to cost: today's valuation (`D-324`).
+
+	The owner's question: yesterday's burger was posted and has its cost — why
+	should today's show none? **It is priced the way the posting will price it**:
+	what the warehouse values the item at now, or the rate on the item's card
+	for something kept without stock. Not yesterday's figure copied forward —
+	the warehouse's current one, which already has yesterday in it and this
+	morning's delivery too. The actual cost replaces it when the day is posted,
+	and differs only by what was bought in between.
+
+	Returns ``rate(item, warehouse)``.
+	"""
+	items = list({row.item_code for row in waiting})
+	if not items:
+		return lambda item, warehouse: 0.0
+
+	shelf = {
+		(row.item_code, row.warehouse): flt(row.valuation_rate)
+		for row in frappe.get_all(
+			"Bin",
+			filters={
+				"item_code": ("in", items),
+				"warehouse": ("in", list({row.warehouse for row in waiting if row.warehouse})),
+			},
+			fields=["item_code", "warehouse", "valuation_rate"],
+		)
+	}
+	card = dict(
+		frappe.get_all(
+			"Item", filters={"name": ("in", items)}, fields=["name", "valuation_rate"], as_list=True
+		)
+	)
+	return lambda item, warehouse: shelf.get((item, warehouse)) or flt(card.get(item))
 
 
 def _with_their_cost_written(invoices: list[str]) -> set[str]:
@@ -115,7 +164,7 @@ def _with_their_cost_written(invoices: list[str]) -> set[str]:
 	sale's cost is written when its day is posted (`D-314`); until then the
 	line is blank because nobody has asked the warehouse, not because the dish
 	is free. Read as uncosted, every dish sold today showed a full-price profit
-	until the day was closed.
+	until the day was closed. The rest carry an expected cost (`D-324`).
 	"""
 	done = frappe.get_all(posting.BATCH, filters={"stock_status": ("in", posting.DONE)}, pluck="name")
 	if not done:
@@ -127,7 +176,7 @@ def _with_their_cost_written(invoices: list[str]) -> set[str]:
 	)
 
 
-def _recipe_costs(invoices: list[str]) -> dict[str, tuple[float, bool]]:
+def _recipe_costs(recipe_rows: list) -> dict[str, tuple[float, bool]]:
 	"""What a dish sold by its recipe cost — the sum of its ingredients (`D-281`).
 
 	A prepared dish is not a stock item, so its own line carries no cost: the
@@ -143,11 +192,7 @@ def _recipe_costs(invoices: list[str]) -> dict[str, tuple[float, bool]]:
 	so the report can say its cost reads low.
 	"""
 	costs: dict[str, tuple[float, bool]] = {}
-	for packed in frappe.get_all(
-		"Packed Item",
-		filters={"parenttype": SALE, "parent": ("in", invoices)},
-		fields=["parent_detail_docname", "qty", "incoming_rate"],
-	):
+	for packed in recipe_rows:
 		cost, short = costs.get(packed.parent_detail_docname, (0.0, False))
 		rate = flt(packed.incoming_rate)
 		costs[packed.parent_detail_docname] = (cost + abs(flt(packed.qty)) * rate, short or not rate)
@@ -178,8 +223,7 @@ def _tally(sold: list, returned: list, *, by_group: bool, meals: bool = False) -
 				"cost": 0.0,
 				"uncosted_qty": 0.0,
 				"short_costed_qty": 0.0,
-				"unposted_qty": 0.0,
-				"unposted_amount": 0.0,
+				"expected_qty": 0.0,
 				"combo_qty": 0.0,
 			}
 			# `item_name` carries no column: Frappe's Link cell reads it from the row
@@ -241,9 +285,7 @@ def _as_meals(lines: list) -> list:
 			)
 			kept.append(meal)
 		meal.net_amount += flt(line.net_amount)
-		if not line.posted:
-			continue
-		cost = frappe._dict(cost=0.0, uncosted_qty=0.0, short_costed_qty=0.0)
+		cost = frappe._dict(cost=0.0, uncosted_qty=0.0, short_costed_qty=0.0, expected_qty=0.0)
 		_add_cost(cost, line)
 		# Kept positive like a recipe's cost; `_add_cost` gives it the credit note's sign.
 		meal.recipe_cost += abs(cost.cost)
@@ -254,11 +296,9 @@ def _as_meals(lines: list) -> list:
 def _add_cost(row: dict, line) -> None:
 	"""What the stock was worth as it left — and how much left with no worth at all."""
 	if not line.posted:
-		# Not posted yet (`D-323`): its cost is not known, so neither is its
-		# profit. Its takings are kept apart and left out of the margin.
-		row["unposted_qty"] += abs(flt(line.qty))
-		row["unposted_amount"] += flt(line.net_amount)
-		return
+		# Not posted yet: the cost below is the expected one (`D-324`), and the
+		# report says how much of a row rests on it.
+		row["expected_qty"] += abs(flt(line.qty))
 
 	if line.get(WASTED):
 		# Returned and thrown away (`D-315`): the money went back and the food did
@@ -285,26 +325,23 @@ def _add_cost(row: dict, line) -> None:
 
 def _cost_columns(row: dict) -> None:
 	row["cost"] = flt(row["cost"], 2)
-	# **Over what has a cost** (`D-323`): the takings of sales not posted yet
-	# are in the amount, and in neither the profit nor the ratios.
-	costed = flt(row["amount"] - row["unposted_amount"], 2)
-	row["profit"] = flt(costed - row["cost"], 2)
-	row["margin"] = flt(row["profit"] / costed * 100, 2) if costed else 0.0
+	row["profit"] = flt(row["amount"] - row["cost"], 2)
+	row["margin"] = flt(row["profit"] / row["amount"] * 100, 2) if row["amount"] else 0.0
 	# **The restaurant's own measure** (`D-282`): the Uniform System of Accounts
 	# for Restaurants states food cost as cost of food sold over food sales —
 	# the margin's complement, and the figure a kitchen is actually run on.
-	row["cost_ratio"] = flt(row["cost"] / costed * 100, 2) if costed else 0.0
+	row["cost_ratio"] = flt(row["cost"] / row["amount"] * 100, 2) if row["amount"] else 0.0
 
 
 def _message(rows: list[dict]) -> str | None:
 	"""Say it plainly when a margin is built on costs that are missing or short."""
 	said = []
-	waiting = [row for row in rows if row["unposted_qty"]]
+	waiting = [row for row in rows if row["expected_qty"]]
 	if waiting:
 		said.append(
 			_(
-				"{0} of {1} lines include sales not posted yet. Their cost is written when their day is "
-				"closed and posted; cost and profit here cover what is posted."
+				"{0} of {1} lines include sales not posted yet: their cost is the expected one, at today's "
+				"valuation. The actual cost replaces it when their day is closed and posted."
 			).format(len(waiting), len(rows))
 		)
 	blind = [row for row in rows if row["uncosted_qty"]]

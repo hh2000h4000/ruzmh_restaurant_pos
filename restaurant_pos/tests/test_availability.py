@@ -200,3 +200,12 @@ class FinishedForToday(AvailabilityTestBase):
 		frappe.db.set_single_value("Restaurant POS Settings", "low_stock_at", int(self.shelf) - 1)
 
 		self.assertNotIn(WATER, availability.for_till(self.profile)["left"])
+
+	def test_an_item_with_its_own_line_follows_it(self):
+		"""`D-324` — water by the case is low at thirty; the restaurant's line is ten."""
+		frappe.cache().delete_keys("rpos_left::")
+		frappe.db.set_single_value("Restaurant POS Settings", "low_stock_at", 1)
+		frappe.db.set_value("Item", WATER, "rpos_low_stock_at", int(self.shelf) + 20)
+		self.addCleanup(frappe.db.set_value, "Item", WATER, "rpos_low_stock_at", 0)
+
+		self.assertEqual(availability.for_till(self.profile)["left"].get(WATER), self.shelf)

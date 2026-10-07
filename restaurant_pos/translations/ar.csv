@@ -1532,4 +1532,5 @@ Marked At,وقت التعليم
 Stock at the Till,المخزون عند الكاشير
 Show What Is Left From,اعرض المتبقي من
 "An item sold as it comes (a bottle, a can) shows how many are left on its tile once that many or fewer remain. Above it the tile shows no number.",الصنف اللي ينباع زي ما هو (قارورة، علبة) يطلع على بطاقته كم باقي منه لما يوصل لهذا العدد أو أقل. فوقه البطاقة ما تعرض رقم.
-{0} of {1} lines include sales not posted yet. Their cost is written when their day is closed and posted; cost and profit here cover what is posted.,{0} من {1} سطر فيها مبيعات ما ترحّلت بعد. تكلفتها تنكتب لما ينقفل يومها ويترحّل؛ والتكلفة والربح هنا للمرحّل بس.
+"{0} of {1} lines include sales not posted yet: their cost is the expected one, at today's valuation. The actual cost replaces it when their day is closed and posted.",{0} من {1} سطر فيها مبيعات ما ترحّلت بعد: تكلفتها متوقعة، بتقييم المخزون اليوم. والتكلفة الفعلية تاخذ مكانها لما ينقفل يومها ويترحّل.
+"For an item sold as it comes: its tile shows how many are left once that many or fewer remain. Empty uses the number in Restaurant POS Settings.",للصنف اللي ينباع زي ما هو: بطاقته تعرض كم باقي منه لما يوصل لهذا العدد أو أقل. لو فاضي ياخذ الرقم اللي في إعدادات نقاط البيع.

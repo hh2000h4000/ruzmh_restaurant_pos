@@ -320,10 +320,21 @@ CUSTOM_FIELDS = {
 			"translatable": 1,
 			"insert_after": "rpos_section",
 		},
+		# `D-324` — this item's own line for "N left" on its tile; empty follows
+		# the restaurant's, in Restaurant POS Settings.
+		{
+			"fieldname": "rpos_low_stock_at",
+			"fieldtype": "Int",
+			"label": "Show What Is Left From",
+			"non_negative": 1,
+			"depends_on": "eval:doc.is_stock_item",
+			"description": "For an item sold as it comes: its tile shows how many are left once that many or fewer remain. Empty uses the number in Restaurant POS Settings.",
+			"insert_after": "pos_display_name_ar",
+		},
 		{
 			"fieldname": "rpos_section_cb",
 			"fieldtype": "Column Break",
-			"insert_after": "pos_display_name_ar",
+			"insert_after": "rpos_low_stock_at",
 		},
 		{
 			"fieldname": "default_production_center",

@@ -159,10 +159,25 @@ def for_till(pos_profile: str) -> dict:
 	"""
 	branch, _warehouse = _place(pos_profile)
 	low_at = cint(frappe.db.get_single_value("Restaurant POS Settings", "low_stock_at") or LOW_AT)
+	# **An item may draw its own line** (`D-324`): water by the case is low at
+	# thirty, a cake at three. The few that do are one small query; the rest
+	# follow the restaurant's.
+	own = dict(
+		frappe.get_all(
+			"Item",
+			filters={"rpos_low_stock_at": (">", 0)},
+			fields=["name", "rpos_low_stock_at"],
+			as_list=True,
+		)
+	)
 	return {
 		"enforced": is_enforced(branch) if branch else False,
 		"low_at": low_at,
-		"left": {item: qty for item, qty in for_terminal(pos_profile).items() if qty <= low_at},
+		"left": {
+			item: qty
+			for item, qty in for_terminal(pos_profile).items()
+			if qty <= cint(own.get(item) or low_at)
+		},
 		"sold_out": sold_out(branch) if branch else [],
 	}
 

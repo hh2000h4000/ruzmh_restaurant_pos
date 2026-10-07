@@ -46,7 +46,7 @@ def _row(key: str = ITEM, **filters) -> dict:
 
 
 def _delta(before: dict, after: dict) -> dict:
-	fields = ("qty", "returned_qty", "net_qty", "amount", "cost", "profit", "unposted_qty", "uncosted_qty")
+	fields = ("qty", "returned_qty", "net_qty", "amount", "cost", "profit", "expected_qty", "uncosted_qty")
 	return {field: flt(after.get(field, 0) - before.get(field, 0), 2) for field in fields}
 
 
@@ -199,29 +199,30 @@ class TestTodayIsNotPostedYet(PaymentTestBase):
 		_columns, rows, message = report.execute({"from_date": today(), "to_date": today(), "show_cost": 1})
 		return next((row for row in rows if row.get("item_code") == ITEM), dict(EMPTY)), message
 
-	def test_an_unposted_sale_is_waiting_not_free(self):
+	def test_an_unposted_sale_shows_its_expected_cost_and_says_so(self):
+		"""`D-324` — today's burger costs what the card says, before anybody posts it."""
 		before, _message = self._now()
 		self._pay(self._payable_order(qty=2))
 
 		after, message = self._now()
 
-		self.assertEqual(after["unposted_qty"], 2)
+		self.assertEqual(after["expected_qty"], 2)
+		self.assertAlmostEqual(after["cost"] - before.get("cost", 0), 8.0, places=2)
 		self.assertEqual(
 			after.get("uncosted_qty", 0), before.get("uncosted_qty", 0), "not a dish with no cost"
 		)
-		self.assertAlmostEqual(
-			after.get("profit", 0), before.get("profit", 0), places=2, msg="no profit on a cost nobody knows"
-		)
-		self.assertGreater(after["amount"], before.get("amount", 0), "the takings are still there")
+		self.assertAlmostEqual(after["profit"], after["amount"] - after["cost"], places=2)
 		self.assertIn("not posted yet", message)
 
-	def test_once_posted_it_has_its_cost_and_its_profit(self):
-		before, _message = self._now()
+	def test_once_posted_the_actual_cost_takes_its_place(self):
 		self._pay(self._payable_order(qty=2))
+		expected, _message = self._now()
 
 		posting.post_branch(BRANCH)
 
-		after, _message = self._now()
-		self.assertEqual(after["unposted_qty"], 0)
-		self.assertAlmostEqual(after["cost"] - before.get("cost", 0), 8.0, places=2)
-		self.assertAlmostEqual(after["profit"], after["amount"] - after["cost"], places=2)
+		actual, message = self._now()
+		self.assertEqual(actual["expected_qty"], 0)
+		self.assertAlmostEqual(
+			actual["cost"], expected["cost"], places=2, msg="nothing was bought in between"
+		)
+		self.assertNotIn("not posted yet", message or "")

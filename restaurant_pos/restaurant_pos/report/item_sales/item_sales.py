@@ -34,7 +34,7 @@ import frappe
 from frappe import _
 from frappe.utils import flt
 
-from restaurant_pos.utils import reporting
+from restaurant_pos.utils import posting, reporting
 from restaurant_pos.utils.sale_doc import LINE_COST, SALE, SALE_ITEM, WASTED
 
 
@@ -100,10 +100,31 @@ def _lines_of(invoices: list[str], item_group: str | None) -> list[frappe._dict]
 		],
 	)
 	recipes = _recipe_costs(invoices)
+	costed = _with_their_cost_written(invoices)
 	for line in lines:
+		line.posted = line.parent in costed
 		if line.name in recipes:
 			line.recipe_cost, line.recipe_short = recipes[line.name]
 	return lines
+
+
+def _with_their_cost_written(invoices: list[str]) -> set[str]:
+	"""The bills whose stock has been posted — the only ones that know what they cost.
+
+	**Today's sales have no cost yet, and that is not "no cost"** (`D-323`). A
+	sale's cost is written when its day is posted (`D-314`); until then the
+	line is blank because nobody has asked the warehouse, not because the dish
+	is free. Read as uncosted, every dish sold today showed a full-price profit
+	until the day was closed.
+	"""
+	done = frappe.get_all(posting.BATCH, filters={"stock_status": ("in", posting.DONE)}, pluck="name")
+	if not done:
+		return set()
+	return set(
+		frappe.get_all(
+			SALE, filters={"name": ("in", invoices), "rpos_posting_batch": ("in", done)}, pluck="name"
+		)
+	)
 
 
 def _recipe_costs(invoices: list[str]) -> dict[str, tuple[float, bool]]:
@@ -157,6 +178,8 @@ def _tally(sold: list, returned: list, *, by_group: bool, meals: bool = False) -
 				"cost": 0.0,
 				"uncosted_qty": 0.0,
 				"short_costed_qty": 0.0,
+				"unposted_qty": 0.0,
+				"unposted_amount": 0.0,
 				"combo_qty": 0.0,
 			}
 			# `item_name` carries no column: Frappe's Link cell reads it from the row
@@ -213,9 +236,13 @@ def _as_meals(lines: list) -> list:
 				net_amount=0.0,
 				recipe_cost=0.0,
 				recipe_short=False,
+				# One bill, one posting: its lines are all posted or none is.
+				posted=line.posted,
 			)
 			kept.append(meal)
 		meal.net_amount += flt(line.net_amount)
+		if not line.posted:
+			continue
 		cost = frappe._dict(cost=0.0, uncosted_qty=0.0, short_costed_qty=0.0)
 		_add_cost(cost, line)
 		# Kept positive like a recipe's cost; `_add_cost` gives it the credit note's sign.
@@ -226,6 +253,13 @@ def _as_meals(lines: list) -> list:
 
 def _add_cost(row: dict, line) -> None:
 	"""What the stock was worth as it left — and how much left with no worth at all."""
+	if not line.posted:
+		# Not posted yet (`D-323`): its cost is not known, so neither is its
+		# profit. Its takings are kept apart and left out of the margin.
+		row["unposted_qty"] += abs(flt(line.qty))
+		row["unposted_amount"] += flt(line.net_amount)
+		return
+
 	if line.get(WASTED):
 		# Returned and thrown away (`D-315`): the money went back and the food did
 		# not, so no cost comes back with it. It is waste, and the books say so.
@@ -251,17 +285,28 @@ def _add_cost(row: dict, line) -> None:
 
 def _cost_columns(row: dict) -> None:
 	row["cost"] = flt(row["cost"], 2)
-	row["profit"] = flt(row["amount"] - row["cost"], 2)
-	row["margin"] = flt(row["profit"] / row["amount"] * 100, 2) if row["amount"] else 0.0
+	# **Over what has a cost** (`D-323`): the takings of sales not posted yet
+	# are in the amount, and in neither the profit nor the ratios.
+	costed = flt(row["amount"] - row["unposted_amount"], 2)
+	row["profit"] = flt(costed - row["cost"], 2)
+	row["margin"] = flt(row["profit"] / costed * 100, 2) if costed else 0.0
 	# **The restaurant's own measure** (`D-282`): the Uniform System of Accounts
 	# for Restaurants states food cost as cost of food sold over food sales —
 	# the margin's complement, and the figure a kitchen is actually run on.
-	row["cost_ratio"] = flt(row["cost"] / row["amount"] * 100, 2) if row["amount"] else 0.0
+	row["cost_ratio"] = flt(row["cost"] / costed * 100, 2) if costed else 0.0
 
 
 def _message(rows: list[dict]) -> str | None:
 	"""Say it plainly when a margin is built on costs that are missing or short."""
 	said = []
+	waiting = [row for row in rows if row["unposted_qty"]]
+	if waiting:
+		said.append(
+			_(
+				"{0} of {1} lines include sales not posted yet. Their cost is written when their day is "
+				"closed and posted; cost and profit here cover what is posted."
+			).format(len(waiting), len(rows))
+		)
 	blind = [row for row in rows if row["uncosted_qty"]]
 	if blind:
 		said.append(

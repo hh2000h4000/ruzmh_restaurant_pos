@@ -40,6 +40,7 @@ const BILL: returnsApi.Returnable = {
   returns: [],
   fully_returned: false,
   needs_manager: false,
+  manager_methods: [],
 };
 
 async function sheet() {
@@ -153,5 +154,31 @@ describe("where a returned line goes", () => {
 
     expect(vi.mocked(returnsApi.previewReturn).mock.calls.length).toBe(asked);
     expect(where(view, "برغر")!.text()).toBe(t("ret.restocked"));
+  });
+});
+
+describe("a platform's bill paid back another way", () => {
+  beforeEach(() => {
+    setActivePinia(createPinia());
+    vi.clearAllMocks();
+  });
+
+  it("says a manager is needed for cash, and not for the platform itself (`D-326`)", async () => {
+    const view = await sheet();
+    Object.assign(BILL, {
+      methods: ["Cash", "HungerStation"],
+      paid_with: [{ method: "HungerStation", amount: 40 }],
+      manager_methods: ["Cash"],
+    });
+    await view.setProps({ open: false });
+    await view.setProps({ open: true });
+    await flushPromises();
+    const hint = t("ret.needsManagerForMethod", { method: "Cash" });
+
+    expect(view.text()).not.toContain(hint);
+
+    await view.findAll("button").find((one) => one.text().trim() === "Cash")!.trigger("click");
+
+    expect(view.text()).toContain(hint);
   });
 });

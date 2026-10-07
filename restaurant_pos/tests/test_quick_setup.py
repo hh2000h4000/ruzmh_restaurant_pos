@@ -54,6 +54,14 @@ class QuickSetupMakesATillThatCanSell(FrappeTestCase):
 		self.assertEqual([row.mode_of_payment for row in profile.payments], ["Cash"])
 		self.assertTrue(profile.selling_price_list)
 
+	def test_it_lets_stock_go_below_zero_and_says_so_once(self):
+		"""`D-326` — a kitchen that enters its deliveries late must still have its day posted."""
+		frappe.db.set_single_value("Stock Settings", "allow_negative_stock", 0)
+
+		self.assertTrue(service._let_stock_go_below_zero())
+		self.assertEqual(frappe.db.get_single_value("Stock Settings", "allow_negative_stock"), 1)
+		self.assertFalse(service._let_stock_go_below_zero(), "already on: nothing to say")
+
 	def test_it_hands_back_a_pairing_code_for_the_till(self):
 		made = service.run(_answers())
 

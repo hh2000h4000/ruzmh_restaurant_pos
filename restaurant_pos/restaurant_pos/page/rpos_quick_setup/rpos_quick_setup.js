@@ -107,6 +107,11 @@ function show_result($area, made) {
 			<p style="margin-bottom:4px">${__("On the till, open the cashier screen and enter this pairing code:")}</p>
 			<p style="font-size:32px;font-weight:600;letter-spacing:4px;font-family:monospace;direction:ltr">${frappe.utils.escape_html(made.pairing_code)}</p>
 			<p class="text-muted">${__("It works once, for {0} minutes. A new one can be issued from the terminal's page.", [made.minutes])}</p>
+			${
+				made.negative_stock_allowed
+					? `<p class="text-muted">${__("Stock may now go below zero (Stock Settings), so a day's sales are posted even when a delivery was entered late.")}</p>`
+					: ""
+			}
 			<p>${__("Next: add your menu items and prices, then your staff and their PINs.")} <a href="/rpos-guide">${__("Open the guide")}</a></p>
 		</div>
 	`);

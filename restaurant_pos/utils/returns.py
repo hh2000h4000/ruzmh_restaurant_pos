@@ -132,6 +132,8 @@ def returnable(order) -> dict:
 		# BR-055, D-147 — said **before** the cashier commits, by the same
 		# function that enforces it at Confirm.
 		"needs_manager": needs_manager(order),
+		# `D-326` — and the ways of refunding that need one whatever the shift.
+		"manager_methods": manager_methods(order.pos_profile, _paid_with(invoice)),
 	}
 
 
@@ -202,7 +204,11 @@ def create_return(
 		frappe.throw(_("Choose why this is being returned."))
 
 	reason = _reason_text(reason_code, note)
-	approved_by = _authorise_return(order, override_token)
+	paid_with = _paid_with(invoice)
+	method = refund_method or (paid_with[0]["method"] if len(paid_with) == 1 else None)
+	approved_by = _authorise_return(
+		order, override_token, out_of_the_drawer=method in manager_methods(order.pos_profile, paid_with)
+	)
 	wanted = _validate_quantities(order, items)
 
 	credit = _build_credit_note(order, invoice, wanted, reason, refund_method, _waste_choices(items))
@@ -259,22 +265,40 @@ def _reason_text(reason_code: str, note: str | None) -> str:
 	return f"{trigger} ({reason_code}): {detail}" if detail else f"{trigger} ({reason_code})"
 
 
-def _authorise_return(order, override_token: str | None) -> str | None:
+def _authorise_return(order, override_token: str | None, *, out_of_the_drawer: bool = False) -> str | None:
 	"""BR-055 — an older shift's sale is a manager's decision.
 
 	The permission alone covers a refund the cashier is making against their own
 	open shift, where they can still see the customer. Anything from a shift that
 	has been counted and handed over is somebody else's drawer, so it takes a
 	manager's PIN even from a cashier who holds `can_create_return`.
+
+	**And so does paying a platform's bill back out of the drawer** (`D-326`):
+	the drawer never took that money.
 	"""
 	from restaurant_pos.utils.order import authorise
 
 	approved_by = authorise("can_create_return", override_token)
 
-	if is_older_shift(order) and not approved_by:
+	if (is_older_shift(order) or out_of_the_drawer) and not approved_by:
 		approved_by = consume_override_token(override_token, "can_create_return")
 
 	return approved_by
+
+
+def manager_methods(pos_profile: str, paid_with: list[dict]) -> list[str]:
+	"""The refund methods that need a manager's PIN on this bill (`D-326`).
+
+	A bill a delivery platform collected goes back onto the platform's account;
+	**any other way is the restaurant paying out money it never took** — a
+	guest at the counter with a wrong order, made good in cash. The owner chose
+	that it may happen, and that a manager says so: left to the cashier alone,
+	a drawer comes up short by app orders refunded in notes and nobody sees why.
+	"""
+	owed = {row["method"] for row in paid_with if payment.is_credit_method(row["method"])}
+	if not owed:
+		return []
+	return [method for method in refund_methods(pos_profile, paid_with) if method not in owed]
 
 
 def is_older_shift(order) -> bool:
@@ -589,11 +613,6 @@ def refund_methods(pos_profile: str, original: list[dict]) -> list[str]:
 	return methods + [row["method"] for row in original if row["method"] not in methods]
 
 
-def _never_in_the_drawer(method: str) -> bool:
-	"""A gift card's balance, or what a platform or an account still owes."""
-	return gift_cards.is_gift_card_method(method) or payment.is_credit_method(method)
-
-
 def _assert_within_what_that_method_paid(credit, method: str, due: float, original: list[dict]) -> None:
 	"""A method may give back at most what it took (`D-258`).
 
@@ -603,18 +622,19 @@ def _assert_within_what_that_method_paid(credit, method: str, due: float, origin
 	payment card is cashed out. Toast refuses it outright on third-party cards;
 	Square refunds to the original tender. So does this.
 
-	**Only bills paid with money that never reached the drawer are held to it.**
-	Everywhere else `D-066` still stands: the cashier chooses, because a dead
-	card terminal or a guest who would rather have the notes is an ordinary
-	evening.
+	**Only where the money was never in the drawer.** Everywhere else `D-066`
+	still stands: the cashier chooses, because a dead card terminal or a guest
+	who would rather have the notes is an ordinary evening.
 
-	**A delivery platform's order is one of them** (`D-325`). The owner's first
-	trial refunded a HungerStation bill in cash: the drawer paid out five
-	riyals it had never taken, and the platform's account still showed the
-	whole bill owed. The platform collected it; the refund goes back onto the
-	platform's account, and the restaurant settles it there.
+	- **A bill a gift card touched:** every method is capped, with no way round.
+	- **A refund onto a platform's account** (`D-325`): at most what the platform
+	  took — a cash sale cannot be pushed onto HungerStation. Refunding a
+	  platform's bill *another* way is not capped here; it takes a manager's
+	  PIN instead (`D-326`).
 	"""
-	if not any(_never_in_the_drawer(row["method"]) for row in original):
+	if not any(gift_cards.is_gift_card_method(row["method"]) for row in original) and not (
+		payment.is_credit_method(method)
+	):
 		return
 
 	paid = sum(flt(row["amount"]) for row in original if row["method"] == method)

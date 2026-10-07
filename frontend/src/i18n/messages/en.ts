@@ -341,6 +341,8 @@ export const messages = {
   "ret.detailTotal": "Refunded",
   // BR-055 — said before the button, never only after it (`D-147`).
   "ret.needsManager": "This bill is from a shift that has been counted, so a manager's PIN is needed.",
+  "ret.needsManagerForMethod":
+    "This bill was not paid into the drawer, so refunding it as {method} needs a manager's PIN.",
   // FR-7.5 — paper, asked for a second time. The receipt is named by the
   // number the cashier reads on the row, not by `ACC-SINV-2026-00042`.
   "print.receiptAgain": "Print receipt again",

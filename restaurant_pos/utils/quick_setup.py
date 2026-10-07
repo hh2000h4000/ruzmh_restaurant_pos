@@ -82,6 +82,7 @@ def run(values: dict) -> dict:
 
 	code = device.issue_code(profile)
 	return {
+		"negative_stock_allowed": _let_stock_go_below_zero(),
 		"branch": branch,
 		"sections": list(sections.values()),
 		"tables": tables if "dine_in" in sections else 0,
@@ -89,6 +90,26 @@ def run(values: dict) -> dict:
 		"pairing_code": code["code"],
 		"minutes": code["minutes"],
 	}
+
+
+def _let_stock_go_below_zero() -> bool:
+	"""Tick ERPNext's Allow Negative Stock, and say whether this did it (`D-326`).
+
+	**A restaurant's stock goes below zero every week, and its posting must not
+	stop for it.** A dish is never refused for its ingredients at the till
+	(`D-321`), so a kitchen that enters its deliveries late sells what the
+	ledger does not hold yet — and with this off, that evening's stock is not
+	posted until somebody enters them. On, the shortfall is valued at the last
+	known rate and corrected by the purchase when it arrives; nothing is lost
+	(`docs/14` §5.1, measured). The owner's call, for every new restaurant.
+
+	Left alone where it is already on, and said in the result where it is not:
+	it is a setting of the whole site, not of this branch.
+	"""
+	if cint(frappe.db.get_single_value("Stock Settings", "allow_negative_stock")):
+		return False
+	frappe.db.set_single_value("Stock Settings", "allow_negative_stock", 1)
+	return True
 
 
 def company_basics(company: str) -> frappe._dict:

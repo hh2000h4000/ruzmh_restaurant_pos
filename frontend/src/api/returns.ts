@@ -62,6 +62,8 @@ export interface Returnable {
    * refusing them afterwards with nowhere to type it.
    */
   needs_manager: boolean;
+  /** Refund methods that need a manager's PIN on this bill: a platform's bill paid back another way (`D-326`). */
+  manager_methods: string[];
 }
 
 export interface ReturnLine {

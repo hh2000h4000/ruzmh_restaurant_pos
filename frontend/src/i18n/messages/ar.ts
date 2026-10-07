@@ -324,6 +324,7 @@ const messages: Catalogue["messages"] = {
   "ret.detailAgainst": "مرتجع {number} · على فاتورة {against}",
   "ret.detailTotal": "المُرتجَع",
   "ret.needsManager": "هذي الفاتورة من درج انقفل وانعدّ، فتحتاج رمز المدير.",
+  "ret.needsManagerForMethod": "هذي الفاتورة ما اندفعت في الدرج، فإرجاعها {method} يحتاج رمز المدير.",
   "print.receiptAgain": "طباعة الإيصال مرة أخرى",
   "print.receiptSent": "أُرسل إيصال {number} إلى الطابعة",
   "print.reportSent": "انرسل تقرير الدرج للطابعة",

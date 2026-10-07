@@ -1536,3 +1536,4 @@ Show What Is Left From,اعرض المتبقي من
 "For an item sold as it comes: its tile shows how many are left once that many or fewer remain. Empty uses the number in Restaurant POS Settings.",للصنف اللي ينباع زي ما هو: بطاقته تعرض كم باقي منه لما يوصل لهذا العدد أو أقل. لو فاضي ياخذ الرقم اللي في إعدادات نقاط البيع.
 "Not enough stock to take what was sold: {0}. Enter what was received, or tick Allow Negative Stock in Stock Settings, then post again.",المخزون ما يكفي لخصم اللي انباع: {0}. أدخل البضاعة اللي استلمتها، أو فعّل «السماح بالمخزون السالب» في إعدادات المخزون، ثم رحّل مرة ثانية.
 {0} short by {1},{0} ناقص {1}
+"Stock may now go below zero (Stock Settings), so a day's sales are posted even when a delivery was entered late.",صار المخزون يقدر ينزل تحت الصفر (إعدادات المخزون)، عشان مبيعات اليوم تترحّل حتى لو البضاعة انسجلت متأخر.

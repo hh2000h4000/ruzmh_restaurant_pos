@@ -185,12 +185,21 @@ const canConfirm = computed(
   () => !busy.value && lines.value.length > 0 && Boolean(reason.value && method.value),
 );
 
+/**
+ * A manager's PIN is needed: the bill is from a counted shift (`D-147`), or it
+ * is a delivery platform's and is being paid back another way (`D-326`) — the
+ * drawer never took that money. Said before the button, by the server's own list.
+ */
+const needsManager = computed(
+  () => Boolean(bill.value?.needs_manager) || Boolean(bill.value?.manager_methods.includes(method.value)),
+);
+
 async function confirm(): Promise<void> {
   if (!canConfirm.value || !props.orderName || !reason.value) return;
 
   // Ask the manager first, and only once: the token is single-use and the
   // server consumes it (`08` §4).
-  if (bill.value?.needs_manager && !overrideToken.value) {
+  if (needsManager.value && !overrideToken.value) {
     askingManager.value = true;
     return;
   }
@@ -241,7 +250,7 @@ function money(value: number): string {
 
     <!-- BR-055, D-147 — before the button, not after it. -->
     <p
-      v-if="bill && !bill.fully_returned && bill.needs_manager && !overrideToken"
+      v-if="bill && !bill.fully_returned && needsManager && !overrideToken"
       role="status"
       class="mb-3 flex items-center gap-2 rounded-rpos bg-status-reserved/10 p-3 text-sm text-status-reserved"
     >
@@ -249,7 +258,7 @@ function money(value: number): string {
         name="lock"
         :size="18"
       />
-      {{ t("ret.needsManager") }}
+      {{ bill.needs_manager ? t("ret.needsManager") : t("ret.needsManagerForMethod", { method }) }}
     </p>
 
     <!-- Done. The amount to hand back is the whole message. -->
@@ -483,7 +492,7 @@ function money(value: number): string {
     </p>
     <ManagerPinDialog
       :open="askingManager"
-      :explain="t('ret.needsManager')"
+      :explain="bill?.needs_manager ? t('ret.needsManager') : t('ret.needsManagerForMethod', { method })"
       :verify="approveWith"
       @approved="onApproved"
       @close="askingManager = false"

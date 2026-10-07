@@ -14,6 +14,7 @@ from restaurant_pos.setup.defaults import DELIVERY_APPS, create_default_data
 from restaurant_pos.tests.test_payment import CASH, PaymentTestBase
 from restaurant_pos.utils import order as orders
 from restaurant_pos.utils import payment as payment_service
+from restaurant_pos.utils import permissions as perms
 from restaurant_pos.utils import posting, returns
 from restaurant_pos.utils.sale_doc import SALE
 
@@ -206,21 +207,43 @@ class TestAppOrderTypes(PaymentTestBase):
 		order.reload()
 		return order
 
-	def test_its_refund_is_not_paid_out_of_the_drawer(self):
-		"""`D-325` — the owner's first trial refunded a HungerStation bill in cash.
+	def test_refunding_it_out_of_the_drawer_takes_a_manager(self):
+		"""`D-325`, `D-326` — the owner's first trial refunded a HungerStation bill in cash.
 
-		The drawer paid out what it had never taken, and the platform's account
-		still showed the whole bill owed.
+		The drawer paid out what it had never taken. It may — a guest at the
+		counter with a wrong order — but not on the cashier's word alone.
 		"""
 		order = self._paid_app_order()
+		told = returns.returnable(order)
+		line = told["items"][0]
+		items = [{"row": line["row"], "qty": line["returnable"]}]
+
+		self.assertIn(CASH, told["manager_methods"])
+		self.assertNotIn("HungerStation", told["manager_methods"])
+		with self.assertRaises(frappe.PermissionError):
+			returns.create_return(order, items=items, reason_code="goods_returned", refund_method=CASH)
+
+		token = perms.issue_override_token("can_create_return", frappe.session.user)
+		made = returns.create_return(
+			order, items=items, reason_code="goods_returned", refund_method=CASH, override_token=token
+		)
+
+		(back,) = frappe.get_doc(SALE, made["credit_note"]).payments
+		self.assertEqual(back.mode_of_payment, CASH)
+
+	def test_a_cash_bill_cannot_be_pushed_onto_a_platform(self):
+		order = self._payable_order(qty=1)
+		self._pay(order)
+		order.reload()
 		line = returns.returnable(order)["items"][0]
+		self.assertEqual(returns.returnable(order)["manager_methods"], [])
 
 		with self.assertRaises(frappe.ValidationError):
 			returns.create_return(
 				order,
 				items=[{"row": line["row"], "qty": line["returnable"]}],
 				reason_code="goods_returned",
-				refund_method=CASH,
+				refund_method="HungerStation",
 			)
 
 	def test_it_goes_back_onto_the_platform_even_when_the_terminal_does_not_list_it(self):

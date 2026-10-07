@@ -235,8 +235,15 @@ class TestAppOrderTypes(PaymentTestBase):
 		order = self._payable_order(qty=1)
 		self._pay(order)
 		order.reload()
-		line = returns.returnable(order)["items"][0]
-		self.assertEqual(returns.returnable(order)["manager_methods"], [])
+		told = returns.returnable(order)
+		line = told["items"][0]
+		self.assertEqual(told["manager_methods"], [])
+		# `D-330` — and it is not offered: the terminal lists the platform for its
+		# own orders, which put it on the refund sheet of every cash bill.
+		frappe.get_doc("POS Profile", self.profile).append(
+			"payments", {"mode_of_payment": "HungerStation"}
+		).insert(ignore_permissions=True)
+		self.assertNotIn("HungerStation", returns.returnable(order)["methods"])
 
 		with self.assertRaises(frappe.ValidationError):
 			returns.create_return(

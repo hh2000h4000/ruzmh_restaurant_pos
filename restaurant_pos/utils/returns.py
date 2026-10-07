@@ -611,8 +611,17 @@ def refund_methods(pos_profile: str, original: list[dict]) -> list[str]:
 	the terminal lists, so the bill was paid with something a refund could not
 	then be sent back to.
 	"""
-	methods = terminal_methods(pos_profile)
-	return methods + [row["method"] for row in original if row["method"] not in methods]
+	paid = [row["method"] for row in original]
+	# **A platform that did not take this bill is not offered** (`D-330`). The
+	# terminal lists HungerStation because its orders are rung up here, and that
+	# put it on the refund sheet of every cash bill — where choosing it is
+	# refused, in a sentence about a method that "paid 0.00".
+	methods = [
+		method
+		for method in terminal_methods(pos_profile)
+		if method in paid or not payment.is_credit_method(method)
+	]
+	return methods + [method for method in paid if method not in methods]
 
 
 def _assert_within_what_that_method_paid(credit, method: str, due: float, original: list[dict]) -> None:
@@ -646,6 +655,12 @@ def _assert_within_what_that_method_paid(credit, method: str, due: float, origin
 	# Without it the comparison is a negative number against a positive cap and
 	# passes whatever the figures are, which is how the first version of this
 	# guard let a cash refund straight through its own test.
+	if not paid:
+		frappe.throw(
+			_("This bill was not paid with {0}, so it cannot be refunded to it.").format(method),
+			frappe.ValidationError,
+		)
+
 	if abs(flt(due)) > paid - refunded + TOLERANCE:
 		frappe.throw(
 			_(

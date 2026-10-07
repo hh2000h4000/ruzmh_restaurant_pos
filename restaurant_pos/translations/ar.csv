@@ -1537,3 +1537,5 @@ Show What Is Left From,اعرض المتبقي من
 "Not enough stock to take what was sold: {0}. Enter what was received, or tick Allow Negative Stock in Stock Settings, then post again.",المخزون ما يكفي لخصم اللي انباع: {0}. أدخل البضاعة اللي استلمتها، أو فعّل «السماح بالمخزون السالب» في إعدادات المخزون، ثم رحّل مرة ثانية.
 {0} short by {1},{0} ناقص {1}
 "Stock may now go below zero (Stock Settings), so a day's sales are posted even when a delivery was entered late.",صار المخزون يقدر ينزل تحت الصفر (إعدادات المخزون)، عشان مبيعات اليوم تترحّل حتى لو البضاعة انسجلت متأخر.
+"{0} paid {1} on this bill. Refund that much to it, and the rest to what paid the rest.",{0} دفع {1} من هذي الفاتورة. رجّع له هذا المبلغ بس، والباقي على الطريقة اللي دفعت الباقي.
+"This bill was not paid with {0}, so it cannot be refunded to it.",هذي الفاتورة ما اندفعت بـ{0}، فما ينفع ترجع عليه.

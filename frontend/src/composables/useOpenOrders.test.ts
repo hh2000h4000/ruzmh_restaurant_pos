@@ -15,9 +15,10 @@
  * So two things are held here: the default, and the moment each row is sorted
  * by — which is the same moment the row prints under its number.
  */
-import { flushPromises } from "@vue/test-utils";
+import { flushPromises, mount } from "@vue/test-utils";
 import { createPinia, setActivePinia } from "pinia";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { defineComponent } from "vue";
 
 import * as orderApi from "@/api/order";
 import type { OpenOrder } from "@/api/order";
@@ -301,5 +302,49 @@ describe("whose bills the floor shows", () => {
     const floor = await floorOf([theirs, mine], false);
 
     expect(floor.visible.value).toHaveLength(2);
+  });
+});
+
+describe("the poll and a screen nobody can see", () => {
+  function hidden(state: "hidden" | "visible"): void {
+    Object.defineProperty(document, "visibilityState", { value: state, configurable: true });
+    document.dispatchEvent(new Event("visibilitychange"));
+  }
+
+  async function mounted() {
+    vi.useFakeTimers();
+    useSessionStore().data = { pos_profile: { name: "T1" } } as unknown as PosSession;
+    vi.mocked(orderApi.listOrders).mockResolvedValue([]);
+    const wrapper = mount(defineComponent({ setup: () => (useOpenOrders(), () => null) }));
+    await flushPromises();
+    vi.mocked(orderApi.listOrders).mockClear();
+    return wrapper;
+  }
+
+  afterEach(() => {
+    hidden("visible");
+    vi.useRealTimers();
+  });
+
+  it("asks every fifteen seconds while the till is showing", async () => {
+    const wrapper = await mounted();
+
+    await vi.advanceTimersByTimeAsync(15_000);
+
+    expect(orderApi.listOrders).toHaveBeenCalledTimes(1);
+    wrapper.unmount();
+  });
+
+  it("asks nothing while it is hidden, and at once when it comes back", async () => {
+    const wrapper = await mounted();
+    hidden("hidden");
+
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(orderApi.listOrders).not.toHaveBeenCalled();
+
+    hidden("visible");
+    await flushPromises();
+    expect(orderApi.listOrders).toHaveBeenCalledTimes(1);
+    wrapper.unmount();
   });
 });

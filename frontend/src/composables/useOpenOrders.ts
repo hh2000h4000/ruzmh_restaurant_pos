@@ -359,6 +359,19 @@ export function useOpenOrders() {
     if (document.visibilityState === "visible") void refreshNow();
   }
 
+  /**
+   * The poll's own tick: **nothing is asked for a screen nobody can see**.
+   *
+   * It asked every fifteen seconds whether the till was showing or not — a
+   * terminal with its screen off overnight, a tab behind another one. The bell
+   * already stops while hidden (`D-301`); this did not, and across a hundred
+   * branches it is the larger share of requests that answer nobody. Coming
+   * back asks at once (above), so nothing is staler for it.
+   */
+  function poll(): void {
+    if (document.visibilityState !== "hidden") void refreshNow();
+  }
+
   // Changing the tab is a different question for the server, not a filter over
   // what is already here: today's closed orders were never fetched.
   watch(view, () => void refreshNow());
@@ -397,7 +410,7 @@ export function useOpenOrders() {
 
   onMounted(() => {
     void refreshNow().then(warmMirror);
-    timer = window.setInterval(refreshNow, REFRESH_MS);
+    timer = window.setInterval(poll, REFRESH_MS);
     document.addEventListener("visibilitychange", onVisibilityChange);
   });
 

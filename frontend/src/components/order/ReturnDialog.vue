@@ -360,11 +360,12 @@ function money(value: number): string {
             <!--
               `D-328` — one button beside the quantity, off until tapped: the
               line goes back to stock unless the cashier says it was thrown
-              away. Only on a line that took stock, and only once it is
-              actually coming back.
+              away. Only on a line that took stock — and **there from the
+              start**, as Foodics draws it: hidden until a quantity was chosen,
+              the owner opened the sheet and reported it missing.
             -->
             <button
-              v-if="line.moves_stock && (chosen[line.row] ?? 0) > 0"
+              v-if="line.moves_stock && line.returnable > 0"
               type="button"
               data-waste
               class="min-h-10 shrink-0 rounded-rpos border px-3 text-sm font-semibold transition duration-200 ease-rpos"

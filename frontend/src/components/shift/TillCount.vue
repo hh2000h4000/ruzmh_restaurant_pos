@@ -78,9 +78,12 @@ function money(value: number): string {
 
 <template>
   <div>
+    <!-- The list scrolls and the keypad stays put (`D-329`): ten methods at a
+         close must not push the keys a cashier types on off the screen. -->
     <div
       v-if="listed"
-      class="mb-3 space-y-1.5"
+      data-methods
+      class="mb-3 max-h-[13.5rem] space-y-1.5 overflow-y-auto"
     >
       <button
         v-for="row in rows"

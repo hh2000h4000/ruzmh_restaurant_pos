@@ -22,10 +22,9 @@ import { useShiftStore } from "@/stores/shift";
  * riyal was taken. Zero is a fine answer — the till is then expected to hold
  * only what was sold.
  *
- * **Credit methods are not offered.** A platform never puts anything in a till,
- * so a float against one would inflate an expected figure for cash that does
- * not exist (D-029). The server refuses them too; keeping them off the screen
- * saves the cashier wondering why.
+ * **Only cash is asked for** (`D-329`). A platform, a card machine and a gift
+ * card never put anything in a till before the first sale, so a float against
+ * one would inflate an expected figure for money that does not exist (D-029).
  */
 const props = defineProps<{ open: boolean }>();
 const emit = defineEmits<{ close: [] }>();
@@ -34,14 +33,17 @@ const session = useSessionStore();
 const shift = useShiftStore();
 
 /**
- * The terminal's own methods.
+ * The methods that hold notes and coins — the only ones a float can be in.
  *
- * The `is_credit` flag lives on the Mode of Payment, which this payload does not
- * carry — so the server does the filtering and this list is a convenience, not
- * the rule.
+ * **It listed every method on the terminal**, and the owner's screenshot showed
+ * where that goes: a float box for a gift card and one for HungerStation, and a
+ * dialog one row taller for every method added — "imagine I have ten". A card
+ * machine, a gift card and a delivery platform start a shift holding nothing.
+ * Foodics, Square and Toast all ask one thing when a drawer opens: the cash in
+ * it. So a restaurant with one cash method sees the keypad and no list at all.
  */
 const methods = computed(() =>
-  (session.data?.payment_methods ?? []).map((row) => row.mode_of_payment),
+  (session.data?.payment_methods ?? []).filter((row) => row.is_cash).map((row) => row.mode_of_payment),
 );
 
 /** Nothing is owed at the start of a shift, so no row carries an expected. */
@@ -87,7 +89,9 @@ async function confirm(): Promise<void> {
       {{ t("shift.openTillBody") }}
     </p>
 
+    <!-- A terminal with no cash method has no float to count; it opens on zero. -->
     <TillCount
+      v-if="rows.length"
       class="mb-4"
       :rows="rows"
       :values="floats"

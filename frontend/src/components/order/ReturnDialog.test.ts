@@ -97,10 +97,12 @@ describe("where a returned line goes", () => {
     vi.clearAllMocks();
   });
 
-  it("offers nothing on a line that is not coming back", async () => {
+  it("is there from the start on a line that took stock, and never on one that took none", async () => {
+    // Hidden until a quantity was chosen, the owner opened the sheet and reported it missing.
     const view = await sheet();
 
-    expect(waste(view, "برغر").exists()).toBe(false);
+    expect(waste(view, "برغر").text()).toBe(t("ret.wasteAsk"));
+    expect(waste(view, "خدمة").exists()).toBe(false);
   });
 
   it("offers waste, unmarked — back to stock unless the cashier says otherwise (`D-328`)", async () => {

@@ -188,7 +188,10 @@ class TheRecipeLeavesTheWarehouse(RecipeTestBase):
 		before = self._row()
 		order = self._sold(qty=2)
 		line = returns.returnable(order)["items"][0]["row"]
-		returns.create_return(order, items=[{"row": line, "qty": 1}], reason_code="goods_returned")
+		# Said outright: unsaid, a return goes back to stock (`D-328`).
+		returns.create_return(
+			order, items=[{"row": line, "qty": 1, "wasted": 1}], reason_code="goods_returned"
+		)
 		after = self._row()
 
 		self.assertAlmostEqual(after["cost"] - before["cost"], 2 * COST_OF_ONE, places=2)

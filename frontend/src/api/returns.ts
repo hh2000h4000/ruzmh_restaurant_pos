@@ -21,9 +21,9 @@ export interface ReturnableLine {
   returned: number;
   returnable: number;
   /**
-   * `D-327` — the line took stock when it was sold (a stock item, or a dish
-   * with a recipe), so the cashier is asked where it goes when it comes back.
-   * A line that took none is not asked.
+   * `D-328` — the line took stock when it was sold (a stock item, or a dish
+   * with a recipe), so it can be marked waste when it comes back. Unmarked it
+   * goes back to stock; a line that took none has nothing to mark.
    */
   moves_stock: boolean;
 }

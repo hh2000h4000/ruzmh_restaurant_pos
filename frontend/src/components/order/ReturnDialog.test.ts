@@ -78,27 +78,16 @@ async function takeOne(view: Sheet, name: string) {
   await flushPromises();
 }
 
-/** The two answers under a line, once it is coming back. */
-function answers(view: Sheet, name: string) {
-  return rowOf(view, name).findAll("[data-where] button");
-}
-
-async function answer(view: Sheet, name: string, wasted: boolean) {
-  const label = wasted ? t("ret.wasted") : t("ret.restocked");
-  await answers(view, name)
-    .find((one) => one.text().trim() === label)!
-    .trigger("click");
-  await flushPromises();
-}
-
-function confirmButton(view: Sheet) {
-  return view.findAll("button").find((one) => one.text().trim() === t("ret.confirm"))!;
+/** The one button beside the quantity, once the line is coming back. */
+function waste(view: Sheet, name: string) {
+  return rowOf(view, name).find("[data-waste]");
 }
 
 async function confirm(view: Sheet) {
   const reason = view.findAll("button").find((one) => one.text().trim() === t("ret.reasonReturned"));
   await reason!.trigger("click");
-  await confirmButton(view).trigger("click");
+  const button = view.findAll("button").find((one) => one.text().trim() === t("ret.confirm"));
+  await button!.trigger("click");
   await flushPromises();
 }
 
@@ -108,44 +97,42 @@ describe("where a returned line goes", () => {
     vi.clearAllMocks();
   });
 
-  it("asks nothing about a line that is not coming back", async () => {
+  it("offers nothing on a line that is not coming back", async () => {
     const view = await sheet();
 
-    expect(answers(view, "برغر")).toHaveLength(0);
+    expect(waste(view, "برغر").exists()).toBe(false);
   });
 
-  it("asks, with neither answer chosen — the till does not presume waste (`D-327`)", async () => {
+  it("offers waste, unmarked — back to stock unless the cashier says otherwise (`D-328`)", async () => {
+    const view = await sheet();
+
+    await takeOne(view, "برغر");
+
+    expect(waste(view, "برغر").text()).toBe(t("ret.wasteAsk"));
+    expect(waste(view, "برغر").attributes("aria-pressed")).toBe("false");
+  });
+
+  it("refunds without it being touched, as going back to stock", async () => {
     // A guest who cancels before the kitchen starts has wasted nothing.
     const view = await sheet();
-
     await takeOne(view, "برغر");
 
-    const both = answers(view, "برغر");
-    expect(both.map((one) => one.text().trim())).toEqual([t("ret.restocked"), t("ret.wasted")]);
-    expect(both.map((one) => one.attributes("aria-pressed"))).toEqual(["false", "false"]);
+    await confirm(view);
+
+    expect(vi.mocked(returnsApi.createReturn).mock.calls[0][0].items).toEqual([
+      { row: "burger-row", qty: 1, wasted: false },
+    ]);
   });
 
-  it("does not refund until it is answered, and says why", async () => {
-    const view = await sheet();
-    await takeOne(view, "برغر");
-    await view.findAll("button").find((one) => one.text().trim() === t("ret.reasonReturned"))!.trigger("click");
-
-    expect(confirmButton(view).attributes("disabled")).toBeDefined();
-    expect(view.find("[data-say-where]").text()).toBe(t("ret.sayWhere"));
-
-    await answer(view, "برغر", false);
-
-    expect(confirmButton(view).attributes("disabled")).toBeUndefined();
-    expect(view.find("[data-say-where]").exists()).toBe(false);
-  });
-
-  it("sends what the cashier said, and nothing for a line that took no stock", async () => {
+  it("sends waste when it is tapped, and nothing for a line that took no stock", async () => {
     const view = await sheet();
     await takeOne(view, "برغر");
     await takeOne(view, "خدمة");
-    expect(answers(view, "خدمة")).toHaveLength(0);
+    expect(waste(view, "خدمة").exists()).toBe(false);
 
-    await answer(view, "برغر", true);
+    await waste(view, "برغر").trigger("click");
+    expect(waste(view, "برغر").text()).toBe(t("ret.wasted"));
+    expect(waste(view, "برغر").attributes("aria-pressed")).toBe("true");
     await confirm(view);
 
     expect(vi.mocked(returnsApi.createReturn).mock.calls[0][0].items).toEqual([
@@ -154,12 +141,12 @@ describe("where a returned line goes", () => {
     ]);
   });
 
-  it("lets the answer be changed before confirming", async () => {
+  it("is taken back by a second tap", async () => {
     const view = await sheet();
     await takeOne(view, "برغر");
 
-    await answer(view, "برغر", true);
-    await answer(view, "برغر", false);
+    await waste(view, "برغر").trigger("click");
+    await waste(view, "برغر").trigger("click");
     await confirm(view);
 
     expect(vi.mocked(returnsApi.createReturn).mock.calls[0][0].items).toEqual([
@@ -167,13 +154,14 @@ describe("where a returned line goes", () => {
     ]);
   });
 
-  it("does not ask the server for the refund again when only the answer changes", async () => {
+  it("does not ask the server for the refund again when only this changes", async () => {
     // Where the food goes changes the stock, never the money.
     const view = await sheet();
     await takeOne(view, "برغر");
     const asked = vi.mocked(returnsApi.previewReturn).mock.calls.length;
 
-    await answer(view, "برغر", true);
+    await waste(view, "برغر").trigger("click");
+    await flushPromises();
 
     expect(vi.mocked(returnsApi.previewReturn).mock.calls.length).toBe(asked);
   });

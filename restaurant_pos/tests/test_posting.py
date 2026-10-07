@@ -322,28 +322,25 @@ class WhatCameBackGoesOnTheShelfOrInTheBin(PostingTestBase):
 
 		return waste_account.setup()
 
-	def _returned(self, order, **said):
+	def _returned(self, order, wasted: int = 1):
+		"""Returned and thrown away, unless the test says it went back."""
 		row = returns.returnable(order)["items"][0]["row"]
-		return returns.create_return(order, items=[{"row": row, "qty": 1, **said}], reason_code=REASON)
+		return returns.create_return(
+			order, items=[{"row": row, "qty": 1, "wasted": wasted}], reason_code=REASON
+		)
 
-	def test_a_dish_is_waste_and_a_thing_sold_as_it_came_is_not_unless_told_otherwise(self):
-		self._cola()
-
-		self.assertTrue(returns.wasted_by_default(ITEM), "a burger sent back is not put back in the fridge")
-		self.assertFalse(returns.wasted_by_default(self.COLA), "a sealed can goes back on the shelf")
-
-	def test_the_screen_is_told_which_lines_to_ask_about_and_not_what_to_answer(self):
-		"""`D-327` — a guest who cancels before the kitchen starts has wasted nothing.
-
-		The till asks about a line that took stock and presumes nothing; the
-		answer by item kind is only for a caller with no cashier in front of it.
-		"""
+	def test_unsaid_a_return_goes_back_on_the_shelf(self):
+		"""`D-328` — waste is the rare case, and the one somebody has to say."""
 		order = self._sold(qty=1)
-
+		self._post()
 		line = returns.returnable(order)["items"][0]
-
 		self.assertTrue(line["moves_stock"], "the burger took its ingredients")
-		self.assertNotIn("wasted", line)
+
+		returns.create_return(order, items=[{"row": line["row"], "qty": 1}], reason_code=REASON)
+		(batch,) = self._post()
+
+		self.assertTrue(batch.stock_receipt, "its ingredients are back")
+		self.assertFalse(batch.waste_entry)
 
 	def test_a_line_that_took_no_stock_is_not_asked_about(self):
 		_drop_bundle()

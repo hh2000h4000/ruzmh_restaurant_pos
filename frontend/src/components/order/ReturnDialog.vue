@@ -76,12 +76,12 @@ const chosen = ref<Record<string, number>>({});
  * put every return back in stock, so the warehouse on screen grew past the real
  * one with each refund.
  *
- * **Asked, never presumed** (`D-327`). It used to open on "waste" for a dish,
- * and the owner pointed at the case that breaks it: a guest who pays, waits,
- * and cancels before the kitchen has started — nothing was wasted, and the
- * screen had already said it was. Only the person at the counter knows which
- * it is, so each line that took stock starts with no answer and the refund
- * waits for one.
+ * **Back to stock unless the cashier says waste** (`D-328`). It opened on
+ * "waste" for a dish (`D-316`), which decided it for them; then on no answer at
+ * all with two buttons (`D-327`), and the owner's reply was the better rule:
+ * a choice put in front of someone every time is a choice they get wrong some
+ * of the time. Waste is the rare case, so it is the one that takes a tap —
+ * one button beside the quantity, as Foodics draws it.
  */
 const wasted = ref<Record<string, boolean>>({});
 /**
@@ -144,14 +144,12 @@ const paidWith = computed(() => new Set((bill.value?.paid_with ?? []).map((row) 
 const lines = computed<ReturnLine[]>(() =>
   Object.entries(chosen.value)
     .filter(([, qty]) => qty > 0)
-    .map(([row, qty]) => (row in wasted.value ? { row, qty, wasted: wasted.value[row] } : { row, qty })),
+    .map(([row, qty]) => (stocked.value.has(row) ? { row, qty, wasted: Boolean(wasted.value[row]) } : { row, qty })),
 );
 
-/** The lines coming back that took stock and have not been answered for yet. */
-const unanswered = computed(() =>
-  (bill.value?.items ?? []).filter(
-    (line) => line.moves_stock && (chosen.value[line.row] ?? 0) > 0 && !(line.row in wasted.value),
-  ),
+/** The lines that took stock when they were sold — the only ones waste can be said of. */
+const stocked = computed(
+  () => new Set((bill.value?.items ?? []).filter((line) => line.moves_stock).map((line) => line.row)),
 );
 
 /**
@@ -193,11 +191,7 @@ function takeAll(): void {
 }
 
 const canConfirm = computed(
-  () =>
-    !busy.value &&
-    lines.value.length > 0 &&
-    unanswered.value.length === 0 &&
-    Boolean(reason.value && method.value),
+  () => !busy.value && lines.value.length > 0 && Boolean(reason.value && method.value),
 );
 
 /**
@@ -352,7 +346,7 @@ function money(value: number): string {
           <div
             v-for="line in bill.items"
             :key="line.row"
-            class="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-rpos bg-background px-3 py-2"
+            class="flex items-center gap-3 rounded-rpos bg-background px-3 py-2"
             :class="line.returnable <= 0 ? 'opacity-50' : ''"
           >
             <span class="min-w-0 flex-1">
@@ -362,6 +356,29 @@ function money(value: number): string {
                 {{ t("ret.leftOf", { left: formatNumber(line.returnable), sold: formatNumber(line.qty) }) }}
               </span>
             </span>
+
+            <!--
+              `D-328` — one button beside the quantity, off until tapped: the
+              line goes back to stock unless the cashier says it was thrown
+              away. Only on a line that took stock, and only once it is
+              actually coming back.
+            -->
+            <button
+              v-if="line.moves_stock && (chosen[line.row] ?? 0) > 0"
+              type="button"
+              data-waste
+              class="min-h-10 shrink-0 rounded-rpos border px-3 text-sm font-semibold transition duration-200 ease-rpos"
+              :class="
+                wasted[line.row]
+                  ? 'border-danger bg-danger text-white'
+                  : 'border-line-strong bg-surface text-muted'
+              "
+              :aria-pressed="Boolean(wasted[line.row])"
+              :aria-label="t('ret.whereItGoes', { item: line.item_name })"
+              @click="wasted = { ...wasted, [line.row]: !wasted[line.row] }"
+            >
+              {{ wasted[line.row] ? t("ret.wasted") : t("ret.wasteAsk") }}
+            </button>
 
             <span
               v-if="line.returnable > 0"
@@ -396,36 +413,6 @@ function money(value: number): string {
                 />
               </button>
             </span>
-            <!--
-              `D-327` — asked once the line is actually coming back, and only of
-              a line that took stock. Two answers side by side and neither
-              chosen: the refund waits until the cashier says which.
-            -->
-            <div
-              v-if="line.moves_stock && (chosen[line.row] ?? 0) > 0"
-              data-where
-              class="flex basis-full items-center gap-2"
-              role="group"
-              :aria-label="t('ret.whereItGoes', { item: line.item_name })"
-            >
-              <button
-                v-for="choice in [false, true]"
-                :key="String(choice)"
-                type="button"
-                class="min-h-10 flex-1 rounded-rpos border px-3 text-sm font-semibold transition duration-200 ease-rpos"
-                :class="
-                  wasted[line.row] === choice
-                    ? choice
-                      ? 'border-danger bg-danger text-white'
-                      : 'border-status-available bg-status-available text-white'
-                    : 'border-line-strong bg-surface text-content'
-                "
-                :aria-pressed="wasted[line.row] === choice"
-                @click="wasted = { ...wasted, [line.row]: choice }"
-              >
-                {{ choice ? t("ret.wasted") : t("ret.restocked") }}
-              </button>
-            </div>
           </div>
         </div>
 
@@ -489,16 +476,6 @@ function money(value: number): string {
         <p class="mb-4 flex items-center justify-between rounded-rpos bg-background p-3">
           <span class="text-sm font-semibold text-muted">{{ t("ret.refund") }}</span>
           <span class="rpos-numeric text-xl font-bold text-primary">{{ money(refund) }}</span>
-        </p>
-
-        <!-- D-125 — why the button is not ready, said before it is pressed. -->
-        <p
-          v-if="unanswered.length"
-          data-say-where
-          role="status"
-          class="mb-3 text-sm font-semibold text-danger"
-        >
-          {{ t("ret.sayWhere") }}
         </p>
 
         <div class="flex gap-2">

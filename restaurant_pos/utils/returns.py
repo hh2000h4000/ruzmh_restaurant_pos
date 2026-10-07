@@ -116,9 +116,9 @@ def returnable(order) -> dict:
 				"amount": flt(row.amount),
 				"returned": returned,
 				"returnable": flt(row.qty) - returned,
-				# `D-327` — a line that took stock is asked about when it comes
-				# back: on the shelf again, or waste. The till does not presume;
-				# a line that took none is not asked at all.
+				# `D-328` — a line that took stock can be marked waste when it
+				# comes back; unmarked, it goes back on the shelf. A line that
+				# took none has nothing to mark.
 				"moves_stock": row.name in by_recipe
 				or bool(cint(frappe.get_cached_value("Item", row.item_code, "is_stock_item"))),
 			}
@@ -384,29 +384,18 @@ def preview(order, *, items: list) -> dict:
 	}
 
 
-def wasted_by_default(item_code: str) -> bool:
-	"""Where a returned line goes **when the caller did not say** (`D-315`).
-
-	A dish is waste; a thing sold as it came goes back on the shelf — the item
-	card already draws that line: what is kept in stock *as itself* is the
-	bottle, and everything else was prepared.
-
-	**Not what the till opens on any more** (`D-327`). The owner's objection:
-	a guest who cancels while the kitchen has not started has wasted nothing,
-	and a screen that had already written "waste" decided it for the cashier.
-	The till now asks and sends the answer; this is only for a caller with no
-	cashier in front of it.
-	"""
-	return not cint(frappe.get_cached_value("Item", item_code, "is_stock_item"))
-
-
 def _waste_choices(items: list) -> dict[str, bool]:
 	"""sold line -> thrown away, for the lines the cashier said so about."""
 	return {entry["row"]: bool(cint(entry["wasted"])) for entry in items if entry.get("wasted") is not None}
 
 
 def _mark_wasted(credit, choices: dict[str, bool]) -> None:
-	"""Say on each line whether it was thrown away: as chosen, else by what the item is.
+	"""Say on each line whether it was thrown away: only where somebody said so.
+
+	**Unsaid, it goes back on the shelf** (`D-328`) — for the till and for any
+	other caller alike. Waste is the rare case and the one a person has to see:
+	a guest who cancels before the kitchen starts has wasted nothing, and most
+	returns are that or a sealed drink.
 
 	**An add-on goes where its dish goes.** It comes back with the dish, never
 	on its own (`D-284`), and the extra cheese on a burger that was binned was
@@ -417,14 +406,14 @@ def _mark_wasted(credit, choices: dict[str, bool]) -> None:
 		if cint(row.get("rpos_is_addon")):
 			continue
 		chosen = choices.get(row.get(RETURNED_LINE))
-		row.set(WASTED, cint(wasted_by_default(row.item_code) if chosen is None else chosen))
+		row.set(WASTED, cint(chosen))
 		if row.get("rpos_order_item"):
 			of_dish[row.rpos_order_item] = row.get(WASTED)
 
 	for row in credit.items:
 		if cint(row.get("rpos_is_addon")):
 			dish = of_dish.get(row.get("rpos_order_item"))
-			row.set(WASTED, cint(wasted_by_default(row.item_code) if dish is None else dish))
+			row.set(WASTED, cint(dish))
 
 
 def _compose(invoice: str, wanted: dict[str, float], wasted: dict[str, bool] | None = None):

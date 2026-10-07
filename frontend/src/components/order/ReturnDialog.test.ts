@@ -25,15 +25,15 @@ vi.mock("@/api/returns", () => ({
 }));
 vi.mock("@/api/payment", () => ({ validateManagerOverride: vi.fn() }));
 
-function line(row: string, item_name: string, wasted: boolean): returnsApi.ReturnableLine {
-  return { row, idx: 1, item: row, item_name, qty: 2, rate: 10, amount: 20, returned: 0, returnable: 2, wasted };
+function line(row: string, item_name: string, moves_stock: boolean): returnsApi.ReturnableLine {
+  return { row, idx: 1, item: row, item_name, qty: 2, rate: 10, amount: 20, returned: 0, returnable: 2, moves_stock };
 }
 
 const BILL: returnsApi.Returnable = {
   order_name: "RO-1002-01-000007",
   sales_invoice: "1002-01-000007",
-  // A dish opens as waste; a thing sold as it came opens as going back.
-  items: [line("burger-row", "برغر", true), line("water-row", "قارورة ماء", false)],
+  // The burger took its ingredients; the service charge took nothing from the shelf.
+  items: [line("burger-row", "برغر", true), line("service-row", "خدمة", false)],
   reasons: ["goods_returned"],
   methods: ["Cash"],
   paid_with: [{ method: "Cash", amount: 40 }],
@@ -78,17 +78,27 @@ async function takeOne(view: Sheet, name: string) {
   await flushPromises();
 }
 
-function where(view: Sheet, name: string) {
-  return rowOf(view, name)
-    .findAll("button")
-    .find((one) => [t("ret.wasted"), t("ret.restocked")].includes(one.text().trim()));
+/** The two answers under a line, once it is coming back. */
+function answers(view: Sheet, name: string) {
+  return rowOf(view, name).findAll("[data-where] button");
+}
+
+async function answer(view: Sheet, name: string, wasted: boolean) {
+  const label = wasted ? t("ret.wasted") : t("ret.restocked");
+  await answers(view, name)
+    .find((one) => one.text().trim() === label)!
+    .trigger("click");
+  await flushPromises();
+}
+
+function confirmButton(view: Sheet) {
+  return view.findAll("button").find((one) => one.text().trim() === t("ret.confirm"))!;
 }
 
 async function confirm(view: Sheet) {
   const reason = view.findAll("button").find((one) => one.text().trim() === t("ret.reasonReturned"));
   await reason!.trigger("click");
-  const button = view.findAll("button").find((one) => one.text().trim() === t("ret.confirm"));
-  await button!.trigger("click");
+  await confirmButton(view).trigger("click");
   await flushPromises();
 }
 
@@ -98,62 +108,74 @@ describe("where a returned line goes", () => {
     vi.clearAllMocks();
   });
 
-  it("says nothing about a line that is not coming back", async () => {
+  it("asks nothing about a line that is not coming back", async () => {
     const view = await sheet();
 
-    expect(where(view, "برغر")).toBeUndefined();
-    expect(where(view, "قارورة ماء")).toBeUndefined();
+    expect(answers(view, "برغر")).toHaveLength(0);
   });
 
-  it("opens each line on what the server says its item is", async () => {
+  it("asks, with neither answer chosen — the till does not presume waste (`D-327`)", async () => {
+    // A guest who cancels before the kitchen starts has wasted nothing.
     const view = await sheet();
 
     await takeOne(view, "برغر");
-    await takeOne(view, "قارورة ماء");
 
-    expect(where(view, "برغر")!.text()).toBe(t("ret.wasted"));
-    expect(where(view, "برغر")!.attributes("aria-pressed")).toBe("true");
-    expect(where(view, "قارورة ماء")!.text()).toBe(t("ret.restocked"));
-    expect(where(view, "قارورة ماء")!.attributes("aria-pressed")).toBe("false");
+    const both = answers(view, "برغر");
+    expect(both.map((one) => one.text().trim())).toEqual([t("ret.restocked"), t("ret.wasted")]);
+    expect(both.map((one) => one.attributes("aria-pressed"))).toEqual(["false", "false"]);
   });
 
-  it("sends what the cashier left it at, line by line", async () => {
+  it("does not refund until it is answered, and says why", async () => {
     const view = await sheet();
     await takeOne(view, "برغر");
-    await takeOne(view, "قارورة ماء");
+    await view.findAll("button").find((one) => one.text().trim() === t("ret.reasonReturned"))!.trigger("click");
 
-    // The plate came back untouched: the cashier says it is not waste.
-    await where(view, "برغر")!.trigger("click");
-    await confirm(view);
+    expect(confirmButton(view).attributes("disabled")).toBeDefined();
+    expect(view.find("[data-say-where]").text()).toBe(t("ret.sayWhere"));
 
-    expect(vi.mocked(returnsApi.createReturn).mock.calls[0][0].items).toEqual([
-      { row: "burger-row", qty: 1, wasted: false },
-      { row: "water-row", qty: 1, wasted: false },
-    ]);
+    await answer(view, "برغر", false);
+
+    expect(confirmButton(view).attributes("disabled")).toBeUndefined();
+    expect(view.find("[data-say-where]").exists()).toBe(false);
   });
 
-  it("sends the default when the cashier leaves it alone", async () => {
+  it("sends what the cashier said, and nothing for a line that took no stock", async () => {
     const view = await sheet();
     await takeOne(view, "برغر");
+    await takeOne(view, "خدمة");
+    expect(answers(view, "خدمة")).toHaveLength(0);
 
+    await answer(view, "برغر", true);
     await confirm(view);
 
     expect(vi.mocked(returnsApi.createReturn).mock.calls[0][0].items).toEqual([
       { row: "burger-row", qty: 1, wasted: true },
+      { row: "service-row", qty: 1 },
     ]);
   });
 
-  it("does not ask the server for the refund again when only the destination changes", async () => {
+  it("lets the answer be changed before confirming", async () => {
+    const view = await sheet();
+    await takeOne(view, "برغر");
+
+    await answer(view, "برغر", true);
+    await answer(view, "برغر", false);
+    await confirm(view);
+
+    expect(vi.mocked(returnsApi.createReturn).mock.calls[0][0].items).toEqual([
+      { row: "burger-row", qty: 1, wasted: false },
+    ]);
+  });
+
+  it("does not ask the server for the refund again when only the answer changes", async () => {
     // Where the food goes changes the stock, never the money.
     const view = await sheet();
     await takeOne(view, "برغر");
     const asked = vi.mocked(returnsApi.previewReturn).mock.calls.length;
 
-    await where(view, "برغر")!.trigger("click");
-    await flushPromises();
+    await answer(view, "برغر", true);
 
     expect(vi.mocked(returnsApi.previewReturn).mock.calls.length).toBe(asked);
-    expect(where(view, "برغر")!.text()).toBe(t("ret.restocked"));
   });
 });
 

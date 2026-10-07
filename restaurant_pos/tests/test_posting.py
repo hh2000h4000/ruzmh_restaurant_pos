@@ -15,7 +15,7 @@ import frappe
 from frappe.utils import add_days, flt, getdate, nowdate
 
 from restaurant_pos.tests.test_order import BRANCH, CASHIER, ITEM
-from restaurant_pos.tests.test_recipes import COST_OF_ONE, RECIPE, RecipeTestBase
+from restaurant_pos.tests.test_recipes import COST_OF_ONE, RECIPE, RecipeTestBase, _drop_bundle
 from restaurant_pos.utils import posting, returns
 from restaurant_pos.utils.sale_doc import POSTED_ENTRY, SALE
 
@@ -332,10 +332,24 @@ class WhatCameBackGoesOnTheShelfOrInTheBin(PostingTestBase):
 		self.assertTrue(returns.wasted_by_default(ITEM), "a burger sent back is not put back in the fridge")
 		self.assertFalse(returns.wasted_by_default(self.COLA), "a sealed can goes back on the shelf")
 
-	def test_the_screen_is_told_what_each_line_opens_on(self):
+	def test_the_screen_is_told_which_lines_to_ask_about_and_not_what_to_answer(self):
+		"""`D-327` — a guest who cancels before the kitchen starts has wasted nothing.
+
+		The till asks about a line that took stock and presumes nothing; the
+		answer by item kind is only for a caller with no cashier in front of it.
+		"""
 		order = self._sold(qty=1)
 
-		self.assertTrue(returns.returnable(order)["items"][0]["wasted"])
+		line = returns.returnable(order)["items"][0]
+
+		self.assertTrue(line["moves_stock"], "the burger took its ingredients")
+		self.assertNotIn("wasted", line)
+
+	def test_a_line_that_took_no_stock_is_not_asked_about(self):
+		_drop_bundle()
+		order = self._sold(qty=1)
+
+		self.assertFalse(returns.returnable(order)["items"][0]["moves_stock"])
 
 	def test_a_returned_dish_stays_out_of_the_warehouse(self):
 		order = self._sold(qty=2)

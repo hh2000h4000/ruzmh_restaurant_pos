@@ -21,11 +21,11 @@ export interface ReturnableLine {
   returned: number;
   returnable: number;
   /**
-   * `D-315` — thrown away when it comes back, unless the cashier says otherwise.
-   * A prepared dish opens as waste; something sold as it came (a bottle of
-   * water) opens as going back on the shelf. The server decides which.
+   * `D-327` — the line took stock when it was sold (a stock item, or a dish
+   * with a recipe), so the cashier is asked where it goes when it comes back.
+   * A line that took none is not asked.
    */
-  wasted: boolean;
+  moves_stock: boolean;
 }
 
 /**
@@ -69,8 +69,8 @@ export interface Returnable {
 export interface ReturnLine {
   row: string;
   qty: number;
-  /** Thrown away, so its stock does not go back to the warehouse (`D-315`). */
-  wasted: boolean;
+  /** Thrown away, so its stock does not go back to the warehouse (`D-315`). Absent for a line that took none. */
+  wasted?: boolean;
 }
 
 export function getReturnable(orderName: string): Promise<Returnable> {

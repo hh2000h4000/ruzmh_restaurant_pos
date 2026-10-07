@@ -95,6 +95,12 @@ def returnable(order) -> dict:
 	rows = addons.dish_rows(rows)
 
 	taken = _returned_quantities([row.name for row in rows])
+	# The lines sold by a recipe: their ingredients are on the bill itself.
+	by_recipe = set(
+		frappe.get_all(
+			"Packed Item", filters={"parent": invoice, "parenttype": SALE}, pluck="parent_detail_docname"
+		)
+	)
 
 	items = []
 	for row in rows:
@@ -110,8 +116,11 @@ def returnable(order) -> dict:
 				"amount": flt(row.amount),
 				"returned": returned,
 				"returnable": flt(row.qty) - returned,
-				# `D-315` — what the screen opens on; the cashier may say otherwise.
-				"wasted": wasted_by_default(row.item_code),
+				# `D-327` — a line that took stock is asked about when it comes
+				# back: on the shelf again, or waste. The till does not presume;
+				# a line that took none is not asked at all.
+				"moves_stock": row.name in by_recipe
+				or bool(cint(frappe.get_cached_value("Item", row.item_code, "is_stock_item"))),
 			}
 		)
 
@@ -376,13 +385,17 @@ def preview(order, *, items: list) -> dict:
 
 
 def wasted_by_default(item_code: str) -> bool:
-	"""Does a returned line of this item go in the bin, unless the cashier says otherwise?
+	"""Where a returned line goes **when the caller did not say** (`D-315`).
 
-	**A dish does; a thing sold as it came does not** (`D-315`). A burger sent
-	back is not put back in the fridge, and a sealed bottle of water is put
-	back on the shelf — the example Foodics gives its own cashiers. The line
-	between them is one the item card already draws: what is kept in stock *as
-	itself* is the bottle, and everything else was prepared.
+	A dish is waste; a thing sold as it came goes back on the shelf — the item
+	card already draws that line: what is kept in stock *as itself* is the
+	bottle, and everything else was prepared.
+
+	**Not what the till opens on any more** (`D-327`). The owner's objection:
+	a guest who cancels while the kitchen has not started has wasted nothing,
+	and a screen that had already written "waste" decided it for the cashier.
+	The till now asks and sends the answer; this is only for a caller with no
+	cashier in front of it.
 	"""
 	return not cint(frappe.get_cached_value("Item", item_code, "is_stock_item"))
 

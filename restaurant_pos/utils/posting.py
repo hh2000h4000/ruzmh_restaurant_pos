@@ -109,6 +109,18 @@ def run(batch_name: str):
 	if batch.status == "Posted":
 		return batch
 
+	# **In the site's language, not the worker's** (`D-325`). The reason is kept
+	# on the batch and rung in the office bell, and a background job speaks
+	# English unless told: an Arabic site read "These items have no cost yet".
+	spoken = frappe.local.lang
+	frappe.local.lang = frappe.db.get_single_value("System Settings", "language") or spoken
+	try:
+		return _run(batch)
+	finally:
+		frappe.local.lang = spoken
+
+
+def _run(batch):
 	batch.attempts = cint(batch.attempts) + 1
 	# What it said last time: the hourly retry of a batch waiting on a setting
 	# fails the same way each hour, and that is one error, said once.
@@ -458,6 +470,7 @@ def _post_stock(batch) -> dict:
 		return {"stock_status": "Nothing To Post"}
 
 	_assert_priced(_by_shelf(sold), batch)
+	_assert_on_the_shelf(_by_shelf(sold))
 
 	# **What came back goes on the shelf, or it is waste** (`D-315`): a bottle of
 	# water is sold again, a burger is not. Waste stays out of the warehouse —
@@ -743,6 +756,44 @@ def _assert_priced(sold: dict, batch) -> None:
 				"These items have no cost yet, so what was sold of them cannot be valued: {0}. "
 				"Enter a purchase for each, or a Valuation Rate on its item card, then post again."
 			).format(", ".join(unpriced))
+		)
+
+
+def _assert_on_the_shelf(sold: dict) -> None:
+	"""Where stock may not go below zero, name everything that is short — all of it, at once.
+
+	ERPNext stops at the first item it cannot take, in its own words and one
+	at a time: the owner's first trial took three postings to learn of four
+	ingredients (`D-325`). A dish is never refused for its ingredients at the
+	till (`D-321`), so a kitchen that has not entered its deliveries meets this
+	every evening — and is told both ways out.
+	"""
+	if cint(frappe.db.get_single_value("Stock Settings", "allow_negative_stock")):
+		return
+
+	items = list({item for item, _warehouse in sold})
+	lenient = set(
+		frappe.get_all("Item", filters={"name": ("in", items), "allow_negative_stock": 1}, pluck="name")
+	)
+	shelf = {
+		(row.item_code, row.warehouse): flt(row.actual_qty)
+		for row in frappe.get_all(
+			"Bin",
+			filters={"item_code": ("in", items), "warehouse": ("in", list({wh for _item, wh in sold}))},
+			fields=["item_code", "warehouse", "actual_qty"],
+		)
+	}
+	short = sorted(
+		(item, flt(qty - shelf.get((item, warehouse), 0.0), 3))
+		for (item, warehouse), qty in sold.items()
+		if item not in lenient and qty - shelf.get((item, warehouse), 0.0) > 1e-6
+	)
+	if short:
+		frappe.throw(
+			_(
+				"Not enough stock to take what was sold: {0}. Enter what was received, or tick "
+				"Allow Negative Stock in Stock Settings, then post again."
+			).format(", ".join(_("{0} short by {1}").format(item, f"{missing:g}") for item, missing in short))
 		)
 
 

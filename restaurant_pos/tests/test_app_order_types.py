@@ -14,7 +14,7 @@ from restaurant_pos.setup.defaults import DELIVERY_APPS, create_default_data
 from restaurant_pos.tests.test_payment import CASH, PaymentTestBase
 from restaurant_pos.utils import order as orders
 from restaurant_pos.utils import payment as payment_service
-from restaurant_pos.utils import posting
+from restaurant_pos.utils import posting, returns
 from restaurant_pos.utils.sale_doc import SALE
 
 
@@ -197,6 +197,45 @@ class TestAppOrderTypes(PaymentTestBase):
 			frappe.db.rollback()
 
 		self.assertIn("HungerStation", str(refused.exception))
+
+	def _paid_app_order(self):
+		order, _customer = self._activated_app_order()
+		payment_service.process_payment(
+			order, payments=[{"method": "HungerStation", "amount": flt(order.total_amount)}]
+		)
+		order.reload()
+		return order
+
+	def test_its_refund_is_not_paid_out_of_the_drawer(self):
+		"""`D-325` — the owner's first trial refunded a HungerStation bill in cash.
+
+		The drawer paid out what it had never taken, and the platform's account
+		still showed the whole bill owed.
+		"""
+		order = self._paid_app_order()
+		line = returns.returnable(order)["items"][0]
+
+		with self.assertRaises(frappe.ValidationError):
+			returns.create_return(
+				order,
+				items=[{"row": line["row"], "qty": line["returnable"]}],
+				reason_code="goods_returned",
+				refund_method=CASH,
+			)
+
+	def test_it_goes_back_onto_the_platform_even_when_the_terminal_does_not_list_it(self):
+		order = self._paid_app_order()
+		frappe.db.delete("POS Payment Method", {"parent": self.profile, "mode_of_payment": "HungerStation"})
+		told = returns.returnable(order)
+		self.assertIn("HungerStation", told["methods"])
+		line = told["items"][0]
+
+		made = returns.create_return(
+			order, items=[{"row": line["row"], "qty": line["returnable"]}], reason_code="goods_returned"
+		)
+
+		(back,) = frappe.get_doc(SALE, made["credit_note"]).payments
+		self.assertEqual(back.mode_of_payment, "HungerStation")
 
 	def test_a_credit_method_is_not_a_bank_transfer(self):
 		"""The original mistake: shipping these as Bank, which put them in the drawer's count.

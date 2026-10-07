@@ -565,3 +565,49 @@ class APostingThatFailsIsSaidAndTriedAgain(PostingTestBase):
 			queued.assert_not_called()
 		finally:
 			frappe.set_user("Administrator")
+
+
+class WhatTheFirstTrialFound(PostingTestBase):
+	"""`D-325`."""
+
+	def _no_negative_stock(self):
+		frappe.db.set_single_value("Stock Settings", "allow_negative_stock", 0)
+		frappe.db.value_cache = {}
+
+	def test_everything_that_is_short_is_named_at_once(self):
+		"""ERPNext names the first and stops: four ingredients took the owner three postings."""
+		self._no_negative_stock()
+		self._sold(qty=1)
+		gone = [code for code, _uom, _qty, _rate in RECIPE][:2]
+		for code in gone:
+			frappe.db.set_value("Bin", {"item_code": code, "warehouse": self.warehouse}, "actual_qty", 0)
+
+		(batch,) = self._post()
+
+		self.assertEqual((batch.accounting_status, batch.stock_status), ("Posted", "Failed"))
+		for code in gone:
+			self.assertIn(code, batch.error)
+		self.assertEqual(frappe.db.count("Stock Entry", {"rpos_posting_batch": batch.name}), 0)
+
+	def test_where_stock_may_go_below_zero_nothing_is_asked(self):
+		frappe.db.set_single_value("Stock Settings", "allow_negative_stock", 1)
+		frappe.db.value_cache = {}
+		self.addCleanup(frappe.db.set_single_value, "Stock Settings", "allow_negative_stock", 0)
+
+		posting._assert_on_the_shelf({(RECIPE[0][0], self.warehouse): 10_000})
+
+	def test_the_reason_is_kept_in_the_site_s_language(self):
+		"""A background job speaks English unless told; an Arabic site read an English reason."""
+		before = frappe.db.get_single_value("System Settings", "language")
+		frappe.db.set_single_value("System Settings", "language", "ar")
+		self.addCleanup(frappe.db.set_single_value, "System Settings", "language", before)
+		self._no_negative_stock()
+		self._sold(qty=1)
+		frappe.db.set_value("Bin", {"item_code": RECIPE[0][0], "warehouse": self.warehouse}, "actual_qty", 0)
+		spoken = frappe.local.lang
+
+		(batch,) = self._post()
+
+		self.assertNotIn("Not enough stock", batch.error)
+		self.assertIn(RECIPE[0][0], batch.error)
+		self.assertEqual(frappe.local.lang, spoken, "and the caller's language is left as it was")

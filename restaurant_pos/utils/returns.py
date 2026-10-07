@@ -123,7 +123,7 @@ def returnable(order) -> dict:
 		"reasons": list(RETURN_REASONS),
 		# BR-054, D-066 — every method the terminal has, because the cashier
 		# chooses; the original is only what it opens on.
-		"methods": terminal_methods(order.pos_profile),
+		"methods": refund_methods(order.pos_profile, _paid_with(invoice)),
 		# BR-054 — the refund goes back the way the money came in, so the screen
 		# needs to know what that was.
 		"paid_with": _paid_with(invoice),
@@ -538,7 +538,7 @@ def _apply_refund(credit, refund_method: str | None) -> None:
 	if not method:
 		frappe.throw(_("Choose how to refund this."))
 
-	allowed = terminal_methods(credit.pos_profile)
+	allowed = refund_methods(credit.pos_profile, original)
 	if allowed and method not in allowed:
 		frappe.throw(_("{0} is not a payment method on this terminal.").format(method))
 
@@ -577,6 +577,23 @@ def _apply_refund(credit, refund_method: str | None) -> None:
 		printing.open_drawer(credit.pos_profile, reason=f"cash refund on {credit.return_against}")
 
 
+def refund_methods(pos_profile: str, original: list[dict]) -> list[str]:
+	"""What a refund of this bill may go back to: the terminal's methods, and what paid the bill.
+
+	**The second half is for a delivery platform** (`D-325`). An order type
+	forces its method — "HungerStation only" — without that method being one
+	the terminal lists, so the bill was paid with something a refund could not
+	then be sent back to.
+	"""
+	methods = terminal_methods(pos_profile)
+	return methods + [row["method"] for row in original if row["method"] not in methods]
+
+
+def _never_in_the_drawer(method: str) -> bool:
+	"""A gift card's balance, or what a platform or an account still owes."""
+	return gift_cards.is_gift_card_method(method) or payment.is_credit_method(method)
+
+
 def _assert_within_what_that_method_paid(credit, method: str, due: float, original: list[dict]) -> None:
 	"""A method may give back at most what it took (`D-258`).
 
@@ -586,12 +603,18 @@ def _assert_within_what_that_method_paid(credit, method: str, due: float, origin
 	payment card is cashed out. Toast refuses it outright on third-party cards;
 	Square refunds to the original tender. So does this.
 
-	**Only bills a card touched are held to it.** Everywhere else `D-066` still
-	stands: the cashier chooses, because a dead card terminal or a guest who
-	would rather have the notes is an ordinary evening. The cap exists where the
-	money was never in the drawer to begin with.
+	**Only bills paid with money that never reached the drawer are held to it.**
+	Everywhere else `D-066` still stands: the cashier chooses, because a dead
+	card terminal or a guest who would rather have the notes is an ordinary
+	evening.
+
+	**A delivery platform's order is one of them** (`D-325`). The owner's first
+	trial refunded a HungerStation bill in cash: the drawer paid out five
+	riyals it had never taken, and the platform's account still showed the
+	whole bill owed. The platform collected it; the refund goes back onto the
+	platform's account, and the restaurant settles it there.
 	"""
-	if not any(gift_cards.is_gift_card_method(row["method"]) for row in original):
+	if not any(_never_in_the_drawer(row["method"]) for row in original):
 		return
 
 	paid = sum(flt(row["amount"]) for row in original if row["method"] == method)

@@ -9,10 +9,13 @@ import { ref } from "vue";
  * receipt was printed. A notice is news about one action, not a state of the
  * till, so it floats and moves nothing — Material's snackbar, Carbon's toast.
  *
- * **Why an error stays.** News fades after `NOTICE_MS`; a refusal does not fade
- * at all. Nielsen Norman Group watched somebody wait five minutes on a screen
- * whose error had faded after five seconds, and a cashier is looking at a
- * customer, not at the corner of the till.
+ * **An error goes too, and takes twice as long** (`D-331`). It used not to fade
+ * at all — Nielsen Norman Group watched somebody wait five minutes on a screen
+ * whose error had gone after five seconds. But a till's refusals are mostly
+ * small and immediate ("Miranda is sold out"), the cashier has just tapped the
+ * thing it is about, and one that waited to be closed sat over the menu through
+ * the next three orders: the owner asked for it to show and go. It stays for
+ * `ERROR_MS`, pauses under a finger like news does, and closes on a tap.
  *
  * **One at a time.** The newest replaces the last rather than stacking — a pile
  * of old news over the dishes is the problem this exists to remove.
@@ -23,6 +26,9 @@ import { ref } from "vue";
 
 /** How long news stays up before it goes by itself — the user's choice. */
 export const NOTICE_MS = 4000;
+
+/** A refusal is read, not glanced at: twice as long as news. */
+export const ERROR_MS = 8000;
 
 export type NoticeKind = "info" | "error";
 
@@ -43,10 +49,10 @@ export const useNoticeStore = defineStore("notice", () => {
     timer = null;
   }
 
-  /** News counts down; an error waits for the cashier. */
+  /** Both count down; a refusal for longer. */
   function startTimer(): void {
     stopTimer();
-    if (current.value?.kind === "info") timer = setTimeout(dismiss, NOTICE_MS);
+    if (current.value) timer = setTimeout(dismiss, current.value.kind === "info" ? NOTICE_MS : ERROR_MS);
   }
 
   function show(kind: NoticeKind, text: string): void {

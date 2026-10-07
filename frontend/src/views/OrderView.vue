@@ -830,6 +830,22 @@ function openOrder(orderName: string): void {
  */
 const notice = useNoticeStore();
 
+/**
+ * A refusal on this screen floats over it and goes by itself (`D-331`).
+ *
+ * It was a red line above the menu that stayed until the next action — "Miranda
+ * is sold out" pushing the dishes down while the cashier looked for something
+ * else to sell. That is news about one tap, not a state of the till (`D-220`),
+ * so it goes where news goes. Every path that sets the store's error is covered
+ * by watching it, rather than each remembering to raise a notice.
+ */
+watch(
+  () => orders.error,
+  (refusal) => {
+    if (refusal) notice.error(refusal);
+  },
+);
+
 function said(cause: unknown): string {
   return cause instanceof Error ? cause.message : String(cause);
 }
@@ -1491,14 +1507,6 @@ async function send(): Promise<void> {
               class="rounded-rpos bg-danger/10 p-3 text-sm text-danger"
             >
               {{ startupError }}
-            </p>
-
-            <p
-              v-if="orders.error"
-              role="alert"
-              class="rounded-rpos bg-danger/10 p-3 text-sm text-danger"
-            >
-              {{ orders.error }}
             </p>
 
             <!-- 09 §5, D-073 — a bill that lives on this device says so. It is

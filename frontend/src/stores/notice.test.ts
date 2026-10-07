@@ -4,7 +4,7 @@
 import { createPinia, setActivePinia } from "pinia";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { NOTICE_MS, useNoticeStore } from "@/stores/notice";
+import { ERROR_MS, NOTICE_MS, useNoticeStore } from "@/stores/notice";
 
 beforeEach(() => {
   setActivePinia(createPinia());
@@ -27,14 +27,21 @@ describe("a notice", () => {
     expect(notice.current).toBeNull();
   });
 
-  it("stays when it is an error, until the cashier closes it", () => {
-    // A cashier looks at the customer, not the corner of the till: an error that
-    // fades is an error nobody read.
+  it("keeps an error twice as long as news, then lets it go (`D-331`)", () => {
+    // It used to wait to be closed, and sat over the menu through the next orders.
     const notice = useNoticeStore();
     notice.error("No printer is linked to this terminal");
 
-    vi.advanceTimersByTime(NOTICE_MS * 10);
+    vi.advanceTimersByTime(NOTICE_MS + 1);
     expect(notice.current?.kind).toBe("error");
+
+    vi.advanceTimersByTime(ERROR_MS - NOTICE_MS);
+    expect(notice.current).toBeNull();
+  });
+
+  it("closes an error at once when the cashier taps it away", () => {
+    const notice = useNoticeStore();
+    notice.error("No printer is linked to this terminal");
 
     notice.dismiss();
     expect(notice.current).toBeNull();

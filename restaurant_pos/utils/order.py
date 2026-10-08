@@ -511,6 +511,7 @@ def add_item(
 	resolved_modifiers, modifier_delta = _resolve_modifiers(
 		item, modifiers, price_list_for(order.order_type, order.pos_profile)
 	)
+	_assert_addons_in_stock(order, resolved_modifiers, qty)
 	unit_rate = _resolve_rate(order, item, rate)
 
 	route = routing.resolve_route(
@@ -703,6 +704,24 @@ def _resolve_modifiers(item: str, selected: list | None, price_list: str | None 
 	return resolved, delta
 
 
+def _assert_addons_in_stock(order, choices: list, more: float) -> None:
+	"""An add-on sold as a stock item is a thing sold as it came (`D-335`).
+
+	Extra cheese is a slice of cheese off the shelf, sold on a line of its own
+	(`D-284`) — so an enforcing branch refuses it like the bottle of water,
+	and it went unasked: the owner's trial sold one with the cheese at minus
+	fourteen. The dish it sits on is still never refused for its recipe.
+
+	Best effort like the rest (`docs/14` §5.0): add-ons on bills still open are
+	not counted against the shelf, only those already sold.
+	"""
+	for choice in choices or []:
+		if choice.get("item") and choice.get("item_effect") == "sell":
+			availability.assert_can_sell(
+				order, choice["item"], flt(more) * (flt(choice.get("item_qty")) or 1)
+			)
+
+
 def set_item_qty(order, *, item_idx: int, qty: float) -> dict:
 	"""Change a line's quantity, before the kitchen has it (FR-2.2).
 
@@ -733,6 +752,7 @@ def set_item_qty(order, *, item_idx: int, qty: float) -> dict:
 
 	before = flt(row.qty)
 	availability.assert_can_sell(order, row.item, flt(qty) - before)
+	_assert_addons_in_stock(order, addons.chosen(row.modifiers), flt(qty) - before)
 
 	# The modifiers were priced when the line was added, and re-resolving them
 	# now would silently re-price the options at today's amounts. Recover the

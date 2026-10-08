@@ -11,6 +11,7 @@ from its ingredients at all.
 
 import frappe
 
+from restaurant_pos.tests import test_addons as addon_tests
 from restaurant_pos.tests.test_order import BRANCH, ITEM
 from restaurant_pos.tests.test_recipes import RECIPE, RecipeTestBase
 from restaurant_pos.utils import availability, posting
@@ -209,3 +210,51 @@ class FinishedForToday(AvailabilityTestBase):
 		self.addCleanup(frappe.db.set_value, "Item", WATER, "rpos_low_stock_at", 0)
 
 		self.assertEqual(availability.for_till(self.profile)["left"].get(WATER), self.shelf)
+
+
+class AnAddOnOffTheShelfIsCheckedLikeTheBottle(AvailabilityTestBase):
+	"""`D-335` — the owner's trial sold extra cheese with the cheese at minus fourteen."""
+
+	CHEESE_OPTION = ({"group": addon_tests.GROUP, "option": "Extra cheese"},)
+
+	def setUp(self):
+		super().setUp()
+		addon_tests._group()
+		frappe.db.set_value(
+			"Bin", {"item_code": addon_tests.CHEESE, "warehouse": self.warehouse}, "actual_qty", 1
+		)
+
+	def test_an_enforcing_branch_refuses_the_add_on_it_has_not_got(self):
+		self._enforce()
+		order = self._order()
+
+		with self.assertRaises(frappe.ValidationError):
+			orders.add_item(order, item=ITEM, qty=2, modifiers=list(self.CHEESE_OPTION))
+
+	def test_and_sells_the_one_it_has(self):
+		self._enforce()
+		order = self._order()
+
+		orders.add_item(order, item=ITEM, qty=1, modifiers=list(self.CHEESE_OPTION))
+
+	def test_the_dish_itself_is_still_not_refused_for_its_recipe(self):
+		"""The recipe's own cheese is an ingredient; only the slice sold on top is a sale."""
+		self._enforce()
+		order = self._order()
+
+		orders.add_item(order, item=ITEM, qty=5)
+
+	def test_raising_the_line_asks_for_the_extra_slices_too(self):
+		self._enforce()
+		order = self._order()
+		orders.add_item(order, item=ITEM, qty=1, modifiers=list(self.CHEESE_OPTION))
+		order.reload()
+
+		with self.assertRaises(frappe.ValidationError):
+			orders.set_item_qty(order, item_idx=order.items[0].idx, qty=3)
+
+	def test_a_branch_that_does_not_enforce_sells_it_anyway(self):
+		self._enforce(0)
+		order = self._order()
+
+		orders.add_item(order, item=ITEM, qty=4, modifiers=list(self.CHEESE_OPTION))

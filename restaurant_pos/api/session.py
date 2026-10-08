@@ -743,6 +743,7 @@ def get_modifier_groups(groups: list | str | None = None, price_list: str | None
 			"price_amount",
 			"stock_item",
 			"stock_qty",
+			"item_effect",
 			"is_default",
 		],
 		order_by="idx",
@@ -750,7 +751,11 @@ def get_modifier_groups(groups: list | str | None = None, price_list: str | None
 		if option.price_effect == "item_price":
 			option.price_effect = "add"
 			option.price_amount = flt(addons.portion_price(option.stock_item, option.stock_qty, price_list))
-		del option["stock_item"], option["stock_qty"]
+		# `D-336` — which item the option sells off the shelf, so the popup can
+		# say "sold out" on the option itself. Only that: an option that leaves
+		# an ingredient out sells nothing, and the till needs no more of the row.
+		option.sells_item = option.stock_item if option.item_effect == "sell" else None
+		del option["stock_item"], option["stock_qty"], option["item_effect"]
 		options.setdefault(option.parent, []).append(option)
 
 	for row in rows:

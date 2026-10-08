@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import type { ModifierGroup } from "@/api/modifiers";
+import type { ModifierGroup, ModifierOption } from "@/api/modifiers";
 import { formatNumber, pick, t } from "@/i18n";
+import { useStockStore } from "@/stores/stock";
 
 /**
  * The groups of a popup, each with its options as buttons (FR-4.4).
@@ -12,6 +13,26 @@ import { formatNumber, pick, t } from "@/i18n";
  */
 defineProps<{ groups: ModifierGroup[]; chosen: Record<string, string[]> }>();
 const emit = defineEmits<{ toggle: [group: ModifierGroup, title: string] }>();
+
+const stock = useStockStore();
+
+/**
+ * An option that sells something off the shelf says when the shelf is empty
+ * (`D-336`), the way the item's own tile does.
+ *
+ * The server refuses extra cheese it has not got (`D-335`) — but it refused
+ * the whole line: the burger did not go on the bill, and the cashier was told
+ * only afterwards and had to pick the dish again. Said here, on the option,
+ * they simply do not choose it.
+ */
+function finished(option: ModifierOption): boolean {
+  return Boolean(option.sells_item && stock.of(option.sells_item)?.finished);
+}
+
+/** The server would refuse it, so it is not offered — as on the tiles. */
+function blocked(option: ModifierOption): boolean {
+  return Boolean(option.sells_item && stock.of(option.sells_item)?.blocked);
+}
 </script>
 
 <template>
@@ -36,16 +57,22 @@ const emit = defineEmits<{ toggle: [group: ModifierGroup, title: string] }>();
         v-for="option in group.options"
         :key="option.title"
         type="button"
-        class="min-h-tap rounded-rpos border px-4 text-sm"
+        class="min-h-tap rounded-rpos border px-4 text-sm disabled:cursor-not-allowed disabled:opacity-50"
         :class="
           (chosen[group.name] ?? []).includes(option.title)
             ? 'border-primary bg-primary text-primary-contrast'
             : 'border-line bg-surface'
         "
         :aria-pressed="(chosen[group.name] ?? []).includes(option.title)"
+        :disabled="blocked(option)"
         @click="emit('toggle', group, option.title)"
       >
         {{ pick(option.title_ar, option.label ?? option.title) }}
+        <span
+          v-if="finished(option)"
+          data-finished
+          class="mx-1 rounded-full bg-danger px-2 py-0.5 text-xs font-bold text-white"
+        >{{ t("stock.soldOut") }}</span>
         <span
           v-if="option.price_amount"
           class="rpos-numeric text-xs"

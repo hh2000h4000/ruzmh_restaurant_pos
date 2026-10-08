@@ -8,6 +8,8 @@ export interface ModifierOption {
   is_default: 0 | 1;
   /** The English name when `title` is a code — a combo's item (D-285). */
   label?: string;
+  /** The stock item this option sells off the shelf, if it sells one (`D-336`). */
+  sells_item?: string | null;
 }
 
 export interface ModifierGroup {

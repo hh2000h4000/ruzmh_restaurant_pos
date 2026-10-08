@@ -8,6 +8,7 @@ import ModifierGroupList from "@/components/order/ModifierGroupList.vue";
 import NoteEditor from "@/components/order/NoteEditor.vue";
 import { formatNumber, pick, t } from "@/i18n";
 import { useSessionStore } from "@/stores/session";
+import { useStockStore } from "@/stores/stock";
 import type { CatalogItem } from "@/types/session";
 
 /**
@@ -25,6 +26,7 @@ const emit = defineEmits<{
 }>();
 
 const session = useSessionStore();
+const stock = useStockStore();
 
 const groups = ref<ModifierGroup[]>([]);
 const chosen = ref<Record<string, string[]>>({});
@@ -66,7 +68,9 @@ watch(
 
     for (const group of groups.value) {
       chosen.value[group.name] = group.options
-        .filter((option) => option.is_default)
+        // A default that is sold out is not chosen for the cashier (`D-336`):
+        // its button is disabled, so they could not take it off again.
+        .filter((option) => option.is_default && !stock.of(option.sells_item ?? "")?.blocked)
         .map((option) => option.title);
     }
   },

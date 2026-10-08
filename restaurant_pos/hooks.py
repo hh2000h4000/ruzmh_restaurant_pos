@@ -70,11 +70,23 @@ doc_events = {
 	# which doubled every balance beside the ledger rows RPOS writes.
 	# D-309 — invoice numbers are branch, terminal, count: both numbers are kept
 	# here, and a terminal's counter exists before its first sale.
-	"Branch": {"validate": "restaurant_pos.utils.invoice_number.number_branch"},
+	"Branch": {
+		"validate": [
+			"restaurant_pos.utils.invoice_number.number_branch",
+			# D-337 — a branch refuses nothing only where negative stock is allowed.
+			"restaurant_pos.utils.stock_rules.keep_under_the_ceiling",
+		],
+		"on_update": "restaurant_pos.utils.stock_rules.move_the_terminals_with_the_branch",
+		"onload": "restaurant_pos.utils.stock_rules.say_the_site_setting",
+	},
+	# D-337 — and turning negative stock off names the branches that no longer fit.
+	"Stock Settings": {"validate": "restaurant_pos.utils.stock_rules.warn_when_the_ceiling_drops"},
 	# D-312 — our drawers close with an empty invoice list; one that lists them
 	# would have ERPNext post every sale a second time.
 	"POS Closing Entry": {"validate": "restaurant_pos.overrides.pos_invoice.keep_sales_out_of_the_closing"},
 	"POS Profile": {
+		# D-337 — a terminal sells from its branch's warehouse unless given its own.
+		"before_validate": "restaurant_pos.utils.stock_rules.take_the_branch_warehouse",
 		"validate": "restaurant_pos.utils.invoice_number.number_device",
 		"on_update": "restaurant_pos.utils.invoice_number.make_counter",
 	},
@@ -170,6 +182,8 @@ doctype_js = {
 	"Mode of Payment": "public/js/mode_of_payment.js",
 	# D-285 — the combo table's choices read in Arabic.
 	"Item": "public/js/item.js",
+	# D-337 — the site's negative-stock setting, read out in the branch's stock section.
+	"Branch": "public/js/branch.js",
 }
 
 # ---------------------------------------------------------------------------

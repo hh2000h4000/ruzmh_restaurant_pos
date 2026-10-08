@@ -17,7 +17,8 @@
   "accounts_section",
   "waste_account",
   "stock_section",
-  "low_stock_at"
+  "low_stock_at",
+  "rpos_stock_note"
  ],
  "fields": [
   {
@@ -107,13 +108,17 @@
    "label": "Show What Is Left From",
    "default": "10",
    "non_negative": 1,
-   "description": "An item sold as it comes (a bottle, a can) shows how many are left on its tile once that many or fewer remain. Above it the tile shows no number."
+   "description": "An item sold as it comes (a bottle, a can) shows «N left» on its tile once this many or fewer remain; above it the tile shows no number. One item can have its own number on its item card. Whether the till refuses the last one is set on the branch."
+  },
+  {
+   "fieldname": "rpos_stock_note",
+   "fieldtype": "HTML"
   }
  ],
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2026-10-08 12:00:00.000000",
+ "modified": "2026-10-09 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Restaurant POS",
  "name": "Restaurant POS Settings",

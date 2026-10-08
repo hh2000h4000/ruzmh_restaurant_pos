@@ -5,6 +5,7 @@ import frappe
 from frappe import _
 from frappe.model.document import Document
 
+from restaurant_pos.utils import stock_rules
 from restaurant_pos.utils.files import assert_public
 
 #: The bell's page, at its narrowest and widest (`D-301`): fewer than five is
@@ -26,6 +27,10 @@ class RestaurantPOSSettings(Document):
 	and what the screen facing the room shows: a sentence and the banners
 	(`D-202`, `D-203`). The till reads all of it in `api/session.py`.
 	"""
+
+	def onload(self):
+		# `D-337` — the site's negative-stock setting, read out beside the till's.
+		stock_rules.say_the_site_setting(self)
 
 	def validate(self):
 		assert_public(self, PICTURES)

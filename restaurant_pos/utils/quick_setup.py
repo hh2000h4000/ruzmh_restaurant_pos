@@ -68,6 +68,10 @@ def run(values: dict) -> dict:
 	if "dine_in" in wanted and not 1 <= tables <= MAX_TABLES:
 		frappe.throw(_("A dining hall needs between 1 and {0} tables.").format(MAX_TABLES))
 
+	# Before the branch, which starts the only way the site's setting lets it
+	# (`D-337`): made first, it would be forced to refuse on a site that is
+	# about to allow negative stock.
+	allowed_now = _let_stock_go_below_zero()
 	branch = _branch(branch_name, company)
 	sections = {kind: _section(branch, kind) for kind in wanted}
 	if "dine_in" in sections:
@@ -82,7 +86,7 @@ def run(values: dict) -> dict:
 
 	code = device.issue_code(profile)
 	return {
-		"negative_stock_allowed": _let_stock_go_below_zero(),
+		"negative_stock_allowed": allowed_now,
 		"branch": branch,
 		"sections": list(sections.values()),
 		"tables": tables if "dine_in" in sections else 0,

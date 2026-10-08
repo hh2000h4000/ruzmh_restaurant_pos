@@ -128,31 +128,12 @@ CUSTOM_FIELDS = {
 			"insert_after": "rpos_branch_number",
 		},
 		{
-			"fieldname": "default_warehouse",
-			"fieldtype": "Link",
-			"options": "Warehouse",
-			"label": "Default Warehouse",
-			"description": "Stock is deducted from this warehouse.",
-			"reqd": 1,
-			"insert_after": "rpos_settings_cb",
-		},
-		# `D-321` — the branch's stock mode (`docs/14` §5): off, the till never
-		# refuses and the shelf may go below zero; on, what is sold as it came
-		# is refused when there is none left.
-		{
-			"fieldname": "rpos_enforce_stock",
-			"fieldtype": "Check",
-			"label": "Refuse a Sale When Stock Is Short",
-			"description": "For items sold as they come (a bottle, a can): the till refuses one it has none of. Dishes with a recipe are never refused from their ingredients; mark a dish sold out instead. Off, nothing is refused and stock may go below zero.",
-			"insert_after": "default_warehouse",
-		},
-		{
 			"fieldname": "default_cost_center",
 			"fieldtype": "Link",
 			"options": "Cost Center",
 			"label": "Default Cost Center",
 			"reqd": 1,
-			"insert_after": "rpos_enforce_stock",
+			"insert_after": "rpos_settings_cb",
 		},
 		{
 			"fieldname": "shift_type",
@@ -242,11 +223,47 @@ CUSTOM_FIELDS = {
 			"default": "1",
 			"insert_after": "allow_multiple_orders_per_table",
 		},
+		# `D-337` — **everything about stock that is the branch's, in one place.**
+		# It was spread over four forms, and the warehouse asked for here was
+		# read by nothing: stock left from the terminal's. Each field says what
+		# it does; the last line reads out the one setting that is the site's.
+		{
+			"fieldname": "rpos_stock_section",
+			"fieldtype": "Section Break",
+			"label": "Stock",
+			"insert_after": "is_active",
+		},
+		{
+			"fieldname": "default_warehouse",
+			"fieldtype": "Link",
+			"options": "Warehouse",
+			"label": "Branch Warehouse",
+			"description": "Everything this branch sells is taken from this warehouse. Its terminals use it automatically; a terminal keeps a different one only if you set it on the terminal yourself.",
+			"reqd": 1,
+			"insert_after": "rpos_stock_section",
+		},
+		{
+			"fieldname": "rpos_stock_cb",
+			"fieldtype": "Column Break",
+			"insert_after": "default_warehouse",
+		},
+		{
+			"fieldname": "rpos_enforce_stock",
+			"fieldtype": "Check",
+			"label": "Refuse a Sale When Stock Is Short",
+			"description": "Ticked: the till refuses an item sold as it comes — a bottle, a can, an add-on such as extra cheese — when none is left, and shows it as sold out. Unticked: the till never refuses; the item only says it has run out. Either way a dish with a recipe is never refused for its ingredients: mark the dish sold out at the till instead. It cannot be unticked while negative stock is not allowed.",
+			"insert_after": "rpos_stock_cb",
+		},
+		{
+			"fieldname": "rpos_stock_note",
+			"fieldtype": "HTML",
+			"insert_after": "rpos_enforce_stock",
+		},
 		{
 			"fieldname": "rpos_address_section",
 			"fieldtype": "Section Break",
 			"label": "Address",
-			"insert_after": "is_active",
+			"insert_after": "rpos_stock_note",
 		},
 		{
 			"fieldname": "branch_address",

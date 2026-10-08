@@ -529,7 +529,6 @@ Print Job,مهمة طباعة
 VAT Number,الرقم الضريبي
 Printed on customer receipts.,يطلع على فاتورة العميل.
 Default Warehouse,المستودع الافتراضي
-Stock is deducted from this warehouse.,المخزون ينقص من هذا المستودع.
 Default Cost Center,مركز التكلفة الافتراضي
 Order Number Resets,متى يرجع رقم الطلب إلى ١
 "How often the short number a customer is told goes back to 1. Daily is what most restaurants use; the record id is unaffected and stays unique forever (FR-2.10).",الرقم القصير اللي يُنادى فيه العميل متى يرجع يبدأ من ١. أغلب المطاعم تختار يومي. رقم الطلب الطويل ما يتأثر وما يتكرر أبداً.
@@ -1525,13 +1524,11 @@ Sales Posting,ترحيل المبيعات
 {0} is sold out.,{0} خلص.
 Only {0} of {1} left.,باقي {0} بس من {1}.
 Refuse a Sale When Stock Is Short,امنع البيع لما المخزون ما يكفي
-"For items sold as they come (a bottle, a can): the till refuses one it has none of. Dishes with a recipe are never refused from their ingredients; mark a dish sold out instead. Off, nothing is refused and stock may go below zero.",للأصناف اللي تنباع زي ما هي (قارورة، علبة): الكاشير يرفض اللي ما عنده منه. الأطباق اللي لها وصفة ما تنرفض بسبب مكوّناتها؛ علّم الطبق «خلص» بدالها. لو مطفي، ما ينرفض شي والمخزون ممكن ينزل تحت الصفر.
 POS Sold Out,خلص اليوم
 Marked By,علّمه
 Marked At,وقت التعليم
 Stock at the Till,المخزون عند الكاشير
 Show What Is Left From,اعرض المتبقي من
-"An item sold as it comes (a bottle, a can) shows how many are left on its tile once that many or fewer remain. Above it the tile shows no number.",الصنف اللي ينباع زي ما هو (قارورة، علبة) يطلع على بطاقته كم باقي منه لما يوصل لهذا العدد أو أقل. فوقه البطاقة ما تعرض رقم.
 "{0} of {1} lines include sales not posted yet: their cost is the expected one, at today's valuation. The actual cost replaces it when their day is closed and posted.",{0} من {1} سطر فيها مبيعات ما ترحّلت بعد: تكلفتها متوقعة، بتقييم المخزون اليوم. والتكلفة الفعلية تاخذ مكانها لما ينقفل يومها ويترحّل.
 "For an item sold as it comes: its tile shows how many are left once that many or fewer remain. Empty uses the number in Restaurant POS Settings.",للصنف اللي ينباع زي ما هو: بطاقته تعرض كم باقي منه لما يوصل لهذا العدد أو أقل. لو فاضي ياخذ الرقم اللي في إعدادات نقاط البيع.
 "Not enough stock to take what was sold: {0}. Enter what was received, or tick Allow Negative Stock in Stock Settings, then post again.",المخزون ما يكفي لخصم اللي انباع: {0}. أدخل البضاعة اللي استلمتها، أو فعّل «السماح بالمخزون السالب» في إعدادات المخزون، ثم رحّل مرة ثانية.
@@ -1540,3 +1537,14 @@ Show What Is Left From,اعرض المتبقي من
 "{0} paid {1} on this bill. Refund that much to it, and the rest to what paid the rest.",{0} دفع {1} من هذي الفاتورة. رجّع له هذا المبلغ بس، والباقي على الطريقة اللي دفعت الباقي.
 "This bill was not paid with {0}, so it cannot be refunded to it.",هذي الفاتورة ما اندفعت بـ{0}، فما ينفع ترجع عليه.
 Failed,فشل
+Stock,المخزون
+Everything this branch sells is taken from this warehouse. Its terminals use it automatically; a terminal keeps a different one only if you set it on the terminal yourself.,كل اللي يبيعه هذا الفرع ينخصم من هذا المستودع. أجهزة الفرع تاخذه تلقائي، والجهاز يبقى على مستودع ثاني بس لو حددته له بنفسك من صفحة الجهاز.
+"Ticked: the till refuses an item sold as it comes — a bottle, a can, an add-on such as extra cheese — when none is left, and shows it as sold out. Unticked: the till never refuses; the item only says it has run out. Either way a dish with a recipe is never refused for its ingredients: mark the dish sold out at the till instead. It cannot be unticked while negative stock is not allowed.",مفعّل: الكاشير يرفض الصنف اللي ينباع زي ما هو (قارورة، علبة، أو إضافة مثل جبن إضافي) لما يخلص، ويطلع عليه «خلص». مطفي: الكاشير ما يرفض أبداً، والصنف بس ينكتب عليه إنه خلص. وفي الحالتين الطبق اللي له وصفة ما ينرفض بسبب مكوّناته: علّمه «خلص اليوم» من الكاشير بداله. وما ينطفي طول ما المخزون السالب ممنوع.
+"An item sold as it comes (a bottle, a can) shows «N left» on its tile once this many or fewer remain; above it the tile shows no number. One item can have its own number on its item card. Whether the till refuses the last one is set on the branch.",الصنف اللي ينباع زي ما هو (قارورة، علبة) يطلع على بطاقته «متبقي N» لما يوصل لهذا العدد أو أقل، وفوقه ما يطلع رقم. وتقدر تحط لصنف واحد رقمه الخاص من بطاقة الصنف. أما هل الكاشير يرفض آخر حبة فهذا يتحدد من الفرع.
+"This site does not allow negative stock, so a branch cannot sell without checking: the day's stock could never be posted. Keep this ticked, or allow negative stock in {0} first.",النظام ما يسمح بالمخزون السالب، فالفرع ما يقدر يبيع بدون فحص: مخزون اليوم ما كان بيترحّل أبداً. خلّ الخيار مفعّل، أو اسمح بالمخزون السالب من {0} أول.
+"These branches sell without checking stock: {0}. With negative stock not allowed, their day's stock will not post whenever something is short. Tick «Refuse a Sale When Stock Is Short» on each, or allow negative stock.",هذي الفروع تبيع بدون فحص المخزون: {0}. ومع منع المخزون السالب، مخزون يومها ما بيترحّل كل ما نقص شي. فعّل «امنع البيع لما المخزون ما يكفي» على كل واحد منها، أو اسمح بالمخزون السالب.
+Branches that no longer fit,فروع ما عادت تمشي مع الإعداد
+Stock Settings,إعدادات المخزون
+"<b>Negative stock: allowed.</b> When a day is posted and an ingredient is short, it goes below zero and the next purchase corrects it. Enter purchases before the month is closed. Changed in {0}.",<b>المخزون السالب: مسموح.</b> لما يترحّل اليوم ومكوّن ناقص، ينزل تحت الصفر ويتصحح مع أول شراء. سجّل المشتريات قبل إقفال الشهر. يتغيّر من {0}.
+"<b>Negative stock: not allowed.</b> When a day is posted and an ingredient is short, the stock posting stops and says what is missing; the accounts post anyway. Every branch must then refuse a sale when stock is short. Changed in {0}.",<b>المخزون السالب: ممنوع.</b> لما يترحّل اليوم ومكوّن ناقص، ترحيل المخزون يوقف ويقول وش الناقص، والقيد المحاسبي ينزل عادي. وكل الفروع لازم تكون على «امنع البيع لما المخزون ما يكفي». يتغيّر من {0}.
+Branch Warehouse,مستودع الفرع

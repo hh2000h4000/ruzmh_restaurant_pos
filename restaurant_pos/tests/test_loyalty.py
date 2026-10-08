@@ -242,11 +242,19 @@ class TestEarning(LoyaltyTestBase):
 		order = self._bill(guest)
 		frappe.db.set_value("Restaurant Order Type", self.order_type, "counterparty", "account")
 		frappe.clear_document_cache("Restaurant Order Type", self.order_type)
+		# An account type with no method named is paid by the platforms' methods
+		# only (`D-333`); this one names the method the test settles with.
+		config = frappe.get_doc("Restaurant Order Type", self.order_type)
+		config.append("allowed_payment_methods", {"payment_method": CASH})
+		config.save(ignore_permissions=True)
 
 		try:
 			self._settle(order)
 		finally:
-			frappe.db.set_value("Restaurant Order Type", self.order_type, "counterparty", "walk_in")
+			config.reload()
+			config.set("allowed_payment_methods", [])
+			config.counterparty = "walk_in"
+			config.save(ignore_permissions=True)
 			frappe.clear_document_cache("Restaurant Order Type", self.order_type)
 
 		self.assertFalse(frappe.db.exists(LEDGER, {"invoice": order.sales_invoice}))

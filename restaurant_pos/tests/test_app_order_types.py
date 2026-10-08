@@ -267,6 +267,26 @@ class TestAppOrderTypes(PaymentTestBase):
 		(back,) = frappe.get_doc(SALE, made["credit_note"]).payments
 		self.assertEqual(back.mode_of_payment, "HungerStation")
 
+	def test_an_account_type_with_no_methods_named_is_paid_by_the_platforms_not_the_drawer(self):
+		"""`D-333` — the owner's own type, «تطبيقات»: one for every app, with no methods on it.
+
+		It fell through to the terminal's methods, and a till that lists only
+		cash offered cash for an order the platform had already collected.
+		"""
+		order, _customer = self._activated_app_order()
+		frappe.db.delete("OT Payment Method", {"parent": self.hunger})
+
+		offered = [row["payment_method"] for row in payment_service.allowed_methods(order)]
+
+		self.assertIn("HungerStation", offered)
+		self.assertIn("Jahez", offered)
+		self.assertNotIn(CASH, offered)
+		with self.assertRaises(frappe.ValidationError):
+			payment_service.process_payment(
+				order, payments=[{"method": CASH, "amount": flt(order.total_amount)}]
+			)
+		frappe.db.rollback()
+
 	def test_a_credit_method_is_not_a_bank_transfer(self):
 		"""The original mistake: shipping these as Bank, which put them in the drawer's count.
 

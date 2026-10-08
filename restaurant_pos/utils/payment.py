@@ -559,6 +559,19 @@ def allowed_methods(order) -> list[dict]:
 	if rows:
 		return rows
 
+	# **A type billed to an account that names no method is paid by the
+	# platforms, never by the drawer** (`D-333`). The owner made one type,
+	# «تطبيقات», for every delivery app and gave it no methods: it fell through
+	# to the terminal's own, and a till that lists only cash offered cash for an
+	# order HungerStation had already collected — `BR-002` undone by leaving a
+	# table empty. The methods that leave money owed are the right list for it,
+	# on whichever terminal, and the cashier picks which app it was.
+	if frappe.db.get_value("Restaurant Order Type", order.order_type, "counterparty") == "account":
+		owed = frappe.get_all(
+			"Mode of Payment", filters={"rpos_is_credit": 1, "enabled": 1}, pluck="name", order_by="name"
+		)
+		return [{"payment_method": method, "is_forced": 0, "is_default": 0} for method in owed]
+
 	return [
 		{"payment_method": method, "is_forced": 0, "is_default": 0}
 		for method in terminal_methods(order.pos_profile)

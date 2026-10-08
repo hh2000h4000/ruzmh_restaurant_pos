@@ -54,7 +54,7 @@ def keep_under_the_ceiling(doc, method=None) -> None:
 			_(
 				"This site does not allow negative stock, so a branch cannot sell without checking: "
 				"the day's stock could never be posted. Keep this ticked, or allow negative stock in {0} first."
-			).format(get_link_to_form("Stock Settings", "Stock Settings"))
+			).format(get_link_to_form("Stock Settings", "Stock Settings", _("Stock Settings")))
 		)
 
 

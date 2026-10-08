@@ -47,18 +47,22 @@ def search(phone: str | None = None, name: str | None = None, limit: int = 10) -
 	Phone first and by preference; the name is there for the till that has a
 	regular's name and not their number, and it is a worse key on purpose.
 	"""
-	tail = normalise_phone(phone)
+	# **Found while it is being typed** (`D-339`). Matched on the tail only, «0508»
+	# found nobody until the tenth digit — and the screen offered to create the
+	# customer who was already there. The leading zero goes for the same reason
+	# the country code does: it is how the number was typed, not the number.
+	tail = normalise_phone(phone).lstrip("0")
 	found: dict[str, dict] = {}
 
 	if tail:
 		# The customer's own copy, when a primary contact set it.
-		for row in _fetch({"mobile_no": ("like", f"%{tail}")}, limit):
+		for row in _fetch({"mobile_no": ("like", f"%{tail}%")}, limit):
 			found[row["name"]] = row
 
 		# And through the contact, for customers made outside this app.
 		contacts = frappe.get_all(
 			"Contact Phone",
-			filters={"phone": ("like", f"%{tail}"), "parenttype": "Contact"},
+			filters={"phone": ("like", f"%{tail}%"), "parenttype": "Contact"},
 			fields=["parent"],
 			limit=limit * 2,
 		)

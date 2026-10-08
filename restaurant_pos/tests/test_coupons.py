@@ -203,6 +203,24 @@ class WhenItIsCounted(CouponTestBase):
 
 		self.assertEqual(frappe.db.get_value("POS Coupon", name, "used"), 1)
 
+	def test_a_code_whose_offer_gave_nothing_is_not_spent(self):
+		"""`D-339` — a free item nobody ordered: the guest still holds a good code."""
+		other = frappe.db.get_value("Item", {"name": ("!=", ITEM), "is_sales_item": 1, "disabled": 0})
+		frappe.db.set_value(
+			"Restaurant Promotion",
+			self.promotion.name,
+			{"promotion_type": "free_item", "free_item": other, "free_qty": 1},
+		)
+		frappe.clear_document_cache("Restaurant Promotion", self.promotion.name)
+		name = self._coupon(max_uses=1)
+		order = self._bill()
+		coupons.attach(order, "RPOSTEST1")
+
+		self._pay(order.reload())
+
+		self.assertEqual(order.promotion_amount, 0.0)
+		self.assertEqual(frappe.db.get_value("POS Coupon", name, "used"), 0)
+
 	def test_settling_twice_spends_it_once(self):
 		"""The offline queue replays a settlement by design (`09` §8)."""
 		name = self._coupon()

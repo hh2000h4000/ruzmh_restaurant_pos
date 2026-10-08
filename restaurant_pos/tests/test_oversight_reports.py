@@ -139,7 +139,9 @@ class TestStaffSales(PaymentTestBase):
 		total = rows[-1]
 
 		self.assertIsNone(total["cashier"], "the last line is the period's, not a person's")
-		self.assertAlmostEqual(total["average"], total["sales"] / total["bills"], places=2)
+		# Within half a halala, not `places=2`: that rounds the *difference*, so an
+		# average landing on exactly x.xx5 failed although it was rounded correctly.
+		self.assertAlmostEqual(total["average"], total["sales"] / total["bills"], delta=0.0051)
 
 
 class TestPaymentTypes(PaymentTestBase):

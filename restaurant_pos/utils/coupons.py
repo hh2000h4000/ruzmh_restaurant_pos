@@ -97,13 +97,24 @@ def consume(order) -> None:
 
 	Idempotent by the order: a bill counts its coupon once however many times the
 	settlement is replayed, which the offline queue does by design (`09` §8).
+
+	**Only when its offer gave something** (`D-339`). A code for a free coffee,
+	typed onto a bill with no coffee on it, took nothing off — and a single-use
+	code was spent all the same, so the guest came back with it and was refused.
 	"""
 	coupon = order.get("coupon")
-	if not coupon or order.get("coupon_spent"):
+	if not coupon or order.get("coupon_spent") or not _gave_something(order, coupon):
 		return
 
 	frappe.db.set_value("POS Coupon", coupon, "used", _used(coupon) + 1, update_modified=False)
 	order.db_set("coupon_spent", 1, update_modified=False)
+
+
+def _gave_something(order, coupon: str) -> bool:
+	from restaurant_pos.utils import promotions
+
+	offer = frappe.get_cached_value("POS Coupon", coupon, "promotion")
+	return any(row.name == offer for row in promotions.applied_to(order))
 
 
 def _used(coupon: str) -> int:

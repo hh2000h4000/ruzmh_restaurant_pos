@@ -64,6 +64,13 @@ class TestTheNumberIsTheKey(CustomerTestBase):
 			self.assertEqual(len(found), 1, typed)
 			self.assertEqual(found[0]["customer_name"], NAME, typed)
 
+	def test_it_is_found_while_the_number_is_still_being_typed(self):
+		"""`D-339` — «0501» said "no such customer" and offered to create them again."""
+		service.create(phone=PHONE, customer_name=NAME)
+
+		for typed in ("0501", "050123", "1234567"):
+			self.assertIn(NAME, [row["customer_name"] for row in service.search(phone=typed)], typed)
+
 	def test_the_number_is_stored_where_erpnext_keeps_it(self):
 		"""D-050 — findable at all depends on the contact being made and linked."""
 		created = service.create(phone=PHONE, customer_name=NAME)

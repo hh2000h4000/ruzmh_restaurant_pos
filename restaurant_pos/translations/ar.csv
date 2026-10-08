@@ -1175,7 +1175,7 @@ gift_card_issued,إصدار بطاقة هدايا
 gift_card_redeemed,دفع ببطاقة هدايا
 gift_card_voided,إلغاء بطاقة هدايا
 Settled on Account (Credit),على الحساب (آجل)
-No money changes hands at the till. The invoice stays outstanding against the customer and is settled later by a Payment Entry.,ما تتحرك فلوس في الكاشير. الفاتورة تبقى مستحقة على العميل، وتتسدّد بعدين بسند قبض.
+"Nothing is counted in the drawer for it. What is paid with it is posted to the account below — a delivery platform's, say — and settled there later.",ما ينعد لها شي في الدرج. اللي يندفع بها ينزل على الحساب اللي تحت (مثل حساب تطبيق التوصيل) ويتسدد هناك بعدين.
 Business Day,يوم العمل
 Automatic Clock Out,انصراف تلقائي
 "Written when the restaurant's business day was closed, not punched by the employee.",انكتب لما انقفل يوم العمل، مو الموظف اللي سجّله.
@@ -1539,3 +1539,4 @@ Show What Is Left From,اعرض المتبقي من
 "Stock may now go below zero (Stock Settings), so a day's sales are posted even when a delivery was entered late.",صار المخزون يقدر ينزل تحت الصفر (إعدادات المخزون)، عشان مبيعات اليوم تترحّل حتى لو البضاعة انسجلت متأخر.
 "{0} paid {1} on this bill. Refund that much to it, and the rest to what paid the rest.",{0} دفع {1} من هذي الفاتورة. رجّع له هذا المبلغ بس، والباقي على الطريقة اللي دفعت الباقي.
 "This bill was not paid with {0}, so it cannot be refunded to it.",هذي الفاتورة ما اندفعت بـ{0}، فما ينفع ترجع عليه.
+Failed,فشل

@@ -131,7 +131,10 @@ function money(value: number): string {
           {{ formatNumber(report.voids) }}
         </dd>
         <dt class="text-muted">
-          {{ t("shift.tillExpected") }}
+          <!-- `D-334` — not "expected in the till": a day has no float, so this is
+               what the day's sales put in the drawers, and the drawer's own X
+               report showed a different figure under the same words. -->
+          {{ t("shift.dayTillNet") }}
         </dt>
         <dd class="rpos-numeric text-end font-semibold">
           {{ money(report.till_expected) }}

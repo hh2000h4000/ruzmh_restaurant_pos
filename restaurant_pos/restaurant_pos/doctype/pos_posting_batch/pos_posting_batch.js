@@ -16,11 +16,17 @@ frappe.ui.form.on("POS Posting Batch", {
 			frappe.call({
 				method: "restaurant_pos.api.posting.post_now",
 				args: { branch: frm.doc.branch },
-				callback: () =>
+				callback: () => {
 					frappe.show_alert({
 						message: __("Posting {0} has started. This page updates when it is done.", [frm.doc.branch]),
 						indicator: "blue",
-					}),
+					});
+					// **And it does update** (`D-334`): the posting runs in the
+					// background, and without a socket the form sat on "Failed"
+					// after the batch had been posted. Asked again shortly, and
+					// once more for a branch with a long day behind it.
+					[5000, 20000].forEach((after) => setTimeout(() => frm.reload_doc(), after));
+				},
 			}),
 		);
 	},

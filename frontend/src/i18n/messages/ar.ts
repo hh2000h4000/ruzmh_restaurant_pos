@@ -408,6 +408,7 @@ const messages: Catalogue["messages"] = {
   "giftCard.balance": "الرصيد",
   "giftCard.check": "تحقّق",
   "shift.tillExpected": "المتوقَّع في الصندوق",
+  "shift.dayTillNet": "صافي ما دخل الصناديق اليوم",
   "shift.drawerTitle": "كيف وصلنا للمتوقَّع في الصندوق",
   "shift.drawerOpening": "رصيد الافتتاح",
   "shift.drawerTaken": "المقبوض في الصندوق",

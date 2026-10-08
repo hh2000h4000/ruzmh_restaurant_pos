@@ -584,8 +584,8 @@ CUSTOM_FIELDS = {
 			"fieldtype": "Check",
 			"label": "Settled on Account (Credit)",
 			"description": (
-				"No money changes hands at the till. The invoice stays outstanding "
-				"against the customer and is settled later by a Payment Entry."
+				"Nothing is counted in the drawer for it. What is paid with it is posted to "
+				"the account below — a delivery platform's, say — and settled there later."
 			),
 			"insert_after": "type",
 		},

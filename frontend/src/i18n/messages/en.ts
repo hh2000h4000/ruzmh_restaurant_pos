@@ -428,6 +428,7 @@ export const messages = {
   "giftCard.balance": "Balance",
   "giftCard.check": "Check",
   "shift.tillExpected": "Expected in the till",
+  "shift.dayTillNet": "Taken into the tills today, net",
   "shift.drawerTitle": "How the till adds up",
   "shift.drawerOpening": "Opening float",
   "shift.drawerTaken": "Taken in the till",

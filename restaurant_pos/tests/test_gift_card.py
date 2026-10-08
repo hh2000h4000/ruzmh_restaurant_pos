@@ -245,6 +245,16 @@ class WhatTheDrawerExpects(GiftCardTestBase):
 		after = service.summarise_till(entry)["till_expected"]
 		self.assertAlmostEqual(after - before, 150, places=2)
 
+	def test_and_the_day_s_report_counts_it_with_its_drawers(self):
+		"""`D-338` — the day said 100 less than its drawers held between them."""
+		entry = service.open_till(pos_profile=self.profile)["entry"]
+		day = frappe.db.get_value("POS Opening Entry", entry, "rpos_restaurant_shift")
+		before = service.summarise(day)["till_expected"]
+
+		self._sell(amount=150)
+
+		self.assertAlmostEqual(service.summarise(day)["till_expected"] - before, 150, places=2)
+
 	def test_spending_a_card_puts_nothing_in_the_drawer(self):
 		"""The money arrived when the card was sold; expecting it twice is a
 		drawer told to hold cash nobody put there (`D-029`)."""

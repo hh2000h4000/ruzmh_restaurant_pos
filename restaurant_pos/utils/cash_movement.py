@@ -244,8 +244,8 @@ def _cash_method(pos_profile: str) -> str:
 	frappe.throw(_("POS Profile {0} has no cash payment method.").format(pos_profile))
 
 
-def totals_of(opening_entry: str) -> dict[str, dict[str, float]]:
-	"""What each payment method gained and lost outside of selling.
+def totals_of(*opening_entries: str) -> dict[str, dict[str, float]]:
+	"""What each payment method gained and lost outside of selling, in one drawer or a day's.
 
 	Keyed by method so `summarise_till` can add it to the right line: a drawer
 	holds its methods apart, and money taken out of the cash box is not money
@@ -255,7 +255,7 @@ def totals_of(opening_entry: str) -> dict[str, dict[str, float]]:
 
 	for row in frappe.get_all(
 		"POS Cash Movement",
-		filters={"pos_opening_entry": opening_entry},
+		filters={"pos_opening_entry": ("in", opening_entries)},
 		fields=["mode_of_payment", "direction", "amount"],
 	):
 		line = tally.setdefault(row.mode_of_payment, {"in": 0.0, "out": 0.0})

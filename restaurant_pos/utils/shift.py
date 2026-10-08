@@ -499,7 +499,19 @@ def summarise(shift_name: str) -> dict:
 		fields=list(REPORT_FIELDS),
 	)
 	refunds = _refunds_in(window, pos_profile=("in", profiles_in(day.branch)))
-	report = _report(day, orders, opening={}, refunds=refunds)
+	# **And what entered its drawers with no bill behind it** (`D-338`): a gift card
+	# sold, cash put in or taken out. The drawer's own report counted them and the
+	# day's did not, so a day that sold a 100 card for cash said 100 less than its
+	# drawers held between them.
+	tills = _tills_of(shift_name, status=("in", ("Open", "Closed")))
+	report = _report(
+		day,
+		orders,
+		opening={},
+		refunds=refunds,
+		moved=cash_movement.totals_of(*tills),
+		cards_sold=gift_card.takings_of(*tills),
+	)
 
 	# What an open bill means here, so the screen can say the right thing about
 	# it (`D-156`). A till that offers a way past a rule this branch does not
@@ -1400,7 +1412,7 @@ def _carrying_too_many(branch: str, still_open: int) -> bool:
 	return bool(warn_at) and still_open > warn_at
 
 
-def _tills_of(shift_name: str, *, status: str) -> list[str]:
+def _tills_of(shift_name: str, *, status) -> list[str]:
 	return frappe.get_all(
 		"POS Opening Entry",
 		filters={"rpos_restaurant_shift": shift_name, "status": status, "docstatus": 1},

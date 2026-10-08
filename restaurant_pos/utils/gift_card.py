@@ -689,8 +689,8 @@ def _refuse_unposted() -> None:
 	frappe.throw(_("The card was not issued: its journal entry could not be posted. The Error Log says why."))
 
 
-def takings_of(opening_entry: str) -> dict[str, float]:
-	"""What selling cards put into this drawer, per payment method (`D-256`).
+def takings_of(*opening_entries: str) -> dict[str, float]:
+	"""What selling cards put into a drawer — or a day's drawers — per payment method (`D-256`).
 
 	**A card sold is money in the box with no invoice behind it.** Every other
 	figure the drawer expects comes from `Sales Invoice Payment`, and a card sale
@@ -704,7 +704,10 @@ def takings_of(opening_entry: str) -> dict[str, float]:
 	tally: dict[str, float] = {}
 	for row in frappe.get_all(
 		"POS Gift Card Entry",
-		filters={"pos_opening_entry": opening_entry, "entry_type": ("in", ("issue", "top_up", "void"))},
+		filters={
+			"pos_opening_entry": ("in", opening_entries),
+			"entry_type": ("in", ("issue", "top_up", "void")),
+		},
 		fields=["mode_of_payment", "amount", "entry_type"],
 	):
 		if not row.mode_of_payment:

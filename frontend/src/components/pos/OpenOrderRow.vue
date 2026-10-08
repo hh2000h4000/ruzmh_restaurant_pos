@@ -3,7 +3,7 @@ import { computed, ref } from "vue";
 
 import type { OpenOrder } from "@/api/order";
 import AppIcon from "@/components/AppIcon.vue";
-import { useDismiss } from "@/composables/useDismiss";
+import { revealWhenOpened, useDismiss } from "@/composables/useDismiss";
 import { dateOnly, formatNumber, pick, t, timeOnly } from "@/i18n";
 
 /**
@@ -289,6 +289,7 @@ function choose(where: "order" | "floor" | "reprint"): void {
 
     <div
       v-if="menuOpen"
+      :ref="revealWhenOpened"
       class="absolute top-full end-0 z-20 mt-1 w-56 overflow-hidden rounded-rpos border border-line bg-surface shadow-lift"
     >
       <button

@@ -413,6 +413,14 @@ class ReturningABillACardPaid(GiftCardTestBase):
 			cards.balance_of(f"{PREFIX}1"), 200 - flt(order.total_amount), places=2, msg="nothing moved"
 		)
 
+	def test_and_cash_is_not_offered_for_it(self):
+		"""`D-340` — a button that could only be refused was on the sheet."""
+		order = self._paid_by_card()
+
+		offered = returns.returnable(order)["methods"]
+
+		self.assertEqual(offered, [MODE_OF_PAYMENT])
+
 
 class WhatTheAccountantReads(GiftCardTestBase):
 	"""The liability, card by card, on a chosen day (`D-259`).

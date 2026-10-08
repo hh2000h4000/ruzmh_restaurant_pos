@@ -68,3 +68,15 @@ export function useDismiss(open: Ref<boolean>): Ref<HTMLElement | null> {
 
   return anchor;
 }
+
+/**
+ * A menu that opens inside a scrolling list is brought into view (`D-340`).
+ *
+ * A row's menu hangs below its row, and the list clips what hangs past its
+ * edge: on the last rows — or on any row of a short list — only the first
+ * entries showed, with nothing saying there were more. Put on the panel as a
+ * function ref, so it runs once when the panel is drawn.
+ */
+export function revealWhenOpened(panel: unknown): void {
+  (panel as HTMLElement | null)?.scrollIntoView?.({ block: "nearest" });
+}

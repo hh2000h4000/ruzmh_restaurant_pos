@@ -564,11 +564,13 @@ def _apply_refund(credit, refund_method: str | None) -> None:
 	if not method:
 		frappe.throw(_("Choose how to refund this."))
 
+	# The cap first: its refusal says *why* — "this bill was not paid with Cash" —
+	# where the one below would call cash a method this terminal does not have.
+	_assert_within_what_that_method_paid(credit, method, due, original)
+
 	allowed = refund_methods(credit.pos_profile, original)
 	if allowed and method not in allowed:
 		frappe.throw(_("{0} is not a payment method on this terminal.").format(method))
-
-	_assert_within_what_that_method_paid(credit, method, due, original)
 
 	# D-029 — money that never entered a drawer does not come out of one. A
 	# platform's order goes back onto the platform's account (`D-319`): the
@@ -611,7 +613,13 @@ def refund_methods(pos_profile: str, original: list[dict]) -> list[str]:
 	the terminal lists, so the bill was paid with something a refund could not
 	then be sent back to.
 	"""
-	paid = [row["method"] for row in original]
+	paid = list(dict.fromkeys(row["method"] for row in original))
+	# **A bill a gift card touched goes back only the ways it was paid** (`D-340`).
+	# Every other method is capped at nothing there (`D-258`), so offering Cash
+	# was offering a button that could only be refused.
+	if any(gift_cards.is_gift_card_method(method) for method in paid):
+		return paid
+
 	# **A platform that did not take this bill is not offered** (`D-330`). The
 	# terminal lists HungerStation because its orders are rung up here, and that
 	# put it on the refund sheet of every cash bill — where choosing it is

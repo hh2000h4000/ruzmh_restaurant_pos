@@ -536,7 +536,18 @@ def _catalog(profile, order_types: list[dict]) -> tuple[list[dict], list[dict]]:
 	):
 		modifiers.setdefault(row.parent, []).append(row.modifier_group)
 
+	# `D-341` — what a reader will type for each item, shipped with the menu so a
+	# scan asks the server nothing: one query here, none at the till.
+	barcodes: dict[str, list[str]] = {}
+	for row in frappe.get_all(
+		"Item Barcode",
+		filters={"parenttype": "Item", "parent": ("in", codes)},
+		fields=["parent", "barcode"],
+	):
+		barcodes.setdefault(row.parent, []).append(row.barcode)
+
 	for row in items:
+		row.barcodes = barcodes.get(row.item_code, [])
 		# None, not 0: an item with no price cannot be sold, and the UI must be
 		# able to tell that apart from a deliberately free item (D-020).
 		row.rate = prices.get(row.item_code)

@@ -488,6 +488,7 @@ export const messages = {
   "picker.search": "Search for an item",
   "picker.noPrice": "No price",
   "picker.noResults": "No results.",
+  "picker.unknownBarcode": "No item has the barcode {code}.",
   "picker.empty": "No items available.",
   "picker.qty": "Qty",
   "picker.qtyMore": "One more",

@@ -73,6 +73,23 @@ class TestLoadPosSession(OrderTestBase):
 		self.assertTrue(burger["display_name"])
 		self.assertIn("modifier_groups", burger)
 
+	def test_an_item_brings_the_barcodes_a_reader_will_type(self):
+		"""`D-341` — with the menu, so a scan at the till asks the server nothing."""
+		item = frappe.get_doc("Item", ITEM)
+		item.append("barcodes", {"barcode": "RPOSTEST6281000001"})
+		item.save(ignore_permissions=True)
+
+		burger = next(row for row in self._load()["items"] if row["item_code"] == ITEM)
+
+		self.assertEqual(burger["barcodes"], ["RPOSTEST6281000001"])
+
+	def test_an_item_with_none_brings_an_empty_list(self):
+		frappe.db.delete("Item Barcode", {"parent": ITEM})
+
+		burger = next(row for row in self._load()["items"] if row["item_code"] == ITEM)
+
+		self.assertEqual(burger["barcodes"], [])
+
 	def test_an_item_group_brings_its_picture(self):
 		"""`D-192` — ERPNext's own `Item Group.image` is the group's tile picture."""
 		group = frappe.db.get_value("Item", ITEM, "item_group")

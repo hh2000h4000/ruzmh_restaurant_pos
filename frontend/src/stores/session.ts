@@ -48,6 +48,13 @@ export const useSessionStore = defineStore("session", () => {
     return index;
   });
 
+  /** Item lookup by what a reader types (`D-341`) — the same index, one key over. */
+  const itemsByBarcode = computed(() => {
+    const index = new Map<string, CatalogItem>();
+    for (const item of items.value) for (const code of item.barcodes ?? []) index.set(code, item);
+    return index;
+  });
+
   /**
    * Permission check for hiding buttons.
    *
@@ -151,6 +158,7 @@ export const useSessionStore = defineStore("session", () => {
     orderTypes,
     items,
     itemsByCode,
+    itemsByBarcode,
     can,
     maxDiscount,
     priceOf,

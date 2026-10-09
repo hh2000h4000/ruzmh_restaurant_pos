@@ -150,6 +150,8 @@ export interface CatalogItem {
   /** Prices under any *other* list an order type sells from (FR-1.6). */
   rates: Record<string, number>;
   modifier_groups: string[];
+  /** What a barcode reader types for this item (`D-341`); empty for most dishes. */
+  barcodes?: string[];
 }
 
 export interface ItemGroup {

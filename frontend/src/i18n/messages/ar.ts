@@ -463,6 +463,7 @@ const messages: Catalogue["messages"] = {
   "picker.search": "بحث عن صنف",
   "picker.noPrice": "بلا سعر",
   "picker.noResults": "لا نتائج.",
+  "picker.unknownBarcode": "ما فيه صنف بهذا الباركود: {code}",
   "picker.empty": "لا توجد أصناف متاحة.",
   "picker.qty": "الكمية",
   "picker.qtyMore": "واحد أكثر",

@@ -5,6 +5,7 @@ import { computed, ref } from "vue";
 // helper comes in under a name that says what it does here.
 import AppIcon from "@/components/AppIcon.vue";
 import MenuTile from "@/components/order/MenuTile.vue";
+import { useScanner } from "@/composables/useScanner";
 import { formatNumber, pick as localized, t } from "@/i18n";
 import { useSessionStore } from "@/stores/session";
 import { useStockStore } from "@/stores/stock";
@@ -104,10 +105,62 @@ const searchResults = computed(() => {
       (item) =>
         item.display_name.toLowerCase().includes(term) ||
         item.item_name.toLowerCase().includes(term) ||
-        item.item_code.toLowerCase().includes(term),
+        item.item_code.toLowerCase().includes(term) ||
+        (item.barcodes ?? []).includes(term),
     )
     .slice(0, 60);
 });
+
+/**
+ * A scanned code adds its item (`D-341`).
+ *
+ * **Looked up in the menu the till already holds**, not on the server: a scan is
+ * the fastest thing a cashier does, and a request per bottle is a queue. The
+ * reader is heard two ways — typed into the search box, or anywhere on the
+ * screen when no field has the focus — and both end here.
+ *
+ * A code nobody knows is said out loud. A reader that beeps and adds nothing
+ * is a bottle the customer walks out with unpaid.
+ */
+function scanned(code: string): boolean {
+  const wanted = code.trim();
+  if (!wanted || props.marking) return false;
+
+  const item = session.itemsByBarcode.get(wanted);
+  if (!item || !available.value.includes(item)) {
+    emit("failed", new Error(t("picker.unknownBarcode", { code: wanted })));
+    return false;
+  }
+
+  // A tile that cannot be tapped says why on its face; a scan has no face.
+  if (props.disabled) return false;
+  if (tileOff(item)) {
+    const why = stockBlocked(item) ? t("stock.soldOut") : t("picker.noPrice");
+    emit("failed", new Error(`${item.display_name} — ${why}`));
+    return false;
+  }
+
+  pick(item);
+  return true;
+}
+
+useScanner(scanned);
+
+/** Enter in the search box: a scanned code, or the one dish the words left. */
+function submitSearch(): void {
+  const typed = search.value.trim();
+  if (!typed) return;
+
+  if (session.itemsByBarcode.has(typed)) {
+    if (scanned(typed)) search.value = "";
+    return;
+  }
+
+  if (searchResults.value.length === 1) {
+    pick(searchResults.value[0]);
+    search.value = "";
+  }
+}
 
 const groups = computed(() => {
   const used = new Set(available.value.map((item) => item.item_group));
@@ -356,6 +409,7 @@ function priceOf(item: CatalogItem): number | null {
             type="search"
             :placeholder="t('picker.search')"
             class="h-14 w-full rounded-rpos border border-line-strong bg-background ps-12 pe-4 text-base outline-none transition duration-200 ease-rpos focus:border-primary focus:bg-surface"
+            @keydown.enter.prevent="submitSearch"
           >
         </div>
 

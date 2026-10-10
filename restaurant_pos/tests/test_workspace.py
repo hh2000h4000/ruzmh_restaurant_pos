@@ -122,3 +122,23 @@ class TestTheDeskPages(FrappeTestCase):
 		urls = [row.get("url") for row in page["shortcuts"] if row["type"] == "URL"]
 
 		self.assertIn("/restaurant-pos", urls)
+
+	def test_every_card_on_the_home_page_opens_a_page_of_ours(self):
+		"""`D-346` — the home page is cards now, and a card is only a URL.
+
+		Nothing checks a URL: rename a page and its card opens "not found", on the
+		first screen a customer sees after installing.
+		"""
+		routes = {page["name"].lower().replace(" ", "-") for _, page in _pages()}
+		home = dict(_pages())["restaurant_pos"]
+
+		for row in home["shortcuts"]:
+			if row["type"] != "URL" or not row["url"].startswith("/app/"):
+				continue
+
+			with self.subTest(card=row["label"]):
+				self.assertIn(row["url"].removeprefix("/app/"), routes)
+
+	def test_the_home_page_carries_no_list_of_links(self):
+		"""`D-346` — forty-five links on one page is what the cards replaced."""
+		self.assertEqual(dict(_pages())["restaurant_pos"]["links"], [])

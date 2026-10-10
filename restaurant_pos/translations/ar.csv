@@ -1549,3 +1549,38 @@ Stock Settings,إعدادات المخزون
 "<b>Negative stock: not allowed.</b> When a day is posted and an ingredient is short, the stock posting stops and says what is missing; the accounts post anyway. Every branch must then refuse a sale when stock is short. Changed in {0}.",<b>المخزون السالب: ممنوع.</b> لما يترحّل اليوم ومكوّن ناقص، ترحيل المخزون يوقف ويقول وش الناقص، والقيد المحاسبي ينزل عادي. وكل الفروع لازم تكون على «امنع البيع لما المخزون ما يكفي». يتغيّر من {0}.
 Branch Warehouse,مستودع الفرع
 Posted,مرحّلة
+POS Branches and Devices,الفروع والأجهزة
+POS Menu,القائمة
+POS Floor,الصالة
+POS Offers and Loyalty,العروض والولاء
+POS Daily Work,المتابعة اليومية
+POS Books and Logs,المحاسبة والسجلات
+POS Preferences,الإعدادات
+"<span class=""h4"">POS Branches and Devices</span>","<span class=""h4"">الفروع والأجهزة</span>"
+"<span class=""h4"">POS Menu</span>","<span class=""h4"">القائمة</span>"
+"<span class=""h4"">POS Staff</span>","<span class=""h4"">الموظفين</span>"
+"<span class=""h4"">POS Floor</span>","<span class=""h4"">الصالة</span>"
+"<span class=""h4"">POS Offers and Loyalty</span>","<span class=""h4"">العروض والولاء</span>"
+"<span class=""h4"">POS Daily Work</span>","<span class=""h4"">المتابعة اليومية</span>"
+"<span class=""h4"">POS Books and Logs</span>","<span class=""h4"">المحاسبة والسجلات</span>"
+"<span class=""h4"">POS Preferences</span>","<span class=""h4"">الإعدادات</span>"
+"<span class=""h5"">1. Start here</span>","<span class=""h5"">١. ابدأ من هنا</span>"
+"<span class=""h5"">2. If your restaurant needs it</span>","<span class=""h5"">٢. لو مطعمك يحتاجها</span>"
+"<span class=""h5"">3. Running the shop</span>","<span class=""h5"">٣. تشغيل المحل</span>"
+The till cannot sell without these. Go through them in order.,الكاشير ما يبيع بدونها. امشِ عليها بالترتيب.
+"A dining room, printers, offers. Set up what applies to you and skip the rest.",صالة، طابعات، عروض. جهّز اللي يخصك واترك الباقي.
+"What happened at the tills, the books, the reports and the settings.",وش صار على الكاشير، والحسابات، والتقارير، والإعدادات.
+<b>The till itself is at /restaurant-pos</b> — this page is the office behind it. Each card below opens one area; the guide walks them in the same order.,<b>شاشة الكاشير نفسها على /restaurant-pos</b>، وهذي الصفحة هي المكتب اللي وراها. كل بطاقة تحت تفتح قسم، والدليل يمشي عليها بنفس الترتيب.
+"Where you sell and what you sell on. <b>Start here</b>: Quick Setup makes a branch, its tables and a cashier device from one form.",وين تبيع وعلى أي جهاز. <b>ابدأ من هنا</b>: الإعداد السريع يسوي لك الفرع وطاولاته وجهاز الكاشير من نموذج واحد.
+What the till sells and at what price. An item with no price in the device's price list cannot be sold.,وش يبيع الكاشير وبكم. الصنف اللي ما له سعر في قائمة أسعار الجهاز ما ينباع.
+Who works the till and what each may do. Nobody enters the till without a POS PIN on their user.,مين يشتغل على الكاشير ووش يقدر يسوي. ما أحد يدخل الكاشير بدون رقم سري في بطاقة المستخدم.
+"For a restaurant with a dining room: its sections, tables and bookings. A takeaway shop needs none of this.",للمطعم اللي عنده صالة: الأقسام والطاولات والحجوزات. محل السفري ما يحتاج منها شي.
+"Optional. Discounts, coupon codes, gift cards and points — the till sells without any of them.",اختياري. خصومات وكوبونات وبطاقات هدايا ونقاط، والكاشير يبيع بدونها.
+"What the tills did: the orders, the business days and the drawers. Read here; the work itself is done at the till.",وش سوّت الأجهزة: الطلبات وأيام العمل والأدراج. هنا للاطلاع، والشغل نفسه على الكاشير.
+"For the accountant and the owner: each day's sales posted to the books, and the trail of every sensitive action.",للمحاسب وصاحب المحل: مبيعات كل يوم مرحّلة للحسابات، وسجل كل إجراء حساس.
+"Settings for the whole shop: default pictures, the customer display, the waste account and the till's colours.",إعدادات المحل كله: الصور الافتراضية، شاشة العميل، حساب الهدر، وألوان الكاشير.
+Books and Logs,المحاسبة والسجلات
+Staff,الموظفين
+Offers,العروض
+Choices and layout,الخيارات وترتيب الشاشة
+Payment Methods,طرق الدفع

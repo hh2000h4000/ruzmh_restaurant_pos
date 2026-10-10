@@ -17,9 +17,30 @@ import frappe
 
 BLOCK = "RPOS Tiles"
 
+#: Asked for when the page is drawn rather than loaded with the desk: a tab
+#: that was open across an update has the old desk in it, and with the script
+#: on the desk's own list that tab drew an empty page — which is how the owner
+#: first saw the tiles (`D-347`).
+SCRIPT = """
+const mount = root_element.querySelector(".rpos-tiles");
+const said = setTimeout(() => { mount.querySelector(".rpos-wait").hidden = false; }, 4000);
+frappe.require("desk_tiles.bundle.js", () => {
+	clearTimeout(said);
+	restaurant_pos.desk_tiles(root_element);
+});
+""".strip()
+
 CONTENT = {
-	"html": '<div class="rpos-tiles"></div>',
-	"script": "window.restaurant_pos && restaurant_pos.desk_tiles && restaurant_pos.desk_tiles(root_element);",
+	# **Never a blank page** (`CLAUDE.md` §5.5): if the tiles do not arrive, this
+	# line shows after a moment and says what brings them. In both languages,
+	# because a block's own HTML is not translated.
+	"html": (
+		'<div class="rpos-tiles"><p class="rpos-wait" hidden style="padding:24px 4px;color:var(--text-muted)">'
+		"الصفحة ما اكتملت. حدّث المتصفح (Ctrl+Shift+R)، ولو ما تغيّر شي شغّل bench build ثم bench restart."
+		"<br>This page did not finish loading. Reload (Ctrl+Shift+R); if nothing changes, run bench build and "
+		"restart.</p></div>"
+	),
+	"script": SCRIPT,
 	"style": "",
 	# Everybody who reaches the page: the server already drops the links a
 	# reader may not open, so there is nothing here to hide.

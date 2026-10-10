@@ -15,9 +15,9 @@
  * gone, and a label is already theirs — and draws each as a tile. There is no
  * second list of screens to keep in step with the first (`CLAUDE.md` §5.5).
  *
- * It is mounted by one `Custom HTML Block` whose whole script is a call to
- * `restaurant_pos.desk_tiles(root_element)`, so what is stored in the database
- * never has to change when this does.
+ * It is mounted by one `Custom HTML Block` whose script asks for this bundle
+ * and calls `restaurant_pos.desk_tiles(root_element)`, so what is stored in the
+ * database never has to change when this does.
  */
 frappe.provide("restaurant_pos");
 
@@ -140,9 +140,16 @@ restaurant_pos.desk_tiles = async function (root) {
 
 	const route = frappe.get_route();
 	const name = route[route.length - 1];
-	const { message: page } = await frappe.call("frappe.desk.desktop.get_desktop_page", {
-		page: JSON.stringify({ name, title: name, public: 1 }),
-	});
+	let page;
+	try {
+		({ message: page } = await frappe.call("frappe.desk.desktop.get_desktop_page", {
+			page: JSON.stringify({ name, title: name, public: 1 }),
+		}));
+	} catch (cause) {
+		// The waiting line stays, and says what to do; a blank page says nothing.
+		mount.querySelector(".rpos-wait")?.removeAttribute("hidden");
+		throw cause;
+	}
 
 	mount.innerHTML = "";
 	const shortcuts = (page?.shortcuts?.items || []).filter((row) => row.type === "URL" && row.url);

@@ -114,6 +114,9 @@ class TestTheDeskPages(FrappeTestCase):
 		self.assertFalse(block.private)
 		self.assertIn("rpos-tiles", block.html)
 		self.assertIn("restaurant_pos.desk_tiles(root_element)", block.script)
+		# Asked for when drawn, and a line that shows if it never comes.
+		self.assertIn('frappe.require("desk_tiles.bundle.js"', block.script)
+		self.assertIn("rpos-wait", block.html)
 
 	def test_a_child_page_names_a_parent_that_exists(self):
 		"""`Printing` hangs under `Restaurant POS`; a typo orphans it silently."""

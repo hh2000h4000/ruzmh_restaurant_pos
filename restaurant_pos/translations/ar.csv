@@ -1548,3 +1548,4 @@ Stock Settings,إعدادات المخزون
 "<b>Negative stock: allowed.</b> When a day is posted and an ingredient is short, it goes below zero and the next purchase corrects it. Enter purchases before the month is closed. Changed in {0}.",<b>المخزون السالب: مسموح.</b> لما يترحّل اليوم ومكوّن ناقص، ينزل تحت الصفر ويتصحح مع أول شراء. سجّل المشتريات قبل إقفال الشهر. يتغيّر من {0}.
 "<b>Negative stock: not allowed.</b> When a day is posted and an ingredient is short, the stock posting stops and says what is missing; the accounts post anyway. Every branch must then refuse a sale when stock is short. Changed in {0}.",<b>المخزون السالب: ممنوع.</b> لما يترحّل اليوم ومكوّن ناقص، ترحيل المخزون يوقف ويقول وش الناقص، والقيد المحاسبي ينزل عادي. وكل الفروع لازم تكون على «امنع البيع لما المخزون ما يكفي». يتغيّر من {0}.
 Branch Warehouse,مستودع الفرع
+Posted,مرحّلة

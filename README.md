@@ -9,7 +9,9 @@ the books when the day is closed.
 
 - A working bench with **Frappe v15** and **ERPNext v15** installed on the site
 - Python 3.10+
-- Node 18+ and yarn (the till's screen is built on your machine)
+
+The till's screen comes already built with the app, so the server compiles
+nothing and needs no extra memory for it.
 
 ### Installation
 
@@ -37,7 +39,7 @@ bench --site your-site install-app restaurant_pos
 bench --site your-site migrate
 ```
 
-**4. Build the till's screen**
+**4. Link the till's screen** (a few seconds: it links files, it does not compile)
 
 ```bash
 bench build --app restaurant_pos
@@ -81,6 +83,14 @@ bench --site your-site migrate
 ```bash
 bench build --app restaurant_pos
 ```
+
+### Troubleshooting
+
+- **`fatal: detected dubious ownership`** on `git pull`: you are root and the
+  folder belongs to the bench user. Run the command git prints
+  (`git config --global --add safe.directory <path>`) and pull again.
+- **`/restaurant-pos` opens a blank page** after an update: run step 4 and
+  step 5 again, then reload the page.
 
 ### Warnings
 

@@ -25,6 +25,10 @@ SCRIPT = """
 const mount = root_element.querySelector(".rpos-tiles");
 const said = setTimeout(() => { mount.querySelector(".rpos-wait").hidden = false; }, 4000);
 frappe.require("desk_tiles.bundle.js", () => {
+	// `require` calls back even when the file was not there, so "it came" is
+	// read off the function, not off the callback: otherwise the line below
+	// is cancelled by the very failure it exists to explain.
+	if (!(window.restaurant_pos && restaurant_pos.desk_tiles)) return;
 	clearTimeout(said);
 	restaurant_pos.desk_tiles(root_element);
 });

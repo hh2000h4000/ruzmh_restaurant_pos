@@ -59,7 +59,8 @@ const STYLE = `
 	.rpos-tiled .codex-editor__redactor { padding-bottom: 0 !important; }
 	.edit-mode .rpos-tiled .codex-editor__redactor { padding-bottom: 300px !important; }
 
-	.rpos-tiles-view { padding: 8px 0 28px; }
+	/* A row of its own among the editor's columns, whichever way they are laid out. */
+	.rpos-tiles-view { padding: 8px 0 28px; grid-column: 1 / -1; flex: 0 0 100%; width: 100%; max-width: 100%; }
 	.rpos-crumb { display: flex; align-items: center; gap: 10px; margin: 0 4px 16px; }
 	.rpos-back {
 		display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; border-radius: 10px;
@@ -190,11 +191,17 @@ restaurant_pos.desk_tiles = async function (root) {
 
 	const view = document.createElement("div");
 	view.className = "rpos-tiles-view";
-	container.prepend(view);
+	// **Where the block is, not at the top of the page.** On a page that also
+	// has a heading, an onboarding guide or a chart, the tiles belong wherever
+	// its owner dragged the block — the first try put them above everything,
+	// over the guide a new user is meant to read first.
+	const block = host.closest(".ce-block");
+	if (block) block.after(view);
+	else container.prepend(view);
 	// Drawn: the block's own box has nothing left to say, so it goes with the
 	// widgets it replaced.
 	root.querySelector(".rpos-tiles")?.classList.add("rpos-tiles-drawn");
-	host.closest(".ce-block")?.style.setProperty("display", "none");
+	block?.style.setProperty("display", "none");
 
 	function home() {
 		view.innerHTML = "";

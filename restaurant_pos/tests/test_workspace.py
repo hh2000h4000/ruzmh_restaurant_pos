@@ -88,18 +88,32 @@ class TestTheDeskPages(FrappeTestCase):
 				with self.subTest(page=name, card=card):
 					self.assertEqual(declared[card], count, f"{name}: card {card!r}")
 
-	def test_the_layout_and_the_record_name_the_same_things(self):
-		"""`content` is drawn from; the rest of the record is what it draws."""
+	def test_every_page_is_drawn_as_tiles_and_names_the_block_that_draws_them(self):
+		"""`D-347` — the tiles are one block reading the page's own rows.
+
+		A page whose content names a block its record does not hold draws
+		nothing at all, and a page with no rows gives the block nothing to draw.
+		"""
+		from restaurant_pos.setup.desk_tiles import BLOCK
+
 		for name, page in _pages():
-			blocks = json.loads(page["content"])
+			with self.subTest(page=name):
+				blocks = json.loads(page["content"])
+				self.assertEqual([b["type"] for b in blocks], ["custom_block"])
+				self.assertEqual(blocks[0]["data"]["custom_block_name"], BLOCK)
+				self.assertIn(BLOCK, [row["custom_block_name"] for row in page["custom_blocks"]])
+				self.assertTrue(page["links"] or page["shortcuts"], f"{name}: nothing for the tiles to draw")
 
-			cards = {b["data"]["card_name"] for b in blocks if b["type"] == "card"}
-			breaks = {row["label"] for row in page["links"] if row["type"] == "Card Break"}
-			self.assertEqual(cards, breaks, f"{name}: cards on the page vs cards in the record")
+	def test_the_block_is_on_the_site_and_open_to_everybody(self):
+		"""`D-347` — made on migrate; a private block is an empty page for every other login."""
+		from restaurant_pos.setup import desk_tiles
 
-			shortcuts = {b["data"]["shortcut_name"] for b in blocks if b["type"] == "shortcut"}
-			held = {row["label"] for row in page["shortcuts"]}
-			self.assertEqual(shortcuts, held, f"{name}: shortcuts on the page vs shortcuts in the record")
+		desk_tiles.setup()
+
+		block = frappe.get_doc("Custom HTML Block", desk_tiles.BLOCK)
+		self.assertFalse(block.private)
+		self.assertIn("rpos-tiles", block.html)
+		self.assertIn("restaurant_pos.desk_tiles(root_element)", block.script)
 
 	def test_a_child_page_names_a_parent_that_exists(self):
 		"""`Printing` hangs under `Restaurant POS`; a typo orphans it silently."""

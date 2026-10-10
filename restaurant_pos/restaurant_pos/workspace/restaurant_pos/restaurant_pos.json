@@ -1,8 +1,13 @@
 {
  "charts": [],
- "content": "[{\"type\": \"header\", \"data\": {\"text\": \"<span class=\\\"h4\\\">Restaurant POS</span>\", \"col\": 12}}, {\"type\": \"paragraph\", \"data\": {\"text\": \"<b>The till itself is at /restaurant-pos</b> — this page is the office behind it. Each card below opens one area; the guide walks them in the same order.\", \"col\": 12}}, {\"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Open the till\", \"col\": 3}}, {\"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"POS User Guide\", \"col\": 3}}, {\"type\": \"spacer\", \"data\": {\"col\": 12}}, {\"type\": \"header\", \"data\": {\"text\": \"<span class=\\\"h5\\\">1. Start here</span>\", \"col\": 12}}, {\"type\": \"paragraph\", \"data\": {\"text\": \"The till cannot sell without these. Go through them in order.\", \"col\": 12}}, {\"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"POS Branches and Devices\", \"col\": 3}}, {\"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"POS Menu\", \"col\": 3}}, {\"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"POS Staff\", \"col\": 3}}, {\"type\": \"spacer\", \"data\": {\"col\": 12}}, {\"type\": \"header\", \"data\": {\"text\": \"<span class=\\\"h5\\\">2. If your restaurant needs it</span>\", \"col\": 12}}, {\"type\": \"paragraph\", \"data\": {\"text\": \"A dining room, printers, offers. Set up what applies to you and skip the rest.\", \"col\": 12}}, {\"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"POS Floor\", \"col\": 3}}, {\"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Printing\", \"col\": 3}}, {\"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"POS Offers and Loyalty\", \"col\": 3}}, {\"type\": \"spacer\", \"data\": {\"col\": 12}}, {\"type\": \"header\", \"data\": {\"text\": \"<span class=\\\"h5\\\">3. Running the shop</span>\", \"col\": 12}}, {\"type\": \"paragraph\", \"data\": {\"text\": \"What happened at the tills, the books, the reports and the settings.\", \"col\": 12}}, {\"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"POS Daily Work\", \"col\": 3}}, {\"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"POS Books and Logs\", \"col\": 3}}, {\"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"POS Reports\", \"col\": 3}}, {\"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"POS Preferences\", \"col\": 3}}]",
+ "content": "[{\"type\": \"custom_block\", \"data\": {\"custom_block_name\": \"RPOS Tiles\", \"col\": 12}}]",
  "creation": "2026-09-06 00:00:00.000000",
- "custom_blocks": [],
+ "custom_blocks": [
+  {
+   "custom_block_name": "RPOS Tiles",
+   "label": "RPOS Tiles"
+  }
+ ],
  "docstatus": 0,
  "doctype": "Workspace",
  "for_user": "",
@@ -12,7 +17,7 @@
  "is_hidden": 0,
  "label": "Restaurant POS",
  "links": [],
- "modified": "2026-10-10 21:00:00.000000",
+ "modified": "2026-10-11 09:00:00.000000",
  "modified_by": "Administrator",
  "module": "Restaurant POS",
  "name": "Restaurant POS",

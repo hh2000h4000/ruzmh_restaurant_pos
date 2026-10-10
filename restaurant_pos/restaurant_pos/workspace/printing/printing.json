@@ -1,8 +1,13 @@
 {
  "charts": [],
- "content": "[{\"id\":\"rpos_print_head\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\">Printing</span>\",\"col\":12}},{\"id\":\"rpos_print_intro\",\"type\":\"paragraph\",\"data\":{\"text\":\"Printers are defined once per branch, here — not repeated on every till. An <b>agent</b> running inside the restaurant is what reaches them; the server only renders and queues.\",\"col\":12}},{\"id\":\"rpos_print_sc1\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Printers\",\"col\":3}},{\"id\":\"rpos_print_sc2\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Print Agents\",\"col\":3}},{\"id\":\"rpos_print_sc3\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Routing Rules\",\"col\":3}},{\"id\":\"rpos_print_sc4\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Print Queue\",\"col\":3}},{\"id\":\"rpos_print_spacer\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"rpos_print_card1\",\"type\":\"card\",\"data\":{\"card_name\":\"Hardware\",\"col\":4}},{\"id\":\"rpos_print_card2\",\"type\":\"card\",\"data\":{\"card_name\":\"What prints where\",\"col\":4}},{\"id\":\"rpos_print_card3\",\"type\":\"card\",\"data\":{\"card_name\":\"Paper and problems\",\"col\":4}}]",
+ "content": "[{\"type\": \"custom_block\", \"data\": {\"custom_block_name\": \"RPOS Tiles\", \"col\": 12}}]",
  "creation": "2026-08-31 00:00:00.000000",
- "custom_blocks": [],
+ "custom_blocks": [
+  {
+   "custom_block_name": "RPOS Tiles",
+   "label": "RPOS Tiles"
+  }
+ ],
  "docstatus": 0,
  "doctype": "Workspace",
  "for_user": "",
@@ -114,7 +119,7 @@
    "type": "Link"
   }
  ],
- "modified": "2026-09-06 12:00:00.000000",
+ "modified": "2026-10-11 09:00:00.000000",
  "modified_by": "Administrator",
  "module": "Restaurant POS",
  "name": "Printing",

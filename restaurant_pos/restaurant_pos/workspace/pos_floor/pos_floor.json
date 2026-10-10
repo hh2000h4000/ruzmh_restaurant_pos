@@ -1,7 +1,12 @@
 {
  "charts": [],
  "creation": "2026-09-06 00:00:00.000000",
- "custom_blocks": [],
+ "custom_blocks": [
+  {
+   "custom_block_name": "RPOS Tiles",
+   "label": "RPOS Tiles"
+  }
+ ],
  "docstatus": 0,
  "doctype": "Workspace",
  "for_user": "",
@@ -10,7 +15,7 @@
  "idx": 0,
  "is_hidden": 0,
  "label": "POS Floor",
- "modified": "2026-10-10 21:00:00.000000",
+ "modified": "2026-10-11 09:00:00.000000",
  "modified_by": "Administrator",
  "module": "Restaurant POS",
  "name": "POS Floor",
@@ -22,7 +27,7 @@
  "roles": [],
  "sequence_id": 14.0,
  "title": "POS Floor",
- "content": "[{\"type\": \"header\", \"data\": {\"text\": \"<span class=\\\"h4\\\">POS Floor</span>\", \"col\": 12}}, {\"type\": \"paragraph\", \"data\": {\"text\": \"For a restaurant with a dining room: its sections, tables and bookings. A takeaway shop needs none of this.\", \"col\": 12}}, {\"type\": \"card\", \"data\": {\"card_name\": \"The floor\", \"col\": 4}}]",
+ "content": "[{\"type\": \"custom_block\", \"data\": {\"custom_block_name\": \"RPOS Tiles\", \"col\": 12}}]",
  "links": [
   {
    "dependencies": "",

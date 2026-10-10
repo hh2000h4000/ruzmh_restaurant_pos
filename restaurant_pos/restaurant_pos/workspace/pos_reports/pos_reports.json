@@ -1,8 +1,13 @@
 {
  "charts": [],
- "content": "[{\"id\": \"rpos_rep_head\", \"type\": \"header\", \"data\": {\"text\": \"<span class=\\\"h4\\\">POS Reports</span>\", \"col\": 12}}, {\"id\": \"rpos_rep_intro\", \"type\": \"paragraph\", \"data\": {\"text\": \"Every report picks its period; most can be narrowed to a branch or an order type. <b>The guide's «التقارير» page</b> says what each one answers.\", \"col\": 12}}, {\"id\": \"rpos_rep_card1\", \"type\": \"card\", \"data\": {\"card_name\": \"Sales\", \"col\": 4}}, {\"id\": \"rpos_rep_card2\", \"type\": \"card\", \"data\": {\"card_name\": \"Oversight\", \"col\": 4}}, {\"id\": \"rpos_rep_card3\", \"type\": \"card\", \"data\": {\"card_name\": \"For the Accountant\", \"col\": 4}}]",
+ "content": "[{\"type\": \"custom_block\", \"data\": {\"custom_block_name\": \"RPOS Tiles\", \"col\": 12}}]",
  "creation": "2026-09-27 00:00:00.000000",
- "custom_blocks": [],
+ "custom_blocks": [
+  {
+   "custom_block_name": "RPOS Tiles",
+   "label": "RPOS Tiles"
+  }
+ ],
  "docstatus": 0,
  "doctype": "Workspace",
  "for_user": "",
@@ -256,7 +261,7 @@
    "type": "Link"
   }
  ],
- "modified": "2026-09-30 16:00:00.000000",
+ "modified": "2026-10-11 09:00:00.000000",
  "modified_by": "Administrator",
  "module": "Restaurant POS",
  "name": "POS Reports",

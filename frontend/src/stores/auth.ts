@@ -14,6 +14,39 @@ import type { Identity } from "@/api/auth";
  * and folding them together would mean re-loading a menu every time somebody
  * clocked in.
  */
+/**
+ * Who typed their PIN on this till (`D-343`).
+ *
+ * **A login in the office is not a sign-in at the till.** The two share one
+ * cookie, so a manager who opened the till from the desk was taken for the
+ * cashier: no PIN pad, their name on the welcome screen, and — on a login that
+ * was never set up to sell — a till that then refused everything, with nothing
+ * saying that the person had simply never signed in here.
+ *
+ * So the till remembers who signed in *on it*, and believes the server's "you
+ * are X" only when X is that person. It is kept in `localStorage` beside the
+ * pairing, for the pairing's reason: a reload must not ask a cashier for their
+ * PIN again mid-service.
+ */
+const TILL_USER = "rpos.till_user";
+
+function signedInHere(): string | null {
+  try {
+    return localStorage.getItem(TILL_USER);
+  } catch {
+    return null;
+  }
+}
+
+function rememberSignIn(user: string | null): void {
+  try {
+    if (user) localStorage.setItem(TILL_USER, user);
+    else localStorage.removeItem(TILL_USER);
+  } catch {
+    // Storage refused: the next reload asks for the PIN again, which is the safe side.
+  }
+}
+
 export const useAuthStore = defineStore("auth", () => {
   const identity = ref<Identity | null>(null);
   const busy = ref(false);
@@ -90,7 +123,8 @@ export const useAuthStore = defineStore("auth", () => {
   async function probe(posProfile: string | null): Promise<void> {
     try {
       const found = await api.me(posProfile);
-      identity.value = found.user === "Guest" ? null : found;
+      // `D-343` — and only the person who signed in at this till.
+      identity.value = found.user !== "Guest" && found.user === signedInHere() ? found : null;
     } catch {
       identity.value = null;
     } finally {
@@ -104,6 +138,7 @@ export const useAuthStore = defineStore("auth", () => {
 
     identity.value = found;
     known.value = true;
+    rememberSignIn(found.user);
     return true;
   }
 
@@ -114,6 +149,7 @@ export const useAuthStore = defineStore("auth", () => {
     // too eagerly: the next person would be looking at the last one's till.
     identity.value = null;
     known.value = true;
+    rememberSignIn(null);
   }
 
   /**
@@ -127,6 +163,7 @@ export const useAuthStore = defineStore("auth", () => {
   function forget(): void {
     identity.value = null;
     known.value = true;
+    rememberSignIn(null);
   }
 
   /**

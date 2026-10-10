@@ -178,6 +178,12 @@ restaurant_pos.desk_tiles = async function (root) {
 	container.classList.add("rpos-tiled");
 	container.querySelectorAll(".rpos-tiles-view").forEach((old) => old.remove());
 
+	// **Nothing of ours is in the page while it is being edited.** The tiles sit
+	// among the editor's own blocks, and the editor refuses to save a page with
+	// an element in it that it did not put there — the save simply did nothing.
+	const editing = () => frappe.workspace?.is_read_only === false || Boolean(container.querySelector(".widget.edit-mode"));
+	if (editing()) return;
+
 	let page;
 	try {
 		({ message: page } = await frappe.call("frappe.desk.desktop.get_desktop_page", {
@@ -205,6 +211,13 @@ restaurant_pos.desk_tiles = async function (root) {
 	// widgets it replaced.
 	root.querySelector(".rpos-tiles")?.classList.add("rpos-tiles-drawn");
 	block?.style.setProperty("display", "none");
+
+	const watcher = new MutationObserver(() => {
+		if (!editing()) return;
+		view.remove();
+		watcher.disconnect();
+	});
+	watcher.observe(container, { subtree: true, childList: true, attributes: true, attributeFilter: ["class"] });
 
 	function home() {
 		view.innerHTML = "";

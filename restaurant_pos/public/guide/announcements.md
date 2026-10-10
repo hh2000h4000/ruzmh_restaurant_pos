@@ -43,6 +43,8 @@
 
 ---
 
-السابق: [الطباعة ما اشتغلت؟](printing-problems.md)
+السابق: [تشغيل شاشة العميل](customer-display.md)
+
+التالي: [الطباعة ما اشتغلت؟](printing-problems.md)
 
 الرجوع لـ[صفحة البداية](README.md)

@@ -100,8 +100,8 @@
 
 ---
 
-السابق: [مراجعة تذاكر المطبخ](kitchen-tickets.md)
+السابق: [إعلان للكاشيرية](announcements.md)
 
-التالي: [إعلان للكاشيرية](announcements.md)
+التالي: [مراجعة تذاكر المطبخ](kitchen-tickets.md)
 
 الرجوع لـ[صفحة البداية](README.md)

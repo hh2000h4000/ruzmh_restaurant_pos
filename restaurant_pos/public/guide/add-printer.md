@@ -73,6 +73,6 @@
 
 السابق: [إضافة قسم وطاولات](add-section-and-tables.md)
 
-التالي: [إضافة الأصناف والأسعار](add-items-and-prices.md)
+التالي: [مراكز التحضير: أي صنف يطبع في أي مطبخ](production-centers.md)
 
 الرجوع لـ[صفحة البداية](README.md)

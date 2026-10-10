@@ -40,7 +40,7 @@
 
 ---
 
-السابق: [حجز طاولة](reservations.md)
+السابق: [ترتيب شاشة الكاشير](screen-layout.md)
 
 التالي: [تشغيل شاشة العميل](customer-display.md)
 

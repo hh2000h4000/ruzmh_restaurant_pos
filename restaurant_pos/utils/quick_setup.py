@@ -119,7 +119,7 @@ def _let_stock_go_below_zero() -> bool:
 def company_basics(company: str) -> frappe._dict:
 	"""What a branch and a terminal of ``company`` hang off — read from ERPNext's own setup."""
 	abbr = frappe.db.get_value("Company", company, "abbr")
-	warehouse = frappe.db.get_value("Warehouse", {"company": company, "is_group": 0}, "name")
+	warehouse = _selling_warehouse(company)
 	if not warehouse:
 		frappe.throw(_("{0} has no warehouse yet. Finish ERPNext's setup first.").format(company))
 
@@ -136,6 +136,45 @@ def company_basics(company: str) -> frappe._dict:
 		frappe.throw(_("{0} has no expense account yet. Finish ERPNext's setup first.").format(company))
 
 	return frappe._dict(warehouse=warehouse, cost_center=cost_center, write_off=write_off)
+
+
+def _selling_warehouse(company: str) -> str | None:
+	"""Where this company keeps what it sells — not simply its first warehouse (`D-345`).
+
+	The first one by name is «Goods In Transit», so every branch quick setup made
+	sold out of the place stock sits while it travels between two others: the
+	shelf never went down and the transit warehouse went below zero. ERPNext
+	already says which warehouse stock arrives in by default; that one, when it is
+	this company's, and otherwise any that is neither a group nor a transit one.
+	"""
+	usual = frappe.db.get_single_value("Stock Settings", "default_warehouse")
+	if usual and frappe.db.get_value("Warehouse", usual, ["company", "is_group"]) == (company, 0):
+		return usual
+
+	transit = frappe.db.get_value("Company", company, "default_in_transit_warehouse")
+	for row in frappe.get_all(
+		"Warehouse",
+		filters={"company": company, "is_group": 0, "disabled": 0},
+		fields=["name", "warehouse_type"],
+		order_by="creation asc",
+	):
+		if row.name != transit and row.warehouse_type != "Transit":
+			return row.name
+
+	return None
+
+
+def _menu_price_list() -> str | None:
+	"""The list the shop sells at: ERPNext's own default, before "whichever comes first" (`D-345`).
+
+	The first enabled selling list was a delivery app's, so the new till opened
+	at HungerStation's prices.
+	"""
+	usual = frappe.db.get_single_value("Selling Settings", "selling_price_list")
+	if usual and frappe.db.get_value("Price List", usual, ["selling", "enabled"]) == (1, 1):
+		return usual
+
+	return frappe.db.get_value("Price List", {"selling": 1, "enabled": 1}, "name", order_by="creation asc")
 
 
 def walk_in_customer() -> str:
@@ -237,8 +276,7 @@ def _terminal(name: str, company: str, section: str, price_list: str | None, tax
 			"write_off_limit": 1,
 			"customer": walk_in_customer(),
 			"restaurant_section": section,
-			"selling_price_list": price_list
-			or frappe.db.get_value("Price List", {"selling": 1, "enabled": 1}, "name"),
+			"selling_price_list": price_list or _menu_price_list(),
 			"taxes_and_charges": taxes,
 			"payments": [{"mode_of_payment": cash_method(company), "default": 1}],
 		}

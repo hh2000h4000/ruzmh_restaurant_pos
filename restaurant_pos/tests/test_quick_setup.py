@@ -54,6 +54,29 @@ class QuickSetupMakesATillThatCanSell(FrappeTestCase):
 		self.assertEqual([row.mode_of_payment for row in profile.payments], ["Cash"])
 		self.assertTrue(profile.selling_price_list)
 
+	def test_the_branch_does_not_sell_out_of_the_transit_warehouse(self):
+		"""`D-345` — the company's first warehouse by name is «Goods In Transit»."""
+		values = _answers()
+		transit = frappe.db.get_value("Company", values["company"], "default_in_transit_warehouse")
+
+		service.run(values)
+
+		chosen = frappe.db.get_value("Branch", values["branch"], "default_warehouse")
+		self.assertNotEqual(chosen, transit)
+		self.assertNotEqual(frappe.db.get_value("Warehouse", chosen, "warehouse_type"), "Transit")
+		self.assertEqual(frappe.db.get_value("POS Profile", values["terminal"], "warehouse"), chosen)
+
+	def test_the_till_opens_at_the_shops_own_prices(self):
+		"""`D-345` — the first selling list was a delivery app's."""
+		usual = frappe.db.get_single_value("Selling Settings", "selling_price_list")
+		if not usual:
+			self.skipTest("the site names no default selling price list")
+		values = _answers()
+
+		service.run(values)
+
+		self.assertEqual(frappe.db.get_value("POS Profile", values["terminal"], "selling_price_list"), usual)
+
 	def test_it_lets_stock_go_below_zero_and_says_so_once(self):
 		"""`D-326` — a kitchen that enters its deliveries late must still have its day posted."""
 		frappe.db.set_single_value("Stock Settings", "allow_negative_stock", 0)

@@ -25,7 +25,9 @@ frappe.pages["rpos-quick-setup"].on_page_load = function (wrapper) {
 				options: "Company",
 				label: __("Company"),
 				reqd: 1,
-				default: frappe.defaults.get_user_default("Company"),
+				// The site's company when this login has none of its own: a shop has
+				// one, and the first question should answer itself (`D-345`).
+				default: frappe.defaults.get_user_default("Company") || frappe.sys_defaults.company,
 			},
 			{
 				fieldname: "branch",
@@ -60,7 +62,7 @@ frappe.pages["rpos-quick-setup"].on_page_load = function (wrapper) {
 				options: "Price List",
 				label: __("Menu Price List"),
 				get_query: () => ({ filters: { selling: 1, enabled: 1 } }),
-				description: __("Empty takes the first selling price list."),
+				description: __("Empty takes the default selling price list."),
 			},
 			{ fieldtype: "Column Break" },
 			{

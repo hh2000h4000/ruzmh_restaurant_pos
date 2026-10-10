@@ -378,7 +378,7 @@ The lines the discount is spread across.,الأسطر اللي يتوزّع عل
 The lines counted towards the offer — and the free ones come from among them.,الأسطر اللي تُعدّ للعرض — والمجاني يطلع منها.
 "What the bill must contain to qualify. The free item itself is chosen below: pick Grills here and Drinks below for ""buy a grill, get a drink free"".","وش لازم يكون في الفاتورة عشان تتأهّل. والصنف المجاني نفسه تختاره تحت: حط «المشاوي» هنا و«المشروبات» تحت، تصير «اشترِ مشوياً وخذ مشروباً مجاناً»."
 "Which lines this offer looks at. For a free-item offer this is what the bill must contain to qualify — the reward itself is chosen further down.",أي الأسطر يشوفها هذا العرض. وفي عرض «صنف مجاني» هذا شرط التأهل — والمكافأة نفسها تختارها تحت.
-Child groups count too, so naming Drinks covers the hot ones and the cold ones.,المجموعات اللي تحتها تنحسب كمان، فاختيار «المشروبات» يشمل الساخنة والباردة.
+"Child groups count too, so naming Drinks covers the hot ones and the cold ones.","المجموعات اللي تحتها تنحسب كمان، فاختيار «المشروبات» يشمل الساخنة والباردة."
 "The exact dishes, when a group is too wide.",الأصناف بعينها، لما تكون المجموعة واسعة زيادة.
 One named dish that comes free. Leave it empty and use the group below instead.,صنف واحد محدد يطلع مجاناً. اتركه فاضي واستخدم المجموعة تحت.
 POS Coupon,كوبون
@@ -1148,7 +1148,7 @@ Gift Cards,بطاقات الهدايا
 POS User Guide,دليل نقاط البيع
 Back to the office,رجوع للمكتب
 There is no such page in the guide.,ما فيه صفحة بهذا الاسم في الدليل.
-A gift card method is paid from the card's balance, not settled on account.,طريقة بطاقة الهدايا تُدفع من رصيد البطاقة، ما تنسجل على الحساب.
+"A gift card method is paid from the card's balance, not settled on account.","طريقة بطاقة الهدايا تُدفع من رصيد البطاقة، ما تنسجل على الحساب."
 {0} is already the gift card method. Only one can be.,{0} هي طريقة بطاقة الهدايا من قبل. ما يصير إلا وحدة.
 Gift Card,بطاقة هدايا,Mode of Payment
 The cashier is asked for the card's number and its balance pays. One method only; its account is the gift card liability.,الكاشير يطلب رقم البطاقة، والدفع من رصيدها. طريقة وحدة بس، وحسابها هو حساب بطاقات الهدايا.
@@ -1278,7 +1278,7 @@ Manual Discount,خصم يدوي
 Points Spent,نقاط مصروفة
 Discounted bills only,الفواتير المخصومة فقط
 Approved By,اعتمده
-{0} takes no money at the till, so it cannot pay for a gift card.,{0} ما يدخّل فلوس في الدرج، فما ينفع تنشرى فيه بطاقة هدايا.
+"{0} takes no money at the till, so it cannot pay for a gift card.","{0} ما يدخّل فلوس في الدرج، فما ينفع تنشرى فيه بطاقة هدايا."
 Cashier Device,جهاز الكاشير
 Table,الطاولة,Restaurant Table
 Table,الطاولة,Restaurant Order
@@ -1425,7 +1425,7 @@ Recipients,المستلمون,POS Announcement
 Read At,وقت القراءة,POS Announcement Recipient
 Name,الاسم,POS Announcement Recipient
 {0} of {1},{0} من {1}
-Nobody would receive this announcement. Choose other branches, roles or people.,ما أحد بيستلم هذا الإعلان. اختر فروع أو أدوار أو أشخاص غيرهم.
+"Nobody would receive this announcement. Choose other branches, roles or people.","ما أحد بيستلم هذا الإعلان. اختر فروع أو أدوار أو أشخاص غيرهم."
 Staff Announcements,إعلانات الموظفين
 Quick Setup,الإعداد السريع
 "A few answers, and the branch, its sections and tables, and a cashier terminal are made for you. You can change any of them later from their own pages.","كم سؤال، ويتسوّى لك الفرع وأقسامه وطاولاته وجهاز الكاشير. وتقدر تعدّل أي شي منها بعدين من شاشته."
@@ -1440,7 +1440,7 @@ Cashier Terminal,جهاز الكاشير
 Terminal Name,اسم الجهاز
 Cashier 1,كاشير 1
 Menu Price List,قائمة أسعار المنيو
-Empty takes the first selling price list.,لو تركته فاضي ياخذ أول قائمة أسعار بيع.
+Empty takes the default selling price list.,لو تركته فاضي ياخذ قائمة أسعار البيع الافتراضية.
 VAT Template,قالب الضريبة
 Empty takes the company's default template.,لو تركته فاضي ياخذ القالب الافتراضي للشركة.
 Create,إنشاء
@@ -1449,7 +1449,7 @@ Set Up Another Branch,إعداد فرع ثاني
 Done.,تم.
 Terminal,الجهاز
 {0} tables,{0} طاولة
-On the till, open the cashier screen and enter this pairing code:,على جهاز الكاشير، افتح شاشة الكاشير واكتب رمز الربط هذا:
+"On the till, open the cashier screen and enter this pairing code:","على جهاز الكاشير، افتح شاشة الكاشير واكتب رمز الربط هذا:"
 "It works once, for {0} minutes. A new one can be issued from the terminal's page.","يشتغل مرة وحدة، لمدة {0} دقيقة. وتقدر تطلع رمز جديد من صفحة الجهاز."
 "Next: add your menu items and prices, then your staff and their PINs.","الخطوة الجاية: أضف أصناف المنيو وأسعارها، وبعدها الموظفين وأرقامهم السرية."
 Open the guide,افتح الدليل

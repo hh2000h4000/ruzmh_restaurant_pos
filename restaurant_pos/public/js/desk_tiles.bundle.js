@@ -53,11 +53,14 @@ const STYLE = `
 	.rpos-tiled .ce-block:has(.links-widget-box),
 	.rpos-tiled .ce-block:has(.shortcut-widget-box),
 	.rpos-tiled .ce-block:has(.rpos-tiles-drawn) { display: none; }
-	.edit-mode .rpos-tiled .ce-block { display: block !important; }
-	.edit-mode .rpos-tiles-view { display: none; }
+	/* Editing is read off the widgets themselves — each carries \`edit-mode\` while
+	   the editor is open — not off an ancestor: that class is not always there,
+	   and without it the tiles sat over the widgets being edited. */
+	.rpos-tiled:has(.widget.edit-mode) .ce-block { display: block !important; }
+	.rpos-tiled:has(.widget.edit-mode) .rpos-tiles-view { display: none; }
 	/* The editor leaves room under the last block for the next one; a page nobody is editing has no use for it. */
 	.rpos-tiled .codex-editor__redactor { padding-bottom: 0 !important; }
-	.edit-mode .rpos-tiled .codex-editor__redactor { padding-bottom: 300px !important; }
+	.rpos-tiled:has(.widget.edit-mode) .codex-editor__redactor { padding-bottom: 300px !important; }
 
 	/* A row of its own among the editor's columns, whichever way they are laid out. */
 	.rpos-tiles-view { padding: 8px 0 28px; grid-column: 1 / -1; flex: 0 0 100%; width: 100%; max-width: 100%; }

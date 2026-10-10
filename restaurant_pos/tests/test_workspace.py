@@ -88,21 +88,38 @@ class TestTheDeskPages(FrappeTestCase):
 				with self.subTest(page=name, card=card):
 					self.assertEqual(declared[card], count, f"{name}: card {card!r}")
 
-	def test_every_page_is_drawn_as_tiles_and_names_the_block_that_draws_them(self):
-		"""`D-347` — the tiles are one block reading the page's own rows.
+	def test_the_layout_and_the_record_name_the_same_things(self):
+		"""`content` is drawn from; the rest of the record is what it draws.
 
-		A page whose content names a block its record does not hold draws
-		nothing at all, and a page with no rows gives the block nothing to draw.
+		**And Frappe enforces it the hard way** (`D-348`): saving a page from the
+		editor deletes every shortcut and card the content does not show. A row
+		kept out of the content is a row the owner's first edit removes — which
+		is how the tiles were emptied the day they were made.
 		"""
+		for name, page in _pages():
+			blocks = json.loads(page["content"])
+
+			cards = {b["data"]["card_name"] for b in blocks if b["type"] == "card"}
+			breaks = {row["label"] for row in page["links"] if row["type"] == "Card Break"}
+			self.assertEqual(cards, breaks, f"{name}: cards on the page vs cards in the record")
+
+			shortcuts = {b["data"]["shortcut_name"] for b in blocks if b["type"] == "shortcut"}
+			held = {row["label"] for row in page["shortcuts"]}
+			self.assertEqual(shortcuts, held, f"{name}: shortcuts on the page vs shortcuts in the record")
+
+			custom = {b["data"]["custom_block_name"] for b in blocks if b["type"] == "custom_block"}
+			named = {row["custom_block_name"] for row in page.get("custom_blocks", [])}
+			self.assertEqual(custom, named, f"{name}: blocks on the page vs blocks in the record")
+
+	def test_the_office_is_one_page_and_it_is_tiles(self):
+		"""`D-348` — one page, led by the block that draws it as tiles."""
 		from restaurant_pos.setup.desk_tiles import BLOCK
 
-		for name, page in _pages():
-			with self.subTest(page=name):
-				blocks = json.loads(page["content"])
-				self.assertEqual([b["type"] for b in blocks], ["custom_block"])
-				self.assertEqual(blocks[0]["data"]["custom_block_name"], BLOCK)
-				self.assertIn(BLOCK, [row["custom_block_name"] for row in page["custom_blocks"]])
-				self.assertTrue(page["links"] or page["shortcuts"], f"{name}: nothing for the tiles to draw")
+		pages = dict(_pages())
+		self.assertEqual(list(pages), ["restaurant_pos"])
+
+		first = json.loads(pages["restaurant_pos"]["content"])[0]
+		self.assertEqual((first["type"], first["data"]["custom_block_name"]), ("custom_block", BLOCK))
 
 	def test_the_block_is_on_the_site_and_open_to_everybody(self):
 		"""`D-347` — made on migrate; a private block is an empty page for every other login."""
@@ -139,23 +156,3 @@ class TestTheDeskPages(FrappeTestCase):
 		urls = [row.get("url") for row in page["shortcuts"] if row["type"] == "URL"]
 
 		self.assertIn("/restaurant-pos", urls)
-
-	def test_every_card_on_the_home_page_opens_a_page_of_ours(self):
-		"""`D-346` — the home page is cards now, and a card is only a URL.
-
-		Nothing checks a URL: rename a page and its card opens "not found", on the
-		first screen a customer sees after installing.
-		"""
-		routes = {page["name"].lower().replace(" ", "-") for _, page in _pages()}
-		home = dict(_pages())["restaurant_pos"]
-
-		for row in home["shortcuts"]:
-			if row["type"] != "URL" or not row["url"].startswith("/app/"):
-				continue
-
-			with self.subTest(card=row["label"]):
-				self.assertIn(row["url"].removeprefix("/app/"), routes)
-
-	def test_the_home_page_carries_no_list_of_links(self):
-		"""`D-346` — forty-five links on one page is what the cards replaced."""
-		self.assertEqual(dict(_pages())["restaurant_pos"]["links"], [])

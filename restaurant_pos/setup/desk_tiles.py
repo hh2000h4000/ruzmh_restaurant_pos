@@ -1,7 +1,7 @@
 # Copyright (c) 2026, RPOS and contributors
 # For license information, please see license.txt
 
-"""The block that draws the office pages as tiles (`D-347`).
+"""The block that makes a desk page tiles (`D-347`, `D-348`).
 
 A workspace can hold a `Custom HTML Block`, and that is how the tiles get onto
 the page. **What is stored is one line** — a call into
@@ -39,7 +39,10 @@ CONTENT = {
 	# line shows after a moment and says what brings them. In both languages,
 	# because a block's own HTML is not translated.
 	"html": (
-		'<div class="rpos-tiles"><p class="rpos-wait" hidden style="padding:24px 4px;color:var(--text-muted)">'
+		'<div class="rpos-tiles"><p style="margin:0;padding:10px 4px;color:var(--text-muted)">'
+		"هذي الصفحة تنعرض كبطاقات: كل اختصار وكل بطاقة فيها يصير مربع، وروابط البطاقة تطلع لما تنقرها."
+		"<br>This page is shown as tiles: every shortcut and card on it becomes a square, and a card opens onto "
+		'its links.</p><p class="rpos-wait" hidden style="padding:0 4px 10px;color:var(--text-muted)">'
 		"الصفحة ما اكتملت. حدّث المتصفح (Ctrl+Shift+R)، ولو ما تغيّر شي شغّل bench build ثم bench restart."
 		"<br>This page did not finish loading. Reload (Ctrl+Shift+R); if nothing changes, run bench build and "
 		"restart.</p></div>"

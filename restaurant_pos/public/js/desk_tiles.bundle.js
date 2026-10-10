@@ -2,22 +2,25 @@
 // For license information, please see license.txt
 
 /**
- * The office pages as tiles (`D-347`).
+ * A workspace shown as tiles (`D-348`).
  *
- * A Frappe workspace draws its links as lists of text, and ten of those were a
- * page of words a new customer had to read to find a door. The owner asked for
- * what Odoo and ERPNext 16 open on: a square with a picture and a name, and
- * nothing else.
+ * A Frappe workspace draws its cards as lists of text, and the office page was
+ * a screen of words a new customer had to read to find a door. The owner asked
+ * for what Odoo and ERPNext 16 open on — a square with a picture and a name —
+ * and for the till's own habit: tap a group, see what is inside it.
  *
- * **The tiles are the page's own links, drawn another way.** A workspace's
- * record already holds its shortcuts and its cards; this asks the server for
- * them the way the desk does — so a link the reader may not open is already
- * gone, and a label is already theirs — and draws each as a tile. There is no
- * second list of screens to keep in step with the first (`CLAUDE.md` §5.5).
+ * **It changes how the page's own widgets look, and nothing else.** The page
+ * keeps its ordinary shortcuts and cards, added and ordered in Frappe's own
+ * editor; this hides them and draws each as a tile. A card is a tile that
+ * opens onto its links.
  *
- * It is mounted by one `Custom HTML Block` whose script asks for this bundle
- * and calls `restaurant_pos.desk_tiles(root_element)`, so what is stored in the
- * database never has to change when this does.
+ * The first version (`D-347`) kept the rows *out* of the page and drew them
+ * from the record. Frappe deletes every row a saved page does not show, so the
+ * owner's first edit emptied it. A page that survives being edited is one whose
+ * widgets are really on it.
+ *
+ * **Any page becomes tiles by holding the `RPOS Tiles` block** — added from
+ * the editor like any other block — so this is not the restaurant's alone.
  */
 frappe.provide("restaurant_pos");
 
@@ -36,31 +39,42 @@ const ICONS = {
 	gear: '<circle cx="12" cy="12" r="3"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1"/>',
 	bolt: '<path d="M13 2.5L4.5 14H11l-1 7.5L18.5 10H12z"/>',
 	file: '<path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/><path d="M9 13h6M9 17h6"/>',
+	folder: '<path d="M3 6h7l2 2.5h9V19H3z"/>',
+	back: '<path d="M9 6l6 6-6 6"/>',
 };
 
-/** A home tile's picture, by where it leads. */
-const BY_ROUTE = {
+/** The two doors that are not desk pages, known by where they lead. */
+const OURS = {
 	"/restaurant-pos": "till",
 	"/rpos-guide": "guide",
-	"/app/pos-branches-and-devices": "store",
-	"/app/pos-menu": "list",
-	"/app/pos-staff": "users",
-	"/app/pos-floor": "table",
-	"/app/printing": "printer",
-	"/app/pos-offers-and-loyalty": "tag",
-	"/app/pos-daily-work": "calendar",
-	"/app/pos-books-and-logs": "book",
-	"/app/pos-reports": "chart",
-	"/app/pos-preferences": "gear",
 };
 
 const STYLE = `
-	.rpos-tiles { padding: 4px 0 24px; }
-	.rpos-group { margin: 22px 4px 10px; font-size: 13px; font-weight: 600; color: var(--text-muted); }
+	.rpos-tiled .ce-block:has(.links-widget-box),
+	.rpos-tiled .ce-block:has(.shortcut-widget-box),
+	.rpos-tiled .ce-block:has(.rpos-tiles-drawn) { display: none; }
+	.edit-mode .rpos-tiled .ce-block { display: block !important; }
+	.edit-mode .rpos-tiles-view { display: none; }
+	/* The editor leaves room under the last block for the next one; a page nobody is editing has no use for it. */
+	.rpos-tiled .codex-editor__redactor { padding-bottom: 0 !important; }
+	.edit-mode .rpos-tiled .codex-editor__redactor { padding-bottom: 300px !important; }
+
+	.rpos-tiles-view { padding: 8px 0 28px; }
+	.rpos-crumb { display: flex; align-items: center; gap: 10px; margin: 0 4px 16px; }
+	.rpos-back {
+		display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; border-radius: 10px;
+		border: 1px solid var(--border-color); background: var(--card-bg); color: var(--text-color);
+		font-size: 13px; font-weight: 600; cursor: pointer;
+	}
+	.rpos-back:hover { border-color: #1f4d43; }
+	.rpos-back svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2;
+		stroke-linecap: round; stroke-linejoin: round; }
+	.rpos-back.is-ltr svg { transform: scaleX(-1); }
+	.rpos-here { font-size: 16px; font-weight: 700; color: var(--text-color); }
 	.rpos-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: 14px; }
 	.rpos-tile {
 		display: flex; flex-direction: column; align-items: center; gap: 12px;
-		padding: 20px 10px 16px; border-radius: 14px; cursor: pointer; text-decoration: none;
+		padding: 20px 10px 16px; border-radius: 14px; cursor: pointer; text-decoration: none !important;
 		background: var(--card-bg); border: 1px solid var(--border-color);
 		transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
 	}
@@ -74,51 +88,56 @@ const STYLE = `
 	}
 	.rpos-tile.is-till .rpos-icon { background: #1f9d6c; }
 	.rpos-tile.is-guide .rpos-icon { background: #2f6fed; }
+	.rpos-tile.is-link .rpos-icon { background: #e8efed; color: #1f4d43; }
 	.rpos-icon svg { width: 30px; height: 30px; fill: none; stroke: currentColor; stroke-width: 1.7;
 		stroke-linecap: round; stroke-linejoin: round; }
+	.rpos-icon svg.icon { stroke: currentColor; fill: none; }
 	.rpos-name { font-size: 14px; font-weight: 600; line-height: 1.35; text-align: center; color: var(--text-color); }
 	.rpos-empty { padding: 24px 4px; color: var(--text-muted); }
 `;
 
-function slug(name) {
-	return frappe.router.slug(name);
+function styled() {
+	if (document.getElementById("rpos-tiles-style")) return;
+	const style = document.createElement("style");
+	style.id = "rpos-tiles-style";
+	style.textContent = STYLE;
+	document.head.appendChild(style);
 }
 
 /** Where a workspace link leads, as the desk itself would route it. */
 function route_of(link) {
+	const slug = frappe.router.slug(link.link_to);
 	if (link.link_type === "Report") {
-		return link.is_query_report ? `/app/query-report/${encodeURIComponent(link.link_to)}` : `/app/${slug(link.link_to)}/view/report`;
+		return link.is_query_report ? `/app/query-report/${encodeURIComponent(link.link_to)}` : `/app/${slug}/view/report`;
 	}
 	if (link.link_type === "Page") return `/app/${link.link_to}`;
-	return `/app/${slug(link.link_to)}`;
+	return `/app/${slug}`;
 }
 
-function icon_of(link) {
-	if (link.link_type === "Report") return "chart";
-	if (link.link_type === "Page") return "bolt";
-	if (/settings|colours|theme/i.test(link.link_to)) return "gear";
-	return "file";
+function picture(name, row_icon) {
+	// The icon its row names wins: `rpos-…` is one of the set above, anything
+	// else is one of Frappe's own, chosen in its editor — which is how a page
+	// nobody here has heard of gets pictures of its own.
+	if (row_icon?.startsWith("rpos-") && ICONS[row_icon.slice(5)]) name = row_icon.slice(5);
+	else if (row_icon) return frappe.utils.icon(row_icon, "lg");
+	return `<svg viewBox="0 0 24 24" aria-hidden="true">${ICONS[name] || ICONS.file}</svg>`;
 }
 
-function tile({ label, url, icon }) {
+function tile({ label, kind, icon, row_icon, href, open }) {
 	const a = document.createElement("a");
-	a.className = `rpos-tile is-${icon}`;
-	a.href = url;
-	a.innerHTML = `<span class="rpos-icon"><svg viewBox="0 0 24 24" aria-hidden="true">${ICONS[icon] || ICONS.file}</svg></span>`;
+	a.className = `rpos-tile is-${kind}`;
+	a.href = href || "#";
+	a.innerHTML = `<span class="rpos-icon">${picture(icon, row_icon)}</span>`;
 
 	const name = document.createElement("span");
 	name.className = "rpos-name";
 	name.textContent = label;
 	a.appendChild(name);
 
-	// A desk page is opened by the desk's own router — no reload, and the back
-	// button returns here. Anything else (the till, the guide) is a page of its
-	// own and opens beside the office rather than replacing it.
 	a.addEventListener("click", (event) => {
-		if (event.ctrlKey || event.metaKey || event.shiftKey) return;
+		if (href && (event.ctrlKey || event.metaKey || event.shiftKey)) return;
 		event.preventDefault();
-		if (url.startsWith("/app/")) frappe.set_route(url);
-		else window.open(url, "_blank");
+		open();
 	});
 	return a;
 }
@@ -130,55 +149,142 @@ function grid(tiles) {
 	return box;
 }
 
-restaurant_pos.desk_tiles = async function (root) {
-	const mount = root.querySelector(".rpos-tiles");
-	if (!mount) return;
+/** Leave the office for a screen: the desk's router for its own pages, a new tab for anything else. */
+function go(url) {
+	if (url.startsWith("/app/")) frappe.set_route(url);
+	else window.open(url, "_blank");
+}
 
-	const style = document.createElement("style");
-	style.textContent = STYLE;
-	root.appendChild(style);
-
-	const route = frappe.get_route();
+function this_page(route) {
 	const name = route[route.length - 1];
+	const private_page = route[1] === "private";
+	const known = (frappe.workspace?.all_pages || []).find(
+		(page) => page.title === name && Boolean(page.public) === !private_page,
+	);
+	return known
+		? { name: known.name, title: known.title, public: known.public }
+		: { name, title: name, public: private_page ? 0 : 1 };
+}
+
+restaurant_pos.desk_tiles = async function (root) {
+	styled();
+
+	const host = root.host;
+	const container = host.closest(".editor-js-container") || host.parentElement;
+	container.classList.add("rpos-tiled");
+	container.querySelectorAll(".rpos-tiles-view").forEach((old) => old.remove());
+
 	let page;
 	try {
 		({ message: page } = await frappe.call("frappe.desk.desktop.get_desktop_page", {
-			page: JSON.stringify({ name, title: name, public: 1 }),
+			page: JSON.stringify(this_page(frappe.get_route())),
 		}));
 	} catch (cause) {
 		// The waiting line stays, and says what to do; a blank page says nothing.
-		mount.querySelector(".rpos-wait")?.removeAttribute("hidden");
+		root.querySelector(".rpos-wait")?.removeAttribute("hidden");
 		throw cause;
 	}
 
-	mount.innerHTML = "";
-	const shortcuts = (page?.shortcuts?.items || []).filter((row) => row.type === "URL" && row.url);
+	const shortcuts = page?.shortcuts?.items || [];
 	const cards = (page?.cards?.items || []).filter((card) => (card.links || []).length);
 
-	// The home page is its shortcuts; an area's page is its cards.
-	if (shortcuts.length && !cards.length) {
-		mount.appendChild(
-			grid(shortcuts.map((row) => ({ label: __(row.label), url: row.url, icon: BY_ROUTE[row.url] || "file" }))),
-		);
-		return;
-	}
+	const view = document.createElement("div");
+	view.className = "rpos-tiles-view";
+	container.prepend(view);
+	// Drawn: the block's own box has nothing left to say, so it goes with the
+	// widgets it replaced.
+	root.querySelector(".rpos-tiles")?.classList.add("rpos-tiles-drawn");
+	host.closest(".ce-block")?.style.setProperty("display", "none");
 
-	cards.forEach((card) => {
-		if (cards.length > 1) {
-			const heading = document.createElement("div");
-			heading.className = "rpos-group";
-			heading.textContent = __(card.label);
-			mount.appendChild(heading);
+	function home() {
+		view.innerHTML = "";
+		const tiles = [
+			...shortcuts.map((row) => {
+				const url = row.type === "URL" ? row.url : route_of({ link_to: row.link_to, link_type: row.type });
+				const ours = OURS[row.url];
+				return {
+					label: __(row.label),
+					kind: ours || "group",
+					icon: ours || "file",
+					row_icon: row.icon,
+					href: url,
+					open: () => go(url),
+				};
+			}),
+			...cards.map((card) => ({
+				label: __(card.label),
+				kind: "group",
+				icon: "folder",
+				row_icon: card.icon,
+				open: () => enter(card.label),
+			})),
+		];
+
+		if (tiles.length) {
+			view.appendChild(grid(tiles));
+			return;
 		}
-		mount.appendChild(
-			grid(card.links.map((link) => ({ label: __(link.label), url: route_of(link), icon: icon_of(link) }))),
-		);
-	});
 
-	if (!cards.length) {
 		const none = document.createElement("div");
 		none.className = "rpos-empty";
 		none.textContent = __("Nothing on this page is open to you.");
-		mount.appendChild(none);
+		view.appendChild(none);
 	}
+
+	function inside(card) {
+		view.innerHTML = "";
+
+		const crumb = document.createElement("div");
+		crumb.className = "rpos-crumb";
+		const back = document.createElement("button");
+		back.type = "button";
+		back.className = frappe.utils.is_rtl() ? "rpos-back" : "rpos-back is-ltr";
+		back.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true">${ICONS.back}</svg>`;
+		back.appendChild(document.createTextNode(__("Back to the tiles")));
+		back.addEventListener("click", () => history.back());
+		const here = document.createElement("span");
+		here.className = "rpos-here";
+		here.textContent = __(card.label);
+		crumb.append(back, here);
+		view.appendChild(crumb);
+
+		view.appendChild(
+			grid(
+				card.links.map((link) => {
+					const url = route_of(link);
+					const kind = link.link_type === "Report" ? "chart" : link.link_type === "Page" ? "bolt" : "file";
+					return {
+						label: __(link.label),
+						kind: "link",
+						icon: /settings|theme/i.test(link.link_to) ? "gear" : kind,
+						row_icon: link.icon,
+						href: url,
+						open: () => go(url),
+					};
+				}),
+			),
+		);
+	}
+
+	function show(label) {
+		const card = cards.find((one) => one.label === label);
+		if (card) inside(card);
+		else home();
+	}
+
+	// **The browser's back button is the way out of a group**, as it is the way
+	// out of everything else on the desk. Entering one is a history entry, and
+	// the page reads where it is from that entry — also when Frappe redraws it.
+	function enter(label) {
+		history.pushState({ ...(history.state || {}), rpos_card: label }, "");
+		show(label);
+	}
+
+	restaurant_pos._tiles_pop && window.removeEventListener("popstate", restaurant_pos._tiles_pop);
+	restaurant_pos._tiles_pop = (event) => {
+		if (document.body.contains(view)) show(event.state?.rpos_card);
+	};
+	window.addEventListener("popstate", restaurant_pos._tiles_pop);
+
+	show(history.state?.rpos_card);
 };

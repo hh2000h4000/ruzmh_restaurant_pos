@@ -1017,6 +1017,13 @@ def after_migrate():
 	# cannot print.
 	create_default_templates()
 
+	# `D-350` — a site with no permission set at all is one whose install never
+	# reached the defaults, not one that chose to have none: every till role then
+	# signs nobody in, and the pad says only "not recognised". Nothing a
+	# restaurant configured is touched — each default is made only if missing.
+	if not frappe.db.count("POS Permission Set"):
+		create_default_data()
+
 	# `D-256` — and on migrate rather than install alone, for the same reason:
 	# every site that had this app before gift cards existed needs the liability
 	# account and the payment mode, or the feature is simply absent there. It

@@ -340,7 +340,14 @@ restaurant_pos.desk_tiles = async function (root) {
 		if (styling) {
 			const hint = document.createElement("span");
 			hint.textContent = __("Press a tile to choose its picture and colour.");
-			row.appendChild(hint);
+			// The size and the colour of all of them are the site's, on a form of
+			// their own — said here, because this is where it was looked for.
+			const all = document.createElement("button");
+			all.type = "button";
+			all.className = "btn btn-default btn-sm";
+			all.textContent = __("Size and colour of all the tiles");
+			all.addEventListener("click", () => frappe.set_route("Form", "RPOS Tile Settings"));
+			row.append(hint, all);
 		}
 		view.appendChild(row);
 	}

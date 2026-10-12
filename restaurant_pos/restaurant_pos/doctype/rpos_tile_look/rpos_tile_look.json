@@ -1,0 +1,68 @@
+{
+ "actions": [],
+ "creation": "2026-10-12 12:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "page",
+  "kind",
+  "label",
+  "icon",
+  "colour"
+ ],
+ "fields": [
+  {
+   "columns": 2,
+   "fieldname": "page",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Page",
+   "reqd": 1
+  },
+  {
+   "columns": 2,
+   "fieldname": "kind",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Kind",
+   "options": "Shortcut\nCard\nLink",
+   "reqd": 1
+  },
+  {
+   "columns": 3,
+   "fieldname": "label",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Tile",
+   "reqd": 1
+  },
+  {
+   "columns": 2,
+   "fieldname": "icon",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Picture"
+  },
+  {
+   "columns": 1,
+   "fieldname": "colour",
+   "fieldtype": "Color",
+   "in_list_view": 1,
+   "label": "Colour"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "istable": 1,
+ "links": [],
+ "modified": "2026-10-12 12:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Restaurant POS",
+ "name": "RPOS Tile Look",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

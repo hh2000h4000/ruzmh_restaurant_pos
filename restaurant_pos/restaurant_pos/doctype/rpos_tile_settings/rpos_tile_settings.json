@@ -1,0 +1,112 @@
+{
+ "actions": [],
+ "creation": "2026-10-12 12:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "look_section",
+  "tile_colour",
+  "look_cb",
+  "tile_size",
+  "pages_section",
+  "page",
+  "page_action",
+  "looks_section",
+  "looks"
+ ],
+ "fields": [
+  {
+   "description": "For every desk page shown as tiles. One tile's own picture and colour are chosen on the page itself: press «Style the tiles», then the tile.",
+   "fieldname": "look_section",
+   "fieldtype": "Section Break",
+   "label": "The look of the tiles"
+  },
+  {
+   "description": "Left empty, the tiles keep their green.",
+   "fieldname": "tile_colour",
+   "fieldtype": "Color",
+   "label": "Tile colour"
+  },
+  {
+   "fieldname": "look_cb",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "Medium",
+   "fieldname": "tile_size",
+   "fieldtype": "Select",
+   "label": "Tile size",
+   "options": "Small\nMedium\nLarge"
+  },
+  {
+   "description": "Any desk page — Buying, Selling, Stock — can be shown as tiles: its shortcuts and cards become squares, and a card opens onto its links. Nothing on the page is removed, and it goes back with one press.",
+   "fieldname": "pages_section",
+   "fieldtype": "Section Break",
+   "label": "Show a page as tiles"
+  },
+  {
+   "fieldname": "page",
+   "fieldtype": "Link",
+   "label": "Page",
+   "options": "Workspace"
+  },
+  {
+   "fieldname": "page_action",
+   "fieldtype": "HTML"
+  },
+  {
+   "collapsible": 1,
+   "description": "Filled from the pages themselves. Delete a row to give that tile its default look back.",
+   "fieldname": "looks_section",
+   "fieldtype": "Section Break",
+   "label": "Tiles with a look of their own"
+  },
+  {
+   "fieldname": "looks",
+   "fieldtype": "Table",
+   "label": "Tiles",
+   "options": "RPOS Tile Look"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "issingle": 1,
+ "links": [],
+ "modified": "2026-10-12 12:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Restaurant POS",
+ "name": "RPOS Tile Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "share": 1,
+   "write": 1,
+   "role": "System Manager"
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "share": 1,
+   "write": 1,
+   "role": "Workspace Manager"
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "share": 1,
+   "write": 1,
+   "role": "Restaurant Admin"
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

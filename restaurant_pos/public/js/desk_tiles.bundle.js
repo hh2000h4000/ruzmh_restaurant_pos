@@ -40,6 +40,14 @@ const ICONS = {
 	bolt: '<path d="M13 2.5L4.5 14H11l-1 7.5L18.5 10H12z"/>',
 	file: '<path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/><path d="M9 13h6M9 17h6"/>',
 	folder: '<path d="M3 6h7l2 2.5h9V19H3z"/>',
+	cart: '<path d="M3 4h2.5l2.2 10.5h10.6L20.5 7H7"/><circle cx="9.5" cy="19" r="1.5"/><circle cx="17" cy="19" r="1.5"/>',
+	truck: '<path d="M2.5 6h11v10h-11zM13.5 10h4.5l3.5 3.5V16h-8"/><circle cx="7" cy="18" r="2"/><circle cx="17.5" cy="18" r="2"/>',
+	cash: '<rect x="2.5" y="6" width="19" height="12" rx="2"/><circle cx="12" cy="12" r="3"/><path d="M6 9.5v5M18 9.5v5"/>',
+	box: '<path d="M3.5 7.5L12 3l8.5 4.5v9L12 21l-8.5-4.5z"/><path d="M3.5 7.5L12 12l8.5-4.5M12 12v9"/>',
+	building: '<rect x="5" y="3" width="14" height="18" rx="1.5"/><path d="M9 7.5h2M13 7.5h2M9 11.5h2M13 11.5h2M10 21v-4.5h4V21"/>',
+	clipboard: '<rect x="5" y="4.5" width="14" height="17" rx="2"/><path d="M9 4.5V3h6v1.5M9 10.5h6M9 14.5h6"/>',
+	star: '<path d="M12 3l2.7 5.6 6.1.8-4.5 4.3 1.1 6.1L12 16.9 6.6 19.8l1.1-6.1L3.2 9.4l6.1-.8z"/>',
+	wrench: '<path d="M14.5 6.5a4 4 0 0 0 5 5L11 20a2.1 2.1 0 0 1-3-3z"/><path d="M14.5 6.5l3-3"/>',
 	back: '<path d="M9 6l6 6-6 6"/>',
 };
 
@@ -69,7 +77,7 @@ const STYLE = `
 		border: 1px solid var(--border-color); background: var(--card-bg); color: var(--text-color);
 		font-size: 13px; font-weight: 600; cursor: pointer;
 	}
-	.rpos-back:hover { border-color: #1f4d43; }
+	.rpos-back:hover { border-color: var(--rpos-tile, #1f4d43); }
 	.rpos-back svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2;
 		stroke-linecap: round; stroke-linejoin: round; }
 	.rpos-back.is-ltr svg { transform: scaleX(-1); }
@@ -82,12 +90,12 @@ const STYLE = `
 		transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
 	}
 	.rpos-tile:hover, .rpos-tile:focus-visible {
-		transform: translateY(-2px); border-color: #1f4d43; outline: none;
+		transform: translateY(-2px); border-color: var(--rpos-tile, #1f4d43); outline: none;
 		box-shadow: 0 6px 18px rgba(31, 77, 67, .14);
 	}
 	.rpos-icon {
 		width: 60px; height: 60px; border-radius: 16px; display: grid; place-items: center;
-		background: #1f4d43; color: #fff;
+		background: var(--rpos-tile, #1f4d43); color: #fff;
 	}
 	.rpos-tile.is-till .rpos-icon { background: #1f9d6c; }
 	.rpos-tile.is-guide .rpos-icon { background: #2f6fed; }
@@ -97,6 +105,28 @@ const STYLE = `
 	.rpos-icon svg.icon { stroke: currentColor; fill: none; }
 	.rpos-name { font-size: 14px; font-weight: 600; line-height: 1.35; text-align: center; color: var(--text-color); }
 	.rpos-empty { padding: 24px 4px; color: var(--text-muted); }
+	.rpos-tiles-view[data-size="Small"] .rpos-grid { grid-template-columns: repeat(auto-fill, minmax(108px, 1fr)); gap: 10px; }
+	.rpos-tiles-view[data-size="Small"] .rpos-tile { padding: 14px 8px 12px; gap: 8px; }
+	.rpos-tiles-view[data-size="Small"] .rpos-icon { width: 46px; height: 46px; border-radius: 13px; }
+	.rpos-tiles-view[data-size="Small"] .rpos-icon svg { width: 24px; height: 24px; }
+	.rpos-tiles-view[data-size="Small"] .rpos-name { font-size: 13px; }
+	.rpos-tiles-view[data-size="Large"] .rpos-grid { grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); gap: 18px; }
+	.rpos-tiles-view[data-size="Large"] .rpos-tile { padding: 26px 12px 20px; }
+	.rpos-tiles-view[data-size="Large"] .rpos-icon { width: 76px; height: 76px; border-radius: 20px; }
+	.rpos-tiles-view[data-size="Large"] .rpos-icon svg { width: 38px; height: 38px; }
+	.rpos-tiles-view[data-size="Large"] .rpos-name { font-size: 15px; }
+
+	/* Choosing a tile's look, on the page it is on (\`D-351\`). */
+	.rpos-style-bar { display: flex; align-items: center; gap: 12px; margin: 18px 4px 0; color: var(--text-muted); font-size: 13px; }
+	.rpos-tiles-view.is-styling .rpos-tile { border-style: dashed; border-color: var(--rpos-tile, #1f4d43); }
+	.rpos-pick { display: grid; grid-template-columns: repeat(auto-fill, minmax(52px, 1fr)); gap: 8px; margin-bottom: 16px; }
+	.rpos-pick-one {
+		height: 52px; border-radius: 12px; display: grid; place-items: center; cursor: pointer;
+		background: var(--card-bg); border: 1px solid var(--border-color); color: var(--text-color);
+	}
+	.rpos-pick-one.is-on { border: 2px solid #1f4d43; background: #e8efed; color: #1f4d43; }
+	.rpos-pick-one svg { width: 26px; height: 26px; fill: none; stroke: currentColor; stroke-width: 1.7;
+		stroke-linecap: round; stroke-linejoin: round; }
 `;
 
 function styled() {
@@ -117,20 +147,31 @@ function route_of(link) {
 	return `/app/${slug}`;
 }
 
-function picture(name, row_icon) {
+function drawn(name) {
+	return `<svg viewBox="0 0 24 24" aria-hidden="true">${ICONS[name] || ICONS.file}</svg>`;
+}
+
+function picture(name, row_icon, look) {
+	// **What its owner chose on the page comes first** (`D-351`), then the row's.
+	if (look?.icon && ICONS[look.icon]) return drawn(look.icon);
 	// The icon its row names wins: `rpos-…` is one of the set above, anything
 	// else is one of Frappe's own, chosen in its editor — which is how a page
 	// nobody here has heard of gets pictures of its own.
 	if (row_icon?.startsWith("rpos-") && ICONS[row_icon.slice(5)]) name = row_icon.slice(5);
 	else if (row_icon) return frappe.utils.icon(row_icon, "lg");
-	return `<svg viewBox="0 0 24 24" aria-hidden="true">${ICONS[name] || ICONS.file}</svg>`;
+	return drawn(name);
 }
 
-function tile({ label, kind, icon, row_icon, href, open }) {
+function tile({ label, kind, icon, row_icon, look, href, open }) {
 	const a = document.createElement("a");
 	a.className = `rpos-tile is-${kind}`;
 	a.href = href || "#";
-	a.innerHTML = `<span class="rpos-icon">${picture(icon, row_icon)}</span>`;
+	a.innerHTML = `<span class="rpos-icon">${picture(icon, row_icon, look)}</span>`;
+	if (look?.colour) {
+		// Set as a property, never written into the markup: the value came from a form.
+		a.firstChild.style.background = look.colour;
+		a.firstChild.style.color = "#fff";
+	}
 
 	const name = document.createElement("span");
 	name.className = "rpos-name";
@@ -138,7 +179,7 @@ function tile({ label, kind, icon, row_icon, href, open }) {
 	a.appendChild(name);
 
 	a.addEventListener("click", (event) => {
-		if (href && (event.ctrlKey || event.metaKey || event.shiftKey)) return;
+		if (href && (event.ctrlKey || event.metaKey || event.shiftKey) && !a.closest(".is-styling")) return;
 		event.preventDefault();
 		open();
 	});
@@ -190,11 +231,10 @@ restaurant_pos.desk_tiles = async function (root) {
 	const editing = () => frappe.workspace?.is_read_only === false || Boolean(container.querySelector(".widget.edit-mode"));
 	if (editing()) return;
 
+	const here = this_page(frappe.get_route());
 	let page;
 	try {
-		({ message: page } = await frappe.call("frappe.desk.desktop.get_desktop_page", {
-			page: JSON.stringify(this_page(frappe.get_route())),
-		}));
+		({ message: page } = await frappe.call("restaurant_pos.api.desk.tiles", { page: JSON.stringify(here) }));
 	} catch (cause) {
 		// The waiting line stays, and says what to do; a blank page says nothing.
 		root.querySelector(".rpos-wait")?.removeAttribute("hidden");
@@ -206,6 +246,8 @@ restaurant_pos.desk_tiles = async function (root) {
 
 	const view = document.createElement("div");
 	view.className = "rpos-tiles-view";
+	if (page?.look?.colour) view.style.setProperty("--rpos-tile", page.look.colour);
+	if (page?.look?.size) view.dataset.size = page.look.size;
 	// **Where the block is, not at the top of the page.** On a page that also
 	// has a heading, an onboarding guide or a chart, the tiles belong wherever
 	// its owner dragged the block — the first try put them above everything,
@@ -223,6 +265,86 @@ restaurant_pos.desk_tiles = async function (root) {
 	});
 	watcher.observe(container, { subtree: true, childList: true, attributes: true, attributeFilter: ["class"] });
 
+	// **A tile's look is chosen on the tile** (`D-351`). Frappe's editor has no
+	// field for a card's or a shortcut's picture, and the one it has for a link
+	// is not drawn — so the page itself is the form: press the button, press a
+	// tile, pick. Only whoever may edit the page is offered it.
+	let styling = false;
+	let current;
+
+	function restyle(kind, item) {
+		let chosen = item.look?.icon || "";
+		const dialog = new frappe.ui.Dialog({
+			title: __(item.label),
+			fields: [
+				{ fieldname: "icons", fieldtype: "HTML" },
+				{ fieldname: "colour", fieldtype: "Color", label: __("Colour"), default: item.look?.colour || "" },
+			],
+			primary_action_label: __("Save"),
+			primary_action: ({ colour }) => save(chosen, colour || ""),
+			secondary_action_label: __("Back to the default look"),
+			secondary_action: () => save("", ""),
+		});
+
+		const box = dialog.fields_dict.icons.$wrapper.get(0);
+		box.classList.add("rpos-pick");
+		Object.keys(ICONS)
+			.filter((name) => name !== "back")
+			.forEach((name) => {
+				const one = document.createElement("button");
+				one.type = "button";
+				one.className = name === chosen ? "rpos-pick-one is-on" : "rpos-pick-one";
+				one.innerHTML = drawn(name);
+				one.addEventListener("click", () => {
+					chosen = name;
+					box.querySelectorAll(".is-on").forEach((on) => on.classList.remove("is-on"));
+					one.classList.add("is-on");
+				});
+				box.appendChild(one);
+			});
+
+		async function save(icon, colour) {
+			await frappe.xcall("restaurant_pos.api.desk.style_tile", {
+				page: here.name,
+				kind,
+				label: item.label,
+				icon,
+				colour,
+			});
+			item.look = icon || colour ? { icon, colour } : null;
+			dialog.hide();
+			show(current);
+		}
+
+		dialog.show();
+	}
+
+	/** What a press does: the tile's own door, or — while styling — its look. */
+	const press = (kind, item, open) => () => (styling ? restyle(kind, item) : open());
+
+	function bar() {
+		view.classList.toggle("is-styling", styling);
+		if (!page?.can_style) return;
+
+		const row = document.createElement("div");
+		row.className = "rpos-style-bar";
+		const toggle = document.createElement("button");
+		toggle.type = "button";
+		toggle.className = "btn btn-default btn-sm";
+		toggle.textContent = styling ? __("Done") : __("Style the tiles");
+		toggle.addEventListener("click", () => {
+			styling = !styling;
+			show(current);
+		});
+		row.appendChild(toggle);
+		if (styling) {
+			const hint = document.createElement("span");
+			hint.textContent = __("Press a tile to choose its picture and colour.");
+			row.appendChild(hint);
+		}
+		view.appendChild(row);
+	}
+
 	function home() {
 		view.innerHTML = "";
 		const tiles = [
@@ -234,8 +356,9 @@ restaurant_pos.desk_tiles = async function (root) {
 					kind: ours || "group",
 					icon: ours || "file",
 					row_icon: row.icon,
+					look: row.look,
 					href: url,
-					open: () => go(url),
+					open: press("Shortcut", row, () => go(url)),
 				};
 			}),
 			...cards.map((card) => ({
@@ -243,12 +366,14 @@ restaurant_pos.desk_tiles = async function (root) {
 				kind: "group",
 				icon: "folder",
 				row_icon: card.icon,
-				open: () => enter(card.label),
+				look: card.look,
+				open: press("Card", card, () => enter(card.label)),
 			})),
 		];
 
 		if (tiles.length) {
 			view.appendChild(grid(tiles));
+			bar();
 			return;
 		}
 
@@ -285,16 +410,19 @@ restaurant_pos.desk_tiles = async function (root) {
 						kind: "link",
 						icon: /settings|theme/i.test(link.link_to) ? "gear" : kind,
 						row_icon: link.icon,
+						look: link.look,
 						href: url,
-						open: () => go(url),
+						open: press("Link", link, () => go(url)),
 					};
 				}),
 			),
 		);
+		bar();
 	}
 
 	function show(label) {
 		const card = cards.find((one) => one.label === label);
+		current = card ? label : undefined;
 		if (card) inside(card);
 		else home();
 	}

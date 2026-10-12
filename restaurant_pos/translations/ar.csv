@@ -1589,3 +1589,39 @@ Branches and Devices,الفروع والأجهزة
 Offers and Loyalty,العروض والولاء
 Daily Work,المتابعة اليومية
 Back to the tiles,رجوع
+RPOS Tile Settings,شكل مربعات المكتب
+RPOS Tile Look,شكل مربع
+Desk Tiles,شكل مربعات المكتب
+The look of the tiles,شكل المربعات,RPOS Tile Settings
+Tile colour,لون المربعات,RPOS Tile Settings
+Tile size,حجم المربعات,RPOS Tile Settings
+Small,صغير,RPOS Tile Settings
+Medium,وسط,RPOS Tile Settings
+Large,كبير,RPOS Tile Settings
+Show a page as tiles,عرض صفحة كمربعات,RPOS Tile Settings
+Page,الصفحة,RPOS Tile Settings
+Tiles with a look of their own,مربعات لها شكل خاص,RPOS Tile Settings
+Tiles,المربعات,RPOS Tile Settings
+Page,الصفحة,RPOS Tile Look
+Kind,النوع,RPOS Tile Look
+Tile,المربع,RPOS Tile Look
+Picture,الأيقونة,RPOS Tile Look
+Colour,اللون,RPOS Tile Look
+Shortcut,اختصار,RPOS Tile Look
+Card,بطاقة,RPOS Tile Look
+Link,شاشة,RPOS Tile Look
+"For every desk page shown as tiles. One tile's own picture and colour are chosen on the page itself: press «Style the tiles», then the tile.",لكل صفحة بالمكتب معروضة كمربعات. أيقونة ولون المربع الواحد تختارها من الصفحة نفسها: اضغط «تنسيق المربعات» ثم المربع.
+"Left empty, the tiles keep their green.",لو تركته فاضي تبقى المربعات بلونها الأخضر.
+"Any desk page — Buying, Selling, Stock — can be shown as tiles: its shortcuts and cards become squares, and a card opens onto its links. Nothing on the page is removed, and it goes back with one press.",أي صفحة بالمكتب (المشتريات، المبيعات، المخزون) تنعرض كمربعات: الاختصارات والبطاقات تصير مربعات، والبطاقة تفتح على شاشاتها. ما ينحذف شي من الصفحة، وترجع بضغطة.
+Filled from the pages themselves. Delete a row to give that tile its default look back.,تتعبأ من الصفحات نفسها. احذف السطر عشان يرجع المربع لشكله الأصلي.
+Show it as tiles,اعرضها كمربعات
+Show it as lists again,رجّعها قوائم
+The page is lists again.,الصفحة رجعت قوائم.
+The page is tiles now. Open it to see.,الصفحة صارت مربعات. افتحها وشوف.
+Style the tiles,تنسيق المربعات
+Press a tile to choose its picture and colour.,اضغط أي مربع عشان تختار أيقونته ولونه.
+Back to the default look,رجّعه للشكل الأصلي
+Colour,اللون
+Unknown kind of tile: {0},نوع مربع غير معروف: {0}
+That picture is not one of the tiles' own.,هذي الأيقونة مو من أيقونات المربعات.
+A colour is written like #1F4D43.,اللون ينكتب بهالشكل: #1F4D43

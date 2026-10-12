@@ -815,7 +815,7 @@
    "dependencies": "",
    "hidden": 0,
    "is_query_report": 0,
-   "link_count": 2,
+   "link_count": 3,
    "onboard": 0,
    "label": "Settings",
    "icon": "rpos-gear",
@@ -842,9 +842,20 @@
    "link_to": "RPOS Theme",
    "link_type": "DocType",
    "type": "Link"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "link_count": 0,
+   "onboard": 0,
+   "label": "Desk Tiles",
+   "link_to": "RPOS Tile Settings",
+   "link_type": "DocType",
+   "type": "Link"
   }
  ],
- "modified": "2026-10-10 21:50:00.000000",
+ "modified": "2026-10-12 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Restaurant POS",
  "name": "Restaurant POS",

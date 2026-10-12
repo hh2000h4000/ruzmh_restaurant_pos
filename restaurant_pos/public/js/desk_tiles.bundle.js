@@ -50,17 +50,16 @@ const OURS = {
 };
 
 const STYLE = `
-	.rpos-tiled .ce-block:has(.links-widget-box),
-	.rpos-tiled .ce-block:has(.shortcut-widget-box),
-	.rpos-tiled .ce-block:has(.rpos-tiles-drawn) { display: none; }
+	.rpos-tiled:has(.rpos-tiles-block) .ce-block:has(.links-widget-box),
+	.rpos-tiled:has(.rpos-tiles-block) .ce-block:has(.shortcut-widget-box) { display: none; }
 	/* Editing is read off the widgets themselves — each carries \`edit-mode\` while
 	   the editor is open — not off an ancestor: that class is not always there,
 	   and without it the tiles sat over the widgets being edited. */
-	.rpos-tiled:has(.widget.edit-mode) .ce-block { display: block !important; }
-	.rpos-tiled:has(.widget.edit-mode) .rpos-tiles-view { display: none; }
+	.rpos-tiled:has(.rpos-tiles-block):has(.widget.edit-mode) .ce-block { display: block !important; }
+	.rpos-tiled:has(.rpos-tiles-block):has(.widget.edit-mode) .rpos-tiles-view { display: none; }
 	/* The editor leaves room under the last block for the next one; a page nobody is editing has no use for it. */
-	.rpos-tiled .codex-editor__redactor { padding-bottom: 0 !important; }
-	.rpos-tiled:has(.widget.edit-mode) .codex-editor__redactor { padding-bottom: 300px !important; }
+	.rpos-tiled:has(.rpos-tiles-block) .codex-editor__redactor { padding-bottom: 0 !important; }
+	.rpos-tiled:has(.rpos-tiles-block):has(.widget.edit-mode) .codex-editor__redactor { padding-bottom: 300px !important; }
 
 	/* A row of its own among the editor's columns, whichever way they are laid out. */
 	.rpos-tiles-view { padding: 8px 0 28px; grid-column: 1 / -1; flex: 0 0 100%; width: 100%; max-width: 100%; }
@@ -176,6 +175,13 @@ restaurant_pos.desk_tiles = async function (root) {
 	const host = root.host;
 	const container = host.closest(".editor-js-container") || host.parentElement;
 	container.classList.add("rpos-tiled");
+	// **The page's widgets are hidden only while this block is on it.** The desk
+	// keeps one container for every page it shows, so the class above outlives
+	// the page: without the block as a second condition, the next page opened —
+	// one with no tiles at all — came up with its cards and shortcuts hidden,
+	// until a reload.
+	const block = host.closest(".ce-block");
+	block?.classList.add("rpos-tiles-block");
 	container.querySelectorAll(".rpos-tiles-view").forEach((old) => old.remove());
 
 	// **Nothing of ours is in the page while it is being edited.** The tiles sit
@@ -204,12 +210,10 @@ restaurant_pos.desk_tiles = async function (root) {
 	// has a heading, an onboarding guide or a chart, the tiles belong wherever
 	// its owner dragged the block — the first try put them above everything,
 	// over the guide a new user is meant to read first.
-	const block = host.closest(".ce-block");
 	if (block) block.after(view);
 	else container.prepend(view);
 	// Drawn: the block's own box has nothing left to say, so it goes with the
 	// widgets it replaced.
-	root.querySelector(".rpos-tiles")?.classList.add("rpos-tiles-drawn");
 	block?.style.setProperty("display", "none");
 
 	const watcher = new MutationObserver(() => {

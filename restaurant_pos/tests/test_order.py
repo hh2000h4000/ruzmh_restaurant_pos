@@ -434,6 +434,76 @@ class TestOrderItems(OrderTestBase):
 		self.assertIn("production_center", row.as_dict())
 
 
+class TestTheSameItemAgain(OrderTestBase):
+	"""`D-352` — a second tap or a second scan raises the line; it does not add one."""
+
+	def _add(self, order, **kwargs):
+		return service.add_item(order, item=ITEM, join=True, **kwargs)
+
+	def test_it_raises_the_line_that_is_there(self):
+		order = self._order()
+		self._add(order)
+		row = self._add(order, qty=2)
+
+		self.assertEqual(len(order.items), 1)
+		self.assertEqual(row.qty, 3)
+		self.assertEqual(row.amount, 3 * TEST_ITEM_RATE)
+		self.assertEqual(order.subtotal, 3 * TEST_ITEM_RATE)
+
+	def test_the_till_s_own_add_is_the_one_that_joins(self):
+		created = api.create_order(order_type=self.order_type, pos_profile=self.profile)
+		first = api.add_item(created["order_name"], ITEM)
+		second = api.add_item(created["order_name"], ITEM)
+
+		self.assertEqual(second["row_idx"], first["row_idx"])
+		order = frappe.get_doc("Restaurant Order", created["order_name"])
+		self.assertEqual([(line.item, line.qty) for line in order.items], [(ITEM, 2)])
+
+	def test_a_line_the_kitchen_has_is_left_alone(self):
+		"""The cook was told one. A second is a line of its own, on the next ticket."""
+		order = self._order()
+		sent = self._add(order)
+		sent.status = "sent"
+		order.save(ignore_permissions=True)
+
+		late = self._add(order)
+
+		self.assertEqual([(line.status, line.qty) for line in order.items], [("sent", 1), ("pending", 1)])
+		self.assertNotEqual(late.idx, sent.idx)
+		# And the one after that joins the late one, never the sent one.
+		self._add(order)
+		self.assertEqual([(line.status, line.qty) for line in order.items], [("sent", 1), ("pending", 2)])
+
+	def test_a_different_note_or_price_is_a_different_line(self):
+		order = self._order()
+		self._add(order)
+		self._add(order, notes="No onion")
+		self._add(order, rate=TEST_ITEM_RATE + 5)
+
+		self.assertEqual(len(order.items), 3)
+		# The same note again is the same line again.
+		self._add(order, notes="No onion")
+		self.assertEqual([line.qty for line in order.items], [1, 2, 1])
+
+	def test_a_voided_line_is_not_brought_back(self):
+		order = self._order()
+		gone = self._add(order)
+		gone.status, gone.void_reason = "void", "Rung up by mistake"
+		order.save(ignore_permissions=True)
+
+		self._add(order)
+
+		self.assertEqual([(line.status, line.qty) for line in order.items], [("void", 1), ("pending", 1)])
+
+	def test_without_join_every_add_is_a_line(self):
+		"""What a replay of an offline bill relies on: the lines the cashier saw."""
+		order = self._order()
+		service.add_item(order, item=ITEM)
+		service.add_item(order, item=ITEM)
+
+		self.assertEqual(len(order.items), 2)
+
+
 class TestVoidAndCancel(OrderTestBase):
 	def test_voiding_needs_a_reason(self):
 		order = self._order()
@@ -672,8 +742,10 @@ class TestIdempotency(OrderTestBase):
 		api.add_item(created["order_name"], item=self.item, qty=1, queue_id=str(uuid.uuid4()))
 		api.add_item(created["order_name"], item=self.item, qty=1, queue_id=str(uuid.uuid4()))
 
+		# Both were applied — on one line since `D-352`, which is what two asks
+		# for the same thing are. What must not happen is one of them being lost.
 		order = frappe.get_doc("Restaurant Order", created["order_name"])
-		self.assertEqual(len(order.items), 2)
+		self.assertEqual(sum(line.qty for line in order.items), 2)
 
 
 class TestTableIsPerOrderType(OrderTestBase):

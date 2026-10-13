@@ -126,6 +126,7 @@ def add_item(
 		notes=notes,
 		course=course,
 		rate=rate,
+		join=True,
 	)
 
 	result = dict(_summary(order), row_idx=row.idx, rate=row.rate, amount=row.amount)

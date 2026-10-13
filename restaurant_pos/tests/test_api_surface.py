@@ -90,6 +90,15 @@ UNSCOPED = {
 		"desk action on the POS Profile, behind ERPNext document permissions (D-226)"
 	),
 	"api.quick_setup.run": ("desk page, inserting as the caller behind ERPNext document permissions (D-307)"),
+	# `D-351` — the desk's tiled pages. No branch owns a desk page.
+	"api.desk.tiles": (
+		"desk page: Frappe's own get_desktop_page, which drops what the reader may not open, plus how it looks"
+	),
+	"api.desk.is_tiled": "desk form: whether a page holds the tiles block, and nothing of what is on it",
+	"api.desk.style_tile": "desk action, refused unless the caller is a Workspace Manager — Frappe's rule for a page",
+	"api.desk.tile_page": (
+		"desk action, refused unless the caller is a Workspace Manager, and saved through Workspace's own check"
+	),
 	"api.session.unpair_device": (
 		"desk action on the POS Profile, behind ERPNext document permissions (D-226)"
 	),

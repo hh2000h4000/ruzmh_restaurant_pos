@@ -98,11 +98,14 @@ function dish(extra: Partial<CatalogItem> = {}): CatalogItem {
   } as unknown as CatalogItem;
 }
 
-/** A till with a drawer open, one order type and one dish on the menu. */
-function till(items: CatalogItem[] = [dish()]): void {
+/** Two kinds of order, which is what makes the till ask which (`D-353`). */
+const TWO_TYPES = [orderType(), orderType({ name: "OT-DELIVERY", title: "Delivery", title_ar: "توصيل" })];
+
+/** A till with a drawer open, a restaurant's order types and one dish on the menu. */
+function till(items: CatalogItem[] = [dish()], types: OrderType[] = TWO_TYPES): void {
   useSessionStore().data = {
     can_sell: true,
-    order_types: [orderType()],
+    order_types: types,
     items,
     item_groups: [{ name: GROUP, item_group_name: "برجر" }],
     screen_layout: null,
@@ -209,6 +212,45 @@ describe("a dish tapped before there is a bill", () => {
 
     expect(orderApi.createOrder).toHaveBeenCalledOnce();
     expect(orderApi.addItem).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * `D-353` — a supermarket's till has one kind of order, so "which kind?" has
+ * one answer and is not asked: the first thing rung or scanned opens the bill.
+ */
+describe("a terminal that sells one kind of order", () => {
+  it("opens the bill on the first dish, without asking which kind", async () => {
+    till([dish()], [orderType()]);
+    const wrapper = await open();
+
+    await tapDish(wrapper, "برجر", "برغر");
+
+    expect(orderApi.createOrder).toHaveBeenCalledOnce();
+    expect(orderApi.createOrder).toHaveBeenCalledWith(expect.objectContaining({ order_type: "OT-TAKEAWAY" }));
+    expect(orderApi.addItem).toHaveBeenCalledWith(
+      expect.objectContaining({ order_name: ORDER, item: DISH, qty: 1 }),
+    );
+  });
+
+  it("opens one from New as well", async () => {
+    till([dish()], [orderType()]);
+    const wrapper = await open();
+
+    await button(wrapper, "جديد").trigger("click");
+    await flushPromises();
+
+    expect(orderApi.createOrder).toHaveBeenCalledOnce();
+  });
+
+  it("still asks what its one kind needs — a customer, here", async () => {
+    till([dish()], [orderType({ customer_mode: "required" } as Partial<OrderType>)]);
+    const wrapper = await open();
+
+    await tapDish(wrapper, "برجر", "برغر");
+
+    // The picker is up and nothing was created behind it.
+    expect(orderApi.createOrder).not.toHaveBeenCalled();
   });
 });
 

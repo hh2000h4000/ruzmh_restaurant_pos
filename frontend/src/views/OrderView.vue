@@ -248,7 +248,9 @@ async function startFromRoute(): Promise<void> {
     // `?pane=new` is how the payment screen says "straight into the next one".
     await orders.putDown();
     orders.clear();
-    pane.value = route.query.pane === "new" ? "new" : "items";
+    // A terminal that sells one kind of order has nothing to ask (`D-353`): it
+    // rests on the menu, and the first item rung or scanned opens the bill.
+    pane.value = route.query.pane === "new" && !onlyType.value ? "new" : "items";
     return;
   }
 
@@ -348,6 +350,10 @@ function onNavigate(key: string): void {
   }
 
   menuOpen.value = false;
+  if (key === "new") {
+    void askType();
+    return;
+  }
   pane.value = key;
 }
 
@@ -476,6 +482,29 @@ async function signOut(): Promise<void> {
  * takes their time paying stops blocking the queue, and no new concept was
  * needed to allow it.
  */
+/**
+ * The one kind of order this terminal sells, when it sells only one (`D-353`).
+ *
+ * A supermarket's till has no dine-in, takeaway or delivery to choose between,
+ * and asking on every bill is a tap that answers nothing. The types reach the
+ * device already filtered by terminal, branch and role (`FR-1.3`), so one left
+ * is a restaurant's decision, made where it makes all the others — not a
+ * second setting here.
+ */
+const onlyType = computed(() => (session.orderTypes.length === 1 ? session.orderTypes[0] : null));
+
+/**
+ * Which kind of order? — asked only when there is more than one answer.
+ *
+ * The same rule a tapped table follows: one candidate is an answer. The pane is
+ * set first, so a type that cannot open right now (a closed shift, a customer
+ * to find) leaves the cashier on its tile rather than on nothing.
+ */
+async function askType(): Promise<void> {
+  pane.value = "new";
+  if (onlyType.value) await startAnother(onlyType.value);
+}
+
 async function startAnother(orderType: OrderType): Promise<void> {
   // BR-044 — before any of the questions below, because none of them matter
   // if the order cannot be created at the end of them.
@@ -953,7 +982,7 @@ function onPick(item: CatalogItem, qty: number): void {
 
   if (!orders.order) {
     waitingPick.value = { item, qty };
-    pane.value = "new";
+    void askType();
     return;
   }
 

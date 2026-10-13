@@ -497,8 +497,15 @@ def add_item(
 	notes: str | None = None,
 	course: int | None = None,
 	rate: float | None = None,
+	join: bool = False,
 ) -> "frappe.Document":
-	"""Add a line to an open order (FR-2.2)."""
+	"""Add a line to an open order (FR-2.2).
+
+	``join`` is the cashier's add (`D-352`): the same thing asked for again
+	raises the line that is already there instead of making a second one. A
+	replay of what a device sold offline leaves it off — the bill it rebuilds
+	has the lines the cashier saw.
+	"""
 	assert_mutable(order)
 	# BR-044 — the bill stops growing when the shift it belongs to closes.
 
@@ -521,23 +528,41 @@ def add_item(
 		pos_profile=order.pos_profile,
 	)
 
-	row = order.append(
-		"items",
-		{
-			"item": item,
-			"item_name": details.pos_display_name_ar or details.item_name,
-			"item_name_en": details.item_name,
-			"qty": flt(qty),
-			"rate": unit_rate,
-			"amount": totals.line_amount(unit_rate, qty, modifier_delta),
-			# Frappe's JSON fieldtype rejects a Python list; it stores text.
-			"modifiers": frappe.as_json(resolved_modifiers) if resolved_modifiers else None,
-			"notes": notes,
-			"course": cint(course),
-			"production_center": route.production_center,
-			"status": "pending",
-		},
+	row = (
+		_same_line(
+			order,
+			item=item,
+			rate=unit_rate,
+			modifiers=resolved_modifiers,
+			notes=notes,
+			course=course,
+			production_center=route.production_center,
+		)
+		if join
+		else None
 	)
+
+	if row:
+		row.qty = flt(row.qty) + flt(qty)
+		row.amount = totals.line_amount(unit_rate, row.qty, modifier_delta)
+	else:
+		row = order.append(
+			"items",
+			{
+				"item": item,
+				"item_name": details.pos_display_name_ar or details.item_name,
+				"item_name_en": details.item_name,
+				"qty": flt(qty),
+				"rate": unit_rate,
+				"amount": totals.line_amount(unit_rate, qty, modifier_delta),
+				# Frappe's JSON fieldtype rejects a Python list; it stores text.
+				"modifiers": frappe.as_json(resolved_modifiers) if resolved_modifiers else None,
+				"notes": notes,
+				"course": cint(course),
+				"production_center": route.production_center,
+				"status": "pending",
+			},
+		)
 
 	if order.status == "draft":
 		order.status = "active"
@@ -553,6 +578,33 @@ def add_item(
 	)
 
 	return row
+
+
+def _same_line(order, *, item, rate, modifiers, notes, course, production_center):
+	"""The line a second ask for the same thing belongs on, if there is one (`D-352`).
+
+	**Only a line the kitchen has not been given.** Raising a sent line would
+	leave the kitchen cooking one and the customer paying for two — the reason
+	`set_item_qty` refuses it — so the second one after a send is a line of its
+	own, and goes out on the next ticket like anything else added late.
+
+	And only a line that is the same in everything a cashier or a cook can see:
+	the price, the options, the note, the course, the station. Two burgers, one
+	without onion, are two lines.
+	"""
+	for line in order.items:
+		if (
+			line.status == "pending"
+			and line.item == item
+			and flt(line.rate) == flt(rate)
+			and (line.notes or "") == (notes or "")
+			and cint(line.course) == cint(course)
+			and (line.production_center or "") == (production_center or "")
+			and frappe.parse_json(line.modifiers or "[]") == (modifiers or [])
+		):
+			return line
+
+	return None
 
 
 def _load_item(item: str) -> frappe._dict:

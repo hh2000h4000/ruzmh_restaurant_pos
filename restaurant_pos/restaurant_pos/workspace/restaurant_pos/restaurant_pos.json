@@ -21,7 +21,7 @@
    "dependencies": "",
    "hidden": 0,
    "is_query_report": 0,
-   "link_count": 4,
+   "link_count": 5,
    "onboard": 0,
    "label": "Branches and Devices",
    "icon": "rpos-store",
@@ -46,6 +46,17 @@
    "onboard": 1,
    "label": "POS Branches",
    "link_to": "Branch",
+   "link_type": "DocType",
+   "type": "Link"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "link_count": 0,
+   "onboard": 1,
+   "label": "Branch Sections",
+   "link_to": "Restaurant Section",
    "link_type": "DocType",
    "type": "Link"
   },
@@ -227,22 +238,11 @@
    "dependencies": "",
    "hidden": 0,
    "is_query_report": 0,
-   "link_count": 4,
+   "link_count": 3,
    "onboard": 0,
    "label": "The floor",
    "icon": "rpos-table",
    "type": "Card Break"
-  },
-  {
-   "dependencies": "",
-   "hidden": 0,
-   "is_query_report": 0,
-   "link_count": 0,
-   "onboard": 1,
-   "label": "Dining Sections",
-   "link_to": "Restaurant Section",
-   "link_type": "DocType",
-   "type": "Link"
   },
   {
    "dependencies": "",
@@ -855,7 +855,7 @@
    "type": "Link"
   }
  ],
- "modified": "2026-10-12 12:00:00.000000",
+ "modified": "2026-10-13 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Restaurant POS",
  "name": "Restaurant POS",

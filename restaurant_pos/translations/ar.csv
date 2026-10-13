@@ -275,7 +275,7 @@ delivery,توصيل,Restaurant Section
 bar,بار,Restaurant Section
 Identity,البيانات,Restaurant Table
 Table Number,رقم الطاولة,Restaurant Table
-Section,القسم,Restaurant Table
+Section,قسم الفرع,Restaurant Table
 Capacity,عدد الكراسي,Restaurant Table
 Shape,الشكل,Restaurant Table
 Current Order,الطلب الحالي,Restaurant Table
@@ -712,7 +712,7 @@ Restaurant POS runs single-tier loyalty programs. Tiers are not supported yet.,�
 Restaurant POS,نقاط البيع
 Restaurant Promotion,عرض
 Restaurant Reservation,حجز
-Restaurant Section,قسم
+Restaurant Section,قسم الفرع
 Restaurant Shift,يوم العمل
 Restaurant Shifts,أيام العمل
 Restaurant Table,طاولة
@@ -795,7 +795,8 @@ POS Orders,الطلبات
 Kitchen Tickets,تذاكر المطبخ
 Table Reservations,الحجوزات
 Order History Log,سجل الطلبات
-Dining Sections,الأقسام
+Branch Sections,أقسام الفروع
+"The branch this device belongs to is its section's branch: the day, the drawer, the stock and the invoice numbers all follow it.","الجهاز يتبع فرع القسم اللي تختاره: يوم العمل والدرج والمخزون وأرقام الفواتير كلها تمشي على هذا الفرع."
 Dining Tables,الطاولات
 Floor Plans,مخططات الصالة
 Business Days,أيام العمل

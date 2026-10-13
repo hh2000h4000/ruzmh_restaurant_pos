@@ -655,6 +655,9 @@ CUSTOM_FIELDS = {
 			"fieldtype": "Link",
 			"options": "Restaurant Section",
 			"label": "Restaurant Section",
+			# A device has no branch of its own, and the form never said so: the
+			# owner asked what a "section" was for on a supermarket's till (`D-354`).
+			"description": "The branch this device belongs to is its section's branch: the day, the drawer, the stock and the invoice numbers all follow it.",
 			"insert_after": "rpos_section",
 		},
 		# **The terminal's own part of its invoice numbers** (`D-309`), unique

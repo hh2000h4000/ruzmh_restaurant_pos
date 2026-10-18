@@ -782,9 +782,14 @@ def _assert_addons_in_stock(order, choices: list, more: float) -> None:
 
 	Best effort like the rest (`docs/14` §5.0): add-ons on bills still open are
 	not counted against the shelf, only those already sold.
+
+	**And a combo's choice** (`D-358`). The cola in the meal is the cola off the
+	shelf, and it was sold unasked: the two-till round sold a Pepsi inside a combo
+	with none left, on a branch that enforces. A choice that is a dish passes,
+	as the dish does on its own — it is not kept in stock as itself.
 	"""
 	for choice in choices or []:
-		if choice.get("item") and choice.get("item_effect") == "sell":
+		if choice.get("item") and choice.get("item_effect") in ("sell", combos.EFFECT):
 			availability.assert_can_sell(
 				order, choice["item"], flt(more) * (flt(choice.get("item_qty")) or 1)
 			)

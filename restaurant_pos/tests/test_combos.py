@@ -493,3 +493,45 @@ class TheComboIsCheckedWhenSaved(ComboTestBase):
 		meal.is_stock_item = 1
 		with self.assertRaises(frappe.ValidationError):
 			meal.save(ignore_permissions=True)
+
+
+class AChoiceOffTheShelfIsCheckedLikeTheBottle(ComboTestBase):
+	"""`D-358` — the meal's cola is the cola on the shelf, and it is asked about."""
+
+	def tearDown(self):
+		# Before the base's tearDown, which commits: a mark or a mode left here
+		# would refuse the next module's sales.
+		from restaurant_pos.utils import availability
+
+		availability.start_the_day_clean(BRANCH)
+		frappe.db.set_value("Branch", BRANCH, "rpos_enforce_stock", 0)
+		frappe.clear_document_cache("Branch", BRANCH)
+		super().tearDown()
+
+	def test_a_drink_marked_finished_cannot_be_the_meal_s_drink(self):
+		from restaurant_pos.utils import availability
+
+		availability.set_sold_out(BRANCH, COLA, True)
+
+		with self.assertRaises(frappe.ValidationError):
+			self._ordered(COLA)
+		# The other drink is still there to choose.
+		self.assertTrue(self._ordered(JUICE).items)
+
+	def test_an_enforcing_branch_refuses_more_than_the_shelf(self):
+		frappe.db.set_value("Branch", BRANCH, "rpos_enforce_stock", 1)
+		frappe.clear_document_cache("Branch", BRANCH)
+
+		from restaurant_pos.utils import availability
+
+		# What is left, not what this test received: the base commits, so the
+		# shelf carries what earlier tests put on it.
+		left = availability.left_in(BRANCH, self.warehouse).get(COLA)
+		with self.assertRaises(frappe.ValidationError):
+			self._ordered(COLA, qty=left + 1)
+
+	def test_the_till_is_told_which_item_each_choice_sells(self):
+		groups = combos.groups_for(MEAL, TEST_PRICE_LIST)
+		drinks = {option.title: option.sells_item for option in groups[0]["options"]}
+
+		self.assertEqual(drinks, {COLA: COLA, JUICE: JUICE})

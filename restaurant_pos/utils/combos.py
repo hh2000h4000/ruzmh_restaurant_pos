@@ -206,6 +206,10 @@ def groups_for(combo: str, price_list: str | None) -> list[dict]:
 				price_effect="add" if price else "none",
 				price_amount=price,
 				is_default=row.is_default,
+				# `D-358` — so the popup says «sold out» on the drink it has not got,
+				# as it does on extra cheese (`D-336`), rather than the server
+				# refusing the whole meal after it was picked.
+				sells_item=row.item,
 			)
 		)
 	return list(groups.values())

@@ -533,6 +533,24 @@ def summarise(shift_name: str) -> dict:
 
 	report["on_duty"] = len(attendance.on_duty_in(day.branch))
 	report["tills"] = _counted_tills(_tills_of(shift_name, status="Closed"))
+	# **And the drawers nobody has counted** (`D-356`). Closing the day closes
+	# them at their expected figures, which is right — the cashier who went home
+	# is not coming back to count — but the screen said nothing of it: a manager
+	# at one till closed the other till's drawer uncounted, and a shortage in it
+	# was never going to be seen. Named here, so the screen can say whose.
+	report["open_tills"] = [
+		{
+			"pos_profile": entry.pos_profile,
+			"user": frappe.db.get_value("User", entry.user, "full_name") or entry.user,
+			"since": entry.period_start_date,
+		}
+		for entry in frappe.get_all(
+			"POS Opening Entry",
+			filters={"rpos_restaurant_shift": shift_name, "status": "Open", "docstatus": 1},
+			fields=["pos_profile", "user", "period_start_date"],
+			order_by="period_start_date",
+		)
+	]
 	return report
 
 

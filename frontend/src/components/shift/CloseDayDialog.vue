@@ -48,6 +48,9 @@ const stillOpen = computed(() => report.value?.orders.still_open ?? 0);
 /** Still on the clock — every one of them goes home when this day closes. */
 const onDuty = computed(() => report.value?.on_duty ?? 0);
 
+/** Drawers nobody has counted, which closing the day closes at expected (`D-356`). */
+const openTills = computed(() => report.value?.open_tills ?? []);
+
 /**
  * Whether these open bills stand between the cashier and the end of the day.
  *
@@ -221,6 +224,24 @@ function money(value: number): string {
            than left to be found in a payroll report weeks later. Its own line,
            not an `v-else-if` in the chain above: it is true at the same time as
            an open bill, and the two are different facts. -->
+      <div
+        v-if="openTills.length"
+        role="status"
+        class="mb-4 rounded-rpos bg-danger/10 p-3 text-sm"
+      >
+        <p class="font-semibold text-danger">
+          {{ t("shift.uncountedTills") }}
+        </p>
+        <ul class="mt-1 list-inside list-disc text-muted">
+          <li
+            v-for="till in openTills"
+            :key="till.pos_profile + till.since"
+          >
+            {{ t("shift.uncountedTill", { terminal: till.pos_profile, user: till.user }) }}
+          </li>
+        </ul>
+      </div>
+
       <p
         v-if="onDuty"
         role="status"

@@ -158,3 +158,36 @@ describe("closing the day over bills still open", () => {
     expect(closeButton(wrapper).attributes("disabled")).toBeDefined();
   });
 });
+
+/**
+ * `D-356` — closing the day closes every drawer still open at what it should
+ * hold. Found in the two-till round: a manager at one till closed the other's
+ * drawer uncounted, and the screen said nothing of it.
+ */
+describe("drawers nobody has counted", () => {
+  it("are named, by terminal and cashier, before the day closes", async () => {
+    const { wrapper } = await open({
+      may: false,
+      summary: report({
+        orders: { total: 2, closed: 2, cancelled: 0, still_open: 0 },
+        blocked_by_open_orders: false,
+        open_tills: [{ pos_profile: "كاشير 1", user: "سعيد", since: "2026-10-18 10:00:00" }],
+      }),
+    });
+
+    const said = wrapper.text();
+    expect(said).toContain("ما انعدّت");
+    expect(said).toContain("كاشير 1 — سعيد");
+    // Said, not a refusal: the cashier who left is not coming back to count.
+    expect(closeButton(wrapper).attributes("disabled")).toBeUndefined();
+  });
+
+  it("say nothing when every drawer was counted", async () => {
+    const { wrapper } = await open({
+      may: false,
+      summary: report({ orders: { total: 2, closed: 2, cancelled: 0, still_open: 0 }, blocked_by_open_orders: false }),
+    });
+
+    expect(wrapper.text()).not.toContain("ما انعدّت");
+  });
+});

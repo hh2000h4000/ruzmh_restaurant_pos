@@ -447,6 +447,9 @@ export const messages = {
   /** Where the branch lets a bill run past midnight (D-105). */
   "shift.stillOpenCarries": "{count} orders are still open. They carry over to the next day.",
   "shift.clockingOut": "{count} still clocked in. Closing the day clocks them out now.",
+  "shift.uncountedTills":
+    "These drawers have not been counted. Closing the day closes them at what they should hold — a shortage in them will not show.",
+  "shift.uncountedTill": "{terminal} — {user}",
   /** The pile getting noticed while it is still small enough to clear (D-158). */
   "shift.carryingTooMany":
     "{count} orders have been left open. The day still closes, but the till reads all of them every time it refreshes — worth clearing.",

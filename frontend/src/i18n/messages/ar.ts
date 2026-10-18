@@ -424,6 +424,9 @@ const messages: Catalogue["messages"] = {
   "shift.stillOpenBlocked": "{count} فواتير ما زالت مفتوحة. أقفلها أو ألغِها قبل إغلاق اليوم.",
   "shift.stillOpenCarries": "{count} فواتير ما زالت مفتوحة. تنتقل إلى اليوم التالي.",
   "shift.clockingOut": "{count} على رأس العمل. إقفال اليوم يسجّل لهم انصرافاً الآن.",
+  "shift.uncountedTills":
+    "هذي الأدراج ما انعدّت. إقفال اليوم يقفلها على المبلغ المتوقع، وأي نقص فيها ما بيبان.",
+  "shift.uncountedTill": "{terminal} — {user}",
   "shift.carryingTooMany":
     "{count} فاتورة متروكة مفتوحة. اليوم يُقفل عادي، بس التِل يقرأها كلها مع كل تحديث — يستاهل تنظيفها.",
   "shift.heldBy": "الدرج مفتوح باسم {name}",

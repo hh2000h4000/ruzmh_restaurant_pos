@@ -60,6 +60,12 @@ export interface ShiftReport {
    * later in a payroll report — it is the same courtesy the open bills get.
    */
   on_duty?: number;
+  /**
+   * Drawers still open under the day (`D-356`). Closing the day closes each at
+   * its expected figures, uncounted — said before the button, by terminal and
+   * cashier, because one of them may be at the other end of the counter.
+   */
+  open_tills?: { pos_profile: string; user: string; since: string }[];
   by_order_type: { order_type: string; title_ar: string; count: number; sales: number }[];
   /**
    * The five dishes that took the most (`FR-8.3`) — ranked by money like the

@@ -47,6 +47,8 @@ has_permission = {
 override_doctype_class = {SALE: "restaurant_pos.overrides.pos_invoice.RPOSInvoice"}
 
 doc_events = {
+	# D-357 — cancelling a drawer difference's entry hands the difference back.
+	"Journal Entry": {"before_cancel": "restaurant_pos.utils.drawer_difference.release"},
 	# D-285 — a combo the till can sell, or a refusal the manager can read.
 	"Item": {"validate": "restaurant_pos.utils.combos.validate_item"},
 	# D-201 — and an RPOS role is granted on this form, so the escalation guard

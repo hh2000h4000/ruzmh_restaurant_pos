@@ -17,7 +17,11 @@ negative figure is money missing**, and the reason the cashier had to give for i
 how many came up short, the shortages and overages apart — a net of zero can hide
 a big short and a big over — and the net.
 
-Refs: FR-8.3, BR-043, D-047, D-219, D-273
+**And the accountant books from it** (`D-357`): a difference not yet in the
+books carries a button that writes it to the account they choose, and the entry
+it made sits beside it after.
+
+Refs: FR-8.3, BR-043, D-047, D-219, D-273, D-357
 """
 
 import frappe
@@ -50,7 +54,15 @@ def closings(filters, from_date: str, to_date: str) -> list[dict]:
 	entries = frappe.get_all(
 		"POS Closing Entry",
 		filters=conditions,
-		fields=["name", "user", "pos_profile", "period_end_date", "rpos_variance_reason"],
+		fields=[
+			"name",
+			"user",
+			"pos_profile",
+			"period_end_date",
+			"rpos_variance_reason",
+			"rpos_difference_entry",
+			"company",
+		],
 		order_by="period_end_date asc",
 	)
 	if not entries:
@@ -87,6 +99,13 @@ def closings(filters, from_date: str, to_date: str) -> list[dict]:
 				"counted": flt(sum(flt(line.closing_amount) for line in lines), 2),
 				"difference": flt(sum(flt(line.difference) for line in lines), 2),
 				"reason": entry.rpos_variance_reason,
+				# Only a submitted entry counts as booked: a cancelled one put the
+				# difference back, and the button comes back with it.
+				"entry": entry.rpos_difference_entry
+				if entry.rpos_difference_entry
+				and frappe.db.get_value("Journal Entry", entry.rpos_difference_entry, "docstatus") == 1
+				else None,
+				"company": entry.company,
 			}
 		)
 	return rows
@@ -173,6 +192,13 @@ def _columns() -> list[dict]:
 			"label": _("Reason", context="RPOS report"),
 			"fieldtype": "Data",
 			"width": 260,
+		},
+		{
+			"fieldname": "entry",
+			"label": _("Booked In"),
+			"fieldtype": "Link",
+			"options": "Journal Entry",
+			"width": 160,
 		},
 	]
 

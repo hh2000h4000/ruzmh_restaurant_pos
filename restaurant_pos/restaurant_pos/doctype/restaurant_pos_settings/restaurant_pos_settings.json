@@ -16,6 +16,7 @@
   "alerts_per_page",
   "accounts_section",
   "waste_account",
+  "over_short_account",
   "stock_section",
   "low_stock_at",
   "rpos_stock_note"
@@ -98,6 +99,13 @@
    "reqd": 1
   },
   {
+   "description": "Where a drawer's shortage or overage is written off when the accountant books it from the Drawer Variances report. A shortage charged to the cashier goes to their account instead, chosen there.",
+   "fieldname": "over_short_account",
+   "fieldtype": "Link",
+   "label": "Cash Over and Short Account",
+   "options": "Account"
+  },
+  {
    "fieldname": "stock_section",
    "fieldtype": "Section Break",
    "label": "Stock at the Till"
@@ -118,7 +126,7 @@
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2026-10-09 12:00:00.000000",
+ "modified": "2026-10-18 14:30:00.000000",
  "modified_by": "Administrator",
  "module": "Restaurant POS",
  "name": "Restaurant POS Settings",

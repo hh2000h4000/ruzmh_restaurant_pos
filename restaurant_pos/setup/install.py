@@ -17,6 +17,7 @@ from restaurant_pos.setup import (
 	cash_accounts,
 	desk_tiles,
 	gift_card_accounts,
+	over_short_account,
 	platform_accounts,
 	waste_account,
 )
@@ -79,6 +80,18 @@ CUSTOM_FIELDS = {
 			"fieldtype": "Small Text",
 			"label": "Variance Reason",
 			"insert_after": "user",
+		},
+		# `D-357` — the entry the accountant booked the difference in, so it is
+		# never booked twice and the report can say which are done.
+		{
+			"fieldname": "rpos_difference_entry",
+			"fieldtype": "Link",
+			"options": "Journal Entry",
+			"label": "Difference Entry",
+			"insert_after": "rpos_variance_reason",
+			"read_only": 1,
+			"no_copy": 1,
+			"allow_on_submit": 1,
 		},
 	],
 	"Branch": [
@@ -1036,6 +1049,10 @@ def after_migrate():
 	# `D-315` — the account a thrown-away return is charged to. Created once and
 	# never overwritten, like the gift cards' and the drawer's.
 	waste_account.setup()
+
+	# `D-357` — where the accountant writes off a drawer's difference. Same rule:
+	# made once, never overwritten.
+	over_short_account.setup()
 
 	# `D-347` — the block the office pages draw their tiles with.
 	desk_tiles.setup()

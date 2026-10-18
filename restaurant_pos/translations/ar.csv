@@ -1627,3 +1627,19 @@ Unknown kind of tile: {0},نوع مربع غير معروف: {0}
 That picture is not one of the tiles' own.,هذي الأيقونة مو من أيقونات المربعات.
 A colour is written like #1F4D43.,اللون ينكتب بهالشكل: #1F4D43
 Size and colour of all the tiles,حجم ولون كل المربعات
+Booked In,مقيّد في
+Book,قيّد
+Book the difference on {0},قيّد فرق الدرج {0}
+Booked in {0},انقيد في {0}
+"The shortage account writes it off. To charge the cashier, choose a receivable account — their employee record is the party.",حساب العجز يشطبه كمصروف. ولو بتحمّله على الكاشير اختر حساب مدينين، وينقيد على بطاقة الموظف حقه.
+Difference Entry,قيد الفرق
+Cash Over and Short Account,حساب عجز وزيادة الصندوق
+"Where a drawer's shortage or overage is written off when the accountant books it from the Drawer Variances report. A shortage charged to the cashier goes to their account instead, chosen there.",وين ينشطب عجز الدرج أو زيادته لما يقيّده المحاسب من تقرير فروقات الأدراج. والعجز اللي يتحمّله الكاشير ينقيد على حسابه بدل هذا، ويُختار هناك.
+Drawer {0} has not been closed.,الدرج {0} ما انقفل.
+The difference on drawer {0} is already booked in {1}.,فرق الدرج {0} مقيّد من قبل في {1}.
+Choose the account the difference goes to.,اختر الحساب اللي ينقيد عليه الفرق.
+{0} is not an account of {1} that entries can be made in.,{0} مو حساب تابع لـ {1} ينقيد عليه.
+Payment method {0} has no account for {1}.,طريقة الدفع {0} ما لها حساب في {1}.
+Drawer {0} counted out as expected; there is nothing to book.,الدرج {0} طلع مضبوط، ما فيه فرق ينقيد.
+"Difference on drawer {0} ({1}), closed by {2}.",فرق الدرج {0} ({1})، قفله {2}.
+"{0} has no employee record, so the difference cannot be charged to them.",{0} ما له بطاقة موظف، فما ينقدر يتحمّل الفرق.

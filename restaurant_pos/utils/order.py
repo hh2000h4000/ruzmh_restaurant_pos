@@ -309,9 +309,19 @@ def assert_table_free(table: str, branch: str | None) -> frappe._dict:
 	Shared by the two ways an order reaches a table — created at one, or seated
 	at one later (``seat_order``) — because a rule enforced in one place and not
 	the other is how two orders end up on table four.
+
+	**The table's row is locked while it is asked** (`D-355`). Two tills tapping
+	the same free table in the same instant both read "available" and both
+	opened a bill — measured, two requests 0.2 s apart. Locked, the second waits
+	for the first to commit and then reads "occupied". The lock lasts the
+	request, a few milliseconds, and only on the one table.
 	"""
 	state = frappe.db.get_value(
-		"Restaurant Table", table, ["section", "status", "is_active", "capacity"], as_dict=True
+		"Restaurant Table",
+		table,
+		["section", "status", "is_active", "capacity", "table_number"],
+		as_dict=True,
+		for_update=True,
 	)
 	if not state:
 		frappe.throw(_("Table {0} does not exist.").format(table))
@@ -338,7 +348,13 @@ def assert_table_free(table: str, branch: str | None) -> frappe._dict:
 	if state.status == "occupied" and allows_second_bill(branch):
 		return state
 
-	frappe.throw(_("Table {0} is {1}.").format(table, _(state.status)))
+	# The number the cashier sees on the floor and the status in their language —
+	# not the record's name and an English word, which is what this said.
+	frappe.throw(
+		_("Table {0} is {1}.").format(
+			state.table_number or table, _(state.status, context="Restaurant Table")
+		)
+	)
 
 
 def table_section_branch(section: str | None) -> str | None:

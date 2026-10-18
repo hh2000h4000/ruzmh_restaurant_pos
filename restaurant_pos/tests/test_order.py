@@ -249,8 +249,13 @@ class TestOrderCreation(OrderTestBase):
 		table = frappe.db.get_value("Restaurant Table", {"section": self.section, "is_active": 1}, "name")
 		frappe.db.set_value("Restaurant Table", table, "status", "occupied")
 
-		with self.assertRaises(frappe.ValidationError):
+		with self.assertRaises(frappe.ValidationError) as refused:
 			self._order(order_type=self.dine_in, table=table, cover_count=2)
+
+		# `D-355` — the number on the floor, not the record's name.
+		number = frappe.db.get_value("Restaurant Table", table, "table_number")
+		self.assertIn(str(number), str(refused.exception))
+		self.assertNotIn(table, str(refused.exception))
 
 	def test_delivery_requires_a_customer(self):
 		delivery = frappe.db.get_value("Restaurant Order Type", {"title": "Delivery"}, "name")

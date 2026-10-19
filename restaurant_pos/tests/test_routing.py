@@ -320,3 +320,58 @@ class TestKitchenRouting(FrappeTestCase):
 		center = routing.printer_for(self.grill)
 		self.assertIn("printer", center)
 		self.assertIn("fallback_printer", center)
+
+
+OTHER_BRANCH = "RPOS Test Other Branch"
+
+
+def _other_grill() -> str:
+	"""A station of a second branch, which the order's branch must not print at."""
+	if not frappe.db.exists("Branch", OTHER_BRANCH):
+		other = frappe.copy_doc(frappe.get_doc("Branch", BRANCH))
+		other.branch = OTHER_BRANCH
+		# Its own invoice number; a copy would claim the first branch's (`D-309`).
+		other.rpos_branch_number = None
+		other.insert(ignore_permissions=True)
+	existing = frappe.db.get_value(
+		"Production Center", {"title": "RPOS Other Grill", "branch": OTHER_BRANCH}, "name"
+	)
+	return existing or (
+		frappe.get_doc(
+			{
+				"doctype": "Production Center",
+				"title": "RPOS Other Grill",
+				"title_ar": "RPOS Other Grill",
+				"branch": OTHER_BRANCH,
+				"has_kds": 1,
+				"kds_display_id": "rpos-other-grill",
+			}
+		)
+		.insert(ignore_permissions=True)
+		.name
+	)
+
+
+class AnotherBranchsStationIsNotThisBranchs(TestKitchenRouting):
+	"""`D-361` — an item's default station belongs to one branch; another branch selling it does not print there."""
+
+	def test_an_item_default_in_another_branch_falls_through_to_the_cashier(self):
+		frappe.db.set_value("Item", self.item_burger, "default_production_center", _other_grill())
+
+		route = self._resolve()
+
+		self.assertIsNone(route.production_center)
+		self.assertTrue(route.is_fallback)
+
+	def test_it_falls_through_to_this_branchs_group_default(self):
+		frappe.db.set_value("Item", self.item_burger, "default_production_center", _other_grill())
+		frappe.db.set_value("Item Group", self.group_burgers, "default_production_center", self.grill)
+
+		route = self._resolve()
+
+		self.assertEqual((route.production_center, route.level), (self.grill, 6))
+
+	def test_a_station_of_this_branch_is_still_the_items_default(self):
+		frappe.db.set_value("Item", self.item_burger, "default_production_center", self.grill)
+
+		self.assertEqual(self._resolve().production_center, self.grill)

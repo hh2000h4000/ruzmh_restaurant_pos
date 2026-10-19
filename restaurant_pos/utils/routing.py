@@ -86,6 +86,7 @@ def resolve_routes(
 	items = _load_items(item_codes)
 	groups = _load_item_groups()
 	rules = _load_rules(branch)
+	elsewhere = _centers_of_other_branches(branch)
 	fallback_printer = (
 		frappe.db.get_value("POS Profile", pos_profile, "default_printer") if pos_profile else None
 	)
@@ -99,6 +100,7 @@ def resolve_routes(
 			order_type=order_type,
 			pos_profile=pos_profile,
 			fallback_printer=fallback_printer,
+			elsewhere=elsewhere,
 		)
 		for code in item_codes
 	}
@@ -141,6 +143,20 @@ def _load_items(item_codes: list[str]) -> dict[str, frappe._dict]:
 		fields=["name", "item_group", "default_production_center"],
 	)
 	return {row.name: row for row in rows}
+
+
+def _centers_of_other_branches(branch: str) -> set[str]:
+	"""Stations that belong to some other branch (`D-361`).
+
+	A rule is read for the order's branch, but an item's or a group's default
+	station is one value for the whole company — and it named the first
+	branch's kitchen. The load test sold burgers in a branch with no printer at
+	all, and 330 of its tickets went to the other branch's kitchen printer. A
+	station with no branch is shared and stays usable everywhere.
+	"""
+	return set(
+		frappe.get_all("Production Center", filters={"branch": ("not in", ["", None, branch])}, pluck="name")
+	)
 
 
 def _load_item_groups() -> dict[str, frappe._dict]:
@@ -202,6 +218,7 @@ def _resolve_one(
 	order_type: str | None,
 	pos_profile: str | None,
 	fallback_printer: str | None,
+	elsewhere: frozenset[str] | set[str] = frozenset(),
 ) -> Route:
 	ancestry = _ancestry(item.get("item_group"), groups)
 
@@ -226,8 +243,8 @@ def _resolve_one(
 			printer=None,
 		)
 
-	# Level 5 — the item's own default.
-	if item.get("default_production_center"):
+	# Level 5 — the item's own default, when it is a station of this branch.
+	if item.get("default_production_center") and item.default_production_center not in elsewhere:
 		return Route(
 			item=item_code,
 			production_center=item.default_production_center,
@@ -239,7 +256,7 @@ def _resolve_one(
 	# Level 6 — the nearest ancestor group that declares a default.
 	for group in ancestry:
 		default = groups[group].get("default_production_center")
-		if default:
+		if default and default not in elsewhere:
 			return Route(
 				item=item_code,
 				production_center=default,

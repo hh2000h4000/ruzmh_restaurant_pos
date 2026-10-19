@@ -35,6 +35,7 @@ from frappe import _
 from frappe.query_builder.functions import Sum
 from frappe.utils import cint, flt, getdate, now_datetime, nowdate, nowtime
 
+from restaurant_pos.utils.bulk import get_all_in
 from restaurant_pos.utils.permissions import server_rights
 from restaurant_pos.utils.sale_doc import LINE_COST, POSTED_ENTRY, RETURNED_LINE, SALE, SALE_ITEM, WASTED
 
@@ -313,7 +314,7 @@ def _aggregate(batch, rows: list, is_return: int) -> str:
 	profile = frappe.get_cached_doc("POS Profile", rows[0].pos_profile)
 
 	revenue = {}
-	for line in frappe.get_all(
+	for line in get_all_in(
 		SALE_ITEM,
 		filters={"parent": ("in", names), "parenttype": SALE},
 		fields=[
@@ -341,7 +342,7 @@ def _aggregate(batch, rows: list, is_return: int) -> str:
 		row.amount += flt(line.net_amount)
 
 	taxes = {}
-	for tax in frappe.get_all(
+	for tax in get_all_in(
 		"Sales Taxes and Charges",
 		filters={"parent": ("in", names), "parenttype": SALE},
 		fields=["account_head", "cost_center", "description", "tax_amount_after_discount_amount"],
@@ -350,7 +351,7 @@ def _aggregate(batch, rows: list, is_return: int) -> str:
 		row.amount += flt(tax.tax_amount_after_discount_amount)
 
 	paid = {}
-	for payment in frappe.get_all(
+	for payment in get_all_in(
 		"Sales Invoice Payment",
 		filters={"parent": ("in", names), "parenttype": SALE},
 		fields=["mode_of_payment", "amount"],
@@ -598,7 +599,7 @@ def _stock_rows(invoices: list[str]) -> list[frappe._dict]:
 	if not invoices:
 		return []
 
-	lines = frappe.get_all(
+	lines = get_all_in(
 		SALE_ITEM,
 		filters={"parent": ("in", invoices), "parenttype": SALE},
 		fields=[
@@ -611,7 +612,7 @@ def _stock_rows(invoices: list[str]) -> list[frappe._dict]:
 		],
 	)
 	of_line = {line.line: line for line in lines}
-	recipe = frappe.get_all(
+	recipe = get_all_in(
 		"Packed Item",
 		filters={"parent": ("in", invoices), "parenttype": SALE},
 		fields=["parent_detail_docname as line", "item_code", "warehouse", "qty"],
@@ -658,14 +659,13 @@ def _waste_entry(batch, wasted: list) -> str | None:
 	and no price on its card.
 	"""
 	sold_lines = list({row.sold_line for row in wasted if row.sold_line})
-	line_cost = dict(
-		frappe.get_all(
-			SALE_ITEM, filters={"name": ("in", sold_lines)}, fields=["name", LINE_COST], as_list=True
-		)
-	)
+	line_cost = {
+		row.name: row[LINE_COST]
+		for row in get_all_in(SALE_ITEM, filters={"name": ("in", sold_lines)}, fields=["name", LINE_COST])
+	}
 	recipe_cost = {
 		(row.parent_detail_docname, row.item_code): flt(row.incoming_rate)
-		for row in frappe.get_all(
+		for row in get_all_in(
 			"Packed Item",
 			filters={"parent_detail_docname": ("in", sold_lines), "parenttype": SALE},
 			fields=["parent_detail_docname", "item_code", "incoming_rate"],

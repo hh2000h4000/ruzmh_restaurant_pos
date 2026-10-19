@@ -458,7 +458,9 @@ def is_credit_method(method: str) -> bool:
 	(``DECISIONS.md`` D-029) — and what is owed sits on the method's own
 	account, where the accountant clears it when the transfer lands (`D-319`).
 	"""
-	return bool(frappe.db.get_value("Mode of Payment", method, "rpos_is_credit"))
+	# Cached: asked for every payment row of every report, and a method's kind
+	# changes only when somebody edits it, which clears the cache (`D-366`).
+	return bool(frappe.get_cached_value("Mode of Payment", method, "rpos_is_credit"))
 
 
 def _assert_has_account(method: str, company: str) -> None:

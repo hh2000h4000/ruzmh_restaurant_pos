@@ -61,7 +61,7 @@ def is_gift_card_method(method: str | None) -> bool:
 	misspelt on the first site that made its own: «بطاقة هدية» for «بطاقة
 	هدايا», and the till would have taken it like cash and asked for no card.
 	"""
-	return bool(method) and bool(frappe.db.get_value("Mode of Payment", method, "rpos_is_gift_card"))
+	return bool(method) and bool(frappe.get_cached_value("Mode of Payment", method, "rpos_is_gift_card"))
 
 
 def gift_card_method() -> str | None:

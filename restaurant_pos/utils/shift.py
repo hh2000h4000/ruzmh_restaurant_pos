@@ -38,6 +38,7 @@ from frappe import _
 from frappe.utils import cint, flt, format_datetime, now_datetime, nowdate, nowtime
 
 from restaurant_pos.utils import availability, cash_movement, gift_card, printing
+from restaurant_pos.utils.bulk import get_all_in
 from restaurant_pos.utils.order import profiles_in, table_section_branch
 from restaurant_pos.utils.payment import is_credit_method
 from restaurant_pos.utils.permissions import (
@@ -689,7 +690,7 @@ def _report(
 	sold = [row.sales_invoice for row in closed if row.sales_invoice]
 	methods = _by_method(sold, refunds, opening, moved or {}, cards_sold or {})
 	refund_rows = (
-		frappe.get_all(SALE, filters={"name": ("in", refunds)}, fields=["owner", "grand_total"])
+		get_all_in(SALE, filters={"name": ("in", refunds)}, fields=["owner", "grand_total"])
 		if refunds
 		else []
 	)
@@ -826,9 +827,7 @@ def _by_method(
 	expected figure did not move when a paid invoice was cancelled.
 	"""
 	live = (
-		frappe.get_all(SALE, filters={"name": ("in", invoices), "docstatus": 1}, pluck="name")
-		if invoices
-		else []
+		get_all_in(SALE, filters={"name": ("in", invoices), "docstatus": 1}, pluck="name") if invoices else []
 	)
 
 	# FR-9 — and the refunds made in the same period (D-064), **against a sale of
@@ -840,7 +839,7 @@ def _by_method(
 	live += refunds
 
 	rows = (
-		frappe.get_all(
+		get_all_in(
 			"Sales Invoice Payment",
 			filters={"parent": ("in", live), "parenttype": SALE},
 			fields=["mode_of_payment", "amount"],
@@ -852,6 +851,13 @@ def _by_method(
 	tally: dict[str, dict] = {}
 
 	def line(method: str) -> dict:
+		# **Built once per method, not once per payment** (`D-366`). This was
+		# `tally.setdefault(method, {...})`, and the dict — with `_kind_of` and
+		# its two queries inside it — was built for every row before setdefault
+		# threw it away: 5,030 queries for two payment methods on a day of 2,370
+		# bills, 85% of the day's summary, which the close reads three times.
+		if method in tally:
+			return tally[method]
 		return tally.setdefault(
 			method,
 			{
@@ -941,7 +947,7 @@ def _top_items(order_names: list[str], limit: int = TOP_ITEMS) -> list[dict]:
 	if not order_names:
 		return []
 
-	rows = frappe.get_all(
+	rows = get_all_in(
 		"Restaurant Order Item",
 		filters={
 			"parent": ("in", order_names),
@@ -1018,7 +1024,7 @@ def _removed_before_kitchen(order_names: list[str]) -> tuple[int, float]:
 	if not order_names:
 		return 0, 0.0
 
-	rows = frappe.get_all(
+	rows = get_all_in(
 		"POS Order Activity",
 		filters={"restaurant_order": ("in", order_names), "action": "item_removed"},
 		fields=["details"],
@@ -1037,7 +1043,7 @@ def _voids(order_names: list[str]) -> tuple[int, float]:
 	if not order_names:
 		return 0, 0.0
 
-	rows = frappe.get_all(
+	rows = get_all_in(
 		"Restaurant Order Item",
 		filters={"parent": ("in", order_names), "parenttype": "Restaurant Order", "status": "void"},
 		fields=["amount"],
@@ -1057,7 +1063,7 @@ def _by_tax_rate(invoices: list[str]) -> list[dict]:
 	disagree with the books by a halala.
 	"""
 	docs = (
-		frappe.get_all(
+		get_all_in(
 			SALE,
 			filters={"name": ("in", invoices), "docstatus": 1},
 			fields=["name", "net_total", "total_taxes_and_charges", "grand_total"],
@@ -1069,11 +1075,11 @@ def _by_tax_rate(invoices: list[str]) -> list[dict]:
 		return []
 
 	rates: dict[str, float] = {}
-	for row in frappe.get_all(
+	for row in get_all_in(
 		"Sales Taxes and Charges",
 		filters={"parent": ("in", [doc.name for doc in docs]), "parenttype": SALE},
 		fields=["parent", "rate"],
-		order_by="idx asc",
+		order_by="idx",
 	):
 		rates.setdefault(row.parent, flt(row.rate))
 

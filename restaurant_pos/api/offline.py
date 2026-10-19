@@ -15,10 +15,12 @@ import frappe
 
 from restaurant_pos.utils import idempotency
 from restaurant_pos.utils import offline as service
+from restaurant_pos.utils.deadlock import retried
 from restaurant_pos.utils.permissions import validate_branch_access
 
 
 @frappe.whitelist()
+@retried
 def submit_order(pos_profile: str, payload: dict | str, queue_id: str) -> dict:
 	"""Land a bill the till sold while the line was down (FR-2.1, 09 §5).
 

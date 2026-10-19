@@ -15,6 +15,7 @@ from frappe.utils import cint
 
 from restaurant_pos.utils import cash_movement, idempotency, printing
 from restaurant_pos.utils import shift as service
+from restaurant_pos.utils.deadlock import retried
 
 
 @frappe.whitelist()
@@ -53,6 +54,7 @@ def get_till_summary(opening_entry: str, for_counting: int = 0) -> dict:
 
 
 @frappe.whitelist()
+@retried
 def print_till_report(opening_entry: str, queue_id: str | None = None) -> dict:
 	"""The drawer's financial report on paper, now — X while it is open (FR-8.3, `D-219`).
 
@@ -89,6 +91,7 @@ def print_till_report(opening_entry: str, queue_id: str | None = None) -> dict:
 
 
 @frappe.whitelist()
+@retried
 def open_day(pos_profile: str, title: str | None = None, queue_id: str | None = None) -> dict:
 	"""Start the branch's day (FR-8.1)."""
 	replay = idempotency.previous_result(queue_id)
@@ -103,6 +106,7 @@ def open_day(pos_profile: str, title: str | None = None, queue_id: str | None = 
 
 
 @frappe.whitelist()
+@retried
 def open_till(
 	pos_profile: str,
 	opening_floats: dict | str | None = None,
@@ -130,6 +134,7 @@ def open_till(
 
 
 @frappe.whitelist()
+@retried
 def close_till(
 	opening_entry: str,
 	counted: dict | str | None = None,
@@ -157,6 +162,7 @@ def close_till(
 
 
 @frappe.whitelist()
+@retried
 def close_day(
 	shift: str,
 	force: int | bool = 0,
@@ -181,6 +187,7 @@ def close_day(
 
 
 @frappe.whitelist(methods=["POST"])
+@retried
 def move_drawer_cash(
 	pos_profile: str,
 	direction: str,

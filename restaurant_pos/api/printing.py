@@ -25,6 +25,7 @@ from restaurant_pos.restaurant_pos.doctype.pos_print_agent import pos_print_agen
 from restaurant_pos.utils import idempotency
 from restaurant_pos.utils import printing as service
 from restaurant_pos.utils.audit import log_audit
+from restaurant_pos.utils.deadlock import retried
 from restaurant_pos.utils.permissions import assert_permission, validate_branch_access
 from restaurant_pos.utils.sale_doc import SALE
 
@@ -192,6 +193,7 @@ def _connection(printer: str) -> dict:
 
 
 @frappe.whitelist()
+@retried
 def reprint_receipt(invoice_name: str, queue_id: str | None = None) -> dict:
 	"""Print a receipt the customer has already been given (`FR-7.5`, `D-143`).
 

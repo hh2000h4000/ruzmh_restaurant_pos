@@ -13,6 +13,7 @@ import frappe
 
 from restaurant_pos.utils import idempotency
 from restaurant_pos.utils import returns as service
+from restaurant_pos.utils.deadlock import retried
 from restaurant_pos.utils.permissions import validate_branch_access
 from restaurant_pos.utils.sale_doc import SALE
 
@@ -39,6 +40,7 @@ def preview_return(order_name: str, items: list | str) -> dict:
 
 
 @frappe.whitelist()
+@retried
 def create_return(
 	order_name: str,
 	items: list | str,

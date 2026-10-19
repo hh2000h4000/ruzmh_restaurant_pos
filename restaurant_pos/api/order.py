@@ -17,6 +17,7 @@ from frappe.utils import add_days, cint, flt, get_datetime, nowdate
 from restaurant_pos.utils import customer as customer_service
 from restaurant_pos.utils import idempotency, kitchen, promotions
 from restaurant_pos.utils import order as service
+from restaurant_pos.utils.deadlock import retried
 from restaurant_pos.utils.permissions import get_pos_permission_set, validate_branch_access
 from restaurant_pos.utils.sale_doc import SALE
 
@@ -46,6 +47,7 @@ def _summary(order) -> dict:
 
 
 @frappe.whitelist()
+@retried
 def create_order(
 	order_type: str,
 	pos_profile: str,
@@ -98,6 +100,7 @@ def create_order(
 
 
 @frappe.whitelist()
+@retried
 def add_item(
 	order_name: str,
 	item: str,
@@ -137,6 +140,7 @@ def add_item(
 
 
 @frappe.whitelist()
+@retried
 def set_item_qty(
 	order_name: str,
 	item_idx: int,
@@ -159,6 +163,7 @@ def set_item_qty(
 
 
 @frappe.whitelist()
+@retried
 def set_item_notes(
 	order_name: str,
 	item_idx: int,
@@ -181,6 +186,7 @@ def set_item_notes(
 
 
 @frappe.whitelist()
+@retried
 def remove_item(order_name: str, item_idx: int, queue_id: str | None = None) -> dict:
 	"""Take a line off before the kitchen sees it (FR-2.5).
 
@@ -202,6 +208,7 @@ def remove_item(order_name: str, item_idx: int, queue_id: str | None = None) -> 
 
 
 @frappe.whitelist()
+@retried
 def void_item(
 	order_name: str,
 	item_idx: int,
@@ -238,6 +245,7 @@ def preview_order_type_change(order_name: str, order_type: str) -> dict:
 
 
 @frappe.whitelist()
+@retried
 def change_order_type(
 	order_name: str,
 	order_type: str,
@@ -281,6 +289,7 @@ def change_order_type(
 
 
 @frappe.whitelist()
+@retried
 def set_order_table(
 	order_name: str,
 	table: str,
@@ -313,6 +322,7 @@ def set_order_table(
 
 
 @frappe.whitelist()
+@retried
 def merge_tables(
 	order_name: str,
 	tables: list | str,
@@ -344,6 +354,7 @@ def merge_tables(
 
 
 @frappe.whitelist()
+@retried
 def set_order_customer(
 	order_name: str,
 	customer: str | None = None,
@@ -370,6 +381,7 @@ def set_order_customer(
 
 
 @frappe.whitelist()
+@retried
 def set_call_name(
 	order_name: str,
 	call_name: str | None = None,
@@ -391,6 +403,7 @@ def set_call_name(
 
 
 @frappe.whitelist()
+@retried
 def set_order_notes(
 	order_name: str,
 	notes: str | None = None,
@@ -412,6 +425,7 @@ def set_order_notes(
 
 
 @frappe.whitelist()
+@retried
 def cancel_order(
 	order_name: str,
 	reason: str,
@@ -444,6 +458,7 @@ def preview_split(order_name: str, rows: list | str) -> dict:
 
 
 @frappe.whitelist()
+@retried
 def split_bill(
 	order_name: str,
 	rows: list | str,
@@ -475,6 +490,7 @@ def split_bill(
 
 
 @frappe.whitelist()
+@retried
 def merge_bills(
 	order_name: str,
 	into: str,

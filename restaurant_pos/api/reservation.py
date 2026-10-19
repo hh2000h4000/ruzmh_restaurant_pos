@@ -21,6 +21,7 @@ from frappe import _
 
 from restaurant_pos.utils import idempotency
 from restaurant_pos.utils import reservation as service
+from restaurant_pos.utils.deadlock import retried
 from restaurant_pos.utils.order import branch_of_profile
 from restaurant_pos.utils.permissions import validate_branch_access
 
@@ -52,6 +53,7 @@ def list_reservations(pos_profile: str, date: str | None = None) -> list[dict]:
 
 
 @frappe.whitelist()
+@retried
 def save_reservation(pos_profile: str, reservation: dict | str, queue_id: str | None = None) -> dict:
 	"""Take a booking, or change one still expected (`FR-14.1`)."""
 	replay = idempotency.previous_result(queue_id)
@@ -71,6 +73,7 @@ def save_reservation(pos_profile: str, reservation: dict | str, queue_id: str | 
 
 
 @frappe.whitelist()
+@retried
 def seat_reservation(
 	name: str,
 	pos_profile: str,
@@ -98,6 +101,7 @@ def seat_reservation(
 
 
 @frappe.whitelist()
+@retried
 def cancel_reservation(name: str, reason: str, queue_id: str | None = None) -> dict:
 	"""`FR-14.4` — cancelled, with the reason the guest gave."""
 	replay = idempotency.previous_result(queue_id)
@@ -114,6 +118,7 @@ def cancel_reservation(name: str, reason: str, queue_id: str | None = None) -> d
 
 
 @frappe.whitelist()
+@retried
 def mark_no_show(name: str, queue_id: str | None = None) -> dict:
 	"""The party did not come. Also done for everyone left when the day closes."""
 	replay = idempotency.previous_result(queue_id)

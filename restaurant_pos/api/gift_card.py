@@ -13,10 +13,12 @@ Refs: FR-11.5, D-256
 import frappe
 
 from restaurant_pos.utils import gift_card as cards
+from restaurant_pos.utils.deadlock import retried
 from restaurant_pos.utils.permissions import assert_pos_user
 
 
 @frappe.whitelist(methods=["POST"])
+@retried
 def sell(
 	pos_profile: str,
 	card_number: str,

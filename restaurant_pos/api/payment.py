@@ -16,11 +16,13 @@ from frappe.utils import cint, flt
 from restaurant_pos.utils import coupons, idempotency, loyalty, promotions, totals
 from restaurant_pos.utils import order as orders
 from restaurant_pos.utils import payment as service
+from restaurant_pos.utils.deadlock import retried
 from restaurant_pos.utils.gift_card import is_gift_card_method
 from restaurant_pos.utils.permissions import get_pos_permission_set, validate_branch_access
 
 
 @frappe.whitelist()
+@retried
 def process_payment(
 	order_name: str,
 	payments: list | str,

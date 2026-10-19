@@ -8,6 +8,7 @@ from frappe import _
 
 from restaurant_pos.utils import availability as service
 from restaurant_pos.utils import idempotency
+from restaurant_pos.utils.deadlock import retried
 from restaurant_pos.utils.order import branch_of_profile
 from restaurant_pos.utils.permissions import validate_branch_access
 
@@ -28,6 +29,7 @@ def get_stock(pos_profile: str) -> dict:
 
 
 @frappe.whitelist(methods=["POST"])
+@retried
 def set_sold_out(pos_profile: str, item: str, sold_out: int | bool = 1, queue_id: str | None = None) -> dict:
 	"""Mark an item finished for today in this branch, or bring it back (`D-322`).
 

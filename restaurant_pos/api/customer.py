@@ -13,6 +13,7 @@ import frappe
 
 from restaurant_pos.utils import customer as service
 from restaurant_pos.utils import idempotency
+from restaurant_pos.utils.deadlock import retried
 from restaurant_pos.utils.permissions import assert_pos_user
 
 # Every endpoint here names no branch, so none passes `validate_branch_access`
@@ -36,6 +37,7 @@ def get(customer: str) -> dict:
 
 
 @frappe.whitelist()
+@retried
 def create(
 	phone: str,
 	customer_name: str,
@@ -65,6 +67,7 @@ def create(
 
 
 @frappe.whitelist()
+@retried
 def add_address(customer: str, address: dict | str, queue_id: str | None = None) -> dict:
 	"""Another address for a customer who has one already."""
 	assert_pos_user()

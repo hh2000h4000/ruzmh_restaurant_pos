@@ -11,6 +11,7 @@ from frappe import _
 
 from restaurant_pos.utils import idempotency
 from restaurant_pos.utils import kitchen as service
+from restaurant_pos.utils.deadlock import retried
 from restaurant_pos.utils.order import assert_mutable
 from restaurant_pos.utils.permissions import (
 	assert_permission,
@@ -19,6 +20,7 @@ from restaurant_pos.utils.permissions import (
 
 
 @frappe.whitelist()
+@retried
 def send_to_kitchen(order_name: str, kot_type: str | None = None, queue_id: str | None = None) -> dict:
 	"""Raise a KOT per production center for everything not yet sent (FR-2.3, FR-2.4).
 
@@ -47,6 +49,7 @@ def send_to_kitchen(order_name: str, kot_type: str | None = None, queue_id: str 
 
 
 @frappe.whitelist()
+@retried
 def reprint_kot(kot_name: str, queue_id: str | None = None) -> dict:
 	"""Queue a ticket to print again (FR-6.4). Logged in the audit trail."""
 	replay = idempotency.previous_result(queue_id)
@@ -73,6 +76,7 @@ def reprint_kot(kot_name: str, queue_id: str | None = None) -> dict:
 
 
 @frappe.whitelist()
+@retried
 def mark_kitchen_told(kot_name: str, queue_id: str | None = None) -> dict:
 	"""Say the kitchen was told by hand, so an unprinted ticket stops alerting (`D-298`)."""
 	replay = idempotency.previous_result(queue_id)

@@ -26,6 +26,7 @@ import frappe
 from frappe import _
 from frappe.utils import flt, getdate, today
 
+from restaurant_pos.utils.bulk import get_all_in
 from restaurant_pos.utils.gift_card import ADDS, TAKES
 from restaurant_pos.utils.totals import money
 
@@ -85,7 +86,7 @@ def _balances_on(on, cards: list[str]) -> dict[str, float]:
 	"""Each card's balance as at the end of that day, from its entries."""
 	tally: dict[str, float] = {}
 
-	for row in frappe.get_all(
+	for row in get_all_in(
 		"POS Gift Card Entry",
 		filters={"gift_card": ("in", cards), "recorded_at": ("<=", f"{on} 23:59:59")},
 		fields=["gift_card", "entry_type", "amount"],

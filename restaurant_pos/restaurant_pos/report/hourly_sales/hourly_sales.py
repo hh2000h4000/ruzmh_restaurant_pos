@@ -31,6 +31,7 @@ from frappe.utils import flt, get_datetime, get_time
 
 from restaurant_pos.restaurant_pos.report.daily_sales.daily_sales import money_of
 from restaurant_pos.utils import reporting
+from restaurant_pos.utils.bulk import get_all_in
 from restaurant_pos.utils.sale_doc import SALE
 
 #: Minutes per row. An hour by default; the shorter ones are for one-rush shops.
@@ -80,7 +81,7 @@ def _refunds(filters, from_date: str, to_date: str) -> list:
 	credits = reporting.credit_notes(filters, from_date, to_date)
 	if not credits:
 		return []
-	return frappe.get_all(SALE, filters={"name": ("in", credits)}, fields=["posting_time", "grand_total"])
+	return get_all_in(SALE, filters={"name": ("in", credits)}, fields=["posting_time", "grand_total"])
 
 
 def _total(rows: list[dict]) -> dict:

@@ -29,6 +29,7 @@ from frappe import _
 from frappe.utils import flt
 
 from restaurant_pos.utils import reporting
+from restaurant_pos.utils.bulk import get_all_in
 from restaurant_pos.utils.order import branch_of_profile
 
 
@@ -69,7 +70,7 @@ def closings(filters, from_date: str, to_date: str) -> list[dict]:
 		return []
 
 	details: dict[str, list] = {}
-	for row in frappe.get_all(
+	for row in get_all_in(
 		"POS Closing Entry Detail",
 		filters={"parenttype": "POS Closing Entry", "parent": ("in", [entry.name for entry in entries])},
 		fields=["parent", "expected_amount", "closing_amount", "difference"],

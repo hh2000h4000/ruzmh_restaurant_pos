@@ -35,6 +35,7 @@ from frappe import _
 from frappe.utils import flt
 
 from restaurant_pos.utils import posting, reporting
+from restaurant_pos.utils.bulk import get_all_in
 from restaurant_pos.utils.sale_doc import LINE_COST, SALE, SALE_ITEM, WASTED
 
 
@@ -79,7 +80,7 @@ def _lines_of(invoices: list[str], item_group: str | None) -> list[frappe._dict]
 	if item_group:
 		filters["item_group"] = item_group
 
-	lines = frappe.get_all(
+	lines = get_all_in(
 		SALE_ITEM,
 		filters=filters,
 		fields=[
@@ -101,7 +102,7 @@ def _lines_of(invoices: list[str], item_group: str | None) -> list[frappe._dict]
 		],
 	)
 	posted = _with_their_cost_written(invoices)
-	recipe_rows = frappe.get_all(
+	recipe_rows = get_all_in(
 		"Packed Item",
 		filters={"parenttype": SALE, "parent": ("in", invoices)},
 		fields=["parent", "parent_detail_docname", "item_code", "warehouse", "qty", "incoming_rate"],
@@ -170,9 +171,7 @@ def _with_their_cost_written(invoices: list[str]) -> set[str]:
 	if not done:
 		return set()
 	return set(
-		frappe.get_all(
-			SALE, filters={"name": ("in", invoices), "rpos_posting_batch": ("in", done)}, pluck="name"
-		)
+		get_all_in(SALE, filters={"name": ("in", invoices), "rpos_posting_batch": ("in", done)}, pluck="name")
 	)
 
 

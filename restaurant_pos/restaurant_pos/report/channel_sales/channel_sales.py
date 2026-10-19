@@ -22,6 +22,7 @@ from frappe.utils import flt
 
 from restaurant_pos.restaurant_pos.report.daily_sales.daily_sales import add_sale, finish, money_of
 from restaurant_pos.utils import reporting
+from restaurant_pos.utils.bulk import get_all_in
 from restaurant_pos.utils.sale_doc import SALE
 
 
@@ -37,10 +38,10 @@ def execute(filters=None):
 	for order in orders:
 		money = invoices.get(order.sales_invoice)
 		if money:
-			add_sale(channels.setdefault(order.order_type, _channel(order.order_type)), money)
+			add_sale(_channel_in(channels, order.order_type), money)
 
 	for order_type, total in _refunds_by_channel(filters, from_date, to_date).items():
-		channels.setdefault(order_type, _channel(order_type))["returns"] += total
+		_channel_in(channels, order_type)["returns"] += total
 
 	rows = sorted(channels.values(), key=lambda row: -row["total"])
 	for row in rows:
@@ -50,6 +51,18 @@ def execute(filters=None):
 		row["share"] = flt(row["net"] / takings * 100, 2) if takings else 0.0
 
 	return _columns(), ([*rows, _total(rows)] if rows else rows)
+
+
+def _channel_in(channels: dict, order_type: str | None) -> dict:
+	"""The channel's row, made the first time it is met (`D-367`).
+
+	`channels.setdefault(order_type, _channel(order_type))` built the row — and
+	asked the database for the type's name — for every bill, then threw it away:
+	3,136 queries for three channels on the load-test day.
+	"""
+	if order_type not in channels:
+		channels[order_type] = _channel(order_type)
+	return channels[order_type]
 
 
 def _channel(order_type: str | None) -> dict:
@@ -72,15 +85,15 @@ def _refunds_by_channel(filters, from_date: str, to_date: str) -> dict[str, floa
 	if not credits:
 		return {}
 
-	notes = frappe.get_all(SALE, filters={"name": ("in", credits)}, fields=["return_against", "grand_total"])
-	channel_of = dict(
-		frappe.get_all(
+	notes = get_all_in(SALE, filters={"name": ("in", credits)}, fields=["return_against", "grand_total"])
+	channel_of = {
+		row.sales_invoice: row.order_type
+		for row in get_all_in(
 			"Restaurant Order",
 			filters={"sales_invoice": ("in", [note.return_against for note in notes])},
 			fields=["sales_invoice", "order_type"],
-			as_list=True,
 		)
-	)
+	}
 	refunds: dict[str, float] = {}
 	for note in notes:
 		order_type = channel_of.get(note.return_against)

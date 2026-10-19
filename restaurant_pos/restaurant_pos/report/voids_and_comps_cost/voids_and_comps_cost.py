@@ -28,6 +28,7 @@ from frappe.utils import flt
 
 from restaurant_pos.restaurant_pos.report.item_sales import item_sales
 from restaurant_pos.utils import addons, combos, reporting
+from restaurant_pos.utils.bulk import get_all_in
 
 VOIDED = "voided_after_kitchen"
 FREE = "free"
@@ -84,7 +85,7 @@ def _voids(filters, from_date: str, to_date: str) -> list[tuple]:
 
 	orders = {
 		row.name: row.pos_profile
-		for row in frappe.get_all(
+		for row in get_all_in(
 			"Restaurant Order",
 			filters={**reporting.scope(filters), "name": ("in", list({line.parent for line in lines}))},
 			fields=["name", "pos_profile"],

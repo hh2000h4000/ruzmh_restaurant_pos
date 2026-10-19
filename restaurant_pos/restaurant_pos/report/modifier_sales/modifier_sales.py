@@ -22,6 +22,7 @@ from frappe import _
 from frappe.utils import flt
 
 from restaurant_pos.utils import reporting
+from restaurant_pos.utils.bulk import get_all_in
 
 
 def execute(filters=None):
@@ -33,7 +34,7 @@ def execute(filters=None):
 		return _columns(), []
 
 	choices: dict[tuple, dict] = {}
-	for line in frappe.get_all(
+	for line in get_all_in(
 		"Restaurant Order Item",
 		filters={
 			"parenttype": "Restaurant Order",

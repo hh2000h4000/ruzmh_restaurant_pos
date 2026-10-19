@@ -19,6 +19,7 @@ import frappe
 from frappe import _
 from frappe.utils import getdate
 
+from restaurant_pos.utils.bulk import get_all_in
 from restaurant_pos.utils.sale_doc import SALE
 
 #: A bill that took money. Cancelled ones sold nothing.
@@ -90,7 +91,7 @@ def credit_notes(filters, from_date: str, to_date: str) -> list[str]:
 
 	originals = list({row.return_against for row in credits})
 	in_scope = set(
-		frappe.get_all(
+		get_all_in(
 			"Restaurant Order",
 			filters={**scope(filters), "sales_invoice": ("in", originals)},
 			pluck="sales_invoice",

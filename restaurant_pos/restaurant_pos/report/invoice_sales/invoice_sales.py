@@ -32,6 +32,7 @@ from frappe import _
 from frappe.utils import flt
 
 from restaurant_pos.utils import reporting
+from restaurant_pos.utils.bulk import get_all_in
 from restaurant_pos.utils.sale_doc import SALE, SALE_ITEM
 
 ORDER_FIELDS = [
@@ -81,7 +82,7 @@ def _bills(orders: list, credits: list[str]) -> dict[str, dict]:
 
 	invoices = {
 		row.name: row
-		for row in frappe.get_all(
+		for row in get_all_in(
 			SALE,
 			filters={"name": ("in", names), "docstatus": 1},
 			fields=[
@@ -105,7 +106,7 @@ def _bills(orders: list, credits: list[str]) -> dict[str, dict]:
 	# reverses, for the order type and the branch.
 	missing = [row.return_against for row in invoices.values() if row.is_return]
 	if missing:
-		for order in frappe.get_all(
+		for order in get_all_in(
 			"Restaurant Order", filters={"sales_invoice": ("in", missing)}, fields=ORDER_FIELDS
 		):
 			by_invoice.setdefault(order.sales_invoice, order)
@@ -183,7 +184,7 @@ def _offers(promotions: set) -> dict[str, str]:
 def _payments(invoices: list[str]) -> dict[str, str]:
 	"""«Cash 30.00 · mada 23.00» for each invoice."""
 	lines: dict[str, list[str]] = {}
-	for row in frappe.get_all(
+	for row in get_all_in(
 		"Sales Invoice Payment",
 		filters={"parenttype": SALE, "parent": ("in", invoices)},
 		fields=["parent", "mode_of_payment", "amount"],
@@ -223,7 +224,7 @@ def _items(bills: dict[str, dict]) -> list[dict]:
 		return []
 
 	rows = []
-	for line in frappe.get_all(
+	for line in get_all_in(
 		SALE_ITEM,
 		filters={"parenttype": SALE, "parent": ("in", list(bills))},
 		fields=["parent", "item_code", "item_name", "qty", "rate", "net_amount", "amount", "idx"],

@@ -13,9 +13,10 @@ server would get there sooner.
 
 The query builder writes the SQL from parts and has nothing to re-parse, so a
 list of 2,370 names costs what 2,370 names cost. Used only where the list is
-the size of a day; everything else stays on `get_all`. Like `get_all`, it reads
-without permission checks — these are server-side tallies behind the callers'
-own guards.
+the size of a day or a period — the close, the posting, the reports
+(`D-367`); everything else stays on `get_all`. Like `get_all`, it reads without
+permission checks — these are server-side tallies behind the callers' own
+guards.
 """
 
 import frappe
@@ -29,28 +30,52 @@ def get_all_in(
 	pluck: str | None = None,
 	order_by: str | None = None,
 ) -> list:
-	"""`get_all` for filters of `=`, `!=` and `in` — the shapes a day's tally asks."""
+	"""`get_all` for the filters a tally asks: a value, a comparison, a list, a range, set or not."""
 	table = frappe.qb.DocType(doctype)
 	wanted = [pluck] if pluck else (fields or ["name"])
 	query = frappe.qb.from_(table).select(*(_column(table, field) for field in wanted))
 
 	for field, value in filters.items():
-		operator, operand = value if isinstance(value, tuple | list) and len(value) == 2 else ("=", value)
-		if operator == "in":
-			operand = list(operand or [])
-			if not operand:
-				return []
-			query = query.where(table[field].isin(operand))
-		elif operator == "!=":
-			query = query.where(table[field] != operand)
-		else:
-			query = query.where(table[field] == operand)
+		condition = _condition(table[field], value)
+		if condition is None:
+			# `in` an empty list matches nothing, as `get_all` answers it.
+			return []
+		query = query.where(condition)
 
-	if order_by:
-		query = query.orderby(table[order_by])
+	for part in (order_by or "").split(","):
+		name, _space, direction = part.strip().partition(" ")
+		if name:
+			order = frappe.qb.desc if direction.strip().lower() == "desc" else frappe.qb.asc
+			query = query.orderby(table[name], order=order)
 
 	rows = query.run(as_dict=True)
 	return [row[pluck] for row in rows] if pluck else rows
+
+
+def _condition(column, value):
+	operator, operand = value if isinstance(value, tuple | list) and len(value) == 2 else ("=", value)
+	operator = operator.lower()
+	if operator in ("in", "not in"):
+		operand = list(operand or [])
+		if not operand:
+			return None if operator == "in" else column.isnotnull() | column.isnull()
+		return column.isin(operand) if operator == "in" else column.notin(operand)
+	if operator == "between":
+		return column[operand[0] : operand[1]]
+	if operator == "is":
+		return (
+			(column.isnotnull() & (column != "")) if operand == "set" else (column.isnull() | (column == ""))
+		)
+	if operator == "like":
+		return column.like(operand)
+	return {
+		"=": column == operand,
+		"!=": column != operand,
+		"<": column < operand,
+		"<=": column <= operand,
+		">": column > operand,
+		">=": column >= operand,
+	}[operator]
 
 
 def _column(table, field: str):

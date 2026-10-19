@@ -458,6 +458,9 @@ export const messages = {
   "keypad.decimal": "Decimal point",
   /** The compact row label; `shift.tillExpected` is the summary line's. */
   "shift.expected": "Expected",
+  "shift.countBlind": "Count the drawer and type what is in it. What it should hold shows once you are done.",
+  "shift.countDone": "Done counting",
+  "shift.recount": "Count again",
   "keypad.clear": "Clear",
   "keypad.back": "Delete",
   "order.paneItems": "Menu",

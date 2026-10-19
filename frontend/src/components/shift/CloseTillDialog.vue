@@ -28,6 +28,15 @@ import { useShiftStore } from "@/stores/shift";
  * question in two shapes, so a cashier who learned one screen did not know the
  * other.
  */
+/*
+ * **A blind count** (`D-360`). The drawer used to open with what it should hold
+ * already typed in, so a cashier could close it without counting a coin — the
+ * simulated shift did exactly that. Now the figures that would give the answer
+ * away (what should be there, what was sold) stay hidden until the cashier says
+ * they have counted; then the difference shows and, if there is one, asks why.
+ * Counting again hides them again. Toast and Square offer this as a setting;
+ * here it is simply how a drawer is counted, because the other way is not one.
+ */
 const props = defineProps<{ open: boolean; settlementRequired: boolean }>();
 const emit = defineEmits<{ close: [] }>();
 
@@ -36,6 +45,8 @@ const shift = useShiftStore();
 const report = ref<ShiftReport | null>(null);
 const counted = ref<Record<string, string>>({});
 const reason = ref("");
+/** Whether the cashier has said the count is done, and may now see the comparison. */
+const revealed = ref(false);
 
 watch(
   () => props.open,
@@ -43,21 +54,35 @@ watch(
     report.value = null;
     counted.value = {};
     reason.value = "";
+    revealed.value = !props.settlementRequired;
     if (!isOpen) return;
 
     // `true`: the cashier is about to count, so the drawer opens (`D-093`).
     report.value = await shift.tillSummary(true);
     if (!report.value) return;
 
-    // Pre-filled with what is expected: a drawer that balances needs no typing,
-    // and the cashier corrects only what differs.
-    counted.value = Object.fromEntries(
-      report.value.by_method
-        .filter((row) => row.kind === "till")
-        .map((row) => [row.method, String(row.expected)]),
-    );
+    // A terminal that does not reconcile (BR-042) is shown, not counted: its
+    // figures are the expected ones. One that does starts empty.
+    if (!props.settlementRequired) {
+      counted.value = Object.fromEntries(
+        report.value.by_method
+          .filter((row) => row.kind === "till")
+          .map((row) => [row.method, String(row.expected)]),
+      );
+    }
   },
 );
+
+function countDone(): void {
+  revealed.value = true;
+}
+
+/** Count again: the comparison hides again, so the second count is as blind as the first. */
+function recount(): void {
+  counted.value = {};
+  reason.value = "";
+  revealed.value = false;
+}
 
 function onCount(method: string, value: string): void {
   counted.value[method] = value;
@@ -67,7 +92,7 @@ const tillRows = computed(() => report.value?.by_method.filter((row) => row.kind
 
 /** What `TillCount` needs: a method and the figure it is measured against. */
 const countRows = computed<CountRow[]>(() =>
-  tillRows.value.map((row) => ({ method: row.method, expected: row.expected })),
+  tillRows.value.map((row) => ({ method: row.method, expected: revealed.value ? row.expected : null })),
 );
 const creditRows = computed(
   () => report.value?.by_method.filter((row) => row.kind === "credit") ?? [],
@@ -83,10 +108,10 @@ const totalVariance = computed(() =>
 );
 
 /** BR-043 — a difference has to be answered for before the drawer closes. */
-const needsReason = computed(() => Math.abs(totalVariance.value) >= 0.005);
+const needsReason = computed(() => revealed.value && Math.abs(totalVariance.value) >= 0.005);
 
 async function confirm(): Promise<void> {
-  if (needsReason.value && !reason.value.trim()) return;
+  if (!revealed.value || (needsReason.value && !reason.value.trim())) return;
 
   const amounts: Record<string, number> = {};
   for (const [method, value] of Object.entries(counted.value)) {
@@ -124,8 +149,19 @@ function money(value: number): string {
     </p>
 
     <template v-else>
-      <!-- What was sold through this drawer, before anything is counted. -->
-      <dl class="mb-4 grid grid-cols-2 gap-x-4 gap-y-1 rounded-rpos bg-background p-3 text-sm">
+      <p
+        v-if="!revealed"
+        data-blind
+        class="mb-3 text-sm text-muted"
+      >
+        {{ t("shift.countBlind") }}
+      </p>
+
+      <!-- What was sold through this drawer — after the count, not before it (`D-360`). -->
+      <dl
+        v-if="revealed"
+        class="mb-4 grid grid-cols-2 gap-x-4 gap-y-1 rounded-rpos bg-background p-3 text-sm"
+      >
         <dt class="text-muted">
           {{ t("shift.ordersClosed") }}
         </dt>
@@ -140,13 +176,16 @@ function money(value: number): string {
         </dd>
       </dl>
 
-      <CashierTakings :rows="report.by_cashier" />
+      <CashierTakings
+        v-if="revealed"
+        :rows="report.by_cashier"
+      />
 
       <TillCount
         class="mb-4"
         :rows="countRows"
         :values="counted"
-        :readonly="!settlementRequired"
+        :readonly="!settlementRequired || revealed"
         @update="onCount"
       />
 
@@ -200,6 +239,15 @@ function money(value: number): string {
 
       <div class="flex gap-2">
         <button
+          v-if="revealed && settlementRequired"
+          type="button"
+          class="min-h-tap flex-1 rounded-rpos border border-line"
+          @click="recount"
+        >
+          {{ t("shift.recount") }}
+        </button>
+        <button
+          v-else
           type="button"
           class="min-h-tap flex-1 rounded-rpos border border-line"
           @click="emit('close')"
@@ -207,6 +255,15 @@ function money(value: number): string {
           {{ t("action.undo") }}
         </button>
         <button
+          v-if="!revealed"
+          type="button"
+          class="min-h-tap flex-1 rounded-rpos bg-primary font-medium text-primary-contrast"
+          @click="countDone"
+        >
+          {{ t("shift.countDone") }}
+        </button>
+        <button
+          v-else
           type="button"
           class="min-h-tap flex-1 rounded-rpos bg-primary font-medium text-primary-contrast disabled:cursor-not-allowed disabled:opacity-40"
           :disabled="shift.busy || (needsReason && !reason.trim())"

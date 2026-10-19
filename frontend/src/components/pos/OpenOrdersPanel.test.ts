@@ -126,3 +126,17 @@ describe("the toolbar on a phone", () => {
     expect(strip.findAll('[role="tab"]')).toHaveLength(4);
   });
 });
+
+/** `D-359` — the heading names the list the tab chose, not always the open one. */
+describe("the heading over the list", () => {
+  it("says open orders over the open list", () => {
+    expect(panel({ view: "open" }).find("h2").text()).toBe(t("home.openOrders"));
+  });
+
+  it("says closed today over today's closed bills", () => {
+    const wrapper = panel({ view: "closed" });
+
+    expect(wrapper.find("h2").text()).toBe(t("orders.viewClosed"));
+    expect(wrapper.text()).not.toContain(t("home.openOrdersUnit"));
+  });
+});

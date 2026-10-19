@@ -107,6 +107,17 @@ const EMPTY: Record<OrderView, MessageKey> = {
  * them by sort and search, not by a tab — and so did our own `D-146`, which
  * this had quietly broken.
  */
+/**
+ * The heading says which list this is (`D-359`). It said «open orders — 5
+ * open» over today's closed bills too, found in the simulated shift: the tab
+ * was right and the title above it contradicted it.
+ */
+const heading = computed(() =>
+  !props.view || props.view === "open"
+    ? { title: t("home.openOrders"), unit: t("home.openOrdersUnit") }
+    : { title: t(VIEWS.find((one) => one.key === props.view)!.label), unit: t("home.ordersUnit") },
+);
+
 const VIEWS: { key: OrderView; label: MessageKey }[] = [
   { key: "open", label: "orders.viewOpen" },
   { key: "closed", label: "orders.viewClosed" },
@@ -154,11 +165,11 @@ const showCarriedSwitch = computed(() => props.view === "open" && Boolean(props.
       >
         <div class="min-w-0">
           <h2 class="text-[25px] font-medium leading-tight text-content max-sm:text-xl">
-            {{ t("home.openOrders") }}
+            {{ heading.title }}
           </h2>
           <p class="mt-1.5 text-[13.5px] text-subtle">
             <span class="rpos-numeric">{{ formatNumber(orders.length) }}</span>
-            {{ t("home.openOrdersUnit") }}
+            {{ heading.unit }}
           </p>
         </div>
 

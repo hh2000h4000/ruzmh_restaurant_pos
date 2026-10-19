@@ -112,6 +112,7 @@ const messages: Catalogue["messages"] = {
   "home.terminalDisabledHint": "المدير عطّل هذا الجهاز، فما يستقبل طلبات ولا دفع. راجع المدير.",
   "home.openOrders": "الطلبات المفتوحة",
   "home.openOrdersUnit": "طلب مفتوح",
+  "home.ordersUnit": "طلب",
   "type.hintTable": "يبدأ باختيار طاولة",
   "type.hintCustomer": "يتطلب عميلاً",
   "type.hintQuick": "مباشرة إلى الطلب",
@@ -225,7 +226,7 @@ const messages: Catalogue["messages"] = {
 
   // Order screen
   "order.typeUnavailable": "نوع الطلب غير متاح على هذا الجهاز.",
-  "order.busy": "التِل ما زال يُنهي العملية السابقة. لم يتغيّر شيء — أعد المحاولة.",
+  "order.busy": "الكاشير لسا يخلّص العملية اللي قبل. ما تغيّر شي، جرّب مرة ثانية.",
   "order.notRouted": "لم يُوجَّه للمطبخ: {items} — ستُطبع على طابعة الكاشير.",
   "order.sendToKitchen": "إرسال للمطبخ",
   "order.reprintTicket": "أعد الطباعة",
@@ -428,7 +429,7 @@ const messages: Catalogue["messages"] = {
     "هذي الأدراج ما انعدّت. إقفال اليوم يقفلها على المبلغ المتوقع، وأي نقص فيها ما بيبان.",
   "shift.uncountedTill": "{terminal} — {user}",
   "shift.carryingTooMany":
-    "{count} فاتورة متروكة مفتوحة. اليوم يُقفل عادي، بس التِل يقرأها كلها مع كل تحديث — يستاهل تنظيفها.",
+    "{count} فاتورة متروكة مفتوحة. اليوم يتقفل عادي، بس الكاشير يقراها كلها مع كل تحديث — يستاهل تنظيفها.",
   "shift.heldBy": "الدرج مفتوح باسم {name}",
   "keypad.decimal": "فاصلة عشرية",
   "shift.expected": "المتوقَّع",
@@ -493,8 +494,8 @@ const messages: Catalogue["messages"] = {
   "pay.newOrder": "طلب جديد",
   "pay.methods": "طرق الدفع",
   "pay.covered": "المبلغ مغطّى بالكامل. أنقص مبلغاً أدناه لتدفع جزءاً منه بطريقة أخرى.",
-  "pay.tillOnly": "هذه الفاتورة تُسدَّد في التِل، فطرق الحساب غير متاحة عليها.",
-  "pay.creditOnly": "هذه الفاتورة مُقيَّدة على حساب، فطرق التِل غير متاحة عليها.",
+  "pay.tillOnly": "هذي الفاتورة تندفع على الكاشير، فطرق الدفع الآجل ما تنفع لها.",
+  "pay.creditOnly": "هذي الفاتورة مقيّدة على حساب، فطرق الدفع اللي بالكاشير ما تنفع لها.",
   "pay.split": "قسّم بالتساوي على",
   "pay.total": "الإجمالي",
   "pay.tax": "الضريبة",

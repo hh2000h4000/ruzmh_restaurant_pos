@@ -123,6 +123,7 @@ export const messages = {
   "home.terminalDisabledHint": "A manager disabled this terminal, so it takes no orders or payments. Ask a manager.",
   "home.openOrders": "Open orders",
   "home.openOrdersUnit": "open orders",
+  "home.ordersUnit": "orders",
   "type.hintTable": "Pick a table",
   "type.hintCustomer": "Needs a customer",
   "type.hintQuick": "Straight to the order",

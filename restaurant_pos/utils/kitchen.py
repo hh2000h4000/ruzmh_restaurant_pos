@@ -49,12 +49,13 @@ def print_state(order_name: str) -> dict:
 	so it is not counted.
 	"""
 	printing = 0
+	branch = frappe.db.get_value("Restaurant Order", order_name, "branch")
 	for ticket in frappe.get_all(
 		"Kitchen Order Ticket",
 		filters={"restaurant_order": order_name, "print_status": PENDING},
 		fields=["production_center"],
 	):
-		if prints_on_send(ticket.production_center):
+		if prints_on_send(ticket.production_center, branch):
 			printing += 1
 
 	return {"tickets_printing": printing}
@@ -71,15 +72,40 @@ def station_of(production_center: str | None) -> tuple[str, str]:
 	return center.title, center.title_ar or center.title
 
 
-def prints_on_send(production_center: str | None) -> bool:
+def prints_on_send(production_center: str | None, branch: str | None = None) -> bool:
 	"""Whether a new ticket goes to paper by itself.
 
-	A station decides for itself; a ticket with none always does — nobody has
-	a screen for it, so paper is the only way it reaches anyone (`D-300`).
+	A station decides for itself. A ticket with none goes to the cashier's
+	printer (`D-300`) — **in a branch that has a kitchen** (`D-364`): there an
+	item nobody routed is a slip in the setup, and paper is how it still reaches
+	the cook. A branch with no station at all — a counter, a café — has no
+	kitchen to reach, and nothing is assumed for it: no paper, no job.
 	"""
-	return not production_center or bool(
-		frappe.get_cached_doc("Production Center", production_center).auto_print_on_send
-	)
+	if production_center:
+		return bool(frappe.get_cached_doc("Production Center", production_center).auto_print_on_send)
+	return has_kitchen(branch) if branch else True
+
+
+def has_kitchen(branch: str | None) -> bool:
+	"""Whether this branch has any station to cook at (`D-364`)."""
+	return bool(branch) and bool(frappe.db.exists("Production Center", {"branch": branch, "is_active": 1}))
+
+
+def queue_paper(kot, order, *, force: bool = False) -> None:
+	"""Put a ticket on its way to paper — **only if there is paper to put it on** (`D-364`).
+
+	The load test queued two jobs a sale in a branch with no printer at all, and
+	each found out only once it ran that there was nothing to do: 737 of them
+	stood in front of the posting. Asked here, before the job: a station that
+	wants no paper gets no job; a ticket that wants paper and has no printer is
+	marked failed at once, so the bell says it (`D-298`) without a job to say it.
+	"""
+	if not force and not prints_on_send(kot.production_center, order.branch):
+		return
+	if not printing.kot_printer(kot.production_center, order.pos_profile):
+		printing.mark_kot_failed(kot.name)
+		return
+	printing.enqueue_print("print_kot", kot_name=kot.name, force=force)
 
 
 #: Alerts on one page of the bell when the settings say nothing (`D-298`).
@@ -257,7 +283,7 @@ def send_to_kitchen(order, *, kot_type: str | None = None) -> dict:
 
 	for kot in created:
 		_announce(kot)
-		printing.enqueue_print("print_kot", kot_name=kot.name)
+		queue_paper(kot, order)
 
 	# Station **names**, not ids. `PC-001, PC-007` is not a sentence anybody
 	# reads — the same lesson the kitchen ticket taught (`D-087`).
@@ -281,8 +307,9 @@ def send_to_kitchen(order, *, kot_type: str | None = None) -> dict:
 			for kot in created
 		],
 		# BR-070 level 7. Surfaced rather than swallowed: an item nobody routed
-		# went to the cashier's printer, not to a station (`D-300`).
-		"unrouted_items": [row.item_name for row in unrouted],
+		# went to the cashier's printer, not to a station (`D-300`) — said only
+		# where there is a kitchen it should have gone to (`D-364`).
+		"unrouted_items": [row.item_name for row in unrouted] if has_kitchen(order.branch) else [],
 	}
 
 
@@ -313,7 +340,7 @@ def create_void_kot(order, rows) -> list[dict]:
 		_announce(kot)
 		# A void ticket that only reaches the screen leaves the cook working from
 		# paper that is now wrong — which is the exact plate this is meant to stop.
-		printing.enqueue_print("print_kot", kot_name=kot.name)
+		queue_paper(kot, order, force=True)
 
 	return [
 		{"kot_name": kot.name, "production_center": kot.production_center, "kot_type": "void"}
@@ -343,7 +370,7 @@ def reprint(kot_name: str) -> dict:
 		{"print_status": "pending", "kitchen_told_by": None, "kitchen_told_at": None},
 		update_modified=False,
 	)
-	printing.enqueue_print("print_kot", kot_name=kot.name, force=True)
+	queue_paper(kot, order, force=True)
 
 	log_audit(
 		"reprint_receipt",

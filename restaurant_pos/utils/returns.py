@@ -248,7 +248,7 @@ def create_return(
 	# draw a credit note since it was written (`إشعار دائن`). Off the request
 	# like every other print: the agent inside the restaurant is what reaches
 	# paper (`D-084`).
-	printing.enqueue_print("print_receipt", invoice_name=credit.name, order_name=order.name)
+	printing.queue_receipt(credit.name, order_name=order.name, pos_profile=order.pos_profile)
 
 	return {
 		"order_name": order.name,

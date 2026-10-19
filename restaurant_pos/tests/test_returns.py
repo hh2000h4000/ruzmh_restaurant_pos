@@ -393,7 +393,11 @@ class TestAReturnIsADocumentOfItsOwn(ReturnTestBase):
 		"""
 		order = self._paid()
 
-		with patch("restaurant_pos.utils.returns.printing.enqueue_print") as queued:
+		# A terminal with a printer; one without queues nothing (`D-364`).
+		with (
+			patch("restaurant_pos.utils.returns.printing.receipt_printer", return_value="PRT-TEST"),
+			patch("restaurant_pos.utils.returns.printing.enqueue_print") as queued,
+		):
 			result = service.create_return(
 				order, items=[{"row": self._row(order), "qty": 1}], reason_code=REASON
 			)

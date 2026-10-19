@@ -295,7 +295,11 @@ class TestTheZReportPrintsItself(ShiftTestBase):
 	def test_closing_a_drawer_queues_its_z(self):
 		entry = service.open_till(pos_profile=self.profile)["entry"]
 
-		with patch.object(service.printing, "enqueue_print") as queued:
+		# A terminal with a printer; one without queues no Z (`D-364`).
+		with (
+			patch.object(service.printing, "_cashier_printer", return_value="PRT-TEST"),
+			patch.object(service.printing, "enqueue_print") as queued,
+		):
 			service.close_till(opening_entry=entry)
 
 		queued.assert_called_once_with("print_shift_report", pos_profile=self.profile, opening_entry=entry)
@@ -304,7 +308,11 @@ class TestTheZReportPrintsItself(ShiftTestBase):
 		"""The drawers the close sweeps up were counted by nobody — the day's page says so."""
 		outcome = service.open_till(pos_profile=self.profile)
 
-		with patch.object(service.printing, "enqueue_print") as queued:
+		# A terminal with a printer; one without queues no Z (`D-364`).
+		with (
+			patch.object(service.printing, "_cashier_printer", return_value="PRT-TEST"),
+			patch.object(service.printing, "enqueue_print") as queued,
+		):
 			service.close_day(shift_name=outcome["shift"], pos_profile=self.profile)
 
 		queued.assert_called_once_with("print_shift_report", pos_profile=self.profile, shift=outcome["shift"])

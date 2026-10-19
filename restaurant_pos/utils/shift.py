@@ -262,7 +262,7 @@ def close_day(*, shift_name: str, force: bool = False, pos_profile: str | None =
 	# day's page lists them with that said.
 	closing_terminal = pos_profile or (terminals[0] if terminals else None)
 	if closing_terminal:
-		printing.enqueue_print("print_shift_report", pos_profile=closing_terminal, shift=day.name)
+		printing.queue_report(closing_terminal, shift=day.name)
 
 	# **And the day's sales go to the books** (`D-313`) — after this request has
 	# committed, and in the background: the person closing the day goes home, and
@@ -461,7 +461,7 @@ def close_till(
 	# moment they were made. Not for a drawer the day's close sweeps up: nobody
 	# counted it, and the day prints its own page.
 	if not closing_the_day:
-		printing.enqueue_print("print_shift_report", pos_profile=entry.pos_profile, opening_entry=entry.name)
+		printing.queue_report(entry.pos_profile, opening_entry=entry.name)
 
 	return {
 		"closing_entry": closing.name,

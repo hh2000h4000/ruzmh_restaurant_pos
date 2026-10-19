@@ -492,20 +492,17 @@ def print_kot(kot_name: str, *, force: bool = False) -> str | None:
 			if kot.production_center
 			else None
 		)
-		if not force and not prints_on_send(kot.production_center):
+		profile, branch = frappe.db.get_value(
+			"Restaurant Order", kot.restaurant_order, ["pos_profile", "branch"]
+		) or (None, None)
+		if not force and not prints_on_send(kot.production_center, branch):
 			# Nobody asked for paper. The ticket is on the station's screen and
 			# `pending` is the truth: not printed, and not failed either.
 			return None
 
-		# BR-070 level 7: a station with no printer of its own — or no station at
-		# all (`D-300`) — falls to the cashier's, the one printer somebody is
-		# standing next to.
-		profile, branch = frappe.db.get_value(
-			"Restaurant Order", kot.restaurant_order, ["pos_profile", "branch"]
-		) or (None, None)
-		printer = (center.printer if center else None) or _cashier_printer(profile)
+		printer = kot_printer(kot.production_center, profile)
 		if not printer:
-			_mark_kot_failed(kot_name)
+			mark_kot_failed(kot_name)
 			return None
 
 		return print_document(
@@ -518,8 +515,37 @@ def print_kot(kot_name: str, *, force: bool = False) -> str | None:
 		)
 	except Exception:
 		frappe.log_error(f"KOT {kot_name} could not be queued", "RPOS printing")
-		_mark_kot_failed(kot_name)
+		mark_kot_failed(kot_name)
 		return None
+
+
+def queue_receipt(invoice_name: str, *, order_name: str | None, pos_profile: str | None) -> None:
+	"""The customer's receipt, queued only for a terminal that has a printer (`D-364`).
+
+	The receipt is printed on every sale where there is paper; where there is
+	none, a job that will only find that out is a job the worker does for
+	nothing — two a sale in the load test, in front of the day's posting.
+	"""
+	if receipt_printer(pos_profile, order_name):
+		enqueue_print("print_receipt", invoice_name=invoice_name, order_name=order_name)
+
+
+def queue_report(pos_profile: str | None, **kwargs) -> None:
+	"""An X or Z report, queued only for a terminal that has a printer (`D-364`)."""
+	if _cashier_printer(pos_profile):
+		enqueue_print("print_shift_report", pos_profile=pos_profile, **kwargs)
+
+
+def kot_printer(production_center: str | None, pos_profile: str | None) -> str | None:
+	"""Which printer a ticket comes out of, if any.
+
+	BR-070 level 7: a station with no printer of its own — or no station at all
+	(`D-300`) — falls to the cashier's, the one printer somebody is standing
+	next to. Asked before the job is queued (`D-364`) and by the job itself, so
+	the two cannot disagree.
+	"""
+	center = frappe.get_cached_doc("Production Center", production_center) if production_center else None
+	return (center.printer if center else None) or _cashier_printer(pos_profile)
 
 
 def kot_context(kot, center) -> dict:
@@ -542,7 +568,7 @@ def kot_context(kot, center) -> dict:
 	}
 
 
-def _mark_kot_failed(kot_name: str) -> None:
+def mark_kot_failed(kot_name: str) -> None:
 	"""A station that asked for paper and got none says so.
 
 	Not left at `pending`: pending means nobody has printed it *yet*, and a

@@ -7,6 +7,7 @@ Refs: BR-013, BR-073, BR-074, BR-075, FR-2.3, FR-2.4, FR-2.5, FR-6.3, FR-6.4
 """
 
 import uuid
+from unittest.mock import patch
 
 import frappe
 
@@ -213,8 +214,15 @@ class TestReprint(KitchenTestBase):
 		kot_name = result["kots_created"][0]["kot_name"]
 		frappe.db.set_value("Kitchen Order Ticket", kot_name, "print_status", "printed")
 
-		service.reprint(kot_name)
+		# A printer to reprint on: with none, the ticket is failed at once and no
+		# job is queued (`D-364`) — that is `test_print_queue`'s.
+		with (
+			patch("restaurant_pos.utils.kitchen.printing.kot_printer", return_value="PRT-TEST"),
+			patch("restaurant_pos.utils.kitchen.printing.enqueue_print") as queued,
+		):
+			service.reprint(kot_name)
 
+		queued.assert_called_once_with("print_kot", kot_name=kot_name, force=True)
 		self.assertEqual(frappe.db.get_value("Kitchen Order Ticket", kot_name, "print_status"), "pending")
 		self.assertTrue(
 			frappe.get_all(

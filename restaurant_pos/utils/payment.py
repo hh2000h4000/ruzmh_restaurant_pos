@@ -185,7 +185,7 @@ def process_payment(
 	# FR-7.5 — the receipt goes with the payment, not with a button somebody has
 	# to remember. Off the request: the agent inside the restaurant is what
 	# reaches paper (D-084), and rendering must not be added to the sale.
-	printing.enqueue_print("print_receipt", invoice_name=invoice.name, order_name=order.name)
+	printing.queue_receipt(invoice.name, order_name=order.name, pos_profile=order.pos_profile)
 
 	# D-093 — cash has to go in and change has to come out, so the drawer opens
 	# on a cash payment and only on a cash payment. Opening it for a card sale

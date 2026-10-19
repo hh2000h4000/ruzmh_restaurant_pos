@@ -1643,3 +1643,7 @@ Payment method {0} has no account for {1}.,طريقة الدفع {0} ما لها
 Drawer {0} counted out as expected; there is nothing to book.,الدرج {0} طلع مضبوط، ما فيه فرق ينقيد.
 "Difference on drawer {0} ({1}), closed by {2}.",فرق الدرج {0} ({1})، قفله {2}.
 "{0} has no employee record, so the difference cannot be charged to them.",{0} ما له بطاقة موظف، فما ينقدر يتحمّل الفرق.
+{0} is a printer of {1}; {2} belongs to {3} and cannot print on it.,{0} طابعة تابعة لـ {1}، و{2} تابع لـ {3}، فما يطبع عليها.
+Station {0} belongs to {1}; a rule of {2} cannot send to it.,المحطة {0} تابعة لـ {1}، وقاعدة فرع {2} ما ترسل لها.
+Terminal {0} belongs to {1}; a rule of {2} cannot name it.,الجهاز {0} تابع لـ {1}، وقاعدة فرع {2} ما تشمله.
+{0} already has a printer called {1}.,{0} فيه طابعة اسمها {1} من قبل.

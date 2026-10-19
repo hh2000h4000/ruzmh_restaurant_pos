@@ -89,7 +89,11 @@ doc_events = {
 	"POS Profile": {
 		# D-337 — a terminal sells from its branch's warehouse unless given its own.
 		"before_validate": "restaurant_pos.utils.stock_rules.take_the_branch_warehouse",
-		"validate": "restaurant_pos.utils.invoice_number.number_device",
+		"validate": [
+			"restaurant_pos.utils.invoice_number.number_device",
+			# D-363 — the terminal's printer is one of its own branch's.
+			"restaurant_pos.utils.printer_branch.check_terminal",
+		],
 		"on_update": "restaurant_pos.utils.invoice_number.make_counter",
 	},
 	SALE: {

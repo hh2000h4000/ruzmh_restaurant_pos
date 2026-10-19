@@ -21,6 +21,7 @@ class POSPrinter(Document):
 		self.validate_print_width()
 		self.validate_fallback_printer()
 		self.validate_agent_branch()
+		self.validate_unique_in_branch()
 
 	def validate_print_width(self):
 		"""A typo here draws every receipt ten times too wide, or a sliver (`D-215`)."""
@@ -89,6 +90,21 @@ class POSPrinter(Document):
 	def validate_fallback_printer(self):
 		if self.fallback_printer and self.fallback_printer == self.name:
 			frappe.throw(_("A printer cannot be its own fallback printer."))
+		# D-363 — a failed ticket is reprinted in the same building.
+		from restaurant_pos.utils.printer_branch import assert_in_branch
+
+		assert_in_branch(self.fallback_printer, self.branch, used_by=self.title)
+
+	def validate_unique_in_branch(self):
+		"""One «المشاوي» per branch (`D-363`).
+
+		Two branches may each have a grill printer — and may even share an IP,
+		each being its own network — but inside one branch two printers with one
+		name are a coin toss for whoever sets up the stations.
+		"""
+		same = {"branch": self.branch, "name": ("!=", self.name or ""), "title": self.title}
+		if frappe.db.exists("POS Printer", same):
+			frappe.throw(_("{0} already has a printer called {1}.").format(self.branch, self.title))
 
 	def validate_agent_branch(self):
 		"""An agent only reaches printers on its own network (D-084).

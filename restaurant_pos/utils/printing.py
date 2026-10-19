@@ -307,6 +307,7 @@ def png_to_escpos(png: bytes, *, cut: bool = True) -> Rendered:
 def queue(
 	*,
 	printer: str,
+	branch: str | None,
 	job_type: str,
 	rendered: Rendered,
 	copies: int = 1,
@@ -314,7 +315,15 @@ def queue(
 	reference_name: str | None = None,
 	retry_of: str | None = None,
 ) -> str:
-	"""Put a finished job where its agent will find it."""
+	"""Put a finished job where its agent will find it.
+
+	``branch`` is the branch of what is being printed, and it is **required**
+	(`D-363`): the last check before paper, whatever path chose the printer. A
+	caller that does not know its branch has to say so with ``None``.
+	"""
+	from restaurant_pos.utils.printer_branch import assert_in_branch
+
+	assert_in_branch(printer, branch, used_by=reference_name or job_type)
 	agent = frappe.db.get_value("POS Printer", printer, "print_agent")
 	if not agent:
 		frappe.throw(
@@ -350,6 +359,7 @@ def print_document(
 	*,
 	job_type: str,
 	printer: str,
+	branch: str | None,
 	context: dict,
 	template: str | None = None,
 	copies: int = 1,
@@ -374,6 +384,7 @@ def print_document(
 
 	return queue(
 		printer=printer,
+		branch=branch,
 		job_type=job_type,
 		rendered=rendered,
 		copies=copies,
@@ -418,6 +429,7 @@ def open_drawer(pos_profile: str, *, reason: str) -> str | None:
 		payload = drawer_kick(doc.cash_drawer_pin or 2)
 		return queue(
 			printer=printer,
+			branch=_branch_of_profile(pos_profile),
 			job_type="drawer",
 			rendered=Rendered(payload=payload, width_dots=0, height_dots=0),
 			reference_doctype="POS Profile",
@@ -488,7 +500,9 @@ def print_kot(kot_name: str, *, force: bool = False) -> str | None:
 		# BR-070 level 7: a station with no printer of its own — or no station at
 		# all (`D-300`) — falls to the cashier's, the one printer somebody is
 		# standing next to.
-		profile = frappe.db.get_value("Restaurant Order", kot.restaurant_order, "pos_profile")
+		profile, branch = frappe.db.get_value(
+			"Restaurant Order", kot.restaurant_order, ["pos_profile", "branch"]
+		) or (None, None)
 		printer = (center.printer if center else None) or _cashier_printer(profile)
 		if not printer:
 			_mark_kot_failed(kot_name)
@@ -497,6 +511,7 @@ def print_kot(kot_name: str, *, force: bool = False) -> str | None:
 		return print_document(
 			job_type="kot",
 			printer=printer,
+			branch=branch,
 			context=kot_context(kot, center),
 			reference_doctype="Kitchen Order Ticket",
 			reference_name=kot.name,
@@ -566,6 +581,7 @@ def print_receipt(invoice_name: str, *, order_name: str | None = None) -> str | 
 		return print_document(
 			job_type="customer_receipt",
 			printer=printer,
+			branch=invoice.get("rpos_branch") or _branch_of_profile(invoice.pos_profile),
 			context=receipt_context(invoice, order),
 			# D-214 — the terminal's own choice, sent as it is: a design for other
 			# paper prints at this printer's width, and the paper is the judge.
@@ -600,6 +616,7 @@ def print_shift_report(
 		return print_document(
 			job_type="shift_report",
 			printer=printer,
+			branch=_branch_of_profile(pos_profile),
 			context=shift_report_context(pos_profile=pos_profile, opening_entry=opening_entry, shift=shift),
 			reference_doctype="POS Opening Entry" if opening_entry else "Restaurant Shift",
 			reference_name=opening_entry or shift,
@@ -817,6 +834,12 @@ def _receipt_order(order_name: str | None):
 	return order
 
 
+def _branch_of_profile(pos_profile: str | None) -> str | None:
+	from restaurant_pos.utils.order import branch_of_profile
+
+	return branch_of_profile(pos_profile) if pos_profile else None
+
+
 def _cashier_printer(pos_profile: str | None) -> str | None:
 	return frappe.db.get_value("POS Profile", pos_profile, "default_printer") if pos_profile else None
 
@@ -838,6 +861,12 @@ def fall_back(job_name: str) -> str | None:
 		return None
 
 	if not frappe.db.get_value("POS Printer", fallback, "is_active"):
+		return None
+
+	# D-363 — never into another branch, even from a fallback saved before the rule.
+	if frappe.db.get_value("POS Printer", fallback, "branch") != frappe.db.get_value(
+		"POS Printer", job.printer, "branch"
+	):
 		return None
 
 	agent = frappe.db.get_value("POS Printer", fallback, "print_agent")

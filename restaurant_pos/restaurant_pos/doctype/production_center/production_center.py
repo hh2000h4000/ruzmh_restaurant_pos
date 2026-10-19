@@ -10,6 +10,11 @@ class ProductionCenter(Document):
 	def validate(self):
 		self.validate_output_target()
 		self.validate_printers()
+		# D-363 — a station prints in its own branch, or not at all.
+		from restaurant_pos.utils.printer_branch import assert_in_branch
+
+		for printer in (self.printer, self.fallback_printer):
+			assert_in_branch(printer, self.branch, used_by=self.title)
 		# Kitchen tickets never carry prices (BR-075).
 		self.show_prices_on_kot = 0
 

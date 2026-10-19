@@ -303,7 +303,13 @@ def test_print(printer: str) -> dict:
 		cut=bool(doc.cut_after_print),
 	)
 
-	job = service.queue(printer=printer, job_type="test", rendered=rendered)
+	# A test page is the printer's own: its branch is the printer's (`D-363`).
+	job = service.queue(
+		printer=printer,
+		branch=frappe.db.get_value("POS Printer", printer, "branch"),
+		job_type="test",
+		rendered=rendered,
+	)
 
 	return {"job": job}
 

@@ -105,7 +105,8 @@ def queue_paper(kot, order, *, force: bool = False) -> None:
 	if not printing.kot_printer(kot.production_center, order.pos_profile):
 		printing.mark_kot_failed(kot.name)
 		return
-	printing.enqueue_print("print_kot", kot_name=kot.name, force=force)
+	# `force` only when asked: a new ticket's job is the plain one it always was.
+	printing.enqueue_print("print_kot", kot_name=kot.name, **({"force": True} if force else {}))
 
 
 #: Alerts on one page of the bell when the settings say nothing (`D-298`).

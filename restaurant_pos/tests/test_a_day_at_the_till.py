@@ -97,9 +97,16 @@ class TestADayAtTheTill(ShiftTestBase, PaymentTestBase):
 		# Rendering runs in a worker after commit, and a test never commits — so
 		# what is checked is that each document **asked** for its paper.
 		printed = []
-		with patch(
-			"restaurant_pos.utils.printing.enqueue_print",
-			side_effect=lambda method, **kwargs: printed.append((method, kwargs)),
+		with (
+			patch(
+				"restaurant_pos.utils.printing.enqueue_print",
+				side_effect=lambda method, **kwargs: printed.append((method, kwargs)),
+			),
+			# The terminal and the kitchen have printers: a job is asked for only
+			# where there is paper (`D-364`).
+			patch("restaurant_pos.utils.printing.receipt_printer", return_value="RPOS Test Printer"),
+			patch("restaurant_pos.utils.printing.kot_printer", return_value="RPOS Test Printer"),
+			patch("restaurant_pos.utils.printing._cashier_printer", return_value="RPOS Test Printer"),
 		):
 			# Morning: the drawer, and the day with it (FR-8.1).
 			till = shift_api.open_till(pos_profile=self.profile, opening_floats={CASH: FLOAT})
@@ -226,6 +233,7 @@ class TestADayAtTheTill(ShiftTestBase, PaymentTestBase):
 			# The terminal has a printer — said here rather than written onto the
 			# profile, for the same reason as the branch above.
 			patch("restaurant_pos.utils.printing.receipt_printer", return_value="RPOS Test Printer"),
+			patch("restaurant_pos.utils.printing._cashier_printer", return_value="RPOS Test Printer"),
 		):
 			till = shift_api.open_till(pos_profile=self.profile, opening_floats={CASH: FLOAT})
 			first = self._sold(3)

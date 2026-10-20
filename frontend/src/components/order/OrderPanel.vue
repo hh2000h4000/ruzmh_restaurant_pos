@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 
-import { beforeTaxOn, reductionsOn, type OrderDetail, type OrderLine } from "@/api/order";
+import { reductionsOn, type OrderDetail, type OrderLine } from "@/api/order";
 import AppIcon from "@/components/AppIcon.vue";
 import OrderLineRow from "@/components/order/OrderLineRow.vue";
 import { formatNumber, pick, t } from "@/i18n";
@@ -237,75 +237,61 @@ function money(value: number | undefined): string {
       </li>
     </ul>
 
-    <dl class="space-y-3 border-t border-line px-[22px] pb-5 pt-[18px]">
-      <div
-        v-if="reductions.promotion"
-        class="flex justify-between gap-3 text-status-available"
+    <!--
+      The total **is** the button (`D-372`), as on Foodics. A cashier sells at
+      prices that include VAT and says one figure to the guest; before-VAT, the
+      VAT and a total over a separate button took a third of the panel to say
+      it. The VAT stays where it is read — the receipt, the payment screen and
+      the guest's screen. Only a reduction is still listed here: an offer the
+      guest came in for has to be seen to land (`D-163`, `D-166`).
+    -->
+    <div>
+      <dl
+        v-if="reductions.promotion || reductions.loyalty || reductions.discount"
+        class="space-y-2 border-t border-line px-[22px] py-3 text-sm"
       >
-        <dt class="truncate">
-          {{ reductions.promotion.title }}
-        </dt>
-        <dd class="rpos-numeric shrink-0">
-          −{{ money(reductions.promotion.amount) }}
-        </dd>
-      </div>
-      <!-- The guest's own points, apart from any discount (`D-189`). -->
-      <div
-        v-if="reductions.loyalty"
-        class="flex justify-between gap-3 text-status-available"
-      >
-        <dt>{{ t("totals.loyalty") }}</dt>
-        <dd class="rpos-numeric shrink-0">
-          −{{ money(reductions.loyalty.amount) }}
-        </dd>
-      </div>
-      <div
-        v-if="reductions.discount"
-        class="flex justify-between text-status-available"
-      >
-        <dt>{{ t("totals.discount") }}</dt>
-        <dd class="rpos-numeric">
-          −{{ money(reductions.discount) }}
-        </dd>
-      </div>
-      <!-- Before VAT, then the VAT, then the total: three figures that add up
-           on the screen (`beforeTaxOn`, `D-371`). -->
-      <div class="flex justify-between text-muted">
-        <dt>{{ t("totals.beforeTax") }}</dt>
-        <dd class="rpos-numeric">
-          {{ money(beforeTaxOn(order ?? null)) }}
-        </dd>
-      </div>
-      <div class="flex justify-between text-muted">
-        <dt>{{ t("totals.tax") }}</dt>
-        <dd class="rpos-numeric">
-          {{ money(order?.tax_amount) }}
-        </dd>
-      </div>
-      <div class="flex items-baseline justify-between border-t border-line pt-3">
-        <dt class="text-base font-semibold">
-          {{ t("totals.total") }}
-        </dt>
-        <dd class="rpos-numeric text-[30px] font-medium tracking-tighter">
-          {{ money(order?.total_amount) }}
-        </dd>
-      </div>
+        <div
+          v-if="reductions.promotion"
+          class="flex justify-between gap-3 text-status-available"
+        >
+          <dt class="truncate">
+            {{ reductions.promotion.title }}
+          </dt>
+          <dd class="rpos-numeric shrink-0">
+            −{{ money(reductions.promotion.amount) }}
+          </dd>
+        </div>
+        <!-- The guest's own points, apart from any discount (`D-189`). -->
+        <div
+          v-if="reductions.loyalty"
+          class="flex justify-between gap-3 text-status-available"
+        >
+          <dt>{{ t("totals.loyalty") }}</dt>
+          <dd class="rpos-numeric shrink-0">
+            −{{ money(reductions.loyalty.amount) }}
+          </dd>
+        </div>
+        <div
+          v-if="reductions.discount"
+          class="flex justify-between text-status-available"
+        >
+          <dt>{{ t("totals.discount") }}</dt>
+          <dd class="rpos-numeric">
+            −{{ money(reductions.discount) }}
+          </dd>
+        </div>
+      </dl>
 
-      <!-- The action the whole screen exists to reach, under the figure the
-           customer is being told, where the cashier is already looking. -->
       <button
         type="button"
-        class="mt-1 flex min-h-[4.125rem] w-full items-center justify-center gap-2.5 rounded-rpos-lg bg-primary text-[17px] font-medium text-primary-contrast shadow-primary transition duration-200 ease-rpos hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none"
+        data-pay
+        class="flex min-h-[4.5rem] w-full items-center justify-between gap-3 bg-primary px-[22px] text-primary-contrast transition duration-200 ease-rpos hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
         :disabled="!canPay"
         @click="emit('pay')"
       >
-        <AppIcon
-          name="card"
-          :size="22"
-          class="opacity-85"
-        />
-        {{ t("order.payWithTotal", { total: money(order?.total_amount) }) }}
+        <span class="text-xl font-semibold">{{ t("totals.total") }}</span>
+        <span class="rpos-numeric text-[1.75rem] font-semibold">{{ money(order?.total_amount) }}</span>
       </button>
-    </dl>
+    </div>
   </section>
 </template>

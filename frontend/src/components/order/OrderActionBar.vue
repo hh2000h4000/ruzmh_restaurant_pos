@@ -83,7 +83,7 @@ function choose(action: OrderAction): void {
       <AppIcon
         :name="action.icon"
         :size="24"
-        class="shrink-0 text-primary"
+        class="shrink-0 text-secondary"
       />
       <span :class="action.primary ? 'truncate' : 'max-sm:sr-only'">{{ t(action.label) }}</span>
     </button>
@@ -102,7 +102,7 @@ function choose(action: OrderAction): void {
         <AppIcon
           name="moreHorizontal"
           :size="24"
-          class="shrink-0 text-primary"
+          class="shrink-0 text-secondary"
         />
         <span class="max-sm:sr-only">{{ t("order.more") }}</span>
       </button>

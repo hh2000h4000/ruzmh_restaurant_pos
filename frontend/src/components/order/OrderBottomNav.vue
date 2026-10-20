@@ -86,7 +86,7 @@ const emit = defineEmits<{ select: [key: string] }>();
         <AppIcon
           :name="entry.icon"
           :size="18"
-          class="shrink-0 opacity-85"
+          class="shrink-0 text-secondary"
         />
         <!-- Beside the label, not floating over the icon. A count that overlaps
              what it counts is unreadable the moment it reaches two digits. -->

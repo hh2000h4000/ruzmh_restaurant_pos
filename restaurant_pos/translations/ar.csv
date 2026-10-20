@@ -66,7 +66,7 @@ Text,لون النص,RPOS Theme
 The theme a terminal falls back to when neither it nor its branch names one. Marking this one takes the mark off the others.,الألوان اللي تستخدمها الأجهزة إذا لا الجهاز ولا الفرع محدد له ألوان. وإذا علّمت هذي، تنشال العلامة عن الباقي.
 "Switched off, terminals naming it fall through to the branch's theme, then to the default.",إذا شلت العلامة، الأجهزة اللي عليها ترجع لألوان الفرع أو الألوان الافتراضية.
 Primary actions and active states.,الأزرار الرئيسية والأشياء المختارة.
-Secondary actions and accents.,الأزرار الثانوية واللمسات الصغيرة.
+"Secondary actions, accents and the till's icons.",الأزرار الثانوية واللمسات الصغيرة وأيقونات الكاشير.
 The screen behind the cards.,خلفية الشاشة ورا البطاقات.
 Cards and panels.,البطاقات واللوحات.
 Text and icons on primary.,النص والأيقونات فوق اللون الأساسي.

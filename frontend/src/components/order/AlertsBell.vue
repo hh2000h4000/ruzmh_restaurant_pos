@@ -149,6 +149,7 @@ function badge(row: BellItem): { mark: string; tone: string } {
       <AppIcon
         name="bell"
         :size="22"
+        class="text-secondary"
       />
       <span
         v-if="alerts.unread"

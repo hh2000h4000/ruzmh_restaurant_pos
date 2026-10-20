@@ -90,7 +90,7 @@
   },
   {
    "default": "#2F6D61",
-   "description": "Secondary actions and accents.",
+   "description": "Secondary actions, accents and the till's icons.",
    "fieldname": "secondary_color",
    "fieldtype": "Color",
    "label": "Secondary",

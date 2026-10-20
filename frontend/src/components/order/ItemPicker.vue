@@ -77,9 +77,6 @@ function bumpQty(by: number): void {
   qty.value = Math.min(MAX_QTY, Math.max(1, qty.value + by));
 }
 
-/** Which price list this order sells from, when it is not the terminal's. */
-const priceListName = computed(() => props.orderType?.selling_price_list ?? null);
-
 /** Where in the menu the cashier is, so a drilled-in group is not a dead end. */
 const breadcrumb = computed(() => {
   if (search.value.trim()) return t("picker.search");
@@ -451,13 +448,12 @@ function priceOf(item: CatalogItem): number | null {
         </div>
       </div>
 
-      <!-- Where you are, and which prices you are seeing (FR-1.6). -->
-      <p class="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted">
-        <span>{{ breadcrumb }}</span>
-        <template v-if="priceListName">
-          <span aria-hidden="true">·</span>
-          <span>{{ t("picker.priceList") }}: {{ priceListName }}</span>
-        </template>
+      <!-- Where you are. Not which price list (`D-373`): the order type on the
+           bill already says it is an app order, and the prices on the tiles
+           are that list's — a record name over them told the cashier nothing
+           they could act on. -->
+      <p class="text-sm text-muted">
+        {{ breadcrumb }}
       </p>
     </div>
 

@@ -139,7 +139,7 @@ onUnmounted(() => {
         :class="[
           'max-h-[90vh] w-full overflow-y-auto shadow-xl',
           pad ? 'rounded-xl bg-background px-5 pb-5' : 'rounded-rpos bg-surface p-5',
-          wide ? 'max-w-5xl' : pad ? 'max-w-xs' : 'max-w-lg',
+          wide ? (pad ? 'max-w-2xl' : 'max-w-5xl') : pad ? 'max-w-xs' : 'max-w-lg',
         ]"
       >
         <h2

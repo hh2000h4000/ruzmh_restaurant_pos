@@ -70,51 +70,58 @@ watch(
     :open="Boolean(method)"
     :title="methodName(method)"
     pad
+    :wide="typing"
     @close="emit('close')"
   >
-    <!-- The amounts, or the keypad for one that is not there — one at a time,
-         in the keypad's narrow shape (`D-370`). Nothing to cancel: the backdrop
-         closes the sheet and nothing is taken until an amount is picked. -->
+    <!-- The amounts stay, and the keypad opens **beside** them, as Foodics
+         draws it (`D-377`): a cashier who typed and then saw the guest hand
+         over a round note taps the note, without closing anything first.
+         Nothing to cancel — the backdrop closes the sheet and nothing is taken
+         until an amount is picked (`D-370`). -->
     <div
-      v-if="!typing"
-      class="flex flex-col gap-3 pt-2"
+      class="grid gap-5 pt-2"
+      :class="typing ? 'sm:grid-cols-[minmax(0,1fr)_minmax(0,1.25fr)]' : ''"
     >
-      <button
-        v-for="(amount, index) in options"
-        :key="amount"
-        type="button"
-        class="rpos-numeric min-h-14 rounded text-xl font-medium"
-        :class="index === 0 ? 'bg-primary text-primary-contrast' : 'bg-surface'"
-        @click="emit('pick', amount)"
-      >
-        {{ money(amount) }}
-      </button>
+      <div class="flex flex-col gap-3">
+        <button
+          v-for="(amount, index) in options"
+          :key="amount"
+          type="button"
+          class="rpos-numeric min-h-14 rounded text-xl font-medium"
+          :class="index === 0 ? 'bg-primary text-primary-contrast' : 'bg-surface'"
+          @click="emit('pick', amount)"
+        >
+          {{ money(amount) }}
+        </button>
 
-      <button
-        type="button"
-        class="rpos-pad-done"
-        @click="typing = true"
-      >
-        {{ t("pay.customAmount") }}
-      </button>
-    </div>
+        <button
+          type="button"
+          class="rpos-pad-done"
+          :class="typing ? 'ring-2 ring-primary' : ''"
+          :aria-pressed="typing"
+          @click="typing = true"
+        >
+          {{ t("pay.customAmount") }}
+        </button>
+      </div>
 
-    <div
-      v-else
-      class="flex flex-col gap-4"
-    >
-      <AmountKeypad
-        :value="draft"
-        @update="draft = $event"
-      />
-      <button
-        type="button"
-        class="rpos-pad-done"
-        :disabled="custom <= 0"
-        @click="emit('pick', custom)"
+      <div
+        v-if="typing"
+        class="flex flex-col gap-4"
       >
-        {{ t("action.done") }}
-      </button>
+        <AmountKeypad
+          :value="draft"
+          @update="draft = $event"
+        />
+        <button
+          type="button"
+          class="rpos-pad-done"
+          :disabled="custom <= 0"
+          @click="emit('pick', custom)"
+        >
+          {{ t("action.done") }}
+        </button>
+      </div>
     </div>
   </BaseDialog>
 </template>

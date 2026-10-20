@@ -1045,11 +1045,6 @@ watch(
   },
 );
 
-function repeat(line: OrderLine): void {
-  if (!maySell()) return;
-  void orders.addItem(line.item, { qty: 1 });
-}
-
 /** Tapping a line opens everything known about it (06 Screen 3). */
 const inspecting = ref<OrderLine | null>(null);
 
@@ -1738,7 +1733,6 @@ async function send(): Promise<void> {
               :busy="locked"
               :can-pay="!locked && !orders.isEmpty"
               @void="askVoid"
-              @repeat="repeat"
               @inspect="inspect"
               @pay="goToPayment"
             />

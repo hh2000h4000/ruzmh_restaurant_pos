@@ -449,7 +449,6 @@ const messages: Catalogue["messages"] = {
   // Order panel
   "panel.title": "أصناف الطلب",
   "panel.inKitchen": "في المطبخ",
-  "panel.addSame": "إضافة مثله",
   "panel.swipeHint": "اسحب البند جانباً لحذفه.",
   "panel.empty": "لم تُضف أصناف بعد.",
   "panel.noOrder": "لا يوجد طلب مفتوح",

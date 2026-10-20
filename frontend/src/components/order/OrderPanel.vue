@@ -43,7 +43,6 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   void: [line: OrderLine];
-  repeat: [line: OrderLine];
   inspect: [line: OrderLine];
   pay: [];
 }>();
@@ -211,7 +210,6 @@ function money(value: number | undefined): string {
         :busy="busy"
         :promotion-label="reductions.promotion?.title"
         @void="emit('void', line)"
-        @repeat="emit('repeat', line)"
         @inspect="emit('inspect', line)"
       />
 

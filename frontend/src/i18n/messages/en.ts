@@ -474,7 +474,6 @@ export const messages = {
   // Order panel
   "panel.title": "Order items",
   "panel.inKitchen": "In kitchen",
-  "panel.addSame": "Add another",
   "panel.empty": "No items added yet.",
   "panel.noOrder": "No order open",
   "panel.startHint": "Pick an item, or tap New.",

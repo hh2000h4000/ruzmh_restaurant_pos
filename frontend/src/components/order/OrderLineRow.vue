@@ -37,7 +37,6 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   void: [];
-  repeat: [];
   inspect: [];
 }>();
 
@@ -187,20 +186,37 @@ function money(value: number): string {
         @click="onTap"
       />
 
-      <!-- Name and price on one line, what qualifies the dish under it, and the
-           count with its two keys at the foot — the way the reference reads a
-           line (`D-371`). The count used to sit before the name as "1 ×" and
-           the keys floated at the far end, so a line read as three things. -->
+      <!-- One line, as on Toast, Square and Foodics (`D-376`): the count and the
+           name, the price, and a quiet ✕ beside it. Changing the count is the
+           line's own dialog — a tap anywhere on it — and adding one more is a
+           tap on the dish. A row of − / + under every line doubled the bill's
+           height for keys none of the three draw. -->
       <div class="pointer-events-none">
         <div class="flex min-w-0 items-start gap-3">
           <div class="min-w-0 flex-1">
-            <div class="flex items-start justify-between gap-3">
-              <p class="min-w-0 font-semibold leading-snug">
+            <div class="flex items-start gap-2">
+              <span class="rpos-numeric shrink-0 pt-px text-sm text-muted">
+                {{ formatNumber(line.qty) }} ×
+              </span>
+              <p class="min-w-0 flex-1 font-semibold leading-snug">
                 {{ line.item_name }}
               </p>
               <p class="rpos-numeric shrink-0 font-semibold">
                 {{ money(line.amount) }}
               </p>
+              <button
+                type="button"
+                class="pointer-events-auto relative -my-2 -me-2 grid h-10 w-10 shrink-0 place-items-center rounded-full text-muted transition duration-200 ease-rpos hover:bg-danger/10 hover:text-danger disabled:opacity-40"
+                :disabled="busy"
+                :aria-label="t('action.remove')"
+                :title="t('action.remove')"
+                @click="emit('void')"
+              >
+                <AppIcon
+                  name="close"
+                  :size="16"
+                />
+              </button>
             </div>
 
             <template v-if="isCombo">
@@ -277,39 +293,6 @@ function money(value: number): string {
               {{ t("panel.inKitchen") }}
             </p>
           </div>
-        </div>
-
-        <div class="pointer-events-auto relative mt-2 flex items-center gap-1">
-          <button
-            type="button"
-            class="grid h-9 w-9 place-items-center rounded-lg bg-background text-danger transition duration-200 ease-rpos hover:bg-danger/10 disabled:opacity-40"
-            :disabled="busy"
-            :aria-label="t('action.remove')"
-            :title="t('action.remove')"
-            @click="emit('void')"
-          >
-            <AppIcon
-              name="trash"
-              :size="16"
-            />
-          </button>
-          <span
-            data-qty
-            class="rpos-numeric min-w-[2.25rem] text-center font-semibold"
-          >{{ formatNumber(line.qty) }}</span>
-          <button
-            type="button"
-            class="grid h-9 w-9 place-items-center rounded-lg bg-background text-content transition duration-200 ease-rpos hover:bg-primary/10 disabled:opacity-40"
-            :disabled="busy"
-            :aria-label="t('panel.addSame')"
-            :title="t('panel.addSame')"
-            @click="emit('repeat')"
-          >
-            <AppIcon
-              name="plus"
-              :size="16"
-            />
-          </button>
         </div>
       </div>
     </div>

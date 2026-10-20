@@ -23,7 +23,7 @@ const messages: Catalogue["messages"] = {
   "display.empty": "طلبك سيظهر هنا",
   "display.thanks": "شكراً لك",
   "display.yourNumber": "رقمك",
-  "display.beforeTax": "قبل الضريبة",
+  "totals.beforeTax": "قبل الضريبة",
   "display.open": "شاشة العميل",
   "display.waiting": "في انتظار الكاشير. افتح هذه الشاشة من قائمة الكاشير نفسها، وفي المتصفّح نفسه.",
   "lang.other": "English",

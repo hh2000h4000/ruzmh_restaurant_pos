@@ -408,7 +408,7 @@ function priceOf(item: CatalogItem): number | null {
             v-model="search"
             type="search"
             :placeholder="t('picker.search')"
-            class="h-14 w-full rounded-rpos border border-line-strong bg-background ps-12 pe-4 text-base outline-none transition duration-200 ease-rpos focus:border-primary focus:bg-surface"
+            class="h-14 w-full rounded-lg border border-transparent bg-surface ps-12 pe-4 text-base outline-none transition duration-200 ease-rpos focus:border-primary"
             @keydown.enter.prevent="submitSearch"
           >
         </div>
@@ -417,12 +417,12 @@ function priceOf(item: CatalogItem): number | null {
              screen reader only: beside the stepper it left a 360 search field
              room for one letter, and the − 1 + already says what it is. -->
         <div
-          class="flex h-14 shrink-0 items-center gap-1 rounded-rpos border border-line-strong bg-background px-2"
+          class="flex h-14 shrink-0 items-center gap-1 rounded-lg bg-surface px-2"
         >
           <span class="px-2 text-sm text-muted max-sm:sr-only">{{ t("picker.qty") }}</span>
           <button
             type="button"
-            class="grid h-11 w-11 place-items-center rounded-rpos text-content transition duration-200 ease-rpos hover:bg-surface disabled:opacity-40"
+            class="grid h-11 w-11 place-items-center rounded-rpos text-content transition duration-200 ease-rpos hover:bg-background disabled:opacity-40"
             :disabled="qty <= 1"
             :aria-label="t('picker.qtyLess')"
             @click="bumpQty(-1)"
@@ -438,7 +438,7 @@ function priceOf(item: CatalogItem): number | null {
           >{{ formatNumber(qty) }}</span>
           <button
             type="button"
-            class="grid h-11 w-11 place-items-center rounded-rpos text-content transition duration-200 ease-rpos hover:bg-surface disabled:opacity-40"
+            class="grid h-11 w-11 place-items-center rounded-rpos text-content transition duration-200 ease-rpos hover:bg-background disabled:opacity-40"
             :disabled="qty >= 99"
             :aria-label="t('picker.qtyMore')"
             @click="bumpQty(1)"

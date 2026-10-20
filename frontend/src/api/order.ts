@@ -86,6 +86,21 @@ export interface LoyaltyOnBill {
 }
 
 /**
+ * The bill before VAT, for every screen that lists the tax under it.
+ *
+ * VAT here is inclusive (`D-091`), so `subtotal` already holds the tax, and
+ * printing it over the tax and the total read `25.00 + 3.26 = 25.00` — true,
+ * and a till that cannot add up. Derived from the total instead, the column
+ * sums whichever way the branch charges tax. The guest's screen did this first
+ * (`D-162`); the till's own panel follows (`D-371`), from here, so the two
+ * cannot disagree (§5.5).
+ */
+export function beforeTaxOn(bill: { total_amount: number; tax_amount: number } | null): number {
+  if (!bill) return 0;
+  return Math.round((bill.total_amount - bill.tax_amount) * 100) / 100;
+}
+
+/**
  * The two reductions, told apart — for every screen that shows a total.
  *
  * The server folds both into `discount_amount` so the tax is worked out once,

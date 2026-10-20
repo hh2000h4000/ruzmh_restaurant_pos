@@ -1150,13 +1150,31 @@ const rowActions = computed<OrderAction[]>(() => [
     icon: "note",
     disabled: locked.value,
   },
+  ...offeredCustomer(),
   {
-    key: "refresh",
-    label: "action.refresh",
-    icon: "refresh",
-    disabled: orders.busy,
+    key: "coupon",
+    label: "coupon.add",
+    icon: "tag",
+    disabled: locked.value,
   },
 ]);
+
+/**
+ * FR-2.1 step 4 — a real Customer, with a number and an address. Not offered on
+ * a type that decides its own: an app order is billed to the platform, and the
+ * server refuses to change it (D-038).
+ */
+function offeredCustomer(): OrderAction[] {
+  if (orderType.value?.customer_mode === "pre_set") return [];
+  return [
+    {
+      key: "customer",
+      label: orders.order?.customer ? "customer.change" : "customer.action",
+      icon: "users",
+      disabled: locked.value,
+    },
+  ];
+}
 
 /**
  * Everything else, one deliberate tap further away.
@@ -1212,27 +1230,6 @@ const moreActions = computed<OrderAction[]>(() => {
     disabled: locked.value,
   });
 
-  // FR-2.1 step 4 — a real Customer, with a number and an address. Not offered
-  // on a type that decides its own: an app order is billed to the platform, and
-  // the server refuses to change it (D-038).
-  if (orderType.value?.customer_mode !== "pre_set") {
-    entries.push({
-      key: "customer",
-      label: orders.order?.customer ? "customer.change" : "customer.action",
-      icon: "users",
-      disabled: locked.value,
-    });
-  }
-
-  // `D-248` — the guest mentions the code while ordering as often as at the
-  // till, so it is reachable from both. One dialog answers it either way.
-  entries.push({
-    key: "coupon",
-    label: "coupon.add",
-    icon: "tag",
-    disabled: locked.value,
-  });
-
   // `D-322` — "the soup is finished". Never disabled: it is about the branch,
   // not this bill, and it is said whether or not a bill is open.
   entries.push({ key: "soldOut", label: "stock.markAction", icon: "cloche" });
@@ -1259,6 +1256,15 @@ const moreActions = computed<OrderAction[]>(() => {
   // no shift open, which is exactly when somebody is working out what
   // happened last night (`D-058` drew that line).
   entries.push({ key: "log", label: "log.action", icon: "document" });
+
+  // Out of the row (`D-371`): the bill refreshes itself, and a key a cashier
+  // presses "just in case" took the place of one they need.
+  entries.push({
+    key: "refresh",
+    label: "action.refresh",
+    icon: "refresh",
+    disabled: orders.busy,
+  });
 
   if (session.can("can_cancel_order")) {
     entries.push({
@@ -1570,8 +1576,10 @@ async function send(): Promise<void> {
 
           <div
             v-if="pane === 'items'"
-            class="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)] rounded-rpos-lg border border-line bg-surface p-[18px]"
+            class="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)]"
           >
+            <!-- On the screen's own grey, not in a white card: the tiles are
+                 the white, so each reads as a key (`D-371`). -->
             <ItemPicker
               :order-type="orderType"
               :disabled="locked"

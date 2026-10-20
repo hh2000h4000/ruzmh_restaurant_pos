@@ -58,18 +58,20 @@ const emit = defineEmits<{ select: [key: string] }>();
 
 <template>
   <nav
-    class="grid shrink-0 grid-cols-5 gap-2 rounded-rpos-lg border border-line bg-surface p-2.5 max-sm:gap-1 max-sm:p-1.5"
+    class="grid shrink-0 grid-cols-5 gap-2 rounded-lg bg-surface px-2.5 max-sm:gap-1 max-sm:px-1.5"
   >
+    <!-- One heavy block per screen, and it is «Pay»: the place you are is said
+         by colour and a mark under it, not a filled slab (`D-371`). -->
     <button
       v-for="entry in entries"
       :key="entry.key"
       type="button"
       data-nav-entry
-      class="flex min-h-[3.75rem] min-w-0 items-center justify-center gap-2.5 rounded-rpos text-sm font-medium transition duration-200 ease-rpos max-sm:flex-col max-sm:gap-1 max-sm:px-1"
+      class="relative flex min-h-16 min-w-0 items-center justify-center gap-2.5 text-sm font-medium transition duration-200 ease-rpos max-sm:flex-col max-sm:gap-1 max-sm:px-1"
       :class="
         active === entry.key
-          ? 'bg-primary text-primary-contrast'
-          : 'text-muted hover:bg-background hover:text-content'
+          ? 'text-primary after:absolute after:inset-x-[30%] after:bottom-0 after:h-[3px] after:rounded-t after:bg-primary'
+          : 'text-subtle hover:text-content'
       "
       :aria-current="active === entry.key ? 'page' : undefined"
       @click="emit('select', entry.key)"
@@ -91,11 +93,7 @@ const emit = defineEmits<{ select: [key: string] }>();
         <span
           v-if="entry.count"
           class="rpos-numeric grid h-[1.375rem] min-w-[1.375rem] shrink-0 place-items-center rounded-full px-1.5 text-xs sm:order-last"
-          :class="
-            active === entry.key
-              ? 'bg-primary-contrast/20 text-primary-contrast'
-              : 'bg-primary text-primary-contrast'
-          "
+          :class="active === entry.key ? 'bg-primary text-primary-contrast' : 'bg-primary/10 text-primary'"
         >{{ formatNumber(entry.count) }}</span>
       </span>
       <span class="max-w-full truncate">{{ t(entry.label) }}</span>

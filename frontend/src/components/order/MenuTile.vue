@@ -82,11 +82,18 @@ watch(
 <template>
   <button
     type="button"
-    class="flex min-w-0 flex-col overflow-hidden rounded-rpos border border-line bg-surface text-center shadow-card transition duration-200 ease-rpos hover:-translate-y-0.5 hover:shadow-lift disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0 disabled:hover:shadow-card"
+    class="flex min-w-0 flex-col overflow-hidden rounded-lg bg-surface text-center transition duration-100 ease-rpos active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-40"
+    :style="{ '--tile-accent': accent || 'rgb(var(--rpos-primary))' }"
     :disabled="disabled"
     @click="emit('select')"
   >
-    <span class="relative grid min-h-0 w-full flex-1 place-items-center overflow-hidden bg-background">
+    <!-- A white tile on the grey ground, the picture over a wash of the
+         tile's own colour (`D-371`): a placeholder in the group's colour
+         says which shelf it is from; a grey square said nothing. -->
+    <span
+      class="relative grid min-h-0 w-full flex-1 place-items-center overflow-hidden"
+      :style="{ backgroundColor: 'color-mix(in srgb, var(--tile-accent) 10%, rgb(var(--rpos-surface)))' }"
+    >
       <img
         v-if="image && !broken"
         :src="image"
@@ -102,7 +109,7 @@ watch(
         :name="placeholder"
         :size="36"
         data-placeholder
-        class="text-muted"
+        :style="{ color: 'var(--tile-accent)' }"
       />
       <span
         v-if="badge"
@@ -119,15 +126,15 @@ watch(
       >{{ label }}</span>
       <span
         v-if="detail"
-        class="rpos-numeric text-sm font-bold"
-        :class="detailDanger ? 'text-danger' : 'text-primary'"
+        class="rpos-numeric text-sm"
+        :class="detailDanger ? 'font-bold text-danger' : 'text-subtle'"
       >{{ detail }}</span>
     </span>
 
     <span
       data-accent
-      class="h-1.5 w-full shrink-0 bg-primary"
-      :style="accent ? { backgroundColor: accent } : undefined"
+      class="h-1 w-full shrink-0"
+      :style="{ backgroundColor: accent || 'rgb(var(--rpos-primary))' }"
     />
   </button>
 </template>

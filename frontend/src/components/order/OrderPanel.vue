@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 
-import { reductionsOn, type OrderDetail, type OrderLine } from "@/api/order";
+import { beforeTaxOn, reductionsOn, type OrderDetail, type OrderLine } from "@/api/order";
 import AppIcon from "@/components/AppIcon.vue";
 import OrderLineRow from "@/components/order/OrderLineRow.vue";
 import { formatNumber, pick, t } from "@/i18n";
@@ -108,7 +108,7 @@ function money(value: number | undefined): string {
 
 <template>
   <section
-    class="grid min-h-0 grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden rounded-rpos-lg border border-line bg-surface"
+    class="grid min-h-0 grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden rounded-xl bg-surface"
   >
     <!--
       Two lines, the way the reference reads: the number and the state, then
@@ -238,12 +238,6 @@ function money(value: number | undefined): string {
     </ul>
 
     <dl class="space-y-3 border-t border-line px-[22px] pb-5 pt-[18px]">
-      <div class="flex justify-between text-muted">
-        <dt>{{ t("totals.subtotal") }}</dt>
-        <dd class="rpos-numeric">
-          {{ money(order?.subtotal) }}
-        </dd>
-      </div>
       <div
         v-if="reductions.promotion"
         class="flex justify-between gap-3 text-status-available"
@@ -272,6 +266,14 @@ function money(value: number | undefined): string {
         <dt>{{ t("totals.discount") }}</dt>
         <dd class="rpos-numeric">
           −{{ money(reductions.discount) }}
+        </dd>
+      </div>
+      <!-- Before VAT, then the VAT, then the total: three figures that add up
+           on the screen (`beforeTaxOn`, `D-371`). -->
+      <div class="flex justify-between text-muted">
+        <dt>{{ t("totals.beforeTax") }}</dt>
+        <dd class="rpos-numeric">
+          {{ money(beforeTaxOn(order ?? null)) }}
         </dd>
       </div>
       <div class="flex justify-between text-muted">

@@ -268,7 +268,7 @@ const money = (value: number) => formatNumber(value, 2);
             <span class="rpos-numeric">−{{ money(state.discount) }}</span>
           </div>
           <div class="flex justify-between text-subtle">
-            <span>{{ t("display.beforeTax") }}</span>
+            <span>{{ t("totals.beforeTax") }}</span>
             <span class="rpos-numeric">{{ money(state.beforeTax) }}</span>
           </div>
           <div class="flex justify-between text-subtle">

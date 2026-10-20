@@ -1,6 +1,6 @@
 import { onUnmounted, ref } from "vue";
 
-import { reductionsOn, type OrderDetail, type OrderLine } from "@/api/order";
+import { beforeTaxOn, reductionsOn, type OrderDetail, type OrderLine } from "@/api/order";
 
 /**
  * The screen the customer reads, and the channel that feeds it (`FR-13`).
@@ -156,14 +156,8 @@ export function toDisplayState(
     mode: "order",
     ...brand,
     lines: lines.filter((line) => line.status !== "void").map(toLine),
-    // **Before tax, not "subtotal"** — and the difference is the whole point.
-    //
-    // VAT here is inclusive (`D-091`), so `order.subtotal` already contains the
-    // tax and printing it beside the tax and the total gave the guest
-    // `60.00 + 7.83 = 60.00`. True, and it reads as a restaurant that cannot
-    // add up. Derived from the total instead, the three figures add up on the
-    // screen whichever way the branch charges tax.
-    beforeTax: order.total_amount - order.tax_amount,
+    // Before tax, not "subtotal" — see `beforeTaxOn`.
+    beforeTax: beforeTaxOn(order),
     // **The offer is named to the guest** (`D-163`). This is the one screen the
     // guest reads, and an offer they came in for is the thing they are checking
     // for — an unnamed "discount" line does not tell them it was applied. The

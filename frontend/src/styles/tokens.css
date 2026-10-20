@@ -107,20 +107,24 @@ html[dir="rtl"] .rpos-flip {
 }
 
 /*
- * Numbers stay readable in an RTL paragraph, and are set in the mono face.
+ * Numbers stay readable in an RTL paragraph, in the house face's own digits.
  *
  * `isolate` is what keeps a negative sign on the correct end: without it a
  * discount reads as `26.00−` beside Arabic text, which is not the number the
  * cashier is about to say out loud.
+ *
+ * **Not the mono face any more** (`D-371`). Every figure in Plex Mono made the
+ * till read like a terminal — the user set it beside Foodics and the type was
+ * most of the difference. `tabular-nums` keeps columns lined up, which was the
+ * part of mono that mattered.
  */
 .rpos-numeric {
   direction: ltr;
   unicode-bidi: isolate;
   font-variant-numeric: tabular-nums;
   /* Written out rather than `theme()`: this file is imported ahead of
-     Tailwind's own layers, and a build-order dependency for one line is not
-     worth the surprise it causes later. Keep in step with `fontFamily.mono`. */
+     Tailwind's own layers. Keep in step with `fontFamily.sans`. */
   font-family:
-    "IBM Plex Mono", "SF Mono", "Cascadia Mono", Consolas, "Liberation Mono", monospace;
+    "IBM Plex Sans Arabic", Cairo, Tajawal, "Segoe UI", Tahoma, system-ui, sans-serif;
   letter-spacing: -0.01em;
 }

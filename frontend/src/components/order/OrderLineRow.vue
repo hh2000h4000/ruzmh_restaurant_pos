@@ -187,16 +187,21 @@ function money(value: number): string {
         @click="onTap"
       />
 
-      <div class="pointer-events-none flex items-start justify-between gap-3">
+      <!-- Name and price on one line, what qualifies the dish under it, and the
+           count with its two keys at the foot — the way the reference reads a
+           line (`D-371`). The count used to sit before the name as "1 ×" and
+           the keys floated at the far end, so a line read as three things. -->
+      <div class="pointer-events-none">
         <div class="flex min-w-0 items-start gap-3">
-          <span class="rpos-numeric shrink-0 pt-0.5 text-sm font-bold text-muted">
-            {{ formatNumber(line.qty) }} ×
-          </span>
-
-          <div class="min-w-0">
-            <p class="font-semibold leading-snug">
-              {{ line.item_name }}
-            </p>
+          <div class="min-w-0 flex-1">
+            <div class="flex items-start justify-between gap-3">
+              <p class="min-w-0 font-semibold leading-snug">
+                {{ line.item_name }}
+              </p>
+              <p class="rpos-numeric shrink-0 font-semibold">
+                {{ money(line.amount) }}
+              </p>
+            </div>
 
             <template v-if="isCombo">
               <p
@@ -274,34 +279,10 @@ function money(value: number): string {
           </div>
         </div>
 
-        <!--
-          Amount and the two actions in one column at the end. Labelled buttons
-          on a row of their own doubled every line's height, so four items
-          filled the bill — and the labels earned nothing a trash can and a plus
-          do not already say.
-        -->
-        <div class="pointer-events-auto relative flex shrink-0 items-center gap-1">
-          <p class="rpos-numeric text-lg font-bold">
-            {{ money(line.amount) }}
-          </p>
-
+        <div class="pointer-events-auto relative mt-2 flex items-center gap-1">
           <button
             type="button"
-            class="grid h-10 w-10 place-items-center rounded-full text-primary transition duration-200 ease-rpos hover:bg-primary/10 disabled:opacity-40"
-            :disabled="busy"
-            :aria-label="t('panel.addSame')"
-            :title="t('panel.addSame')"
-            @click="emit('repeat')"
-          >
-            <AppIcon
-              name="plus"
-              :size="18"
-            />
-          </button>
-
-          <button
-            type="button"
-            class="grid h-10 w-10 place-items-center rounded-full text-danger transition duration-200 ease-rpos hover:bg-danger/10 disabled:opacity-40"
+            class="grid h-9 w-9 place-items-center rounded-lg bg-background text-danger transition duration-200 ease-rpos hover:bg-danger/10 disabled:opacity-40"
             :disabled="busy"
             :aria-label="t('action.remove')"
             :title="t('action.remove')"
@@ -309,7 +290,24 @@ function money(value: number): string {
           >
             <AppIcon
               name="trash"
-              :size="18"
+              :size="16"
+            />
+          </button>
+          <span
+            data-qty
+            class="rpos-numeric min-w-[2.25rem] text-center font-semibold"
+          >{{ formatNumber(line.qty) }}</span>
+          <button
+            type="button"
+            class="grid h-9 w-9 place-items-center rounded-lg bg-background text-content transition duration-200 ease-rpos hover:bg-primary/10 disabled:opacity-40"
+            :disabled="busy"
+            :aria-label="t('panel.addSame')"
+            :title="t('panel.addSame')"
+            @click="emit('repeat')"
+          >
+            <AppIcon
+              name="plus"
+              :size="16"
             />
           </button>
         </div>

@@ -28,7 +28,7 @@ export const messages = {
   "display.thanks": "Thank you",
   "display.yourNumber": "Your number",
   /** Derived so the guest's column adds up under inclusive VAT (D-091). */
-  "display.beforeTax": "Before VAT",
+  "totals.beforeTax": "Before VAT",
   "display.open": "Customer display",
   /** Shown only before the till has ever answered — see `useCustomerDisplay`. */
   "display.waiting": "Waiting for the till. Open this screen from the till's own menu, in the same browser.",

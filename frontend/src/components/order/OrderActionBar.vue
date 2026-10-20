@@ -61,7 +61,9 @@ function choose(action: OrderAction): void {
 </script>
 
 <template>
-  <div class="flex flex-wrap items-center gap-2.5 max-sm:flex-nowrap max-sm:gap-2">
+  <div class="flex flex-wrap items-stretch gap-2.5 max-sm:flex-nowrap max-sm:gap-2">
+    <!-- Square keys, icon over word, white on the screen's grey — the row a hand
+         finds without reading (`D-371`). -->
     <!-- One line on a phone: the primary takes what the squares leave, and
          would sooner shorten its label than push them onto a second row.
          Inside the root, not above it — a comment there makes a fragment. -->
@@ -69,19 +71,19 @@ function choose(action: OrderAction): void {
       v-for="action in actions"
       :key="action.key"
       type="button"
-      class="flex min-h-[3.375rem] items-center gap-2.5 whitespace-nowrap rounded-rpos px-[22px] text-sm font-medium transition duration-200 ease-rpos disabled:cursor-not-allowed disabled:opacity-40"
+      class="flex min-h-[4.75rem] min-w-[5.5rem] flex-col items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-3 text-sm font-medium transition duration-100 ease-rpos active:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-40 max-sm:min-h-[3.375rem]"
       :class="
         action.primary
-          ? 'bg-primary text-primary-contrast shadow-primary disabled:shadow-none max-sm:min-w-0 max-sm:flex-1 max-sm:justify-center max-sm:px-4'
-          : 'border border-line-strong bg-surface hover:border-primary max-sm:w-[3.375rem] max-sm:shrink-0 max-sm:justify-center max-sm:px-0'
+          ? 'bg-primary/10 text-primary max-sm:min-w-0 max-sm:flex-1 max-sm:flex-row max-sm:px-4'
+          : 'bg-surface text-content max-sm:w-[3.375rem] max-sm:min-w-0 max-sm:shrink-0 max-sm:px-0'
       "
       :disabled="action.disabled"
       @click="choose(action)"
     >
       <AppIcon
         :name="action.icon"
-        :size="19"
-        class="shrink-0 opacity-85"
+        :size="24"
+        class="shrink-0 text-primary"
       />
       <span :class="action.primary ? 'truncate' : 'max-sm:sr-only'">{{ t(action.label) }}</span>
     </button>
@@ -93,14 +95,14 @@ function choose(action: OrderAction): void {
     >
       <button
         type="button"
-        class="flex min-h-[3.375rem] items-center gap-2.5 whitespace-nowrap rounded-rpos border border-line-strong bg-surface px-[22px] text-sm font-medium transition duration-200 ease-rpos hover:border-primary max-sm:w-[3.375rem] max-sm:justify-center max-sm:px-0"
+        class="flex h-full min-h-[4.75rem] min-w-[5.5rem] flex-col items-center justify-center gap-1.5 whitespace-nowrap rounded-lg bg-surface px-3 text-sm font-medium transition duration-100 ease-rpos active:bg-primary/10 max-sm:min-h-[3.375rem] max-sm:w-[3.375rem] max-sm:min-w-0 max-sm:px-0"
         :aria-expanded="menuOpen"
         @click="menuOpen = !menuOpen"
       >
         <AppIcon
           name="moreHorizontal"
-          :size="19"
-          class="shrink-0 opacity-85"
+          :size="24"
+          class="shrink-0 text-primary"
         />
         <span class="max-sm:sr-only">{{ t("order.more") }}</span>
       </button>

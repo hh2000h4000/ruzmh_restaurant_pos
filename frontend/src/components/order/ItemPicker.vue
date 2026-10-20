@@ -77,14 +77,6 @@ function bumpQty(by: number): void {
   qty.value = Math.min(MAX_QTY, Math.max(1, qty.value + by));
 }
 
-/** Where in the menu the cashier is, so a drilled-in group is not a dead end. */
-const breadcrumb = computed(() => {
-  if (search.value.trim()) return t("picker.search");
-  if (!activeGroup.value) return t("picker.allItems");
-
-  return groupOf(activeGroup.value)?.item_group_name ?? activeGroup.value;
-});
-
 const available = computed(() => session.visibleItems(props.orderType));
 
 const layout = computed(() => {
@@ -447,14 +439,6 @@ function priceOf(item: CatalogItem): number | null {
           </button>
         </div>
       </div>
-
-      <!-- Where you are. Not which price list (`D-373`): the order type on the
-           bill already says it is an app order, and the prices on the tiles
-           are that list's — a record name over them told the cashier nothing
-           they could act on. -->
-      <p class="text-sm text-muted">
-        {{ breadcrumb }}
-      </p>
     </div>
 
     <!-- Search wins over whatever else is on screen. -->

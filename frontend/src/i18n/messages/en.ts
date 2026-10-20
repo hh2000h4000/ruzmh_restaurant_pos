@@ -503,7 +503,6 @@ export const messages = {
   "picker.qty": "Qty",
   "picker.qtyMore": "One more",
   "picker.qtyLess": "One fewer",
-  "picker.allItems": "All items",
 
   // Modifiers
   "mod.single": "choose one",

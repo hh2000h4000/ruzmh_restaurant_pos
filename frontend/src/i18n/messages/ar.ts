@@ -478,7 +478,6 @@ const messages: Catalogue["messages"] = {
   "picker.qty": "الكمية",
   "picker.qtyMore": "واحد أكثر",
   "picker.qtyLess": "واحد أقل",
-  "picker.allItems": "كل الأصناف",
 
   // Modifiers
   "mod.single": "اختيار واحد",

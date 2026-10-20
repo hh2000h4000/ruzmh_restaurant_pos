@@ -8,6 +8,3 @@ __pycache__
 dist/
 build/
 *.log
-# Built by `bench build` through package.json (D-304), never committed.
-restaurant_pos/public/frontend/
-restaurant_pos/www/restaurant-pos.html

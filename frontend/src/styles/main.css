@@ -80,3 +80,44 @@
     outline-offset: 2px;
   }
 }
+
+/*
+ * The keypad's look, in one place (`D-370`).
+ *
+ * Drawn after Foodics, which the user held up beside ours: **white keys on a
+ * grey ground**, square-ish and spaced, light digits, the figure on a white
+ * band, and one "Done". Ours had grey keys on a white card in a heavy mono —
+ * a calculator from 1995 — and two keypads that did not look like each other.
+ *
+ * Classes rather than a component because the keys are three components'
+ * (money, digits, letters) and the band and the button belong to the dialogs
+ * around them; the look is what they share, so the look is what is shared.
+ */
+@layer components {
+  /* The grey the keys sit on. Inside a keypad dialog the dialog is the tray. */
+  .rpos-pad-tray {
+    @apply rounded-rpos bg-background p-3;
+  }
+
+  [data-pad-dialog] .rpos-pad-tray {
+    @apply rounded-none bg-transparent p-0;
+  }
+
+  .rpos-pad-key {
+    @apply h-14 rounded bg-surface font-sans text-[1.375rem] font-normal text-subtle transition-colors duration-100 ease-rpos active:bg-primary/10 active:text-primary disabled:opacity-40;
+  }
+
+  /* The figure: a white band, edge to edge in a keypad dialog. */
+  .rpos-pad-display {
+    @apply rounded bg-surface px-4 py-3 text-center;
+  }
+
+  [data-pad-dialog] .rpos-pad-display {
+    @apply -mx-5 rounded-none;
+  }
+
+  /* The one button a keypad dialog ends on: white, the brand colour in the text. */
+  .rpos-pad-done {
+    @apply min-h-12 w-full rounded bg-surface text-lg font-medium text-primary transition-colors duration-100 ease-rpos active:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-40;
+  }
+}

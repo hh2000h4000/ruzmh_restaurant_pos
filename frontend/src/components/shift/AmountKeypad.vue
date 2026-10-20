@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 
-import AppIcon from "@/components/AppIcon.vue";
 import { t } from "@/i18n";
 
 /**
@@ -18,10 +17,10 @@ import { t } from "@/i18n";
  * dialogs both answer Escape — one key would have closed the keypad *and* the
  * dialog behind it, losing what had been entered.
  *
- * **Ten digits and a point.** Halalas are real money — 200.50 is an amount, and
- * BR-024 rounds to the nearest 0.05 — so the decimal point is a key, not an
- * optional extra. Backspace sits beside the figure instead, where a calculator
- * app puts it.
+ * **Ten digits, a point and `c`.** Halalas are real money — 200.50 is an
+ * amount, and BR-024 rounds to the nearest 0.05 — so the decimal point is a key,
+ * not an optional extra. No backspace: a figure is four or five keys, and `c`
+ * and again is what Foodics' pad offers too (`D-370`).
  *
  * **The pad runs left to right, always.** A calculator keypad reads 1-2-3 from
  * the left in every locale; laid out by the page direction it would come out
@@ -75,10 +74,6 @@ function clear(): void {
   set("");
 }
 
-function back(): void {
-  set(draft.value.slice(0, -1));
-}
-
 /**
  * What was typed, not what it rounds to.
  *
@@ -94,48 +89,30 @@ const preview = computed(() => draft.value || "0");
   <div>
     <p
       v-if="label"
-      class="mb-1.5 text-sm font-semibold text-muted"
+      class="mb-2 text-center text-sm text-subtle"
     >
       {{ label }}
     </p>
 
-    <!--
-      Backspace lives with the figure, not in the pad. The pad is ten digits and
-      a decimal point — a calculator's shape, which a hand already knows — and
-      taking a key out of it to make room is how the point went missing.
-    -->
     <div
-      class="mb-3 flex items-center gap-2 rounded-rpos bg-background px-3 py-3"
+      class="rpos-pad-display"
       dir="ltr"
     >
-      <p class="rpos-numeric flex-1 text-center text-3xl font-bold">
+      <p class="rpos-numeric text-2xl font-medium">
         {{ preview }}
       </p>
-      <button
-        type="button"
-        class="grid h-11 w-11 shrink-0 place-items-center rounded-rpos text-muted transition duration-200 ease-rpos hover:bg-surface hover:text-content disabled:opacity-30"
-        :disabled="!draft"
-        :aria-label="t('keypad.back')"
-        @click="back"
-      >
-        <AppIcon
-          name="back"
-          class="rpos-flip"
-          :size="22"
-        />
-      </button>
     </div>
 
     <!-- `dir="ltr"` is the point: a keypad is 1-2-3 from the left, everywhere. -->
     <div
-      class="grid grid-cols-3 gap-2"
+      class="rpos-pad-tray mt-4 grid grid-cols-3 gap-4"
       dir="ltr"
     >
       <button
         v-for="key in KEYS"
         :key="key"
         type="button"
-        class="rpos-numeric h-14 rounded-rpos bg-background text-2xl font-bold transition duration-200 ease-rpos hover:bg-primary/10 hover:text-primary"
+        class="rpos-pad-key"
         @click="press(key)"
       >
         {{ key }}
@@ -143,22 +120,22 @@ const preview = computed(() => draft.value || "0");
 
       <button
         type="button"
-        class="h-14 rounded-rpos bg-background text-lg font-bold text-danger transition duration-200 ease-rpos hover:bg-danger/10"
+        class="rpos-pad-key"
         :aria-label="t('keypad.clear')"
         @click="clear"
       >
-        C
+        c
       </button>
       <button
         type="button"
-        class="rpos-numeric h-14 rounded-rpos bg-background text-2xl font-bold transition duration-200 ease-rpos hover:bg-primary/10 hover:text-primary"
+        class="rpos-pad-key"
         @click="press('0')"
       >
         0
       </button>
       <button
         type="button"
-        class="rpos-numeric h-14 rounded-rpos bg-background text-2xl font-bold transition duration-200 ease-rpos hover:bg-primary/10 hover:text-primary"
+        class="rpos-pad-key"
         :aria-label="t('keypad.decimal')"
         @click="press('.')"
       >

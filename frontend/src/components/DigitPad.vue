@@ -45,20 +45,18 @@ function clear(): void {
 </script>
 
 <template>
-  <!-- Bordered keys, not flat tiles. A pad on a white card with nothing but a
-       tint behind each digit has no edge at arm's length under a shop's
-       lighting, which is where this is read; the hairline is what makes the
-       twelve of them look like keys. Taller than the 48px minimum too — it is
-       the first control of every shift and the one typed without looking. -->
+  <!-- The keypad look shared with money and codes (`D-370`): white keys on a
+       grey tray. Kept the delete key — a PIN or a phone number is typed
+       blind, digit by digit, and one slip should not cost the lot. -->
   <div
-    class="grid grid-cols-3 gap-2.5"
+    class="rpos-pad-tray grid grid-cols-3 gap-4"
     dir="ltr"
   >
     <button
       v-for="key in KEYS"
       :key="key"
       type="button"
-      class="rpos-numeric h-14 rounded-rpos border border-line-strong bg-background text-xl font-medium transition duration-200 ease-rpos hover:border-primary hover:text-primary"
+      class="rpos-pad-key"
       @click="press(key)"
     >
       {{ key }}
@@ -66,22 +64,22 @@ function clear(): void {
 
     <button
       type="button"
-      class="h-14 rounded-rpos border border-line-strong bg-background text-base font-medium text-danger transition duration-200 ease-rpos hover:border-danger"
+      class="rpos-pad-key"
       :aria-label="t('keypad.clear')"
       @click="clear"
     >
-      C
+      c
     </button>
     <button
       type="button"
-      class="rpos-numeric h-14 rounded-rpos border border-line-strong bg-background text-xl font-medium transition duration-200 ease-rpos hover:border-primary hover:text-primary"
+      class="rpos-pad-key"
       @click="press('0')"
     >
       0
     </button>
     <button
       type="button"
-      class="grid h-14 place-items-center rounded-rpos border border-line-strong bg-background text-muted transition duration-200 ease-rpos hover:border-primary hover:text-primary disabled:opacity-40 disabled:hover:border-line"
+      class="rpos-pad-key grid place-items-center"
       :disabled="!value"
       :aria-label="t('keypad.back')"
       @click="back"

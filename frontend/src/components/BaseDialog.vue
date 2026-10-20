@@ -41,8 +41,15 @@ const props = withDefaults(
      * cannot do it through a letterbox.
      */
     wide?: boolean;
+    /**
+     * The keypad look (`D-370`): narrow, on the grey the keys sit on, the
+     * title centred over a white band for the figure. No cancel button in
+     * such a dialog — the backdrop and Escape close it, and only its one
+     * button keeps what was typed.
+     */
+    pad?: boolean;
   }>(),
-  { dismissible: true, wide: false },
+  { dismissible: true, wide: false, pad: false },
 );
 
 const emit = defineEmits<{ close: [] }>();
@@ -128,9 +135,20 @@ onUnmounted(() => {
         role="dialog"
         aria-modal="true"
         :aria-label="title"
-        :class="['max-h-[90vh] w-full overflow-y-auto rounded-rpos bg-surface p-5 shadow-xl', wide ? 'max-w-5xl' : 'max-w-lg']"
+        :data-pad-dialog="pad || undefined"
+        :class="[
+          'max-h-[90vh] w-full overflow-y-auto shadow-xl',
+          pad ? 'rounded-xl bg-background px-5 pb-5' : 'rounded-rpos bg-surface p-5',
+          wide ? 'max-w-5xl' : pad ? 'max-w-xs' : 'max-w-lg',
+        ]"
       >
-        <h2 class="mb-4 text-lg font-semibold">
+        <h2
+          :class="
+            pad
+              ? '-mx-5 mb-0 px-5 py-3 text-center text-lg font-normal text-subtle'
+              : 'mb-4 text-lg font-semibold'
+          "
+        >
           {{ title }}
         </h2>
         <slot />
@@ -142,7 +160,8 @@ onUnmounted(() => {
         <div
           v-if="$slots.footer"
           data-dialog-footer
-          class="sticky -bottom-5 -mx-5 -mb-5 mt-4 border-t border-line bg-surface px-5 pb-5 pt-3"
+          class="sticky -bottom-5 -mx-5 -mb-5 mt-4 px-5 pb-5 pt-3"
+          :class="pad ? 'bg-background' : 'border-t border-line bg-surface'"
         >
           <slot name="footer" />
         </div>

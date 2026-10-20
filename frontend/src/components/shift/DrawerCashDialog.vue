@@ -122,9 +122,10 @@ async function send(): Promise<void> {
   <BaseDialog
     :open="open"
     :title="t('drawerCash.title')"
+    pad
     @close="emit('close')"
   >
-    <p class="mb-4 text-xs text-subtle">
+    <p class="mb-3 text-center text-xs text-subtle">
       {{ t("drawerCash.body") }}
     </p>
 
@@ -137,7 +138,7 @@ async function send(): Promise<void> {
         :class="
           direction === way
             ? 'border-primary bg-primary text-primary-contrast'
-            : 'border-line bg-background text-content'
+            : 'border-transparent bg-surface text-content'
         "
         :aria-pressed="direction === way"
         @click="direction = way"
@@ -160,23 +161,14 @@ async function send(): Promise<void> {
       {{ error }}
     </p>
 
-    <div class="mt-4 flex gap-2">
-      <button
-        type="button"
-        class="min-h-tap flex-1 rounded-rpos border border-line"
-        @click="emit('close')"
-      >
-        {{ t("action.cancel") }}
-      </button>
-      <button
-        type="button"
-        class="min-h-tap flex-1 rounded-rpos bg-primary font-medium text-primary-contrast disabled:opacity-40"
-        :disabled="busy || value <= 0"
-        @click="confirm"
-      >
-        {{ t("drawerCash.confirm") }}
-      </button>
-    </div>
+    <button
+      type="button"
+      class="rpos-pad-done mt-4"
+      :disabled="busy || value <= 0"
+      @click="confirm"
+    >
+      {{ t("drawerCash.confirm") }}
+    </button>
 
     <ReasonDialog
       :open="askingReason"

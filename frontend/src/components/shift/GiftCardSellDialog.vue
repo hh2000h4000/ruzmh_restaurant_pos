@@ -5,7 +5,7 @@ import { sellGiftCard } from "@/api/giftCard";
 import BaseDialog from "@/components/BaseDialog.vue";
 import CodePad from "@/components/order/CodePad.vue";
 import AmountKeypad from "@/components/shift/AmountKeypad.vue";
-import { formatNumber, t } from "@/i18n";
+import { formatNumber, methodName, t } from "@/i18n";
 import { useSessionStore } from "@/stores/session";
 
 /**
@@ -174,7 +174,7 @@ async function confirm(): Promise<void> {
           :aria-pressed="method === row.mode_of_payment"
           @click="method = row.mode_of_payment"
         >
-          {{ row.mode_of_payment }}
+          {{ methodName(row.mode_of_payment) }}
         </button>
       </div>
 
@@ -186,23 +186,14 @@ async function confirm(): Promise<void> {
         {{ error }}
       </p>
 
-      <div class="flex gap-2">
-        <button
-          type="button"
-          class="min-h-tap flex-1 rounded-rpos border border-line"
-          @click="emit('close')"
-        >
-          {{ t("action.cancel") }}
-        </button>
-        <button
-          type="button"
-          class="min-h-tap flex-1 rounded-rpos bg-primary font-medium text-primary-contrast disabled:opacity-40"
-          :disabled="!canSend || !method"
-          @click="confirm"
-        >
-          {{ t("giftCard.sell") }}
-        </button>
-      </div>
+      <button
+        type="button"
+        class="min-h-tap w-full rounded-rpos bg-primary font-medium text-primary-contrast disabled:opacity-40"
+        :disabled="!canSend || !method"
+        @click="confirm"
+      >
+        {{ t("giftCard.sell") }}
+      </button>
     </template>
   </BaseDialog>
 </template>

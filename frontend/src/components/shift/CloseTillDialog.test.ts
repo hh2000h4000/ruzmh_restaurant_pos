@@ -53,13 +53,13 @@ describe("counting a drawer out", () => {
     expect(wrapper.text()).not.toContain("247.90");
     expect(wrapper.text()).not.toContain("217.40");
     expect(wrapper.find("[data-blind]").exists()).toBe(true);
-    expect(button(wrapper, "خلّصت العدّ")).toBeTruthy();
+    expect(button(wrapper, "تم")).toBeTruthy();
   });
 
   it("shows the difference only once the count is done, and asks why", async () => {
     const { wrapper, shift } = await dialog();
     wrapper.findComponent(TillCount).vm.$emit("update", "Cash", "247");
-    await button(wrapper, "خلّصت العدّ").trigger("click");
+    await button(wrapper, "تم").trigger("click");
 
     expect(wrapper.text()).toContain("247.90");
     expect(wrapper.text()).toContain("-0.90");
@@ -75,7 +75,7 @@ describe("counting a drawer out", () => {
   it("hides it all again to count again", async () => {
     const { wrapper } = await dialog();
     wrapper.findComponent(TillCount).vm.$emit("update", "Cash", "200");
-    await button(wrapper, "خلّصت العدّ").trigger("click");
+    await button(wrapper, "تم").trigger("click");
     await button(wrapper, "أعد العدّ").trigger("click");
 
     expect(wrapper.text()).not.toContain("247.90");

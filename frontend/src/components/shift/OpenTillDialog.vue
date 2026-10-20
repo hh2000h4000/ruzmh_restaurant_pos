@@ -83,12 +83,9 @@ async function confirm(): Promise<void> {
   <BaseDialog
     :open="open"
     :title="t('shift.openTillTitle')"
+    pad
     @close="emit('close')"
   >
-    <p class="mb-3 text-sm text-muted">
-      {{ t("shift.openTillBody") }}
-    </p>
-
     <!-- A terminal with no cash method has no float to count; it opens on zero. -->
     <TillCount
       v-if="rows.length"
@@ -100,7 +97,7 @@ async function confirm(): Promise<void> {
 
     <p
       v-if="methods.length > 1 && total"
-      class="mb-4 flex items-center justify-between rounded-rpos bg-background p-3 text-sm"
+      class="mb-4 flex items-center justify-between rounded bg-surface p-3 text-sm"
     >
       <span class="text-muted">{{ t("shift.openingTotal") }}</span>
       <span class="rpos-numeric font-bold">{{ formatNumber(total, 2) }}</span>
@@ -114,22 +111,14 @@ async function confirm(): Promise<void> {
       {{ shift.error }}
     </p>
 
-    <div class="flex gap-2">
-      <button
-        type="button"
-        class="min-h-tap flex-1 rounded-rpos border border-line"
-        @click="emit('close')"
-      >
-        {{ t("action.undo") }}
-      </button>
-      <button
-        type="button"
-        class="min-h-tap flex-1 rounded-rpos bg-primary font-bold text-primary-contrast disabled:opacity-40"
-        :disabled="shift.busy"
-        @click="confirm"
-      >
-        {{ t("shift.openTill") }}
-      </button>
-    </div>
+    <!-- One button: the backdrop is the way out, and only this opens the till (`D-370`). -->
+    <button
+      type="button"
+      class="rpos-pad-done"
+      :disabled="shift.busy"
+      @click="confirm"
+    >
+      {{ t("action.done") }}
+    </button>
   </BaseDialog>
 </template>

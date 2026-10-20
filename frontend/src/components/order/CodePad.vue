@@ -67,6 +67,7 @@ function press(key: string): void {
        anybody has used (`FR-17`). -->
   <div
     v-if="shown"
+    class="rpos-pad-tray"
     dir="ltr"
   >
     <div class="grid grid-cols-9 gap-1.5">
@@ -74,7 +75,7 @@ function press(key: string): void {
         v-for="key in KEYS"
         :key="key"
         type="button"
-        class="rpos-numeric h-11 rounded-rpos border border-line-strong bg-background text-base font-medium transition duration-200 ease-rpos hover:border-primary hover:text-primary"
+        class="rpos-pad-key h-11 text-base"
         @click="press(key)"
       >
         {{ key }}
@@ -86,15 +87,15 @@ function press(key: string): void {
     <div class="mt-1.5 grid grid-cols-2 gap-1.5">
       <button
         type="button"
-        class="h-11 rounded-rpos border border-line-strong bg-background text-sm font-medium text-danger transition duration-200 ease-rpos hover:border-danger"
+        class="rpos-pad-key h-11 text-base"
         :aria-label="t('keypad.clear')"
         @click="emit('update', '')"
       >
-        C
+        c
       </button>
       <button
         type="button"
-        class="grid h-11 place-items-center rounded-rpos border border-line-strong bg-background text-muted transition duration-200 ease-rpos hover:border-primary hover:text-primary disabled:opacity-40 disabled:hover:border-line"
+        class="rpos-pad-key grid h-11 place-items-center"
         :disabled="!value"
         :aria-label="t('keypad.back')"
         @click="emit('update', value.slice(0, -1))"

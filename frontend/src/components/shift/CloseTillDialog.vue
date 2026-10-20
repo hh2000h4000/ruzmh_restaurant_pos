@@ -6,7 +6,7 @@ import AppIcon from "@/components/AppIcon.vue";
 import BaseDialog from "@/components/BaseDialog.vue";
 import CashierTakings from "@/components/shift/CashierTakings.vue";
 import TillCount, { type CountRow } from "@/components/shift/TillCount.vue";
-import { formatNumber, t } from "@/i18n";
+import { formatNumber, methodName, t } from "@/i18n";
 import { useShiftStore } from "@/stores/shift";
 
 /**
@@ -134,6 +134,7 @@ function money(value: number): string {
   <BaseDialog
     :open="open"
     :title="t('shift.closeTillTitle')"
+    pad
     @close="emit('close')"
   >
     <p
@@ -152,7 +153,7 @@ function money(value: number): string {
       <p
         v-if="!revealed"
         data-blind
-        class="mb-3 text-sm text-muted"
+        class="mb-3 text-center text-xs text-subtle"
       >
         {{ t("shift.countBlind") }}
       </p>
@@ -160,7 +161,7 @@ function money(value: number): string {
       <!-- What was sold through this drawer — after the count, not before it (`D-360`). -->
       <dl
         v-if="revealed"
-        class="mb-4 grid grid-cols-2 gap-x-4 gap-y-1 rounded-rpos bg-background p-3 text-sm"
+        class="mb-4 grid grid-cols-2 gap-x-4 gap-y-1 rounded bg-surface p-3 text-sm"
       >
         <dt class="text-muted">
           {{ t("shift.ordersClosed") }}
@@ -195,7 +196,7 @@ function money(value: number): string {
       -->
       <div
         v-if="creditRows.length"
-        class="mb-4 rounded-rpos bg-background p-3"
+        class="mb-4 rounded bg-surface p-3"
       >
         <p class="mb-2 text-xs font-semibold text-muted">
           {{ t("shift.creditNote") }}
@@ -205,7 +206,7 @@ function money(value: number): string {
           :key="row.method"
           class="flex items-center justify-between gap-3 text-sm text-muted"
         >
-          <span class="min-w-0 truncate">{{ row.method }}</span>
+          <span class="min-w-0 truncate">{{ methodName(row.method) }}</span>
           <span class="rpos-numeric">{{ money(row.sales) }}</span>
         </div>
       </div>
@@ -224,7 +225,7 @@ function money(value: number): string {
         <input
           v-model="reason"
           type="text"
-          class="min-h-tap w-full rounded-rpos border border-line bg-background px-3"
+          class="min-h-tap w-full rounded border border-line bg-surface px-3"
           :placeholder="t('shift.varianceReason')"
         >
       </div>
@@ -237,39 +238,36 @@ function money(value: number): string {
         {{ shift.error }}
       </p>
 
-      <div class="flex gap-2">
+      <!-- One button to count, as on Foodics: the backdrop closes without
+           keeping anything (`D-370`). After the count the till shows what it
+           expected, and the choice is real — close on that, or count again. -->
+      <button
+        v-if="!revealed"
+        type="button"
+        class="rpos-pad-done"
+        @click="countDone"
+      >
+        {{ t("action.done") }}
+      </button>
+      <div
+        v-else
+        class="flex flex-col gap-2"
+      >
         <button
-          v-if="revealed && settlementRequired"
           type="button"
-          class="min-h-tap flex-1 rounded-rpos border border-line"
-          @click="recount"
-        >
-          {{ t("shift.recount") }}
-        </button>
-        <button
-          v-else
-          type="button"
-          class="min-h-tap flex-1 rounded-rpos border border-line"
-          @click="emit('close')"
-        >
-          {{ t("action.undo") }}
-        </button>
-        <button
-          v-if="!revealed"
-          type="button"
-          class="min-h-tap flex-1 rounded-rpos bg-primary font-medium text-primary-contrast"
-          @click="countDone"
-        >
-          {{ t("shift.countDone") }}
-        </button>
-        <button
-          v-else
-          type="button"
-          class="min-h-tap flex-1 rounded-rpos bg-primary font-medium text-primary-contrast disabled:cursor-not-allowed disabled:opacity-40"
+          class="rpos-pad-done"
           :disabled="shift.busy || (needsReason && !reason.trim())"
           @click="confirm"
         >
           {{ t("shift.closeTill") }}
+        </button>
+        <button
+          v-if="settlementRequired"
+          type="button"
+          class="min-h-tap text-subtle"
+          @click="recount"
+        >
+          {{ t("shift.recount") }}
         </button>
       </div>
     </template>

@@ -194,7 +194,7 @@ describe("what the payment screen lets a cashier reach", () => {
   it("offers every permitted method on an ordinary bill", async () => {
     const wrapper = await open(summary());
 
-    expect(isDisabled(wrapper, "Cash")).toBe(false);
+    expect(isDisabled(wrapper, "نقد")).toBe(false);
     expect(isDisabled(wrapper, "mada")).toBe(false);
   });
 
@@ -207,7 +207,7 @@ describe("what the payment screen lets a cashier reach", () => {
   it("confirms once the bill is covered", async () => {
     const wrapper = await open(summary());
 
-    await tender(wrapper, "Cash");
+    await tender(wrapper, "نقد");
 
     expect(confirmButton(wrapper).disabled).toBe(false);
   });
@@ -222,7 +222,7 @@ describe("what the payment screen lets a cashier reach", () => {
     expect(bar.text()).toContain("تأكيد الدفع");
     expect(barButton().disabled).toBe(true);
 
-    await tender(wrapper, "Cash");
+    await tender(wrapper, "نقد");
 
     expect(barButton().disabled).toBe(confirmButton(wrapper).disabled);
     expect(barButton().disabled).toBe(false);
@@ -244,7 +244,7 @@ describe("what the payment screen lets a cashier reach", () => {
     );
 
     expect(isDisabled(wrapper, "HungerStation")).toBe(false);
-    expect(isDisabled(wrapper, "Cash")).toBe(true);
+    expect(isDisabled(wrapper, "نقد")).toBe(true);
   });
 
   it("accepts either of two forced methods, matching the server", async () => {
@@ -259,8 +259,8 @@ describe("what the payment screen lets a cashier reach", () => {
     );
 
     expect(isDisabled(wrapper, "mada")).toBe(false);
-    expect(isDisabled(wrapper, "Credit Card")).toBe(false);
-    expect(isDisabled(wrapper, "Cash")).toBe(true);
+    expect(isDisabled(wrapper, "بطاقة ائتمان")).toBe(false);
+    expect(isDisabled(wrapper, "نقد")).toBe(true);
   });
 
   /**
@@ -281,16 +281,16 @@ describe("what the payment screen lets a cashier reach", () => {
 
     // Fifty of two hundred, deliberately: with the bill still uncovered, a
     // quiet Jahez can only be the settlement rule and not the balance.
-    await tenderSome(wrapper, "Cash", "50");
+    await tenderSome(wrapper, "نقد", "50");
 
     expect(isDisabled(wrapper, "Jahez")).toBe(true);
-    expect(isDisabled(wrapper, "Cash")).toBe(false);
+    expect(isDisabled(wrapper, "نقد")).toBe(false);
   });
 
   it("stops offering methods once the bill is covered", async () => {
     const wrapper = await open(summary());
 
-    await tender(wrapper, "Cash");
+    await tender(wrapper, "نقد");
 
     expect(isDisabled(wrapper, "mada")).toBe(true);
   });
@@ -303,7 +303,7 @@ describe("what the payment screen lets a cashier reach", () => {
   it("takes nothing at all when the terminal cannot raise an invoice", async () => {
     const wrapper = await open(summary({ blocker: "اضبط عميلاً افتراضياً على الطرفية." }));
 
-    expect(isDisabled(wrapper, "Cash")).toBe(true);
+    expect(isDisabled(wrapper, "نقد")).toBe(true);
     expect(isDisabled(wrapper, "mada")).toBe(true);
     expect(confirmButton(wrapper).disabled).toBe(true);
     expect(wrapper.text()).toContain("اضبط عميلاً افتراضياً");
@@ -315,7 +315,7 @@ describe("what the payment screen lets a cashier reach", () => {
       summary({ already_paid: true, sales_invoice: "ACC-SINV-2026-00001" }),
     );
 
-    expect(isDisabled(wrapper, "Cash")).toBe(true);
+    expect(isDisabled(wrapper, "نقد")).toBe(true);
     expect(confirmButton(wrapper).disabled).toBe(true);
   });
 
@@ -328,7 +328,7 @@ describe("what the payment screen lets a cashier reach", () => {
     const wrapper = await open(summary());
     vi.mocked(paymentApi.processPayment).mockRejectedValue(new Error("رُفض الدفع"));
 
-    await tender(wrapper, "Cash");
+    await tender(wrapper, "نقد");
     await confirmButton(wrapper).click();
     await flushPromises();
 
@@ -430,7 +430,7 @@ describe("choosing an offer the shop configured", () => {
 
     await offerButton(wrapper, "عرض الإفطار").trigger("click");
     await flushPromises();
-    await tender(wrapper, "Cash");
+    await tender(wrapper, "نقد");
     await confirmButton(wrapper).click();
     await flushPromises();
 
@@ -501,7 +501,7 @@ describe("loyalty points on the bill", () => {
 
     await pointsButton(wrapper).trigger("click");
     await flushPromises();
-    await tender(wrapper, "Cash");
+    await tender(wrapper, "نقد");
     await confirmButton(wrapper).click();
     await flushPromises();
 
@@ -520,7 +520,7 @@ describe("loyalty points on the bill", () => {
     await flushPromises();
     await pointsButton(wrapper).trigger("click");
     await flushPromises();
-    await tender(wrapper, "Cash");
+    await tender(wrapper, "نقد");
     await confirmButton(wrapper).click();
     await flushPromises();
 

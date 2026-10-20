@@ -15,7 +15,7 @@ import ManagerPinDialog from "@/components/ManagerPinDialog.vue";
 import CouponDialog from "@/components/order/CouponDialog.vue";
 import GiftCardPayDialog from "@/components/order/GiftCardPayDialog.vue";
 import TenderSheet from "@/components/order/TenderSheet.vue";
-import { formatNumber, pick, t } from "@/i18n";
+import { formatNumber, methodName, pick, t } from "@/i18n";
 import { useOrderStore } from "@/stores/order";
 import { useSessionStore } from "@/stores/session";
 
@@ -780,7 +780,7 @@ async function confirm(): Promise<void> {
           v-if="forcedMethod"
           class="rounded-rpos bg-accent-gold/10 px-3 py-2 text-xs text-accent-gold"
         >
-          {{ t("pay.forcedMethod", { method: forcedMethod ?? "" }) }}
+          {{ t("pay.forcedMethod", { method: methodName(forcedMethod) }) }}
         </p>
 
         <div class="flex flex-wrap items-center gap-2.5">
@@ -879,7 +879,7 @@ async function confirm(): Promise<void> {
             <!-- A method's name is a brand — Cash, mada, Jahez — and it is
                  written the way it is written, not reordered by the paragraph
                  it sits in. -->
-            <span dir="ltr">{{ method.payment_method }}</span>
+            <span>{{ methodName(method.payment_method) }}</span>
           </button>
         </div>
 
@@ -910,7 +910,7 @@ async function confirm(): Promise<void> {
             <span
               dir="ltr"
               class="flex-1 truncate text-start"
-            >{{ line.method }}</span>
+            >{{ methodName(line.method) }}</span>
             <span class="rpos-numeric">{{ money(line.amount) }}</span>
             <!-- Only worth saying when more was handed over than the bill asked
                  for, because that is where the change comes from. -->

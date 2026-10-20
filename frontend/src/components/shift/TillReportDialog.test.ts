@@ -62,7 +62,7 @@ describe("the X report on screen", () => {
     // `false`: only the closing screen, where somebody is counting, pops it.
     expect(summary).toHaveBeenCalledWith();
     expect(view.text()).toContain("300");
-    expect(view.text()).toContain("Cash");
+    expect(view.text()).toContain("نقد");
     expect(view.text()).toContain("محلي");
   });
 

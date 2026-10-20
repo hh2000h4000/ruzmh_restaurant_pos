@@ -2,7 +2,7 @@
 import { computed, ref, watch } from "vue";
 
 import AmountKeypad from "@/components/shift/AmountKeypad.vue";
-import { formatNumber, t } from "@/i18n";
+import { formatNumber, methodName, t } from "@/i18n";
 
 /**
  * Counting money into the till, and counting it back out (D-049, D-052).
@@ -100,7 +100,7 @@ function money(value: number): string {
         @click="active = row.method"
       >
         <span class="min-w-0 flex-1">
-          <span class="block truncate text-sm font-semibold">{{ row.method }}</span>
+          <span class="block truncate text-sm font-semibold">{{ methodName(row.method) }}</span>
           <span
             v-if="row.expected !== null && row.expected !== undefined"
             class="rpos-numeric block truncate text-xs text-muted"
@@ -120,7 +120,7 @@ function money(value: number): string {
 
     <AmountKeypad
       v-if="active && !readonly"
-      :label="listed ? undefined : active"
+      :label="listed ? undefined : methodName(active)"
       :value="values[active] ?? '0'"
       @update="emit('update', active, $event)"
     />

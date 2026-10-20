@@ -75,6 +75,29 @@ export function tn(key: PluralKey, count: number, params?: Record<string, string
 }
 
 /**
+ * The payment methods ERPNext creates with every company, by their record name.
+ *
+ * A method's name is its key — the till sends it back and the books file by
+ * it — so it cannot be renamed into Arabic. These five come in English on every
+ * site and were read out as «Cash» on an Arabic till (`D-370`); a method the
+ * shop named itself is shown as written.
+ */
+const SEEDED_METHODS: Record<string, MessageKey> = {
+  Cash: "method.cash",
+  "Credit Card": "method.creditCard",
+  "Bank Draft": "method.bankDraft",
+  Cheque: "method.cheque",
+  "Wire Transfer": "method.wireTransfer",
+};
+
+/** A payment method as the cashier reads it. */
+export function methodName(name: string | null | undefined): string {
+  if (!name) return "";
+  const key = SEEDED_METHODS[name];
+  return key ? t(key) : name;
+}
+
+/**
  * Pick the right side of a bilingual pair coming from the database.
  *
  * Masters carry `title` and `title_ar` (`CLAUDE.md` §5.2). Falling back the

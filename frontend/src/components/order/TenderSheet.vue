@@ -20,7 +20,7 @@ import { computed, ref, watch } from "vue";
 
 import AmountKeypad from "@/components/shift/AmountKeypad.vue";
 import BaseDialog from "@/components/BaseDialog.vue";
-import { money, t } from "@/i18n";
+import { methodName, money, t } from "@/i18n";
 
 /**
  * Notes a customer actually hands over. Not a computation — a list of the
@@ -68,67 +68,53 @@ watch(
 <template>
   <BaseDialog
     :open="Boolean(method)"
-    :title="method ?? ''"
-    :wide="typing"
+    :title="methodName(method)"
+    pad
     @close="emit('close')"
   >
-    <!-- White keys on a grey tray, the way the reference draws it. The tray is
-         what makes a stack of buttons read as one control rather than as five
-         unrelated things, and it is the same shape the keypad beside it takes. -->
-    <!-- The keypad gets a column of its own width; letting it size itself
-         squeezed it to a strip of digits nobody could hit. -->
-    <div :class="typing ? 'grid gap-3 sm:grid-cols-[minmax(0,1fr)_18rem]' : ''">
-      <div class="flex flex-col gap-2 rounded-rpos bg-background p-3">
-        <button
-          v-for="(amount, index) in options"
-          :key="amount"
-          type="button"
-          class="rpos-numeric min-h-tap rounded-rpos text-lg font-bold shadow-card"
-          :class="index === 0 ? 'bg-primary text-primary-contrast' : 'bg-surface'"
-          @click="emit('pick', amount)"
-        >
-          {{ money(amount) }}
-        </button>
-
-        <button
-          type="button"
-          class="min-h-tap rounded-rpos bg-surface font-medium shadow-card"
-          :class="typing ? 'ring-2 ring-primary' : ''"
-          @click="typing = true"
-        >
-          {{ t("pay.customAmount") }}
-        </button>
-
-        <button
-          type="button"
-          class="min-h-tap rounded-rpos bg-surface font-medium text-danger shadow-card"
-          @click="emit('close')"
-        >
-          {{ t("action.cancel") }}
-        </button>
-      </div>
-
-      <!-- The keypad is a panel that sits beside the choices, not a second
-           dialog over them: two stacked dialogs both answer Escape, and one key
-           would close the keypad *and* the sheet behind it (`D-049`). -->
-      <div
-        v-if="typing"
-        class="flex flex-col gap-2 rounded-rpos bg-background p-3"
+    <!-- The amounts, or the keypad for one that is not there — one at a time,
+         in the keypad's narrow shape (`D-370`). Nothing to cancel: the backdrop
+         closes the sheet and nothing is taken until an amount is picked. -->
+    <div
+      v-if="!typing"
+      class="flex flex-col gap-3 pt-2"
+    >
+      <button
+        v-for="(amount, index) in options"
+        :key="amount"
+        type="button"
+        class="rpos-numeric min-h-14 rounded text-xl font-medium"
+        :class="index === 0 ? 'bg-primary text-primary-contrast' : 'bg-surface'"
+        @click="emit('pick', amount)"
       >
-        <AmountKeypad
-          :value="draft"
-          :label="t('pay.customAmount')"
-          @update="draft = $event"
-        />
-        <button
-          type="button"
-          class="min-h-tap rounded-rpos bg-primary font-medium text-primary-contrast shadow-card disabled:opacity-50"
-          :disabled="custom <= 0"
-          @click="emit('pick', custom)"
-        >
-          {{ t("action.done") }}
-        </button>
-      </div>
+        {{ money(amount) }}
+      </button>
+
+      <button
+        type="button"
+        class="rpos-pad-done"
+        @click="typing = true"
+      >
+        {{ t("pay.customAmount") }}
+      </button>
+    </div>
+
+    <div
+      v-else
+      class="flex flex-col gap-4"
+    >
+      <AmountKeypad
+        :value="draft"
+        @update="draft = $event"
+      />
+      <button
+        type="button"
+        class="rpos-pad-done"
+        :disabled="custom <= 0"
+        @click="emit('pick', custom)"
+      >
+        {{ t("action.done") }}
+      </button>
     </div>
   </BaseDialog>
 </template>

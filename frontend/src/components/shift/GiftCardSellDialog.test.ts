@@ -46,7 +46,7 @@ describe("selling a card", () => {
     expect(footer.exists()).toBe(true);
     const labels = footer.findAll("button").map((button) => button.text().trim());
     expect(labels).toContain("بيع");
-    expect(labels).toContain("Cash");
+    expect(labels).toContain("نقد");
   });
 
   it("asks for a wide sheet, so the two keypads can sit side by side", () => {
@@ -62,7 +62,7 @@ describe("selling a card", () => {
       .findAll("button")
       .map((button) => button.text().trim());
 
-    expect(labels).toContain("Cash");
+    expect(labels).toContain("نقد");
     expect(labels).not.toContain("Card balance");
     expect(labels).not.toContain("Talabat");
   });

@@ -5,7 +5,7 @@ import type { ShiftReport } from "@/api/shift";
 import AppIcon from "@/components/AppIcon.vue";
 import BaseDialog from "@/components/BaseDialog.vue";
 import CashierTakings from "@/components/shift/CashierTakings.vue";
-import { formatNumber, type MessageKey, pick, t } from "@/i18n";
+import { formatNumber, methodName, pick, t, type MessageKey } from "@/i18n";
 import { useNoticeStore } from "@/stores/notice";
 import { useShiftStore } from "@/stores/shift";
 
@@ -169,7 +169,7 @@ function money(value: number): string {
           class="flex items-center justify-between gap-3 text-sm"
           :class="row.kind === 'credit' ? 'text-muted' : ''"
         >
-          <span class="min-w-0 truncate">{{ row.method }}</span>
+          <span class="min-w-0 truncate">{{ methodName(row.method) }}</span>
           <span class="rpos-numeric shrink-0">{{ money(row.sales) }}</span>
         </div>
         <p

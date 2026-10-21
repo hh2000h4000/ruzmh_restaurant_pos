@@ -1,17 +1,13 @@
 // @vitest-environment jsdom
 
 /**
- * The sell button stays in reach (`D-256`).
+ * Selling a card in two steps, one pad at a time (`D-381`).
  *
- * Two keypads — letters for the card's number, digits for the amount — stacked
- * to 968 pixels on an 800-pixel till, and the button that sells sat under both.
- * The cashier had to scroll to finish a sale nobody told them was unfinished.
- *
- * jsdom lays nothing out, so this cannot measure the fold. What it can hold is
- * the shape that keeps the button above it: the answer lives in the dialog's
- * pinned footer, not at the end of the body.
+ * The card's number first, then Next; then the amount and what it was paid
+ * with, then Sell. The two keypads used to sit side by side in a sheet as wide
+ * as the till, and before that stacked past the screen (`D-256`).
  */
-import { mount } from "@vue/test-utils";
+import { flushPromises, mount } from "@vue/test-utils";
 import { createPinia, setActivePinia } from "pinia";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -32,38 +28,56 @@ beforeEach(() => {
   } as unknown as PosSession;
 });
 
-function sheet() {
-  return mount(GiftCardSellDialog, {
-    props: { open: true },
+async function sheet() {
+  const wrapper = mount(GiftCardSellDialog, {
+    props: { open: false },
     global: { stubs: { teleport: true } },
   });
+  await wrapper.setProps({ open: true });
+  await flushPromises();
+  return wrapper;
+}
+
+function button(wrapper: Awaited<ReturnType<typeof sheet>>, label: string) {
+  return wrapper.findAll("button").find((b) => b.text().trim() === label)!;
 }
 
 describe("selling a card", () => {
-  it("keeps the sell button and the method in the pinned footer", () => {
-    const footer = sheet().find('[data-dialog-footer]');
+  it("asks for the number first, and moves on only with one", async () => {
+    const wrapper = await sheet();
 
-    expect(footer.exists()).toBe(true);
-    const labels = footer.findAll("button").map((button) => button.text().trim());
-    expect(labels).toContain("بيع");
-    expect(labels).toContain("نقد");
+    expect(wrapper.find('[data-step="number"]').exists()).toBe(true);
+    expect(wrapper.find('[data-step="amount"]').exists()).toBe(false);
+    expect(button(wrapper, "التالي").attributes("disabled")).toBeDefined();
+
+    await wrapper.find("input").setValue("gc-1001");
+    await button(wrapper, "التالي").trigger("click");
+
+    expect(wrapper.find('[data-step="amount"]').exists()).toBe(true);
+    expect(wrapper.text()).toContain("GC-1001");
   });
 
-  it("asks for a wide sheet, so the two keypads can sit side by side", () => {
-    const panel = sheet().find('[role="dialog"]');
-
-    expect(panel.classes()).toContain("max-w-5xl");
-  });
-
-  it("offers only what puts money in the drawer to pay for a card", () => {
+  it("offers only what puts money in the drawer to pay for a card", async () => {
     // `D-276` — a card bought with a card held a balance nobody paid for.
-    const labels = sheet()
-      .find("[data-dialog-footer]")
-      .findAll("button")
-      .map((button) => button.text().trim());
+    const wrapper = await sheet();
+    await wrapper.find("input").setValue("GC-1");
+    await button(wrapper, "التالي").trigger("click");
 
+    const labels = wrapper.find('[data-step="amount"]').findAll("button").map((b) => b.text().trim());
     expect(labels).toContain("نقد");
+    expect(labels).toContain("بيع");
     expect(labels).not.toContain("Card balance");
     expect(labels).not.toContain("Talabat");
+  });
+
+  it("goes back to the number without losing it", async () => {
+    const wrapper = await sheet();
+    await wrapper.find("input").setValue("GC-7");
+    await button(wrapper, "التالي").trigger("click");
+    await button(wrapper, "GC-7تغيير").trigger("click");
+    await flushPromises();
+
+    expect(wrapper.find('[data-step="number"]').exists()).toBe(true);
+    expect((wrapper.find("input").element as HTMLInputElement).value).toBe("GC-7");
   });
 });

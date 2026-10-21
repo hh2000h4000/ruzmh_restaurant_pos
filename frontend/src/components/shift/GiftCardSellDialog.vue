@@ -24,6 +24,11 @@ import { useSessionStore } from "@/stores/session";
  * **The number is typed, or scanned.** Same field and same pad as the coupon
  * screen (`D-250`, `D-252`): a kiosk raises no keyboard, and a wedge scanner
  * needs only a focused field.
+ *
+ * **Two steps, one pad on screen at a time** (`D-381`): the number, then Next;
+ * the amount and the method, then Sell. The two keypads used to sit side by
+ * side in a sheet the width of the till, and a cashier read two questions at
+ * once to answer one.
  */
 const props = defineProps<{ open: boolean }>();
 const emit = defineEmits<{ close: []; done: [] }>();
@@ -37,6 +42,7 @@ const busy = ref(false);
 const error = ref<string | null>(null);
 const sold = ref<{ card_number: string; balance: number } | null>(null);
 const field = ref<HTMLInputElement | null>(null);
+const step = ref<"number" | "amount">("number");
 
 /** Only what puts money in the drawer: no credit lines, no gift cards. */
 const methods = computed(() =>
@@ -52,6 +58,7 @@ watch(
     if (!isOpen) return;
     number.value = "";
     amount.value = "0";
+    step.value = "number";
     error.value = null;
     sold.value = null;
     method.value = methods.value.find((row) => row.default)?.mode_of_payment
@@ -62,6 +69,16 @@ watch(
     field.value?.focus();
   },
 );
+
+async function toNumber(): Promise<void> {
+  step.value = "number";
+  await nextTick();
+  field.value?.focus();
+}
+
+function next(): void {
+  if (number.value.trim()) step.value = "amount";
+}
 
 async function confirm(): Promise<void> {
   if (!canSend.value || !session.profile?.name || !method.value) return;
@@ -91,85 +108,109 @@ async function confirm(): Promise<void> {
   <BaseDialog
     :open="open"
     :title="t('giftCard.sellTitle')"
-    :wide="!sold"
+    pad
+    :wide="!sold && step === 'number'"
     @close="emit('close')"
   >
     <!-- Done: the number and what is on it, to read back across the counter. -->
-    <template v-if="sold">
-      <p class="mb-2 text-xs text-subtle">
+    <div
+      v-if="sold"
+      class="flex flex-col gap-4 pt-2"
+    >
+      <p class="text-center text-xs text-subtle">
         {{ t("giftCard.soldBody") }}
       </p>
-      <div class="mb-4 rounded-rpos bg-background p-4 text-center">
+      <div class="rounded bg-surface p-4 text-center">
         <p
-          class="rpos-numeric text-2xl font-bold tracking-widest"
+          class="rpos-numeric text-2xl font-semibold tracking-widest"
           dir="ltr"
         >
           {{ sold.card_number }}
         </p>
-        <p class="rpos-numeric mt-1 text-sm text-muted">
+        <p class="rpos-numeric mt-1 text-sm text-subtle">
           {{ formatNumber(sold.balance, 2) }}
         </p>
       </div>
       <button
         type="button"
-        class="min-h-tap w-full rounded-rpos bg-primary font-medium text-primary-contrast"
+        class="rpos-pad-done"
         @click="emit('close')"
       >
         {{ t("action.done") }}
       </button>
-    </template>
+    </div>
 
-    <template v-else>
-      <p class="mb-4 text-xs text-subtle">
+    <!-- Step one: which card. -->
+    <div
+      v-else-if="step === 'number'"
+      data-step="number"
+      class="flex flex-col gap-4 pt-2"
+    >
+      <p class="text-center text-xs text-subtle">
         {{ t("giftCard.sellBody") }}
       </p>
+      <input
+        ref="field"
+        :value="number"
+        type="text"
+        autocapitalize="characters"
+        autocomplete="off"
+        dir="ltr"
+        class="rpos-field w-full rounded p-3 text-center text-lg tracking-widest"
+        :placeholder="t('giftCard.numberPlaceholder')"
+        @input="number = ($event.target as HTMLInputElement).value.toUpperCase()"
+        @keydown.enter.prevent="next"
+      >
+      <CodePad
+        :value="number"
+        @update="number = $event"
+      />
+      <button
+        type="button"
+        class="rpos-pad-done"
+        :disabled="!number.trim()"
+        @click="next"
+      >
+        {{ t("action.next") }}
+      </button>
+    </div>
 
-      <!-- Two keypads, side by side where the till has the width: stacked,
-           they ran past the screen and hid the button that sells. -->
-      <div class="grid gap-4 lg:grid-cols-2">
-        <div>
-          <input
-            ref="field"
-            :value="number"
-            type="text"
-            autocapitalize="characters"
-            autocomplete="off"
-            dir="ltr"
-            class="mb-3 w-full rounded-rpos border border-line bg-background p-3 text-center text-lg tracking-widest"
-            :placeholder="t('giftCard.numberPlaceholder')"
-            @input="number = ($event.target as HTMLInputElement).value.toUpperCase()"
-          >
-
-          <CodePad
-            :value="number"
-            @update="number = $event"
-          />
-        </div>
-
-        <AmountKeypad
-          :value="amount"
-          :label="t('giftCard.amount')"
-          @update="amount = $event"
-        />
-      </div>
-    </template>
-
-    <template
-      v-if="!sold"
-      #footer
+    <!-- Step two: how much, paid how. -->
+    <div
+      v-else
+      data-step="amount"
+      class="flex flex-col gap-4 pt-2"
     >
+      <button
+        type="button"
+        class="flex items-center justify-between gap-3 rounded bg-surface px-3 py-2 text-sm"
+        @click="toNumber"
+      >
+        <span
+          class="rpos-numeric truncate tracking-widest"
+          dir="ltr"
+        >{{ number }}</span>
+        <span class="shrink-0 text-primary">{{ t("action.change") }}</span>
+      </button>
+
+      <AmountKeypad
+        :value="amount"
+        :label="t('giftCard.amount')"
+        @update="amount = $event"
+      />
+
       <!-- What the guest paid with. The drawer counts it, so it has to be
            asked rather than assumed. -->
-      <div class="mb-3 grid grid-cols-2 gap-2">
+      <div class="grid grid-cols-2 gap-2">
         <button
           v-for="row in methods"
           :key="row.mode_of_payment"
           type="button"
-          class="min-h-tap rounded-rpos border font-medium transition-colors duration-100 ease-rpos"
+          class="min-h-tap rounded font-medium transition-colors duration-100 ease-rpos"
           :class="
             method === row.mode_of_payment
-              ? 'border-primary bg-primary text-primary-contrast'
-              : 'border-line bg-background text-content'
+              ? 'bg-primary text-primary-contrast'
+              : 'bg-surface text-content'
           "
           :aria-pressed="method === row.mode_of_payment"
           @click="method = row.mode_of_payment"
@@ -181,19 +222,19 @@ async function confirm(): Promise<void> {
       <p
         v-if="error"
         role="alert"
-        class="mb-3 rounded-rpos bg-danger/10 p-3 text-xs text-danger"
+        class="rounded bg-danger/10 p-3 text-xs text-danger"
       >
         {{ error }}
       </p>
 
       <button
         type="button"
-        class="min-h-tap w-full rounded-rpos bg-primary font-medium text-primary-contrast disabled:opacity-40"
+        class="rpos-pad-done"
         :disabled="!canSend || !method"
         @click="confirm"
       >
         {{ t("giftCard.sell") }}
       </button>
-    </template>
+    </div>
   </BaseDialog>
 </template>

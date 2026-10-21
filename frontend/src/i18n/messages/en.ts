@@ -14,6 +14,8 @@ export const messages = {
   "action.cancel": "Cancel",
   "action.back": "Back",
   "action.undo": "Undo",
+  "action.change": "Change",
+  "action.next": "Next",
   "action.refresh": "Refresh",
   "action.remove": "Remove",
   "action.authorize": "Authorize",

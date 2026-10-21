@@ -12,6 +12,8 @@ const messages: Catalogue["messages"] = {
   "action.cancel": "إلغاء",
   "action.back": "رجوع",
   "action.undo": "تراجع",
+  "action.change": "تغيير",
+  "action.next": "التالي",
   "action.refresh": "تحديث",
   "action.remove": "إزالة",
   "action.authorize": "تفويض",

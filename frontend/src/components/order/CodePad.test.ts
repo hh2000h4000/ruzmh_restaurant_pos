@@ -52,4 +52,15 @@ describe("the letter pad", () => {
 
     expect(pad().findAll("button")).toHaveLength(38);
   });
+
+  it("lays its keys out as a keyboard: digits, then Q, A and Z rows", () => {
+    // `D-382` — the order a cashier's thumb knows from the phone, not A to Z.
+    device("Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/129.0", 10);
+
+    const keys = pad()
+      .findAll("button")
+      .map((button) => button.text().trim())
+      .join("");
+    expect(keys.startsWith("1234567890QWERTYUIOPASDFGHJKLZXCVBNMc")).toBe(true);
+  });
 });

@@ -49,11 +49,13 @@ function hasOwnKeyboard(): boolean {
 
 const shown = !hasOwnKeyboard();
 
-/** Letters then digits — 36 keys, four rows of nine, no gaps. */
-const KEYS = [
-  ..."ABCDEFGHIJKLMNOPQRSTUVWXYZ",
-  ..."0123456789",
-] as const;
+/**
+ * **The keyboard's own rows** (`D-382`): digits on top, then Q to P, A to L and
+ * Z to M — the order every cashier's thumb already knows from the phone in
+ * their pocket. It was A to Z in rows of nine, which nobody has typed on, so
+ * every letter was a search.
+ */
+const ROWS = ["1234567890", "QWERTYUIOP", "ASDFGHJKL", "ZXCVBNM"].map((row) => [...row]);
 
 function press(key: string): void {
   if (props.maxLength && props.value.length >= props.maxLength) return;
@@ -64,48 +66,53 @@ function press(key: string): void {
 <template>
   <!-- Left to right whatever the page direction, like every other pad here: a
        keyboard laid out by the locale comes out backwards and is not a keyboard
-       anybody has used (`FR-17`). -->
+       anybody has used (`FR-17`). Every key is a tenth of the widest row, and
+       the shorter rows sit centred under it, as on a keyboard. -->
   <div
     v-if="shown"
-    class="rpos-pad-tray"
+    class="rpos-pad-tray flex flex-col gap-1.5"
     dir="ltr"
   >
-    <div class="grid grid-cols-9 gap-1.5">
+    <div
+      v-for="(row, index) in ROWS"
+      :key="index"
+      class="flex justify-center gap-1.5"
+    >
       <button
-        v-for="key in KEYS"
+        v-for="key in row"
         :key="key"
         type="button"
-        class="rpos-pad-key h-11 text-base"
+        class="rpos-pad-key h-11 w-[calc((100%-9*0.375rem)/10)] shrink-0 text-base"
         @click="press(key)"
       >
         {{ key }}
       </button>
-    </div>
 
-    <!-- Clearing and deleting sit apart from the characters: a finger reaching
-         for a letter must not land on one of them. -->
-    <div class="mt-1.5 grid grid-cols-2 gap-1.5">
-      <button
-        type="button"
-        class="rpos-pad-key h-11 text-base"
-        :aria-label="t('keypad.clear')"
-        @click="emit('update', '')"
-      >
-        c
-      </button>
-      <button
-        type="button"
-        class="rpos-pad-key grid h-11 place-items-center"
-        :disabled="!value"
-        :aria-label="t('keypad.back')"
-        @click="emit('update', value.slice(0, -1))"
-      >
-        <AppIcon
-          name="back"
-          class="rpos-flip"
-          :size="18"
-        />
-      </button>
+      <!-- Clearing and deleting close the last row, at its ends, where a
+           finger reaching for a letter does not land. -->
+      <template v-if="index === ROWS.length - 1">
+        <button
+          type="button"
+          class="rpos-pad-key h-11 w-[calc((100%-9*0.375rem)/10)] shrink-0 text-base"
+          :aria-label="t('keypad.clear')"
+          @click="emit('update', '')"
+        >
+          c
+        </button>
+        <button
+          type="button"
+          class="rpos-pad-key grid h-11 w-[calc((100%-9*0.375rem)/10)] shrink-0 place-items-center"
+          :disabled="!value"
+          :aria-label="t('keypad.back')"
+          @click="emit('update', value.slice(0, -1))"
+        >
+          <AppIcon
+            name="back"
+            class="rpos-flip"
+            :size="18"
+          />
+        </button>
+      </template>
     </div>
   </div>
 </template>

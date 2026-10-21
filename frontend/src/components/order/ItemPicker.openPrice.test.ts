@@ -18,6 +18,7 @@ import { useSessionStore } from "@/stores/session";
 import type { CatalogItem, PosSession } from "@/types/session";
 
 const FISH = "6281000000024";
+const COFFEE = "6281000000031";
 
 const fish: CatalogItem = {
   item_code: "FISH",
@@ -35,12 +36,15 @@ const fish: CatalogItem = {
   open_price: 1,
 };
 
+/** Priced on the list, and open: it opens on that price (`D-379`). */
+const coffee: CatalogItem = { ...fish, item_code: "COFFEE", item_name: "Coffee", display_name: "Coffee", rate: 7, barcodes: [COFFEE] };
+
 let mounted: ReturnType<typeof mount> | null = null;
 
 function picker() {
   useSessionStore().data = {
     pos_profile: { name: "TILL-1" },
-    items: [fish],
+    items: [fish, coffee],
     item_groups: [{ name: "Mains", item_group_name: "Mains", image: null, parent_item_group: null }],
     screen_layout: null,
   } as unknown as PosSession;
@@ -98,5 +102,30 @@ describe("a dish priced at the counter", () => {
 
     expect(document.querySelector("[role=dialog]")).toBeNull();
     expect(view.emitted("pick")).toBeUndefined();
+  });
+
+  it("opens on its usual price, which a tap on Done keeps", async () => {
+    const view = picker();
+
+    scan(COFFEE);
+    await flushPromises();
+    expect(done().disabled).toBe(false);
+    done().click();
+    await flushPromises();
+
+    expect(view.emitted("pick")![0][2]).toBe(7);
+  });
+
+  it("sells at what is typed instead of the usual price", async () => {
+    const view = picker();
+
+    scan(COFFEE);
+    await flushPromises();
+    view.findComponent(AmountKeypad).vm.$emit("update", "9");
+    await flushPromises();
+    done().click();
+    await flushPromises();
+
+    expect(view.emitted("pick")![0][2]).toBe(9);
   });
 });

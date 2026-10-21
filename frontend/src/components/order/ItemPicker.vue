@@ -207,13 +207,20 @@ function pick(item: CatalogItem | undefined): void {
 /** The open-price dish waiting for its price, and what has been typed. */
 const pricing = ref<CatalogItem | null>(null);
 const typedPrice = ref("0");
-const price = computed(() => Number(typedPrice.value) || 0);
+/** The dish's usual price, offered until the cashier types another (`D-379`). */
+const usualPrice = computed(() => {
+  const listed = pricing.value ? priceOf(pricing.value) : null;
+  return listed && listed > 0 ? listed : null;
+});
+const price = computed(() => Number(typedPrice.value) || usualPrice.value || 0);
 
 function priced(): void {
   const item = pricing.value;
-  if (!item || price.value <= 0) return;
+  // Read before closing: the usual price is the open dish's, and goes with it.
+  const charged = price.value;
+  if (!item || charged <= 0) return;
   pricing.value = null;
-  emit("pick", item, qty.value, price.value);
+  emit("pick", item, qty.value, charged);
   qty.value = 1;
 }
 
@@ -369,8 +376,9 @@ function label(button: LayoutButton): string {
 
 /** The line under a dish's name: its price, or why it cannot be sold (`D-020`). */
 function priceLine(item: CatalogItem): string {
-  if (item.open_price) return t("picker.openPrice");
   const price = priceOf(item);
+  // `D-379` — a usual price is still shown: the cashier may keep it.
+  if (item.open_price && !price) return t("picker.openPrice");
   return price === null ? t("picker.noPrice") : formatNumber(price, 2);
 }
 
@@ -599,6 +607,7 @@ function priceOf(item: CatalogItem): number | null {
         <AmountKeypad
           :value="typedPrice"
           :label="t('picker.typePrice')"
+          :fallback="usualPrice ? usualPrice.toFixed(2) : undefined"
           @update="typedPrice = $event"
         />
         <button

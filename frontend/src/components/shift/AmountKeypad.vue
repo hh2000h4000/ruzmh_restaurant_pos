@@ -32,6 +32,12 @@ const props = defineProps<{
   value: string;
   /** What is being counted, shown over the figure. */
   label?: string;
+  /**
+   * The figure that stands until a key is pressed, shown quietly (`D-379`):
+   * an open-price dish opens on its usual price. The first key starts a new
+   * figure rather than typing onto this one, so «25» then «3» is 3, not 253.
+   */
+  fallback?: string;
 }>();
 
 const emit = defineEmits<{ update: [value: string] }>();
@@ -82,7 +88,7 @@ function clear(): void {
  * looked broken. The figure is formatted where it is *stored*; here it echoes
  * the hand.
  */
-const preview = computed(() => draft.value || "0");
+const preview = computed(() => draft.value || props.fallback || "0");
 </script>
 
 <template>
@@ -98,7 +104,10 @@ const preview = computed(() => draft.value || "0");
       class="rpos-pad-display"
       dir="ltr"
     >
-      <p class="rpos-numeric text-2xl font-medium">
+      <p
+        class="rpos-numeric text-2xl font-medium"
+        :class="!draft && fallback ? 'text-muted' : ''"
+      >
         {{ preview }}
       </p>
     </div>

@@ -186,11 +186,23 @@ const money = (value: number) => formatNumber(value, 2);
       />
 
       <div class="grid min-h-0 grid-rows-[auto_minmax(0,1fr)_auto] gap-6 p-8">
-        <header class="flex items-baseline justify-between">
-          <p class="text-[28px] font-medium text-primary">
+        <header class="flex items-baseline justify-between gap-4">
+          <p class="min-w-0 truncate text-[28px] font-medium text-primary">
             {{ house }}
           </p>
-          <p class="rpos-numeric text-[22px] text-subtle">
+          <!-- The number they will be called by, from the moment there is one
+               (`FR-2.10`) — not only once they have paid. -->
+          <p
+            v-if="state.number"
+            data-display-number
+            class="rpos-numeric shrink-0 text-[28px] font-medium text-primary"
+          >
+            #{{ formatNumber(state.number) }}
+          </p>
+          <p
+            v-else
+            class="rpos-numeric shrink-0 text-[22px] text-subtle"
+          >
             {{ clock }}
           </p>
         </header>
@@ -204,21 +216,23 @@ const money = (value: number) => formatNumber(value, 2);
           {{ t("display.empty") }}
         </p>
 
+        <!-- On a white card over the grey, as on the till (`D-383`): the dishes
+             read as one thing, apart from the figures under them. -->
         <ul
           v-else
-          class="min-h-0 space-y-3 overflow-y-auto"
+          class="min-h-0 overflow-y-auto rounded-xl bg-surface px-6 py-2"
         >
           <li
             v-for="(line, index) in lines"
             :key="index"
-            class="flex items-start justify-between gap-6 border-b border-line pb-3"
+            class="flex items-start justify-between gap-6 border-b border-line py-4 last:border-b-0"
           >
             <div class="flex min-w-0 items-baseline gap-4">
-              <span class="rpos-numeric shrink-0 text-[26px] font-medium text-primary">
+              <span class="rpos-numeric shrink-0 text-[28px] font-medium text-primary">
                 {{ formatNumber(line.qty) }}×
               </span>
               <div class="min-w-0">
-                <p class="text-[26px]">
+                <p class="text-[28px]">
                   {{ line.name }}
                 </p>
                 <!-- Option by option: the research is explicit that this is where
@@ -232,7 +246,7 @@ const money = (value: number) => formatNumber(value, 2);
               </div>
             </div>
 
-            <span class="rpos-numeric shrink-0 text-[26px]">{{ money(line.amount) }}</span>
+            <span class="rpos-numeric shrink-0 text-[28px]">{{ money(line.amount) }}</span>
           </li>
         </ul>
 
@@ -241,7 +255,7 @@ const money = (value: number) => formatNumber(value, 2);
            a guest reading `60.00 + 7.83 = 60.00` reads a mistake. The amount
            before tax is derived instead, so the column sums on the screen
            whichever way the branch charges tax (`D-091`, `D-162`). -->
-        <footer class="space-y-2 border-t-2 border-primary/30 pt-4 text-[22px]">
+        <footer class="space-y-2 text-[20px]">
           <!-- The offer is named. A guest who came in for it is looking for it
              here, and "discount" does not tell them it was honoured (`D-163`). -->
           <div
@@ -275,9 +289,15 @@ const money = (value: number) => formatNumber(value, 2);
             <span>{{ t("totals.tax") }}</span>
             <span class="rpos-numeric">{{ money(state.tax) }}</span>
           </div>
-          <div class="flex justify-between pt-2 text-[38px] font-medium text-primary">
-            <span>{{ t("totals.total") }}</span>
-            <span class="rpos-numeric">{{ money(state.total) }}</span>
+          <!-- The one figure the guest is reading for, from a metre or two:
+               the till's own total bar (`D-372`, `D-383`), so the two screens
+               say it the same way. -->
+          <div
+            data-display-total
+            class="!mt-4 flex items-center justify-between rounded-xl bg-primary px-6 py-5 text-primary-contrast"
+          >
+            <span class="text-[32px] font-medium">{{ t("totals.total") }}</span>
+            <span class="rpos-numeric text-[52px] font-semibold leading-none">{{ money(state.total) }}</span>
           </div>
         </footer>
       </div>

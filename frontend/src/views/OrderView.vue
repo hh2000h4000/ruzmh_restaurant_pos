@@ -252,7 +252,8 @@ async function startFromRoute(): Promise<void> {
     orders.clear();
     // A terminal that sells one kind of order has nothing to ask (`D-353`): it
     // rests on the menu, and the first item rung or scanned opens the bill.
-    pane.value = route.query.pane === "new" && !onlyType.value ? "new" : "items";
+    pane.value = "items";
+    askingType.value = route.query.pane === "new" && !onlyType.value;
     return;
   }
 
@@ -265,9 +266,9 @@ async function startFromRoute(): Promise<void> {
   await orders.putDown();
   orders.clear();
   // Where the cashier lands if the type cannot open right now — a closed shift,
-  // a table to pick, a customer to find. Never the menu pane with no bill under
-  // it, which is a wall of buttons that do nothing.
-  pane.value = "new";
+  // a table to pick, a customer to find: the menu, where a tapped dish asks for
+  // its type again (`D-384`).
+  pane.value = "items";
   await startAnother(type);
 }
 
@@ -503,11 +504,40 @@ const onlyType = computed(() => (session.orderTypes.length === 1 ? session.order
  * to find) leaves the cashier on its tile rather than on nothing.
  */
 async function askType(): Promise<void> {
-  pane.value = "new";
-  if (onlyType.value) await startAnother(onlyType.value);
+  if (onlyType.value) {
+    await startAnother(onlyType.value);
+    return;
+  }
+  askingType.value = true;
 }
 
+/**
+ * Which kind of order — asked in a popup over the screen, not a page that
+ * replaces it (`D-384`).
+ *
+ * It was a whole pane: the menu and everything around it vanished for one tap
+ * of a question, on a page that was two thirds empty. Foodics asks it in a
+ * sheet over the screen, and the dish tapped before there was a bill still
+ * lands once the answer comes (`waitingPick`).
+ */
+const askingType = ref(false);
+
+/** Closing without an answer drops whatever was waiting on one. */
+function closeTypeAsk(): void {
+  askingType.value = false;
+  pendingTable.value = null;
+  pendingReservation.value = null;
+  waitingPick.value = null;
+}
+
+/** The popup's heading: a type for a table, or for a new order. */
+const typeAskTitle = computed(() => {
+  const seating = pendingTable.value?.table_number ?? pendingReservation.value?.tableNumber ?? null;
+  return seating ? t("tables.seatWhat", { number: seating }) : t("home.newOrder");
+});
+
 async function startAnother(orderType: OrderType): Promise<void> {
+  askingType.value = false;
   // BR-044 — before any of the questions below, because none of them matter
   // if the order cannot be created at the end of them.
   if (!maySell()) return;
@@ -714,7 +744,7 @@ async function seat(table: FloorTable): Promise<void> {
 
   if (!type) {
     pendingTable.value = table;
-    pane.value = "new";
+    askingType.value = true;
     return;
   }
 
@@ -747,7 +777,7 @@ async function openAnotherHere(): Promise<void> {
   if (type) await openAt(table, type);
   else {
     pendingTable.value = table;
-    pane.value = "new";
+    askingType.value = true;
   }
 }
 
@@ -772,7 +802,7 @@ async function seatBooking(name: string, tableNumber: string | null): Promise<vo
   const type = tableTypes.value.length === 1 ? tableTypes.value[0] : null;
   if (!type) {
     pendingReservation.value = { name, tableNumber };
-    pane.value = "new";
+    askingType.value = true;
     return;
   }
 
@@ -1631,17 +1661,12 @@ async function send(): Promise<void> {
           />
 
 
+          <!-- The last of the panes; asking which kind of order is a popup now
+               (`D-384`), not a pane. -->
           <ReservationsPane
-            v-else-if="pane === 'reservations'"
-            class="min-h-0 flex-1"
-            @seat="(booking) => seatBooking(booking.name, booking.table_number)"
-          />
-
-          <NewOrderPane
             v-else
             class="min-h-0 flex-1"
-            :seating="pendingTable?.table_number ?? pendingReservation?.tableNumber ?? null"
-            @open="startAnother"
+            @seat="(booking) => seatBooking(booking.name, booking.table_number)"
           />
 
           <!-- Under the working column, so the bill beside it keeps the full
@@ -1757,6 +1782,19 @@ async function send(): Promise<void> {
     />
 
     <!-- The only way out of the app, so it asks first (D-055). -->
+    <BaseDialog
+      :open="askingType"
+      :title="typeAskTitle"
+      pad
+      wide
+      @close="closeTypeAsk"
+    >
+      <NewOrderPane
+        :seating="pendingTable?.table_number ?? pendingReservation?.tableNumber ?? null"
+        @open="startAnother"
+      />
+    </BaseDialog>
+
     <BaseDialog
       :open="signingOut"
       :title="t('home.logoutConfirm')"

@@ -76,32 +76,24 @@ function subtitle(orderType: OrderType): string {
 </script>
 
 <template>
-  <section
-    class="grid min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)] rounded-rpos bg-surface p-5 shadow-card"
-  >
-    <div class="mb-4">
-      <h2 class="flex items-center gap-2 text-xl font-bold">
-        <AppIcon
-          :name="seating ? 'floorPlan' : 'plus'"
-          :size="24"
-        />
-        {{ seating ? t("tables.seatWhat", { number: seating }) : t("home.newOrder") }}
-      </h2>
-      <p class="mt-1 text-sm text-muted">
-        {{ seating ? t("tables.seatHint") : t("nav.newHint") }}
-      </p>
-    </div>
+  <!-- The body of the «which kind of order» popup (`D-384`): white tiles on the
+       popup's grey, two to a row, scrolling inside a box of their own when a
+       terminal sells many kinds, so the popup never outgrows the screen. -->
+  <div class="pt-1">
+    <p class="mb-4 text-center text-xs text-subtle">
+      {{ seating ? t("tables.seatHint") : t("nav.newHint") }}
+    </p>
 
-    <div class="min-h-0 overflow-y-auto">
-      <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 2xl:grid-cols-3">
+    <div class="max-h-[60vh] overflow-y-auto">
+      <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <button
           v-for="orderType in session.orderTypes"
           :key="orderType.name"
           type="button"
-          class="flex h-[94px] items-center gap-4 rounded-rpos border border-line bg-surface px-4 text-start transition duration-200 ease-rpos hover:-translate-y-px hover:border-primary/40 hover:shadow-card"
+          class="flex h-[84px] items-center gap-4 rounded-lg bg-surface px-4 text-start transition duration-100 ease-rpos active:bg-primary/10"
           @click="emit('open', orderType)"
         >
-          <span class="relative grid h-16 w-16 shrink-0 place-items-center overflow-hidden rounded-full">
+          <span class="relative grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-full">
             <span
               class="absolute inset-0 opacity-10"
               :style="{ backgroundColor: orderType.color ?? undefined }"
@@ -109,7 +101,7 @@ function subtitle(orderType: OrderType): string {
             <AppIcon
               v-if="icon(orderType)"
               :name="icon(orderType)!"
-              :size="30"
+              :size="28"
               :style="{ color: orderType.color ?? undefined }"
             />
             <span
@@ -119,20 +111,20 @@ function subtitle(orderType: OrderType): string {
           </span>
 
           <span class="min-w-0">
-            <span class="block truncate text-lg font-bold">
+            <span class="block truncate text-lg font-semibold">
               {{ pick(orderType.title_ar, orderType.title) }}
             </span>
-            <span class="block truncate text-sm text-muted">{{ subtitle(orderType) }}</span>
+            <span class="block truncate text-sm text-subtle">{{ subtitle(orderType) }}</span>
           </span>
         </button>
       </div>
 
       <p
         v-if="!session.orderTypes.length"
-        class="rounded-rpos bg-background p-8 text-center text-muted"
+        class="rounded bg-surface p-8 text-center text-subtle"
       >
         {{ t("home.noOrderTypes") }}
       </p>
     </div>
-  </section>
+  </div>
 </template>

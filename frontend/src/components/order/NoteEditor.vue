@@ -101,18 +101,16 @@ function toggle(note: { title: string; title_ar: string }): void {
   <div>
     <div
       v-if="chips.length"
-      class="mb-3 flex flex-wrap gap-2"
+      class="mb-3 grid max-h-[10.5rem] grid-cols-2 gap-2 overflow-y-auto sm:grid-cols-3"
     >
+      <!-- A grid of a fixed height (`D-380`): more saved notes scroll inside
+           this box, and never push the dialog's own buttons off the screen. -->
       <button
         v-for="note in chips"
         :key="note.name"
         type="button"
-        class="min-h-tap rounded-full px-4 text-sm font-medium transition duration-200 ease-rpos"
-        :class="
-          isOn(note)
-            ? 'bg-primary text-primary-contrast shadow-card'
-            : 'bg-background text-muted hover:text-content'
-        "
+        class="rpos-chip min-h-tap truncate rounded px-3 text-sm font-medium transition duration-100 ease-rpos"
+        :class="isOn(note) ? 'bg-primary text-primary-contrast' : ''"
         :aria-pressed="isOn(note)"
         @click="toggle(note)"
       >
@@ -122,8 +120,8 @@ function toggle(note: { title: string; title_ar: string }): void {
 
     <textarea
       v-model="text"
-      rows="2"
-      class="w-full resize-none rounded-rpos border border-line bg-background px-3 py-2 outline-none transition duration-200 ease-rpos focus:bg-surface focus:ring-2 focus:ring-primary/30"
+      rows="1"
+      class="rpos-field w-full resize-none rounded px-3 py-3 outline-none transition duration-200 ease-rpos focus:ring-2 focus:ring-primary/30"
       :placeholder="placeholder ?? t('note.placeholder')"
     />
   </div>

@@ -116,6 +116,21 @@
     @apply -mx-5 rounded-none;
   }
 
+  /* A saved note, and a typed one: grey on a white dialog, white on a keypad
+     dialog's grey (`D-380`) — the same control, on whichever ground it is. */
+  .rpos-chip {
+    @apply bg-background text-subtle hover:text-content;
+  }
+
+  .rpos-field {
+    @apply border border-line bg-background;
+  }
+
+  [data-pad-dialog] .rpos-chip,
+  [data-pad-dialog] .rpos-field {
+    @apply border-transparent bg-surface;
+  }
+
   /* The one button a keypad dialog ends on: white, the brand colour in the text. */
   .rpos-pad-done {
     @apply min-h-12 w-full rounded bg-surface text-lg font-medium text-primary transition-colors duration-100 ease-rpos active:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-40;

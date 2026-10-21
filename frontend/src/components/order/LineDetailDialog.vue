@@ -6,14 +6,21 @@ import AppIcon from "@/components/AppIcon.vue";
 import BaseDialog from "@/components/BaseDialog.vue";
 import NoteEditor from "@/components/order/NoteEditor.vue";
 import { formatNumber, pick, t } from "@/i18n";
-import { useSessionStore } from "@/stores/session";
 
 /**
- * Everything known about one line, and the things that can still be done to it.
+ * Everything that can still be done to one line.
  *
  * Tapping a line on the bill opens this instead of hunting for small buttons on
  * a crowded row — the reference system does the same, and on a touch screen it
  * is the difference between hitting the line you meant and the one below it.
+ *
+ * **One screen with no scroll, and one Done** (`D-380`), in the keypad's look.
+ * It used to open on the line's number and item code, then a note with its own
+ * Save, then a quantity with its own Apply, then Back — three ways to keep
+ * something, and on a 15" touch screen the quantity and the void had scrolled
+ * off. Now: the dish and its amount, the count, the notes in a box of their
+ * own that scrolls inside itself, and Done keeps the count and the note
+ * together. Tapping outside keeps nothing.
  *
  * What is *not* here is as deliberate as what is. Per-item discounts, recipes,
  * stock and a scale reading all appear on the reference screen; each needs a
@@ -24,12 +31,10 @@ const props = defineProps<{ line: OrderLine | null; busy?: boolean }>();
 
 const emit = defineEmits<{
   close: [];
-  setQty: [idx: number, qty: number];
-  setNotes: [idx: number, notes: string | null];
+  /** What changed, and only that: a count the kitchen has is not sent. */
+  save: [idx: number, change: { qty?: number; notes?: string | null }];
   void: [line: OrderLine];
 }>();
-
-const session = useSessionStore();
 
 const qty = ref(1);
 const notes = ref("");
@@ -55,17 +60,8 @@ watch(
  */
 const notesChanged = computed(() => notes.value.trim() !== (props.line?.notes ?? ""));
 
-function applyNotes(): void {
-  if (!props.line || !notesChanged.value) return;
-  emit("setNotes", props.line.idx, notes.value.trim() || null);
-}
-
 /** BR-013 — a line the kitchen already has is withdrawn, not edited. */
 const editable = computed(() => props.line?.status === "pending");
-
-const item = computed(() =>
-  props.line ? (session.itemsByCode.get(props.line.item) ?? null) : null,
-);
 
 const modifiers = computed(() =>
   (props.line?.modifiers ?? [])
@@ -73,17 +69,21 @@ const modifiers = computed(() =>
     .join(t("common.listSeparator")),
 );
 
-function money(value: number): string {
-  return formatNumber(value, 2);
-}
-
 function bump(by: number): void {
   qty.value = Math.min(99, Math.max(1, qty.value + by));
 }
 
-function apply(): void {
-  if (!props.line || !editable.value || qty.value === props.line.qty) return;
-  emit("setQty", props.line.idx, qty.value);
+/** Keep what changed; with nothing changed, Done is just a way out. */
+function done(): void {
+  const line = props.line;
+  if (!line) return;
+
+  const change: { qty?: number; notes?: string | null } = {};
+  if (editable.value && qty.value !== line.qty) change.qty = qty.value;
+  if (notesChanged.value) change.notes = notes.value.trim() || null;
+
+  if (change.qty === undefined && change.notes === undefined) emit("close");
+  else emit("save", line.idx, change);
 }
 </script>
 
@@ -91,153 +91,76 @@ function apply(): void {
   <BaseDialog
     :open="Boolean(line)"
     :title="line?.item_name ?? ''"
+    pad
+    wide
     @close="emit('close')"
   >
     <template v-if="line">
-      <!-- The dish, when the menu carries a picture of it. -->
-      <img
-        v-if="item?.image"
-        :src="item.image"
-        :alt="line.item_name"
-        class="mb-4 h-40 w-full rounded-rpos object-cover"
-      >
+      <!-- What it is and what it costs, in one line under the name. -->
+      <p class="mb-4 flex items-baseline justify-between gap-3 text-sm text-subtle">
+        <span class="min-w-0 truncate">{{ modifiers }}</span>
+        <span class="rpos-numeric shrink-0 text-xl font-semibold text-content">
+          {{ formatNumber(line.amount, 2) }}
+        </span>
+      </p>
 
-      <dl class="mb-4 grid grid-cols-2 gap-4">
-        <div>
-          <dt class="text-sm text-muted">
-            {{ t("line.number") }}
-          </dt>
-          <dd class="rpos-numeric font-bold">
-            {{ formatNumber(line.idx) }}
-          </dd>
+      <div class="grid gap-5 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
+        <!-- The count, while the kitchen has not seen the line. -->
+        <div class="flex flex-col gap-2">
+          <p
+            v-if="!editable"
+            class="rounded bg-order-in_kitchen/10 p-3 text-sm text-order-in_kitchen"
+          >
+            {{ t("line.sentLocked") }}
+          </p>
+          <template v-else>
+            <p class="text-sm text-subtle">
+              {{ t("picker.qty") }}
+            </p>
+            <div class="flex items-center justify-between gap-2 rounded bg-surface p-2">
+              <button
+                type="button"
+                class="grid h-14 w-14 place-items-center rounded bg-background text-content disabled:opacity-40"
+                :disabled="qty <= 1 || busy"
+                :aria-label="t('picker.qtyLess')"
+                @click="bump(-1)"
+              >
+                <AppIcon name="minus" />
+              </button>
+              <span
+                class="rpos-numeric text-3xl font-medium"
+                aria-live="polite"
+              >{{ formatNumber(qty) }}</span>
+              <button
+                type="button"
+                class="grid h-14 w-14 place-items-center rounded bg-background text-content disabled:opacity-40"
+                :disabled="qty >= 99 || busy"
+                :aria-label="t('picker.qtyMore')"
+                @click="bump(1)"
+              >
+                <AppIcon name="plus" />
+              </button>
+            </div>
+          </template>
         </div>
+
+        <!-- FR-2.9 — any item, and still editable once the kitchen has it. -->
         <div class="min-w-0">
-          <dt class="text-sm text-muted">
-            {{ t("line.item") }}
-          </dt>
-          <dd class="rpos-numeric truncate font-bold">
-            {{ line.item }}
-          </dd>
-        </div>
-        <div>
-          <dt class="text-sm text-muted">
-            {{ t("line.unitPrice") }}
-          </dt>
-          <dd class="rpos-numeric font-bold">
-            {{ money(line.rate) }}
-          </dd>
-        </div>
-        <div>
-          <dt class="text-sm text-muted">
-            {{ t("card.amount") }}
-          </dt>
-          <dd class="rpos-numeric text-lg font-bold text-primary">
-            {{ money(line.amount) }}
-          </dd>
-        </div>
-        <div
-          v-if="line.production_center"
-          class="col-span-2 min-w-0"
-        >
-          <dt class="text-sm text-muted">
-            {{ t("line.station") }}
-          </dt>
-          <dd class="truncate font-medium">
-            {{ line.production_center }}
-          </dd>
-        </div>
-        <div
-          v-if="modifiers"
-          class="col-span-2 min-w-0"
-        >
-          <dt class="text-sm text-muted">
-            {{ t("line.modifiers") }}
-          </dt>
-          <dd class="font-medium">
-            {{ modifiers }}
-          </dd>
-        </div>
-      </dl>
-
-      <!-- FR-2.9 — any item, and still editable once the kitchen has it. -->
-      <p class="mb-1.5 text-sm font-medium">
-        {{ t("mod.note") }}
-      </p>
-      <NoteEditor
-        v-model="notes"
-        class="mb-3"
-        scope="item"
-      />
-      <button
-        type="button"
-        class="mb-4 min-h-tap w-full rounded-rpos bg-primary font-medium text-primary-contrast disabled:opacity-40"
-        :disabled="busy || !notesChanged"
-        @click="applyNotes"
-      >
-        {{ t("note.saveLine") }}
-      </button>
-
-      <p
-        v-if="!editable"
-        class="mb-4 rounded-rpos bg-order-in_kitchen/10 p-3 text-sm text-order-in_kitchen"
-      >
-        {{ t("line.sentLocked") }}
-      </p>
-
-      <!-- Quantity, while the kitchen has not seen the line. -->
-      <div
-        v-else
-        class="mb-4"
-      >
-        <p class="mb-2 text-sm font-medium">
-          {{ t("picker.qty") }}
-        </p>
-        <div class="flex items-center gap-2">
-          <button
-            type="button"
-            class="grid h-12 w-12 place-items-center rounded-full bg-background text-muted disabled:opacity-40"
-            :disabled="qty <= 1 || busy"
-            :aria-label="t('picker.qtyLess')"
-            @click="bump(-1)"
-          >
-            <AppIcon name="minus" />
-          </button>
-          <span
-            class="rpos-numeric w-14 text-center text-2xl font-bold"
-            aria-live="polite"
-          >{{ formatNumber(qty) }}</span>
-          <button
-            type="button"
-            class="grid h-12 w-12 place-items-center rounded-full bg-background text-muted disabled:opacity-40"
-            :disabled="qty >= 99 || busy"
-            :aria-label="t('picker.qtyMore')"
-            @click="bump(1)"
-          >
-            <AppIcon name="plus" />
-          </button>
-
-          <button
-            type="button"
-            class="ms-auto min-h-tap rounded-rpos bg-primary px-5 font-semibold text-primary-contrast disabled:opacity-40"
-            :disabled="busy || qty === line.qty"
-            @click="apply"
-          >
-            {{ t("line.applyQty") }}
-          </button>
+          <p class="mb-2 text-sm text-subtle">
+            {{ t("mod.note") }}
+          </p>
+          <NoteEditor
+            v-model="notes"
+            scope="item"
+          />
         </div>
       </div>
 
-      <div class="flex gap-2">
+      <!-- Withdrawing the dish on one side, keeping the changes on the other. -->
+      <div class="mt-5 flex items-center gap-3">
         <button
           type="button"
-          class="min-h-tap flex-1 rounded-rpos border border-line"
-          @click="emit('close')"
-        >
-          {{ t("action.back") }}
-        </button>
-        <button
-          type="button"
-          class="flex min-h-tap flex-1 items-center justify-center gap-2 rounded-rpos bg-danger/10 font-semibold text-danger disabled:opacity-40"
+          class="flex min-h-12 items-center gap-2 rounded px-3 font-medium text-danger transition duration-100 ease-rpos hover:bg-danger/10 disabled:opacity-40"
           :disabled="busy"
           @click="emit('void', line)"
         >
@@ -246,6 +169,14 @@ function apply(): void {
             :size="18"
           />
           {{ t("order.voidItem") }}
+        </button>
+        <button
+          type="button"
+          class="rpos-pad-done flex-1"
+          :disabled="busy"
+          @click="done"
+        >
+          {{ t("action.done") }}
         </button>
       </div>
     </template>

@@ -1067,21 +1067,24 @@ watch(
   },
 );
 
-async function changeQty(idx: number, qty: number): Promise<void> {
-  if (!session.canSell) {
-    // The detail dialog closes first: two stacked dialogs both answer Escape,
-    // and one key would dismiss both (D-049).
-    inspecting.value = null;
-    maySell();
-    return;
+/**
+ * The line dialog's Done (`D-380`): the count, then the note, then it closes.
+ *
+ * A count needs the till open for selling; a note does not (FR-2.9 — it is
+ * still said once the kitchen has the line), so a refused count closes the
+ * dialog first: two stacked dialogs both answer Escape (D-049).
+ */
+async function saveLine(idx: number, change: { qty?: number; notes?: string | null }): Promise<void> {
+  if (change.qty !== undefined) {
+    if (!session.canSell) {
+      inspecting.value = null;
+      maySell();
+      return;
+    }
+    await orders.setQty(idx, change.qty);
   }
-
-  await orders.setQty(idx, qty);
-}
-
-/** FR-2.9 — the dialog stays open: the cashier can see it took. */
-async function changeLineNotes(idx: number, notes: string | null): Promise<void> {
-  await orders.setLineNotes(idx, notes);
+  if (change.notes !== undefined) await orders.setLineNotes(idx, change.notes);
+  inspecting.value = null;
 }
 
 function voidFromDetail(line: OrderLine): void {
@@ -2090,8 +2093,7 @@ async function send(): Promise<void> {
       :line="inspecting"
       :busy="locked"
       @close="inspecting = null"
-      @set-qty="changeQty"
-      @set-notes="changeLineNotes"
+      @save="saveLine"
       @void="voidFromDetail"
     />
 

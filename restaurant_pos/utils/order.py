@@ -664,6 +664,9 @@ def _resolve_rate(order, item: str, requested_rate: float | None) -> float:
 	the day's takings. A price list row that says ``0`` is a deliberate free
 	item and is honoured.
 	"""
+	if is_open_price(item):
+		return _open_price(item, requested_rate)
+
 	price_list = price_list_for(order.order_type, order.pos_profile)
 	if not price_list:
 		frappe.throw(_("POS Profile {0} has no selling price list.").format(order.pos_profile))
@@ -693,6 +696,35 @@ def _resolve_rate(order, item: str, requested_rate: float | None) -> float:
 		details={"item": item, "listed_rate": listed, "charged_rate": flt(requested_rate)},
 	)
 	return totals.money(requested_rate)
+
+
+def is_open_price(item: str) -> bool:
+	"""Whether the shop prices this dish at the counter (`D-378`)."""
+	return bool(frappe.get_cached_value("Item", item, "rpos_open_price"))
+
+
+def _open_price(item: str, requested_rate: float | None) -> float:
+	"""The price the cashier typed, for a dish the shop marked «open price».
+
+	**No permission is asked** (`D-378`), as on Toast: the manager decided when
+	marking the item that its price is said at the counter, so typing it is the
+	sale, not an exception to it. Changing the price of a *fixed* item stays
+	behind ``can_change_item_price``.
+
+	Nothing is refused for being unusual, only for being no price: missing, zero
+	or below. A zero would sell the dish for nothing with no line saying so —
+	a free dish is a promotion or a price list row of 0, both of which leave a
+	trace.
+	"""
+	if requested_rate is None:
+		frappe.throw(_("Type the price of {0}.").format(_item_name(item)))
+	if flt(requested_rate) <= 0:
+		frappe.throw(_("The price of {0} must be more than zero.").format(_item_name(item)))
+	return totals.money(requested_rate)
+
+
+def _item_name(item: str) -> str:
+	return frappe.get_cached_value("Item", item, "item_name") or item
 
 
 def _resolve_modifiers(item: str, selected: list | None, price_list: str | None = None) -> tuple[list, float]:
@@ -1626,7 +1658,9 @@ def _reprice_lines(order) -> list[dict]:
 	changed: list[dict] = []
 
 	for row in order.items or []:
-		if row.status == "void":
+		# An open price was said at the counter, not read from a list (`D-378`):
+		# a new type has no other price for it to move to.
+		if row.status == "void" or is_open_price(row.item):
 			continue
 
 		qty = flt(row.qty)

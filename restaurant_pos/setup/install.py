@@ -409,6 +409,15 @@ CUSTOM_FIELDS = {
 			"description": "The guest buys the items below as one, and they are what leaves stock and what is sold.",
 			"insert_after": "default_production_center",
 		},
+		# `D-378` — a dish whose price is said at the counter (the fish of the
+		# day, a cake by the size it is cut): the till asks for it on every sale.
+		{
+			"fieldname": "rpos_open_price",
+			"fieldtype": "Check",
+			"label": "Open Price",
+			"description": "The cashier types the price each time it is sold. It needs no price list row.",
+			"insert_after": "rpos_is_combo",
+		},
 		{
 			"fieldname": "rpos_combo_section",
 			"fieldtype": "Section Break",

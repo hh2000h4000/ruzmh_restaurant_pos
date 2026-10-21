@@ -423,6 +423,8 @@ export function addItem(payload: {
   qty?: number;
   modifiers?: ModifierChoice[];
   notes?: string | null;
+  /** The typed price of an open-price dish (`D-378`); the server prices the rest. */
+  rate?: number;
 }): Promise<OrderSummary & { row_idx: number }> {
   return mutate("order.add_item", payload);
 }

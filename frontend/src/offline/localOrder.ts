@@ -33,6 +33,8 @@ export interface LocalLine {
   rate: number;
   modifiers: OrderLine["modifiers"];
   notes: string | null;
+  /** Typed at the counter (`D-378`), so it travels with the line on sync. */
+  open_price?: boolean;
 }
 
 export interface LocalOrderState {
@@ -185,6 +187,7 @@ export function toSubmission(
         (modifier): ModifierChoice => ({ group: modifier.group, option: modifier.option }),
       ),
       notes: line.notes,
+      ...(line.open_price ? { rate: line.rate } : {}),
     })),
     discount_type: state.discount_type,
     discount_value: state.discount_value,

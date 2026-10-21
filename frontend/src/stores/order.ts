@@ -215,7 +215,7 @@ export const useOrderStore = defineStore("order", () => {
 
   async function addItem(
     item: string,
-    options: { qty?: number; modifiers?: ModifierChoice[]; notes?: string | null } = {},
+    options: { qty?: number; modifiers?: ModifierChoice[]; notes?: string | null; rate?: number } = {},
   ): Promise<void> {
     if (!order.value) return;
 
@@ -229,11 +229,13 @@ export const useOrderStore = defineStore("order", () => {
           item,
           item_name: catalogue.item_name,
           // The rate this device cached for the terminal's price list. The
-          // server re-reads it on sync and refuses a bill that disagrees.
-          rate: session.priceOf(catalogue, orderTypeOf()) ?? 0,
+          // server re-reads it on sync and refuses a bill that disagrees —
+          // except a price typed at the counter, which it takes from the line.
+          rate: options.rate ?? session.priceOf(catalogue, orderTypeOf()) ?? 0,
           qty: options.qty ?? 1,
           modifiers: resolveModifiers(options.modifiers),
           notes: options.notes ?? null,
+          open_price: options.rate !== undefined,
         });
         await applyLocal();
       });
@@ -248,6 +250,7 @@ export const useOrderStore = defineStore("order", () => {
         qty: options.qty ?? 1,
         modifiers: options.modifiers,
         notes: options.notes ?? null,
+        rate: options.rate,
       }),
     );
 

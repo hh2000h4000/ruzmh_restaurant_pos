@@ -498,6 +498,7 @@ def _catalog(profile, order_types: list[dict]) -> tuple[list[dict], list[dict]]:
 			"image",
 			"default_production_center",
 			"rpos_is_combo as is_combo",
+			"rpos_open_price as open_price",
 		],
 		order_by="item_name asc",
 	)

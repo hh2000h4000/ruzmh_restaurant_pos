@@ -418,6 +418,44 @@ class TestOrderItems(OrderTestBase):
 		self.assertEqual(details["listed_rate"], 25)
 		self.assertEqual(details["charged_rate"], 30)
 
+	def _open_price(self, on: bool) -> None:
+		frappe.db.set_value("Item", self.item, "rpos_open_price", int(on))
+		frappe.clear_document_cache("Item", self.item)
+
+	def test_an_open_price_is_typed_by_the_cashier_without_a_right(self):
+		"""D-378 — the manager marked the dish; typing its price is the sale.
+
+		As a cashier with no price-change right, and with no audit row: it is
+		not an override of anything.
+		"""
+		order = self._order()
+		cashier = _make_cashier()
+		self._open_price(True)
+		frappe.set_user(cashier)
+		frappe.local.rpos_permission_cache = {}
+		try:
+			row = service.add_item(order, item=self.item, qty=1, rate=42.5)
+		finally:
+			frappe.set_user("Administrator")
+			frappe.local.rpos_permission_cache = {}
+			self._open_price(False)
+
+		self.assertEqual(row.rate, 42.5)
+		self.assertFalse(
+			frappe.db.exists("POS Audit Log", {"restaurant_order": order.name, "action_type": "price_change"})
+		)
+
+	def test_an_open_price_must_be_said_and_more_than_zero(self):
+		"""D-378 — no price, or nothing, is not a price."""
+		order = self._order()
+		self._open_price(True)
+		try:
+			for bad in (None, 0, -5):
+				with self.assertRaises(frappe.ValidationError):
+					service.add_item(order, item=self.item, qty=1, rate=bad)
+		finally:
+			self._open_price(False)
+
 	def test_quantity_must_be_positive(self):
 		order = self._order()
 		for bad in (0, -1):

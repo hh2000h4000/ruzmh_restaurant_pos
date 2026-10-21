@@ -1647,3 +1647,7 @@ Drawer {0} counted out as expected; there is nothing to book.,الدرج {0} ط�
 Station {0} belongs to {1}; a rule of {2} cannot send to it.,المحطة {0} تابعة لـ {1}، وقاعدة فرع {2} ما ترسل لها.
 Terminal {0} belongs to {1}; a rule of {2} cannot name it.,الجهاز {0} تابع لـ {1}، وقاعدة فرع {2} ما تشمله.
 {0} already has a printer called {1}.,{0} فيه طابعة اسمها {1} من قبل.
+Open Price,سعر مفتوح
+The cashier types the price each time it is sold. It needs no price list row.,الكاشير يكتب السعر في كل مرة يُباع. لا يحتاج سعراً في قائمة الأسعار.
+Type the price of {0}.,اكتب سعر {0}.
+The price of {0} must be more than zero.,سعر {0} لازم يكون أكثر من صفر.

@@ -90,6 +90,8 @@ const stock = useStockStore();
 const startupError = ref<string | null>(null);
 const pendingItem = ref<CatalogItem | null>(null);
 const pendingQty = ref(1);
+/** The typed price of an open-price dish on its way through modifiers (`D-378`). */
+const pendingRate = ref<number | undefined>(undefined);
 const voidTarget = ref<OrderLine | null>(null);
 const cancelling = ref(false);
 
@@ -974,14 +976,14 @@ function onTillOpened(): void {
  * Held here and replayed once the order exists, whichever of the four creation
  * paths made it.
  */
-const waitingPick = ref<{ item: CatalogItem; qty: number } | null>(null);
+const waitingPick = ref<{ item: CatalogItem; qty: number; rate?: number } | null>(null);
 
 /** FR-2.2 — an item with modifier groups opens the popup first. */
-function onPick(item: CatalogItem, qty: number): void {
+function onPick(item: CatalogItem, qty: number, rate?: number): void {
   if (!maySell()) return;
 
   if (!orders.order) {
-    waitingPick.value = { item, qty };
+    waitingPick.value = { item, qty, rate };
     void askType();
     return;
   }
@@ -991,19 +993,22 @@ function onPick(item: CatalogItem, qty: number): void {
     // arrive as one.
     pendingItem.value = item;
     pendingQty.value = qty;
+    pendingRate.value = rate;
     return;
   }
-  void orders.addItem(item.item_code, { qty });
+  void orders.addItem(item.item_code, { qty, rate });
 }
 
 function onModifiersConfirmed(payload: { modifiers: ModifierChoice[]; notes: string }): void {
   const item = pendingItem.value;
   const qty = pendingQty.value;
+  const rate = pendingRate.value;
   clearPending();
   if (!item) return;
 
   void orders.addItem(item.item_code, {
     qty,
+    rate,
     modifiers: payload.modifiers,
     notes: payload.notes || null,
   });
@@ -1012,6 +1017,7 @@ function onModifiersConfirmed(payload: { modifiers: ModifierChoice[]; notes: str
 function clearPending(): void {
   pendingItem.value = null;
   pendingQty.value = 1;
+  pendingRate.value = undefined;
 }
 
 /**
@@ -1041,7 +1047,7 @@ watch(
     if (!name || busy || !pick) return;
 
     waitingPick.value = null;
-    onPick(pick.item, pick.qty);
+    onPick(pick.item, pick.qty, pick.rate);
   },
 );
 

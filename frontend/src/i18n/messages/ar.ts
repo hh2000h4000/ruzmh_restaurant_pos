@@ -471,6 +471,8 @@ const messages: Catalogue["messages"] = {
   // Item picker
   "picker.search": "بحث عن صنف",
   "picker.noPrice": "بلا سعر",
+  "picker.openPrice": "سعر مفتوح",
+  "picker.typePrice": "اكتب السعر",
   "picker.noResults": "لا نتائج.",
   "picker.unknownBarcode": "ما فيه صنف بهذا الباركود: {code}",
   "picker.empty": "لا توجد أصناف متاحة.",

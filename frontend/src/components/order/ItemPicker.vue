@@ -4,7 +4,9 @@ import { computed, ref } from "vue";
 // `pick` is already this component's "add this item" handler, so the i18n
 // helper comes in under a name that says what it does here.
 import AppIcon from "@/components/AppIcon.vue";
+import BaseDialog from "@/components/BaseDialog.vue";
 import MenuTile from "@/components/order/MenuTile.vue";
+import AmountKeypad from "@/components/shift/AmountKeypad.vue";
 import { useScanner } from "@/composables/useScanner";
 import { formatNumber, pick as localized, t } from "@/i18n";
 import { useSessionStore } from "@/stores/session";
@@ -35,7 +37,7 @@ const props = defineProps<{
   marking?: boolean;
 }>();
 const emit = defineEmits<{
-  pick: [item: CatalogItem, qty: number];
+  pick: [item: CatalogItem, qty: number, rate?: number];
   failed: [cause: unknown];
   done: [];
 }>();
@@ -168,7 +170,12 @@ function itemFor(code: string | null): CatalogItem | undefined {
 /** Whether a dish's tile takes a tap — when marking, every dish does. */
 function tileOff(item: CatalogItem | undefined): boolean {
   if (props.marking) return !item;
-  return !item || priceOf(item) === null || Boolean(props.disabled) || stockBlocked(item);
+  return (
+    !item ||
+    (priceOf(item) === null && !item.open_price) ||
+    Boolean(props.disabled) ||
+    stockBlocked(item)
+  );
 }
 
 async function toggleFinished(item: CatalogItem): Promise<void> {
@@ -186,7 +193,27 @@ function pick(item: CatalogItem | undefined): void {
     return;
   }
 
+  // `D-378` — a dish priced at the counter asks for its price first.
+  if (item.open_price) {
+    pricing.value = item;
+    typedPrice.value = "0";
+    return;
+  }
+
   emit("pick", item, qty.value);
+  qty.value = 1;
+}
+
+/** The open-price dish waiting for its price, and what has been typed. */
+const pricing = ref<CatalogItem | null>(null);
+const typedPrice = ref("0");
+const price = computed(() => Number(typedPrice.value) || 0);
+
+function priced(): void {
+  const item = pricing.value;
+  if (!item || price.value <= 0) return;
+  pricing.value = null;
+  emit("pick", item, qty.value, price.value);
   qty.value = 1;
 }
 
@@ -342,6 +369,7 @@ function label(button: LayoutButton): string {
 
 /** The line under a dish's name: its price, or why it cannot be sold (`D-020`). */
 function priceLine(item: CatalogItem): string {
+  if (item.open_price) return t("picker.openPrice");
   const price = priceOf(item);
   return price === null ? t("picker.noPrice") : formatNumber(price, 2);
 }
@@ -558,5 +586,30 @@ function priceOf(item: CatalogItem): number | null {
         {{ t("picker.empty") }}
       </p>
     </div>
+
+    <!-- `D-378` — the price of a dish the shop prices at the counter, typed on
+         the same pad as every other figure. Tapping outside sells nothing. -->
+    <BaseDialog
+      :open="Boolean(pricing)"
+      :title="pricing ? itemName(pricing) : ''"
+      pad
+      @close="pricing = null"
+    >
+      <div class="flex flex-col gap-4">
+        <AmountKeypad
+          :value="typedPrice"
+          :label="t('picker.typePrice')"
+          @update="typedPrice = $event"
+        />
+        <button
+          type="button"
+          class="rpos-pad-done"
+          :disabled="price <= 0"
+          @click="priced"
+        >
+          {{ t("action.done") }}
+        </button>
+      </div>
+    </BaseDialog>
   </div>
 </template>

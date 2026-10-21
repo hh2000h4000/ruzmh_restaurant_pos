@@ -152,6 +152,8 @@ export interface CatalogItem {
   modifier_groups: string[];
   /** What a barcode reader types for this item (`D-341`); empty for most dishes. */
   barcodes?: string[];
+  /** The cashier types the price on every sale (`D-378`); it has no list row. */
+  open_price?: 0 | 1;
 }
 
 export interface ItemGroup {

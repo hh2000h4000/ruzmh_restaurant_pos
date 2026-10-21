@@ -67,6 +67,9 @@ def submit_order(*, pos_profile: str, payload: dict, offline_queue_id: str) -> d
 			qty=flt(line.get("qty") or 1),
 			modifiers=line.get("modifiers"),
 			notes=line.get("notes"),
+			# `D-378` — sent only for an open price: in no list, so only the
+			# device knows what the cashier typed.
+			rate=line.get("rate"),
 		)
 
 	order.reload()

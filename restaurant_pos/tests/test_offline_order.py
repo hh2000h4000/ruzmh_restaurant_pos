@@ -63,6 +63,29 @@ class TestABillSoldOffline(OfflineTestBase):
 		self.assertEqual(result["variance"]["difference"], 0.0)
 		self.assertEqual(result["total_amount"], payload["totals"]["total_amount"])
 
+	def test_a_price_typed_offline_lands_at_that_price(self):
+		"""D-378 — an open price is in no list, so the line carries it."""
+		frappe.db.set_value("Item", ITEM, "rpos_open_price", 1)
+		frappe.clear_document_cache("Item", ITEM)
+		try:
+			pricing = totals.pricing_inputs(self.profile)
+			figures = totals.compute([40.0], None, 0, pricing)
+			payload = self._payload(
+				lines=[{"item": ITEM, "qty": 1, "rate": 40.0}],
+				payments=[{"method": CASH, "amount": figures["total_amount"]}],
+				totals=figures,
+			)
+			result = api.submit_order(
+				pos_profile=self.profile, payload=payload, queue_id=frappe.generate_hash()
+			)
+		finally:
+			frappe.db.set_value("Item", ITEM, "rpos_open_price", 0)
+			frappe.clear_document_cache("Item", ITEM)
+
+		order = frappe.get_doc("Restaurant Order", result["order_name"])
+		self.assertEqual(order.items[0].rate, 40.0)
+		self.assertTrue(result["variance"]["agreed"])
+
 	def test_replaying_it_does_not_sell_it_twice(self):
 		"""09 §8 — the most damaging replay in the system, on the riskiest path."""
 		queue_id = frappe.generate_hash()

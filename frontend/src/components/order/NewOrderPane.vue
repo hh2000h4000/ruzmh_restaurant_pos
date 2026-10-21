@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import AppIcon, { type IconName } from "@/components/AppIcon.vue";
+import { computed } from "vue";
+
 import { pick, t } from "@/i18n";
 import { useSessionStore } from "@/stores/session";
 import type { OrderType } from "@/types/session";
@@ -17,114 +18,43 @@ import type { OrderType } from "@/types/session";
  * (FR-1.3). Nothing here is hardcoded — including whether a type seats people:
  * that is `requires_table` on the type, because plenty of restaurants run
  * dine-in with no table plan at all and the customer simply takes a seat.
+ *
+ * **Names, and nothing to explain them** (`D-385`). A heading, a hint, an icon
+ * and a line under each type saying where it leads: the cashier knows what
+ * «محلي» and «طاولات» mean, and was reading four things to tap one. One column
+ * while there are a handful, two once there are more.
  */
-/**
- * The table this pane is choosing a type for, when it was reached from the
- * floor (FR-2.1a). `null` on the ordinary "start another order" path.
- */
-defineProps<{ seating?: string | null }>();
-
 const emit = defineEmits<{ open: [orderType: OrderType] }>();
 
 const session = useSessionStore();
 
-/**
- * An order type's icon is configured, not guessed — the same rule the till
- * screen's column follows, so the two never disagree about what a type looks
- * like.
- */
-const NAMES = new Set<string>([
-  "plane",
-  "mobile",
-  "card",
-  "users",
-  "hanger",
-  "truck",
-  "home",
-  "bag",
-  "receipt",
-  "document",
-]);
+/** Up to four sit in one column; a fifth starts a second. */
+const twoColumns = computed(() => session.orderTypes.length > 4);
 
-function icon(orderType: OrderType): IconName | null {
-  const configured = (orderType.icon ?? "").trim();
-  if (NAMES.has(configured)) return configured as IconName;
-  if (configured) return null;
-
-  if (orderType.requires_table) return "home";
-  if (orderType.customer_mode === "required") return "users";
-  return "bag";
-}
-
-function glyph(orderType: OrderType): string | null {
-  const configured = (orderType.icon ?? "").trim();
-  return NAMES.has(configured) ? null : configured || null;
-}
-
-/**
- * What tapping this type will ask for first.
- *
- * A promise, not a warning: a type that needs a customer opens the picker and
- * then the order, the way a type that needs a table opens the floor. Neither is
- * a reason to grey the tile out — the tile is the way in.
- */
-function subtitle(orderType: OrderType): string {
-  if (orderType.customer_mode === "required") return t("type.hintCustomer");
-  if (orderType.requires_table) return t("type.hintTable");
-  return t("type.hintQuick");
-}
 </script>
 
 <template>
-  <!-- The body of the «which kind of order» popup (`D-384`): white tiles on the
-       popup's grey, two to a row, scrolling inside a box of their own when a
-       terminal sells many kinds, so the popup never outgrows the screen. -->
-  <div class="pt-1">
-    <p class="mb-4 text-center text-xs text-subtle">
-      {{ seating ? t("tables.seatHint") : t("nav.newHint") }}
-    </p>
-
-    <div class="max-h-[60vh] overflow-y-auto">
-      <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <button
-          v-for="orderType in session.orderTypes"
-          :key="orderType.name"
-          type="button"
-          class="flex h-[84px] items-center gap-4 rounded-lg bg-surface px-4 text-start transition duration-100 ease-rpos active:bg-primary/10"
-          @click="emit('open', orderType)"
-        >
-          <span class="relative grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-full">
-            <span
-              class="absolute inset-0 opacity-10"
-              :style="{ backgroundColor: orderType.color ?? undefined }"
-            />
-            <AppIcon
-              v-if="icon(orderType)"
-              :name="icon(orderType)!"
-              :size="28"
-              :style="{ color: orderType.color ?? undefined }"
-            />
-            <span
-              v-else
-              class="text-2xl"
-            >{{ glyph(orderType) }}</span>
-          </span>
-
-          <span class="min-w-0">
-            <span class="block truncate text-lg font-semibold">
-              {{ pick(orderType.title_ar, orderType.title) }}
-            </span>
-            <span class="block truncate text-sm text-subtle">{{ subtitle(orderType) }}</span>
-          </span>
-        </button>
-      </div>
-
-      <p
-        v-if="!session.orderTypes.length"
-        class="rounded bg-surface p-8 text-center text-subtle"
+  <div class="max-h-[60vh] overflow-y-auto pt-1">
+    <div
+      class="grid gap-3"
+      :class="twoColumns ? 'grid-cols-2' : 'grid-cols-1'"
+    >
+      <button
+        v-for="orderType in session.orderTypes"
+        :key="orderType.name"
+        type="button"
+        class="min-h-14 truncate rounded bg-surface px-4 text-lg font-medium transition duration-100 ease-rpos active:bg-primary/10"
+        @click="emit('open', orderType)"
       >
-        {{ t("home.noOrderTypes") }}
-      </p>
+        {{ pick(orderType.title_ar, orderType.title) }}
+      </button>
     </div>
+
+    <p
+      v-if="!session.orderTypes.length"
+      class="rounded bg-surface p-8 text-center text-subtle"
+    >
+      {{ t("home.noOrderTypes") }}
+    </p>
   </div>
 </template>

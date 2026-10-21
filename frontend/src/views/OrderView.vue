@@ -1786,13 +1786,11 @@ async function send(): Promise<void> {
       :open="askingType"
       :title="typeAskTitle"
       pad
-      wide
+      quiet
+      :wide="session.orderTypes.length > 4"
       @close="closeTypeAsk"
     >
-      <NewOrderPane
-        :seating="pendingTable?.table_number ?? pendingReservation?.tableNumber ?? null"
-        @open="startAnother"
-      />
+      <NewOrderPane @open="startAnother" />
     </BaseDialog>
 
     <BaseDialog

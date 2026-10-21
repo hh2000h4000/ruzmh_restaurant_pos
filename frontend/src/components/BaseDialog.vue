@@ -48,8 +48,13 @@ const props = withDefaults(
      * button keeps what was typed.
      */
     pad?: boolean;
+    /**
+     * The title is for a screen reader only, when the buttons already say
+     * what is being asked (`D-385`).
+     */
+    quiet?: boolean;
   }>(),
-  { dismissible: true, wide: false, pad: false },
+  { dismissible: true, wide: false, pad: false, quiet: false },
 );
 
 const emit = defineEmits<{ close: [] }>();
@@ -144,9 +149,11 @@ onUnmounted(() => {
       >
         <h2
           :class="
-            pad
-              ? '-mx-5 mb-0 px-5 py-3 text-center text-lg font-normal text-subtle'
-              : 'mb-4 text-lg font-semibold'
+            quiet
+              ? 'sr-only'
+              : pad
+                ? '-mx-5 mb-0 px-5 py-3 text-center text-lg font-normal text-subtle'
+                : 'mb-4 text-lg font-semibold'
           "
         >
           {{ title }}

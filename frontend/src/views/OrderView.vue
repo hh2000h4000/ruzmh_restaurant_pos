@@ -34,6 +34,7 @@ import RosterDialog from "@/components/shift/RosterDialog.vue";
 import ShiftMenu from "@/components/shift/ShiftMenu.vue";
 import FloorPane from "@/components/order/FloorPane.vue";
 import NewOrderPane from "@/components/order/NewOrderPane.vue";
+import PaymentPane from "@/components/order/PaymentPane.vue";
 import ReservationsPane from "@/components/order/ReservationsPane.vue";
 import AlertsBell from "@/components/order/AlertsBell.vue";
 import { seatReservation } from "@/api/reservation";
@@ -49,7 +50,6 @@ import {
 import { useDismiss } from "@/composables/useDismiss";
 import { useOpenOrders } from "@/composables/useOpenOrders";
 import { formatNumber, t, tn } from "@/i18n";
-import { isMissingScreen } from "@/router/missingScreen";
 import { unlockSound } from "@/sound";
 import { useAlertsStore } from "@/stores/alerts";
 import { useAuthStore } from "@/stores/auth";
@@ -227,7 +227,8 @@ async function startFromRoute(): Promise<void> {
 
   const existing = route.params.orderName as string | undefined;
   if (existing) {
-    pane.value = "items";
+    // `?pane=pay` is where the old payment address lands now (`D-386`).
+    pane.value = route.query.pane === "pay" ? "pay" : "items";
     if (existing !== orders.order?.order_name) {
       // A type that sends on save sends as it is put down (`D-223`).
       await orders.putDown();
@@ -1460,24 +1461,25 @@ async function reload(): Promise<void> {
   if (orders.order) await orders.open(orders.order.order_name);
 }
 
+/**
+ * Pay — the working column turns into the payment, and the bill stays where it
+ * is (`D-386`). It used to be a page of its own that put the bill away.
+ */
 function goToPayment(): void {
   if (!orders.order) return;
   // BR-044 — asked here rather than on the payment screen, so the cashier is
   // not walked through a form they will be refused at the end of (D-058).
   if (!maySell()) return;
 
-  // **Not `void`** (D-082). A rejected navigation resolves into nothing: the
-  // button appears dead, the cashier taps it again, and there is not a word
-  // anywhere to say why. Every path ends in something visible (`CLAUDE.md`
-  // §5.5), and that includes the paths that are supposed to be impossible.
-  router
-    .push({ name: "payment", params: { orderName: orders.order.order_name } })
-    .catch((cause) => {
-      // The router answers a missing screen itself — it reloads, or says why
-      // (`D-221`). A file URL on the order is not something a cashier can use.
-      if (isMissingScreen(cause)) return;
-      orders.error = cause instanceof Error ? cause.message : String(cause);
-    });
+  billOpen.value = false;
+  pane.value = "pay";
+}
+
+/** Paid, and on to the next one: the type is asked over the menu (`D-384`). */
+function afterPaid(next: "new" | "list"): void {
+  void router.push({ name: "home", query: next === "new" ? { pane: "new" } : {} }).then(() => {
+    if (next === "list") pane.value = "orders";
+  });
 }
 
 async function send(): Promise<void> {
@@ -1660,6 +1662,18 @@ async function send(): Promise<void> {
             @seat-booking="seatBooking"
           />
 
+
+          <!-- `D-386` — the payment, in the column, beside the bill it pays.
+               Keyed by the order, so another bill never inherits its tenders. -->
+          <PaymentPane
+            v-else-if="pane === 'pay' && orders.order"
+            :key="orders.order.order_name"
+            class="min-h-0 flex-1"
+            :order-name="orders.order.order_name"
+            @back="pane = 'items'"
+            @next="afterPaid('new')"
+            @list="afterPaid('list')"
+          />
 
           <!-- The last of the panes; asking which kind of order is a popup now
                (`D-384`), not a pane. -->

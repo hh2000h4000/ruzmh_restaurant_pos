@@ -71,10 +71,12 @@ const router = createRouter({
       name: "order",
       component: () => import("@/views/OrderView.vue"),
     },
+    // `D-386` — paying is a column of the order screen now, beside the bill.
+    // The address stays, for a bookmark or a link that still carries it.
     {
       path: "/payment/:orderName",
       name: "payment",
-      component: () => import("@/views/PaymentView.vue"),
+      redirect: (to) => ({ name: "order", params: { orderName: to.params.orderName }, query: { pane: "pay" } }),
     },
     /**
      * The screen turned around to face the guest (`FR-13`, `D-162`).

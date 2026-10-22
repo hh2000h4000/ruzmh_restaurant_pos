@@ -36,10 +36,10 @@ beforeEach(async () => {
 
 describe("a page load that has to fetch the terminal first", () => {
   it("remembers the screen it was going to", async () => {
-    await router.push({ name: "payment", params: { orderName: "RO-1" } });
+    await router.push({ name: "order", params: { orderName: "RO-1" } });
 
     expect(router.currentRoute.value.name).toBe("setup");
-    expect(router.currentRoute.value.query.next).toBe("/payment/RO-1");
+    expect(router.currentRoute.value.query.next).toBe("/order/RO-1");
   });
 
   it("carries nothing when the screen was home", async () => {

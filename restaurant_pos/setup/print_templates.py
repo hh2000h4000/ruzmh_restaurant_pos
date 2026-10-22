@@ -416,11 +416,9 @@ KOT = """
 			<span class="q">{{% if item.action == "void" %}}&#10005;{{% endif %}}{{{{ item.qty | int }}}}&times;</span>
 			<span class="n">{{{{ item.item_name | rtl }}}}</span>
 		</div>
-		{{% if item.modifiers %}}
-		{{% for modifier in frappe.parse_json(item.modifiers) %}}
-		<div class="mod">+ {{{{ (modifier.get("title") or modifier.get("item_name") or modifier) | rtl }}}}</div>
+		{{% for line in item.modifier_lines or [] %}}
+		<div class="mod">+ {{{{ line | rtl }}}}</div>
 		{{% endfor %}}
-		{{% endif %}}
 		{{% if item.notes %}}<div class="note">{{{{ item.notes | rtl }}}}</div>{{% endif %}}
 	</div>
 	{{% endfor %}}

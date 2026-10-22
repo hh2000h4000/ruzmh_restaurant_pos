@@ -422,6 +422,36 @@ class TestWhatTheKitchenReads(PrintingTestBase):
 		self.assertIsNone(context["table_number"])
 		self.assertIsNotNone(service.print_kot(kot.name))
 
+	def test_a_ticket_with_an_add_on_prints_and_names_it(self):
+		"""D-390 — every ticket carrying an add-on failed to queue.
+
+		The template called `frappe.parse_json`, which the sandboxed renderer
+		does not offer, and read `title` from rows that store `option_ar`.
+		"""
+		kot = self._sent_kot()
+		modifiers = frappe.as_json(
+			[
+				{
+					"group": "Drink Size",
+					"option": "Small",
+					"option_ar": "صغير",
+					"amount": 0,
+					"price_effect": "none",
+				}
+			]
+		)
+		frappe.db.set_value("KOT Item", kot.items[0].name, "modifiers", modifiers)
+		kot.reload()
+
+		context = service.kot_context(kot, frappe.get_doc("Production Center", kot.production_center))
+		self.assertEqual(context["doc"].items[0].modifier_lines, ["صغير"])
+
+		template = frappe.db.get_value(
+			"POS Print Template", {"template_type": "kot", "is_default": 1, "paper_width": "80mm"}, "name"
+		)
+		self.assertIn("صغير", service.render_html(template, context))
+		self.assertIsNotNone(service.print_kot(kot.name))
+
 
 class TestTheAgentSeam(PrintingTestBase):
 	def _as_agent(self):

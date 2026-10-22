@@ -240,7 +240,7 @@ def html_to_png(html: str, *, width_dots: int) -> bytes:
 		# wkhtmltoimage writes its complaint to stderr and still exits 0 for
 		# warnings, so the empty-output case has to be treated as failure too.
 		detail = (result.stderr or b"").decode("utf-8", "replace").strip()
-		frappe.log_error(f"wkhtmltoimage failed: {detail}", "RPOS printing")
+		frappe.log_error(title="RPOS printing: wkhtmltoimage failed", message=detail)
 		frappe.throw(_("The document could not be rendered for printing."))
 
 	return result.stdout
@@ -436,7 +436,9 @@ def open_drawer(pos_profile: str, *, reason: str) -> str | None:
 			reference_name=pos_profile,
 		)
 	except Exception:
-		frappe.log_error(f"Could not open the drawer for {pos_profile} ({reason})", "RPOS printing")
+		frappe.log_error(
+			title=f"Could not open the drawer for {pos_profile} ({reason})", message=frappe.get_traceback()
+		)
 		return None
 
 
@@ -468,7 +470,9 @@ def enqueue_print(method: str, **kwargs) -> None:
 		# Printing inline instead of giving up. It costs the caller ~300 ms,
 		# which is the whole reason this function exists; but a slow ticket is a
 		# ticket, and the alternative is a kitchen that silently gets nothing.
-		frappe.log_error(f"print queue unreachable; running {method} inline", "RPOS printing")
+		frappe.log_error(
+			title=f"print queue unreachable; running {method} inline", message=frappe.get_traceback()
+		)
 		globals()[method](**kwargs)
 
 
@@ -514,7 +518,7 @@ def print_kot(kot_name: str, *, force: bool = False) -> str | None:
 			reference_name=kot.name,
 		)
 	except Exception:
-		frappe.log_error(f"KOT {kot_name} could not be queued", "RPOS printing")
+		frappe.log_error(title=f"KOT {kot_name} could not be queued", message=frappe.get_traceback())
 		mark_kot_failed(kot_name)
 		return None
 
@@ -548,6 +552,28 @@ def kot_printer(production_center: str | None, pos_profile: str | None) -> str |
 	return (center.printer if center else None) or _cashier_printer(pos_profile)
 
 
+def _modifier_lines(stored) -> list[str]:
+	"""A ticket line's add-ons, as the words the cook reads (`D-390`).
+
+	Worked out here, not in the template: the template called
+	`frappe.parse_json`, which the sandboxed renderer does not offer, so every
+	ticket carrying an add-on failed to print — and it read `title` from rows
+	that store `option` / `option_ar`, so it would have printed a dict.
+	"""
+	if not stored:
+		return []
+	rows = frappe.parse_json(stored) if isinstance(stored, str) else stored
+	lines = []
+	for row in rows or []:
+		if isinstance(row, dict):
+			name = row.get("option_ar") or row.get("option") or row.get("item_name") or row.get("title")
+			if name:
+				lines.append(name)
+		elif row:
+			lines.append(str(row))
+	return lines
+
+
 def kot_context(kot, center) -> dict:
 	"""What the kitchen ticket needs, in the words a cook reads.
 
@@ -556,6 +582,8 @@ def kot_context(kot, center) -> dict:
 	real ticket printed both ids, and the table's was long enough to widen the
 	page and shear the item names off the right edge of the roll.
 	"""
+	for item in kot.items or []:
+		item.modifier_lines = _modifier_lines(item.modifiers)
 	return {
 		"doc": kot,
 		"center": center,
@@ -616,7 +644,9 @@ def print_receipt(invoice_name: str, *, order_name: str | None = None) -> str | 
 			reference_name=invoice.name,
 		)
 	except Exception:
-		frappe.log_error(f"Receipt for {invoice_name} could not be queued", "RPOS printing")
+		frappe.log_error(
+			title=f"Receipt for {invoice_name} could not be queued", message=frappe.get_traceback()
+		)
 		return None
 
 
@@ -648,7 +678,10 @@ def print_shift_report(
 			reference_name=opening_entry or shift,
 		)
 	except Exception:
-		frappe.log_error(f"Shift report for {opening_entry or shift} could not be queued", "RPOS printing")
+		frappe.log_error(
+			title=f"Shift report for {opening_entry or shift} could not be queued",
+			message=frappe.get_traceback(),
+		)
 		return None
 
 

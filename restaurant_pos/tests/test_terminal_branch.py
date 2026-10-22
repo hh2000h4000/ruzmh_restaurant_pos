@@ -187,3 +187,47 @@ class TestHallsAndTables(TerminalBranchTestBase):
 		).insert(ignore_permissions=True)
 		profile = frappe._dict(restaurant_section=self.hall)
 		self.assertEqual(orders.section_of_table(table.name, profile), self.terrace)
+
+
+class TestTheBranchColumn(TerminalBranchTestBase):
+	"""Stage 2 (`D-391`): `rpos_branch` is filled from the hall and never disagrees."""
+
+	def test_every_terminal_says_what_its_hall_says(self):
+		from restaurant_pos.utils import terminal_branch
+
+		terminal_branch.fill_from_halls()
+		self.assertEqual(terminal_branch.mismatches(), [])
+		for name in (PROFILE, self.second, self.elsewhere):
+			self.assertEqual(
+				frappe.db.get_value("POS Profile", name, terminal_branch.FIELD),
+				orders.branch_of_profile(name),
+			)
+
+	def test_a_profile_with_no_hall_gets_no_branch(self):
+		from restaurant_pos.utils import terminal_branch
+
+		terminal_branch.fill_from_halls()
+		self.assertFalse(frappe.db.get_value("POS Profile", self.outsider, terminal_branch.FIELD))
+
+	def test_a_new_terminal_takes_its_halls_branch(self):
+		from restaurant_pos.utils import terminal_branch
+
+		name = _terminal("RPOS Baseline Fresh Till", self.other_hall)
+		self.assertEqual(frappe.db.get_value("POS Profile", name, terminal_branch.FIELD), OTHER_BRANCH)
+
+	def test_a_hall_of_another_branch_is_refused(self):
+		doc = frappe.get_doc("POS Profile", self.second)
+		doc.restaurant_section = self.other_hall
+		with self.assertRaises(frappe.ValidationError):
+			doc.save(ignore_permissions=True)
+
+	def test_the_fill_stops_on_a_terminal_that_disagrees(self):
+		from restaurant_pos.utils import terminal_branch
+
+		frappe.db.set_value(
+			"POS Profile", self.second, terminal_branch.FIELD, OTHER_BRANCH, update_modified=False
+		)
+		with self.assertRaises(frappe.ValidationError) as caught:
+			terminal_branch.fill_from_halls()
+		self.assertIn(self.second, str(caught.exception))
+		frappe.db.set_value("POS Profile", self.second, terminal_branch.FIELD, BRANCH, update_modified=False)

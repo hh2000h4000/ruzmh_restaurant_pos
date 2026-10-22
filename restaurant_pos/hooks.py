@@ -90,6 +90,8 @@ doc_events = {
 		# D-337 — a terminal sells from its branch's warehouse unless given its own.
 		"before_validate": "restaurant_pos.utils.stock_rules.take_the_branch_warehouse",
 		"validate": [
+			# D-391 — the terminal's own branch, kept equal to its hall's.
+			"restaurant_pos.utils.terminal_branch.keep_with_hall",
 			"restaurant_pos.utils.invoice_number.number_device",
 			# D-363 — the terminal's printer is one of its own branch's.
 			"restaurant_pos.utils.printer_branch.check_terminal",

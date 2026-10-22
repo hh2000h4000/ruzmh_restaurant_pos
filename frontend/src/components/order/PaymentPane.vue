@@ -476,6 +476,20 @@ function choosePromotion(name: string): void {
   chosenPromotion.value = chosenPromotion.value === name ? null : name;
 }
 
+/** The manual field, empty rather than «0» when there is no discount. */
+const manualShown = computed(() => (discountValue.value ? String(discountValue.value) : ""));
+
+function setManual(typed: string): void {
+  const value = Number(typed) || 0;
+  discountValue.value = value;
+  if (!value) discountType.value = null;
+  else if (!discountType.value) discountType.value = "amount";
+}
+
+function setManualKind(kind: "percentage" | "amount"): void {
+  discountType.value = discountType.value === kind && !discountValue.value ? null : kind;
+}
+
 function setQuickDiscount(percentage: number): void {
   if (discountType.value === "percentage" && discountValue.value === percentage) {
     discountType.value = null;
@@ -835,7 +849,7 @@ async function confirm(): Promise<void> {
            the cards scroll, Confirm never does (`D-124`). The methods come
            first on a phone, where the work starts. -->
       <div
-        class="grid min-h-0 flex-1 content-start items-start gap-5 overflow-y-auto md:grid-cols-2 2xl:grid-cols-[minmax(0,0.85fr)_minmax(0,1fr)_minmax(0,1.35fr)]"
+        class="grid min-h-0 content-start items-start gap-5 overflow-y-auto md:grid-cols-2 2xl:grid-cols-[minmax(0,0.85fr)_minmax(0,1fr)_minmax(0,1.35fr)]"
       >
         <!-- 1 — the bill's figures -->
         <section class="order-3 rounded-xl border border-line bg-surface p-6 md:order-1">
@@ -944,32 +958,34 @@ async function confirm(): Promise<void> {
             </button>
           </div>
 
-          <div class="grid grid-cols-[6rem_minmax(0,1fr)] gap-2.5">
-            <select
-              v-model="discountType"
-              :aria-label="t('pay.discountType')"
-              class="min-h-12 rounded-[10px] border border-line bg-surface px-3 outline-none focus:border-content"
-            >
-              <option :value="null">
-                —
-              </option>
-              <option value="percentage">
-                %
-              </option>
-              <option value="amount">
-                {{ t("currency.sar") }}
-              </option>
-            </select>
+          <!-- A figure, then which kind — two keys, not a dropdown a finger has
+               to open (`D-388`). Typed with no kind chosen, it is riyals. -->
+          <div class="grid grid-cols-[minmax(0,1fr)_auto] gap-2.5">
             <input
               id="manual-discount"
-              v-model.number="discountValue"
+              :value="manualShown"
               type="number"
+              inputmode="decimal"
               min="0"
               step="0.5"
               :aria-label="t('pay.manualDiscount')"
               :placeholder="t('pay.manualDiscount')"
               class="rpos-numeric min-h-12 w-full rounded-[10px] border border-line bg-surface px-4 text-[15px] outline-none focus:border-content"
+              @input="setManual(($event.target as HTMLInputElement).value)"
             >
+            <div class="flex overflow-hidden rounded-[10px] border border-line">
+              <button
+                v-for="kind in (['percentage', 'amount'] as const)"
+                :key="kind"
+                type="button"
+                class="min-h-12 min-w-12 px-3 text-[15px]"
+                :class="discountType === kind ? 'bg-primary text-primary-contrast' : 'bg-surface text-subtle'"
+                :aria-pressed="discountType === kind"
+                @click="setManualKind(kind)"
+              >
+                {{ kind === "percentage" ? "%" : t("currency.sar") }}
+              </button>
+            </div>
           </div>
 
           <p
@@ -1194,7 +1210,11 @@ async function confirm(): Promise<void> {
         <button
           type="button"
           class="flex min-h-[3.75rem] w-full items-center justify-center gap-2.5 rounded-[10px] px-4 text-lg font-semibold transition duration-200 ease-rpos disabled:cursor-not-allowed"
-          :class="canConfirm ? 'bg-primary text-primary-contrast hover:brightness-110' : 'bg-background text-muted'"
+          :class="
+            canConfirm
+              ? 'bg-primary text-primary-contrast hover:brightness-110'
+              : 'border border-line bg-surface text-muted'
+          "
           :disabled="!canConfirm"
           @click="confirm"
         >

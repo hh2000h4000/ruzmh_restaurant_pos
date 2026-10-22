@@ -509,6 +509,11 @@ export const messages = {
 
   // Payment
   "pay.title": "Payment",
+  "pay.received": "Received",
+  "pay.method": "Payment method",
+  "pay.summaryTitle": "Order summary",
+  "pay.stepInvoice": "Invoice",
+  "pay.stepOrder": "Order",
   "pay.paid": "Paid",
   "pay.alreadyPaid": "This order is paid — invoice {invoice}",
   "pay.newOrder": "New order",

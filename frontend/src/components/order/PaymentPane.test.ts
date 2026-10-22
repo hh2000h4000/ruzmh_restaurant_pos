@@ -91,11 +91,17 @@ async function open(
 
 type Wrapper = Awaited<ReturnType<typeof open>>;
 
+/** Whether a button is the method of that name — its label, beside its initial. */
+function isMethod(button: ReturnType<Wrapper["find"]>, name: string): boolean {
+  const label = button.find("[data-method-label]");
+  return (label.exists() ? label.text() : button.text()).trim() === name;
+}
+
 /** The method button by its name, which is the label a cashier reads. */
 function methodButton(wrapper: Wrapper, name: string) {
   const found = wrapper
     .findAll("button")
-    .find((button) => button.text().trim() === name);
+    .find((button) => isMethod(button, name));
 
   if (!found) throw new Error(`no button labelled ${name}`);
   return found;
@@ -175,22 +181,6 @@ async function tenderSome(wrapper: Wrapper, name: string, digits: string) {
   await flushPromises();
 }
 
-/** Open «…», where everything that changes the price lives (`D-386`). */
-async function openExtras(wrapper: Wrapper) {
-  await wrapper.find("[data-extras-open]").trigger("click");
-  await flushPromises();
-}
-
-/** Close it with its Done, so the next sheet opened is the only dialog. */
-async function closeExtras(wrapper: Wrapper) {
-  const done = wrapper
-    .find("[data-extras]")
-    .findAll("button")
-    .find((button) => button.text().trim() === "تم");
-  await done!.trigger("click");
-  await flushPromises();
-}
-
 beforeEach(() => {
   setActivePinia(createPinia());
   vi.clearAllMocks();
@@ -229,7 +219,6 @@ describe("what the payment screen lets a cashier reach", () => {
     // half. The bar answers exactly as the card's button does.
     const wrapper = await open(summary());
     const bar = wrapper.find("[data-pay-bar]");
-    // Pay is the bar's wide button; «…» beside it opens the extras (`D-386`).
     const barButton = () =>
       bar.findAll("button").find((b) => b.text().includes("تأكيد الدفع"))!.element as HTMLButtonElement;
 
@@ -259,7 +248,7 @@ describe("what the payment screen lets a cashier reach", () => {
 
     expect(isDisabled(wrapper, "HungerStation")).toBe(false);
     // Not greyed but gone (`D-386`): the bill shows only what it may take.
-    expect(wrapper.findAll("button").some((b) => b.text().trim() === "نقد")).toBe(false);
+    expect(wrapper.findAll("button").some((b) => isMethod(b, "نقد"))).toBe(false);
   });
 
   it("accepts either of two forced methods, matching the server", async () => {
@@ -275,7 +264,7 @@ describe("what the payment screen lets a cashier reach", () => {
 
     expect(isDisabled(wrapper, "mada")).toBe(false);
     expect(isDisabled(wrapper, "بطاقة ائتمان")).toBe(false);
-    expect(wrapper.findAll("button").some((b) => b.text().trim() === "نقد")).toBe(false);
+    expect(wrapper.findAll("button").some((b) => isMethod(b, "نقد"))).toBe(false);
   });
 
   /**
@@ -360,7 +349,7 @@ describe("what the payment screen lets a cashier reach", () => {
 
     expect(wrapper.text()).toContain("رُفض الدفع");
     // Still a payment screen, with the tender the cashier took still on it.
-    expect(wrapper.findAll("button").some((b) => b.text().trim() === "mada")).toBe(true);
+    expect(wrapper.findAll("button").some((b) => isMethod(b, "mada"))).toBe(true);
   });
 });
 
@@ -395,7 +384,6 @@ function offerButton(wrapper: Wrapper, title: string) {
 describe("choosing an offer the shop configured", () => {
   it("shows what is on offer, with what it takes off", async () => {
     const wrapper = await open(summary(), { offers: [offer()], may_choose: true });
-    await openExtras(wrapper);
 
     expect(offerButton(wrapper, "عرض الإفطار").text()).toContain("10");
   });
@@ -414,7 +402,6 @@ describe("choosing an offer the shop configured", () => {
       requires_override: false,
     });
     const wrapper = await open(summary(), { offers: [offer()], may_choose: true });
-    await openExtras(wrapper);
 
     await offerButton(wrapper, "عرض الإفطار").trigger("click");
     await flushPromises();
@@ -430,7 +417,6 @@ describe("choosing an offer the shop configured", () => {
    */
   it("is not tappable by a cashier without the right", async () => {
     const wrapper = await open(summary(), { offers: [offer()], may_choose: false });
-    await openExtras(wrapper);
 
     const button = offerButton(wrapper, "عرض الإفطار").element as HTMLButtonElement;
 
@@ -456,11 +442,9 @@ describe("choosing an offer the shop configured", () => {
       change: 0,
     } as never);
     const wrapper = await open(summary(), { offers: [offer()], may_choose: true });
-    await openExtras(wrapper);
 
     await offerButton(wrapper, "عرض الإفطار").trigger("click");
     await flushPromises();
-    await closeExtras(wrapper);
     await tender(wrapper, "نقد");
     await confirmButton(wrapper).click();
     await flushPromises();
@@ -472,7 +456,6 @@ describe("choosing an offer the shop configured", () => {
 
   it("draws nothing at all when this bill qualifies for none", async () => {
     const wrapper = await open(summary(), { offers: [], may_choose: true });
-    await openExtras(wrapper);
 
     expect(wrapper.text()).not.toContain("عروض على هذي الفاتورة");
   });
@@ -521,7 +504,6 @@ describe("loyalty points on the bill", () => {
 
   it("draws nothing on a bill outside the scheme", async () => {
     const wrapper = await open(summary({ loyalty: null }));
-    await openExtras(wrapper);
 
     expect(pointsButton(wrapper).exists()).toBe(false);
     expect(wrapper.text()).not.toContain("نقاط الولاء");
@@ -531,11 +513,9 @@ describe("loyalty points on the bill", () => {
     vi.mocked(paymentApi.previewTotals).mockResolvedValue(priced(pointsOffer()));
     vi.mocked(paymentApi.processPayment).mockResolvedValue({ order_name: ORDER } as never);
     const wrapper = await open(summary({ loyalty: pointsOffer() }));
-    await openExtras(wrapper);
 
     await pointsButton(wrapper).trigger("click");
     await flushPromises();
-    await closeExtras(wrapper);
     await tender(wrapper, "نقد");
     await confirmButton(wrapper).click();
     await flushPromises();
@@ -550,13 +530,10 @@ describe("loyalty points on the bill", () => {
     vi.mocked(paymentApi.previewTotals).mockResolvedValue(priced(pointsOffer()));
     vi.mocked(paymentApi.processPayment).mockResolvedValue({ order_name: ORDER } as never);
     const wrapper = await open(summary({ loyalty: pointsOffer() }));
-
-    await openExtras(wrapper);
     await pointsButton(wrapper).trigger("click");
     await flushPromises();
     await pointsButton(wrapper).trigger("click");
     await flushPromises();
-    await closeExtras(wrapper);
     await tender(wrapper, "نقد");
     await confirmButton(wrapper).click();
     await flushPromises();
@@ -573,7 +550,6 @@ describe("loyalty points on the bill", () => {
       priced(pointsOffer({ max_points: 100, max_amount: 5 })),
     );
     const wrapper = await open(summary({ loyalty: pointsOffer() }));
-    await openExtras(wrapper);
 
     await pointsButton(wrapper).trigger("click");
     await flushPromises();
@@ -585,7 +561,6 @@ describe("loyalty points on the bill", () => {
     const wrapper = await open(
       summary({ loyalty: pointsOffer({ balance: 50, worth: 2.5, max_points: 0, max_amount: 0 }) }),
     );
-    await openExtras(wrapper);
 
     expect(pointsButton(wrapper).exists()).toBe(false);
     expect(wrapper.text()).toContain("تُستخدم النقاط من");

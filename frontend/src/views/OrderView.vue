@@ -1549,7 +1549,12 @@ async function send(): Promise<void> {
           <!-- D-299 — the bell sits at the row's far end, drawn whether a bill is
                in hand or not: the row is furniture, like the bill (D-059). The
                actions take what is left and wrap; the bell never leaves the screen. -->
-          <div class="flex items-start gap-2.5">
+          <!-- Not while paying (`D-387`): the payment takes the whole right
+               of the screen, beside the bill. -->
+          <div
+            v-if="pane !== 'pay'"
+            class="flex items-start gap-2.5"
+          >
             <div class="min-w-0 flex-1">
               <OrderActionBar
                 v-if="orders.order"
@@ -1700,6 +1705,7 @@ async function send(): Promise<void> {
             <AppToast />
 
             <OrderBottomNav
+              v-if="pane !== 'pay'"
               :entries="navEntries"
               :active="menuOpen ? 'menu' : pane"
               @select="onNavigate"

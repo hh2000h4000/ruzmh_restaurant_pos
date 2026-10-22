@@ -10,7 +10,6 @@ import type {
   TotalsPreview,
 } from "@/api/payment";
 import AppIcon from "@/components/AppIcon.vue";
-import BaseDialog from "@/components/BaseDialog.vue";
 import ManagerPinDialog from "@/components/ManagerPinDialog.vue";
 import CouponDialog from "@/components/order/CouponDialog.vue";
 import GiftCardPayDialog from "@/components/order/GiftCardPayDialog.vue";
@@ -26,11 +25,15 @@ import { useSessionStore } from "@/stores/session";
  * with no dishes on it. Now it is the working column, the way the orders list
  * and the floor are, and the bill stays where it was — as on Foodics.
  *
- * Top to bottom, the order the work happens in: the methods, each tapped once
- * (a card or an app takes what is owed on the spot; cash asks how much was
- * handed over); what has been taken, with what is left or the change; and Pay.
- * Everything that changes the price — offers, a coupon, a discount, points, an
- * even split — is behind «…», because most bills have none of it.
+ * **It takes the whole right of the screen** (`D-387`): the action row above
+ * and the bar below step away while it is open, and three cards stand where
+ * the menu was — the bill's figures, what reduces them, and the methods —
+ * with Confirm across the foot. The user's reference design; three columns
+ * on a wide screen, two on a narrower one, one on a phone.
+ *
+ * A card or an app takes what is owed on one tap; cash asks how much was
+ * handed over; Confirm is the second tap, and a mistaken tender comes off
+ * with its ✕.
  *
  * Every figure comes from the server: the discount is previewed by
  * `preview_totals` before the customer is quoted, and the final amount is the
@@ -57,9 +60,6 @@ const session = useSessionStore();
 const orders = useOrderStore();
 
 const orderName = props.orderName;
-
-/** The sheet behind «…»: offers, coupon, discount, points, split. */
-const extrasOpen = ref(false);
 
 const summary = ref<PaymentSummary | null>(null);
 const enteringCoupon = ref(false);
@@ -162,6 +162,16 @@ function isForbidden(method: PaymentMethodOption): boolean {
   return forcedMethods.value.length > 0 && !forcedMethods.value.includes(method.payment_method);
 }
 
+/** Whether a tender on this method is already on the bill — drawn chosen. */
+function taken(method: PaymentMethodOption): boolean {
+  return lines.value.some((line) => line.method === method.payment_method);
+}
+
+/** The square at the start of a method's row: its first letter, as the reference draws it. */
+function initial(method: PaymentMethodOption): string {
+  return methodName(method.payment_method).trim().charAt(0).toUpperCase();
+}
+
 /**
  * The methods this bill may be paid with, **and only those** (`D-386`): a
  * HungerStation order shows HungerStation's, not ten buttons eight of which
@@ -172,14 +182,6 @@ const shownMethods = computed(() =>
   (summary.value?.payment_methods ?? []).filter((method) => !isForbidden(method)),
 );
 
-/** Whether a reduction is on the bill, so «…» says so. */
-const reduced = computed(
-  () =>
-    Boolean(discountType.value && discountValue.value) ||
-    Boolean(chosenPromotion.value) ||
-    loyaltyPoints.value > 0 ||
-    Boolean(summary.value?.coupon),
-);
 /**
  * The tenders worth sending. A row of zero is not a payment (`D-123`).
  *
@@ -679,25 +681,63 @@ async function confirm(): Promise<void> {
 </script>
 
 <template>
-  <section class="flex min-h-0 flex-col gap-3">
-    <header class="flex shrink-0 items-center gap-3">
-      <button
-        type="button"
-        class="grid h-12 w-12 shrink-0 place-items-center rounded-lg bg-surface text-lg"
-        :aria-label="t('action.back')"
-        @click="emit('back')"
-      >
-        <span class="rpos-flip">←</span>
-      </button>
-      <h1 class="text-xl font-medium">
-        {{ t("pay.title") }}
-      </h1>
+  <section class="flex min-h-0 flex-col gap-4">
+    <!-- The heading, the bill's number, and where in the sale we are. -->
+    <header class="flex shrink-0 items-center justify-between gap-4">
+      <div class="flex min-w-0 items-center gap-3">
+        <button
+          type="button"
+          class="grid h-11 w-11 shrink-0 place-items-center rounded-[10px] border border-line bg-surface"
+          :aria-label="t('action.back')"
+          @click="emit('back')"
+        >
+          <AppIcon
+            name="back"
+            class="rpos-flip"
+            :size="20"
+          />
+        </button>
+        <div class="min-w-0">
+          <h1 class="text-xl font-semibold leading-tight">
+            {{ t("pay.title") }}
+          </h1>
+          <p
+            class="rpos-numeric truncate text-[13px] text-muted"
+            dir="ltr"
+          >
+            {{ orderName }}
+          </p>
+        </div>
+      </div>
+
+      <ol class="flex shrink-0 items-center gap-2.5 text-sm text-muted max-sm:hidden">
+        <li class="flex items-center gap-2">
+          <span class="grid h-6 w-6 place-items-center rounded-full bg-background text-xs">١</span>
+          {{ t("pay.stepOrder") }}
+        </li>
+        <li class="h-px w-5 bg-line" />
+        <li class="flex items-center gap-2 font-semibold text-content">
+          <span class="grid h-6 w-6 place-items-center rounded-full bg-primary text-xs text-primary-contrast">٢</span>
+          {{ t("pay.title") }}
+        </li>
+        <li class="h-px w-5 bg-line" />
+        <li
+          class="flex items-center gap-2"
+          :class="done ? 'font-semibold text-content' : ''"
+        >
+          <span
+            class="grid h-6 w-6 place-items-center rounded-full text-xs"
+            :class="done ? 'bg-primary text-primary-contrast' : 'bg-background'"
+          >٣</span>
+          {{ t("pay.stepInvoice") }}
+        </li>
+      </ol>
     </header>
 
     <p
       v-if="shiftNotice && !done"
       role="alert"
-      class="rounded bg-status-reserved/10 p-3 text-sm text-status-reserved"
+      class="rounded-[10px] bg-status-reserved/10 p-3 text-sm text-status-reserved"
     >
       {{ shiftNotice }}
     </p>
@@ -705,7 +745,7 @@ async function confirm(): Promise<void> {
     <!-- Paid: the change, read across the counter, and straight on. -->
     <section
       v-if="done"
-      class="m-auto w-full max-w-sm rounded-xl bg-surface p-8 text-center"
+      class="m-auto w-full max-w-sm rounded-xl border border-line bg-surface p-8 text-center"
     >
       <p class="mb-2 text-lg font-semibold text-status-available">
         {{ t("pay.paid") }}
@@ -715,7 +755,7 @@ async function confirm(): Promise<void> {
       </p>
       <p
         v-if="done.change_amount > 0"
-        class="rpos-numeric mb-4 rounded-lg bg-status-available/10 p-3 text-2xl font-semibold text-status-available"
+        class="rpos-numeric mb-4 rounded-[10px] bg-status-available/10 p-3 text-2xl font-semibold text-status-available"
       >
         {{ t("pay.change") }}: {{ money(done.change_amount) }}
       </p>
@@ -750,14 +790,14 @@ async function confirm(): Promise<void> {
       <div class="flex flex-col gap-2">
         <button
           type="button"
-          class="min-h-14 w-full rounded-lg bg-primary px-4 font-semibold text-primary-contrast"
+          class="min-h-14 w-full rounded-[10px] bg-primary px-4 font-semibold text-primary-contrast"
           @click="emit('next')"
         >
           {{ t("pay.newOrder") }}
         </button>
         <button
           type="button"
-          class="min-h-tap w-full rounded-lg px-4 font-medium text-subtle"
+          class="min-h-tap w-full rounded-[10px] px-4 font-medium text-subtle"
           @click="emit('list')"
         >
           {{ t("nav.orders") }}
@@ -768,273 +808,147 @@ async function confirm(): Promise<void> {
     <p
       v-else-if="loadFailure"
       role="alert"
-      class="rounded bg-danger/10 p-4 text-danger"
+      class="rounded-[10px] bg-danger/10 p-4 text-danger"
     >
       {{ loadFailure }}
     </p>
 
     <template v-else-if="summary">
-      <!-- Something the cashier can fix, said **above** the screen and not
-           instead of it: the amounts they took are what they need to fix it
-           (`D-123`). -->
+      <!-- Something the cashier can fix, said **above** the cards and not
+           instead of them (`D-123`). -->
       <p
         v-if="failure"
         role="alert"
-        class="rounded bg-danger/10 px-4 py-3 text-sm text-danger"
+        class="shrink-0 rounded-[10px] bg-danger/10 px-4 py-3 text-sm text-danger"
       >
         {{ failure }}
       </p>
       <p
         v-if="blocker"
         role="alert"
-        class="rounded bg-danger/10 px-3 py-2 text-sm text-danger"
+        class="shrink-0 rounded-[10px] bg-danger/10 px-3 py-2 text-sm text-danger"
       >
         {{ blocker }}
       </p>
 
-      <!-- The methods, white on the screen's grey, scrolling inside themselves
-           so Pay never leaves the screen (`D-124`). Each says what tapping it
-           takes; cash asks. -->
-      <div class="min-h-0 flex-1 overflow-y-auto">
-        <div class="grid grid-cols-2 gap-3 xl:grid-cols-3">
+      <!-- Three cards on a wide screen, two on a narrower one, one on a phone;
+           the cards scroll, Confirm never does (`D-124`). The methods come
+           first on a phone, where the work starts. -->
+      <div
+        class="grid min-h-0 flex-1 content-start items-start gap-5 overflow-y-auto md:grid-cols-2 2xl:grid-cols-[minmax(0,0.85fr)_minmax(0,1fr)_minmax(0,1.35fr)]"
+      >
+        <!-- 1 — the bill's figures -->
+        <section class="order-3 rounded-xl border border-line bg-surface p-6 md:order-1">
+          <h2 class="mb-4 font-semibold">
+            {{ t("pay.summaryTitle") }}
+          </h2>
+          <dl class="text-sm">
+            <div class="flex items-center justify-between py-2.5">
+              <dt class="text-muted">
+                {{ t("totals.subtotal") }}
+              </dt>
+              <dd class="rpos-numeric text-base">
+                {{ money(preview?.subtotal ?? summary.subtotal) }}
+              </dd>
+            </div>
+            <div class="flex items-center justify-between py-2.5">
+              <dt class="text-muted">
+                {{ t("totals.tax") }}
+              </dt>
+              <dd class="rpos-numeric text-base text-subtle">
+                {{ money(preview?.tax_amount ?? summary.tax_amount) }}
+              </dd>
+            </div>
+            <!-- What brought it down, each named (`BR-032`, `D-163`, `D-189`). -->
+            <div
+              v-if="reductions.promotion"
+              class="flex items-center justify-between gap-3 py-2.5 text-status-available"
+            >
+              <dt class="truncate">
+                {{ reductions.promotion.title }}
+              </dt>
+              <dd class="rpos-numeric shrink-0 text-base">
+                −{{ money(reductions.promotion.amount) }}
+              </dd>
+            </div>
+            <div
+              v-if="reductions.loyalty"
+              class="flex items-center justify-between py-2.5 text-status-available"
+            >
+              <dt>{{ t("totals.loyalty") }}</dt>
+              <dd class="rpos-numeric text-base">
+                −{{ money(reductions.loyalty.amount) }}
+              </dd>
+            </div>
+            <div
+              v-if="reductions.discount > 0"
+              class="flex items-center justify-between py-2.5 text-status-available"
+            >
+              <dt>{{ t("totals.discount") }}</dt>
+              <dd class="rpos-numeric text-base">
+                −{{ money(reductions.discount) }}
+              </dd>
+            </div>
+          </dl>
+          <div class="my-3 border-t border-dashed border-line" />
+          <!-- The largest thing on the screen: the figure the guest is told. -->
+          <div class="flex items-baseline justify-between gap-3">
+            <span class="font-semibold">{{ t("totals.total") }}</span>
+            <span class="rpos-numeric text-[38px] font-semibold leading-none">{{ money(due) }}</span>
+          </div>
+        </section>
+
+        <!-- 2 — what reduces it -->
+        <section class="order-2 flex flex-col gap-4 rounded-xl border border-line bg-surface p-6 md:order-2">
+          <h2 class="font-semibold">
+            {{ t("pay.discounts") }}
+          </h2>
+
+          <!-- `D-248` — the guest often produces the code here. A button that
+               reads like the field, because the kiosk raises no keyboard and
+               the code is typed on the coupon pad. -->
           <button
-            v-for="method in shownMethods"
-            :key="method.payment_method"
             type="button"
-            class="flex min-h-[5.5rem] flex-col items-start justify-center gap-1 rounded-lg bg-surface px-4 text-start transition duration-100 ease-rpos active:bg-primary/10 disabled:opacity-40"
-            :disabled="blocked || !canTakeMore || mixesSettlement(method)"
-            @click="chooseMethod(method)"
-          >
-            <span class="text-lg font-semibold">{{ methodName(method.payment_method) }}</span>
-          </button>
-        </div>
-
-        <p
-          v-if="!canTakeMore && lines.length"
-          class="mt-3 text-sm text-subtle"
-        >
-          {{ t("pay.covered") }}
-        </p>
-        <!-- Why half the list went quiet (`D-029`). -->
-        <p
-          v-else-if="settlementKind"
-          class="mt-3 text-sm text-subtle"
-        >
-          {{ settlementKind === "credit" ? t("pay.creditOnly") : t("pay.tillOnly") }}
-        </p>
-      </div>
-
-      <!-- What is owed, what has been taken and what is left. -->
-      <div class="shrink-0 rounded-xl bg-surface px-5 py-4">
-        <div class="flex items-baseline justify-between gap-3">
-          <span class="text-sm text-subtle">{{ t("totals.total") }}</span>
-          <span class="rpos-numeric text-lg font-medium">{{ money(due) }}</span>
-        </div>
-        <!-- A reduction chosen behind «…», said where the figure it changed is. -->
-        <p
-          v-for="row in [
-            reductions.promotion ? { label: reductions.promotion.title, amount: reductions.promotion.amount } : null,
-            reductions.loyalty ? { label: t('totals.loyalty'), amount: reductions.loyalty.amount } : null,
-            reductions.discount > 0 ? { label: t('totals.discount'), amount: reductions.discount } : null,
-          ].filter(Boolean)"
-          :key="row!.label"
-          class="flex justify-between gap-3 text-sm text-secondary"
-        >
-          <span class="truncate">{{ row!.label }}</span>
-          <span class="rpos-numeric shrink-0">−{{ money(row!.amount) }}</span>
-        </p>
-
-        <div
-          v-for="(line, index) in lines"
-          :key="line.method + index"
-          class="mt-2 flex items-center gap-2 text-sm"
-        >
-          <span class="flex-1 truncate">{{ methodName(line.method) }}</span>
-          <span class="rpos-numeric">{{ money(line.amount) }}</span>
-          <!-- Only worth saying when more was handed over than the bill asked
-               for, because that is where the change comes from. -->
-          <span
-            v-if="(line.tendered ?? line.amount) > line.amount + 0.005"
-            class="rpos-numeric text-xs text-muted"
-          >({{ money(line.tendered ?? 0) }})</span>
-          <button
-            type="button"
-            class="grid h-9 w-9 min-h-0 place-items-center rounded-full text-muted hover:bg-danger/10 hover:text-danger"
-            :aria-label="t('action.remove')"
-            @click="removeMethod(index)"
+            class="flex min-h-12 items-center gap-3 rounded-[10px] border border-line bg-surface px-4 text-start text-sm"
+            @click="enteringCoupon = true"
           >
             <AppIcon
-              name="close"
-              :size="16"
+              name="tag"
+              :size="18"
+              class="shrink-0 text-muted"
             />
+            <span
+              class="min-w-0 flex-1 truncate"
+              :class="summary.coupon ? 'text-content' : 'text-muted'"
+            >{{ summary.coupon ? summary.coupon.code : t("coupon.add") }}</span>
+            <span
+              v-if="summary.coupon?.campaign"
+              class="shrink-0 truncate text-xs text-subtle"
+            >{{ summary.coupon.campaign }}</span>
           </button>
-        </div>
 
-        <p
-          v-if="shares.length"
-          class="mt-2 text-sm text-subtle"
-        >
-          {{
-            splitting
-              ? t("pay.splitProgress", {
-                done: settled,
-                ways: shares.length,
-                amount: money(shares[settled]),
-              })
-              : t("pay.splitSettled", { ways: shares.length })
-          }}
-        </p>
-
-        <div
-          v-if="remaining > 0"
-          class="mt-3 flex items-baseline justify-between gap-3 border-t border-line pt-3"
-        >
-          <span class="font-medium">{{ t("pay.remaining") }}</span>
-          <span class="rpos-numeric text-2xl font-semibold text-accent-gold">{{ money(remaining) }}</span>
-        </div>
-        <div
-          v-else-if="change > 0"
-          class="mt-3 flex items-baseline justify-between gap-3 border-t border-line pt-3"
-        >
-          <span class="font-medium">{{ t("pay.change") }}</span>
-          <span class="rpos-numeric text-2xl font-semibold text-status-available">{{ money(change) }}</span>
-        </div>
-      </div>
-
-      <!-- Pay, and «…» beside it for everything that changes the price. -->
-      <div
-        data-pay-bar
-        class="flex shrink-0 gap-3"
-      >
-        <button
-          type="button"
-          data-extras-open
-          class="relative grid h-16 w-16 shrink-0 place-items-center rounded-lg bg-surface text-2xl"
-          :aria-label="t('pay.discounts')"
-          @click="extrasOpen = true"
-        >
-          <AppIcon
-            name="moreHorizontal"
-            :size="26"
-            class="text-secondary"
-          />
-          <span
-            v-if="reduced"
-            class="absolute end-2 top-2 h-2.5 w-2.5 rounded-full bg-secondary"
-          />
-        </button>
-        <button
-          type="button"
-          class="min-h-16 flex-1 rounded-lg bg-primary px-4 text-lg font-semibold text-primary-contrast shadow-primary transition duration-200 ease-rpos hover:brightness-110 disabled:opacity-50 disabled:shadow-none"
-          :disabled="!canConfirm"
-          @click="confirm"
-        >
-          {{ busy ? "…" : t("pay.confirm") }}
-        </button>
-      </div>
-    </template>
-
-    <!-- `D-074` — never a blank column while the bill is on its way. -->
-    <p
-      v-else
-      class="m-4 text-center text-muted"
-    >
-      {{ t("common.loading") }}
-    </p>
-
-    <!-- «…»: everything that changes the price, one sheet (`D-386`). -->
-    <BaseDialog
-      :open="extrasOpen"
-      :title="t('pay.discounts')"
-      pad
-      wide
-      @close="extrasOpen = false"
-    >
-      <div
-        data-extras
-        class="flex flex-col gap-4 pt-2"
-      >
-        <!-- **What this bill qualifies for** (`D-165`). Above the discount: an
-             offer the shop already advertised is the cheaper answer. -->
-        <div
-          v-if="offers.length"
-          class="flex flex-col gap-2"
-        >
-          <p class="text-sm text-subtle">
-            {{ t("pay.promotions") }}
-          </p>
-          <button
-            v-for="offer in offers"
-            :key="offer.name"
-            type="button"
-            :disabled="!mayChoosePromotion"
-            class="flex min-h-14 items-center justify-between gap-3 rounded px-4 text-start disabled:cursor-not-allowed disabled:opacity-50"
-            :class="chosenPromotion === offer.name ? 'bg-primary text-primary-contrast' : 'bg-surface'"
-            :aria-pressed="chosenPromotion === offer.name"
-            @click="choosePromotion(offer.name)"
-          >
-            <span class="min-w-0 truncate text-sm">{{ pick(offer.title_ar, offer.title) }}</span>
-            <span class="rpos-numeric shrink-0 text-sm">−{{ money(offer.benefit) }}</span>
-          </button>
-          <p
-            v-if="!mayChoosePromotion"
-            class="text-xs text-subtle"
-          >
-            {{ t("pay.promotionNeedsRight") }}
-          </p>
-        </div>
-
-        <!-- `D-248` — the guest often produces the code here. -->
-        <button
-          type="button"
-          class="flex min-h-14 items-center justify-between gap-3 rounded bg-surface px-4 text-start text-sm"
-          @click="enteringCoupon = true"
-        >
-          <span class="flex min-w-0 items-center gap-2">
-            <AppIcon name="tag" />
-            <span class="truncate">{{ summary?.coupon ? summary.coupon.code : t("coupon.add") }}</span>
-          </span>
-          <span
-            v-if="summary?.coupon?.campaign"
-            class="shrink-0 truncate text-xs text-subtle"
-          >{{ summary.coupon.campaign }}</span>
-        </button>
-
-        <div class="grid grid-cols-3 gap-2">
-          <button
-            v-for="percentage in QUICK_DISCOUNTS"
-            :key="percentage"
-            type="button"
-            class="rpos-numeric min-h-14 rounded text-lg"
-            :class="
-              discountType === 'percentage' && discountValue === percentage
-                ? 'bg-primary text-primary-contrast'
-                : 'bg-surface'
-            "
-            @click="setQuickDiscount(percentage)"
-          >
-            {{ percentage }}%
-          </button>
-        </div>
-
-        <div class="flex flex-col gap-2">
-          <label
-            for="manual-discount"
-            class="text-sm text-subtle"
-          >{{ t("pay.manualDiscount") }}</label>
-          <div class="grid grid-cols-[minmax(0,1fr)_6rem] gap-2">
-            <input
-              id="manual-discount"
-              v-model.number="discountValue"
-              type="number"
-              min="0"
-              step="0.5"
-              class="rpos-numeric rpos-field min-h-14 w-full rounded px-4 text-base outline-none focus:ring-2 focus:ring-primary/30"
+          <div class="grid grid-cols-3 gap-2.5">
+            <button
+              v-for="percentage in QUICK_DISCOUNTS"
+              :key="percentage"
+              type="button"
+              class="rpos-numeric min-h-12 rounded-[10px] border text-[15px]"
+              :class="
+                discountType === 'percentage' && discountValue === percentage
+                  ? 'border-primary bg-primary text-primary-contrast'
+                  : 'border-line bg-surface hover:bg-background'
+              "
+              @click="setQuickDiscount(percentage)"
             >
+              {{ percentage }}%
+            </button>
+          </div>
+
+          <div class="grid grid-cols-[6rem_minmax(0,1fr)] gap-2.5">
             <select
               v-model="discountType"
               :aria-label="t('pay.discountType')"
-              class="rpos-field min-h-14 rounded px-3 outline-none"
+              class="min-h-12 rounded-[10px] border border-line bg-surface px-3 outline-none focus:border-content"
             >
               <option :value="null">
                 —
@@ -1046,89 +960,261 @@ async function confirm(): Promise<void> {
                 {{ t("currency.sar") }}
               </option>
             </select>
+            <input
+              id="manual-discount"
+              v-model.number="discountValue"
+              type="number"
+              min="0"
+              step="0.5"
+              :aria-label="t('pay.manualDiscount')"
+              :placeholder="t('pay.manualDiscount')"
+              class="rpos-numeric min-h-12 w-full rounded-[10px] border border-line bg-surface px-4 text-[15px] outline-none focus:border-content"
+            >
           </div>
-        </div>
 
-        <p
-          v-if="needsApproval"
-          class="rounded bg-accent-gold/10 px-3 py-2 text-xs text-accent-gold"
-        >
-          {{ t("pay.exceedsLimit", { limit: `${preview?.max_discount_percentage ?? 0}%` }) }}
-          <span
-            v-if="overrideToken"
-            class="font-medium text-status-available"
-          >{{ t("pay.authorized") }} ✓</span>
-        </p>
-
-        <!-- **The customer's own points** (`FR-10.5`, `D-189`). -->
-        <div
-          v-if="loyalty"
-          class="flex flex-col gap-2"
-        >
-          <p class="text-sm text-subtle">
-            {{ t("pay.loyalty") }} ·
-            {{ t("pay.loyaltyBalance", { points: formatNumber(loyalty.balance, 0), worth: money(loyalty.worth) }) }}
-          </p>
-          <button
-            v-if="loyalty.max_points > 0"
-            type="button"
-            data-loyalty
-            class="flex min-h-14 items-center justify-between gap-3 rounded px-4 text-start"
-            :class="loyaltyPoints ? 'bg-primary text-primary-contrast' : 'bg-surface'"
-            :aria-pressed="loyaltyPoints > 0"
-            @click="toggleLoyalty"
-          >
-            <span class="text-sm">
-              {{ t("pay.loyaltyUse", { points: formatNumber(loyaltyPoints || loyalty.max_points, 0) }) }}
-            </span>
-            <span class="rpos-numeric shrink-0 text-sm">−{{
-              money(loyaltyPoints ? (preview?.loyalty_amount ?? loyalty.max_amount) : loyalty.max_amount)
-            }}</span>
-          </button>
           <p
-            v-else
-            class="text-xs text-subtle"
+            v-if="needsApproval"
+            class="rounded-[10px] bg-accent-gold/10 px-3 py-2 text-xs text-accent-gold"
+          >
+            {{ t("pay.exceedsLimit", { limit: `${preview?.max_discount_percentage ?? 0}%` }) }}
+            <span
+              v-if="overrideToken"
+              class="font-medium text-status-available"
+            >{{ t("pay.authorized") }} ✓</span>
+          </p>
+
+          <!-- **What this bill qualifies for** (`D-165`). -->
+          <div
+            v-if="offers.length"
+            class="flex flex-col gap-2.5"
+          >
+            <p class="text-sm text-muted">
+              {{ t("pay.promotions") }}
+            </p>
+            <button
+              v-for="offer in offers"
+              :key="offer.name"
+              type="button"
+              :disabled="!mayChoosePromotion"
+              class="flex min-h-12 items-center justify-between gap-3 rounded-[10px] border px-4 text-start disabled:cursor-not-allowed disabled:opacity-50"
+              :class="
+                chosenPromotion === offer.name
+                  ? 'border-primary bg-primary text-primary-contrast'
+                  : 'border-line bg-surface hover:bg-background'
+              "
+              :aria-pressed="chosenPromotion === offer.name"
+              @click="choosePromotion(offer.name)"
+            >
+              <span class="min-w-0 truncate text-sm">{{ pick(offer.title_ar, offer.title) }}</span>
+              <span class="rpos-numeric shrink-0 text-sm">−{{ money(offer.benefit) }}</span>
+            </button>
+            <p
+              v-if="!mayChoosePromotion"
+              class="text-xs text-muted"
+            >
+              {{ t("pay.promotionNeedsRight") }}
+            </p>
+          </div>
+
+          <!-- **The customer's own points** (`FR-10.5`, `D-189`). -->
+          <div
+            v-if="loyalty"
+            class="flex flex-col gap-2.5"
+          >
+            <p class="text-sm text-muted">
+              {{ t("pay.loyalty") }} ·
+              {{ t("pay.loyaltyBalance", { points: formatNumber(loyalty.balance, 0), worth: money(loyalty.worth) }) }}
+            </p>
+            <button
+              v-if="loyalty.max_points > 0"
+              type="button"
+              data-loyalty
+              class="flex min-h-12 items-center justify-between gap-3 rounded-[10px] border px-4 text-start"
+              :class="loyaltyPoints ? 'border-primary bg-primary text-primary-contrast' : 'border-line bg-surface'"
+              :aria-pressed="loyaltyPoints > 0"
+              @click="toggleLoyalty"
+            >
+              <span class="text-sm">
+                {{ t("pay.loyaltyUse", { points: formatNumber(loyaltyPoints || loyalty.max_points, 0) }) }}
+              </span>
+              <span class="rpos-numeric shrink-0 text-sm">−{{
+                money(loyaltyPoints ? (preview?.loyalty_amount ?? loyalty.max_amount) : loyalty.max_amount)
+              }}</span>
+            </button>
+            <p
+              v-else
+              class="text-xs text-muted"
+            >
+              {{
+                loyalty.balance < loyalty.min_points
+                  ? t("pay.loyaltyBelowMinimum", { points: formatNumber(loyalty.min_points, 0) })
+                  : t("pay.loyaltyNothingFits")
+              }}
+            </p>
+          </div>
+        </section>
+
+        <!-- 3 — the methods, the split, and what has been taken -->
+        <section
+          class="order-1 rounded-xl border border-line bg-surface p-6 md:order-3 md:col-span-2 2xl:col-span-1"
+        >
+          <div class="mb-4 flex items-center justify-between gap-3">
+            <h2 class="font-semibold">
+              {{ t("pay.method") }}
+            </h2>
+            <span class="text-sm text-muted">{{ t("pay.split") }}</span>
+          </div>
+
+          <!-- An even split between the table (`FR-10.3`). -->
+          <div class="mb-4 flex gap-2.5">
+            <button
+              v-for="ways in [...SPLIT_WAYS].reverse()"
+              :key="ways"
+              type="button"
+              class="rpos-numeric min-h-12 flex-1 rounded-[10px] border"
+              :class="
+                shares.length === ways
+                  ? 'border-primary bg-primary text-primary-contrast'
+                  : 'border-line bg-surface hover:bg-background'
+              "
+              @click="shares.length === ways ? clearSplit() : splitInto(ways)"
+            >
+              {{ ways }}
+            </button>
+          </div>
+
+          <div class="flex flex-col gap-2.5">
+            <button
+              v-for="method in shownMethods"
+              :key="method.payment_method"
+              type="button"
+              class="flex min-h-14 items-center gap-3.5 rounded-[10px] border px-3 text-start transition duration-100 ease-rpos disabled:opacity-40"
+              :class="
+                taken(method)
+                  ? 'border-primary bg-primary text-primary-contrast'
+                  : 'border-line bg-surface hover:bg-background'
+              "
+              :disabled="blocked || !canTakeMore || mixesSettlement(method)"
+              @click="chooseMethod(method)"
+            >
+              <span
+                class="grid h-10 w-10 shrink-0 place-items-center rounded-lg font-semibold"
+                :class="taken(method) ? 'bg-line text-content' : 'bg-background text-subtle'"
+                aria-hidden="true"
+              >{{ initial(method) }}</span>
+              <span
+                data-method-label
+                class="min-w-0 flex-1 truncate text-[15px]"
+              >{{ methodName(method.payment_method) }}</span>
+            </button>
+          </div>
+
+          <p
+            v-if="!canTakeMore && lines.length"
+            class="mt-3 text-sm text-muted"
+          >
+            {{ t("pay.covered") }}
+          </p>
+          <!-- Why half the list went quiet (`D-029`). -->
+          <p
+            v-else-if="settlementKind"
+            class="mt-3 text-sm text-muted"
+          >
+            {{ settlementKind === "credit" ? t("pay.creditOnly") : t("pay.tillOnly") }}
+          </p>
+
+          <div class="my-3 border-t border-dashed border-line" />
+
+          <!-- Each tender, with its own way out (`D-123`). -->
+          <div
+            v-for="(line, index) in lines"
+            :key="line.method + index"
+            class="flex items-center gap-2 py-1 text-sm"
+          >
+            <span class="flex-1 truncate">{{ methodName(line.method) }}</span>
+            <span class="rpos-numeric">{{ money(line.amount) }}</span>
+            <span
+              v-if="(line.tendered ?? line.amount) > line.amount + 0.005"
+              class="rpos-numeric text-xs text-muted"
+            >({{ money(line.tendered ?? 0) }})</span>
+            <button
+              type="button"
+              class="grid h-9 w-9 min-h-0 place-items-center rounded-full text-muted hover:bg-danger/10 hover:text-danger"
+              :aria-label="t('action.remove')"
+              @click="removeMethod(index)"
+            >
+              <AppIcon
+                name="close"
+                :size="16"
+              />
+            </button>
+          </div>
+
+          <p
+            v-if="shares.length"
+            class="py-1 text-sm text-subtle"
           >
             {{
-              loyalty.balance < loyalty.min_points
-                ? t("pay.loyaltyBelowMinimum", { points: formatNumber(loyalty.min_points, 0) })
-                : t("pay.loyaltyNothingFits")
+              splitting
+                ? t("pay.splitProgress", {
+                  done: settled,
+                  ways: shares.length,
+                  amount: money(shares[settled]),
+                })
+                : t("pay.splitSettled", { ways: shares.length })
             }}
           </p>
-        </div>
 
-        <!-- An even split between the table (`FR-10.3`). -->
-        <div class="flex flex-wrap items-center gap-2">
-          <span class="text-sm text-subtle">{{ t("pay.split") }}</span>
-          <button
-            v-for="ways in SPLIT_WAYS"
-            :key="ways"
-            type="button"
-            class="rpos-numeric grid h-12 w-12 place-items-center rounded"
-            :class="shares.length === ways ? 'bg-primary text-primary-contrast' : 'bg-surface'"
-            @click="splitInto(ways)"
+          <div class="flex items-center justify-between py-2.5 text-sm">
+            <span class="text-muted">{{ t("pay.received") }}</span>
+            <span class="rpos-numeric text-base">{{ money(tendered) }}</span>
+          </div>
+          <div
+            v-if="remaining > 0"
+            class="flex items-baseline justify-between py-1"
           >
-            {{ ways }}
-          </button>
-          <button
-            v-if="shares.length"
-            type="button"
-            class="min-h-12 rounded px-3 text-sm font-medium text-danger"
-            @click="clearSplit"
+            <span class="text-sm text-muted">{{ t("pay.remaining") }}</span>
+            <span class="rpos-numeric text-2xl font-semibold text-accent-gold">{{ money(remaining) }}</span>
+          </div>
+          <div
+            v-else-if="change > 0"
+            class="flex items-baseline justify-between py-1"
           >
-            {{ t("pay.splitClear") }}
-          </button>
-        </div>
+            <span class="text-sm text-muted">{{ t("pay.change") }}</span>
+            <span class="rpos-numeric text-2xl font-semibold text-status-available">{{ money(change) }}</span>
+          </div>
+        </section>
+      </div>
 
+      <!-- Confirm, across the foot: grey until the bill is covered (`D-387`). -->
+      <div
+        data-pay-bar
+        class="shrink-0"
+      >
         <button
           type="button"
-          class="rpos-pad-done"
-          @click="extrasOpen = false"
+          class="flex min-h-[3.75rem] w-full items-center justify-center gap-2.5 rounded-[10px] px-4 text-lg font-semibold transition duration-200 ease-rpos disabled:cursor-not-allowed"
+          :class="canConfirm ? 'bg-primary text-primary-contrast hover:brightness-110' : 'bg-background text-muted'"
+          :disabled="!canConfirm"
+          @click="confirm"
         >
-          {{ t("action.done") }}
+          <AppIcon
+            name="check"
+            :size="20"
+          />
+          <span>{{ busy ? "…" : t("pay.confirm") }}</span>
+          <span class="rpos-numeric font-normal opacity-80">{{ money(due) }}</span>
         </button>
       </div>
-    </BaseDialog>
+    </template>
+
+    <!-- `D-074` — never a blank column while the bill is on its way. -->
+    <p
+      v-else
+      class="m-4 text-center text-muted"
+    >
+      {{ t("common.loading") }}
+    </p>
 
     <TenderSheet
       :method="tendering?.is_cash || heldCard ? (tendering?.payment_method ?? null) : null"

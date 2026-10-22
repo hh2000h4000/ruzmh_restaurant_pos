@@ -484,6 +484,11 @@ const messages: Catalogue["messages"] = {
 
   // Payment
   "pay.title": "الدفع",
+  "pay.received": "المستلم",
+  "pay.method": "طريقة الدفع",
+  "pay.summaryTitle": "ملخص الطلب",
+  "pay.stepInvoice": "الفاتورة",
+  "pay.stepOrder": "الطلب",
   "pay.paid": "تم الدفع",
   "pay.alreadyPaid": "هذا الطلب مدفوع — الفاتورة {invoice}",
   "pay.newOrder": "طلب جديد",

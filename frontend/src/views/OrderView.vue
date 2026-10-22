@@ -1748,7 +1748,9 @@ async function send(): Promise<void> {
               <span class="truncate">{{ t("order.bill") }}</span>
               <span class="rpos-numeric text-sm text-muted">{{ tn("count.items", orders.lines.length) }}</span>
             </button>
+            <!-- Not while paying: Confirm is in the payment itself (`D-388`). -->
             <button
+              v-if="pane !== 'pay'"
               type="button"
               data-bill-pay
               class="min-h-tap shrink-0 rounded-rpos bg-primary px-5 font-semibold text-primary-contrast transition duration-200 ease-rpos hover:brightness-110 disabled:opacity-50"

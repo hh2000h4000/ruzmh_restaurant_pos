@@ -845,14 +845,16 @@ async function confirm(): Promise<void> {
         {{ blocker }}
       </p>
 
-      <!-- Three cards on a wide screen, two on a narrower one, one on a phone;
-           the cards scroll, Confirm never does (`D-124`). The methods come
-           first on a phone, where the work starts. -->
+      <!-- Three cards on a wide screen; on a narrower one the methods take a
+           column of their own beside the summary and the discounts, so the
+           card the work happens on is never the one below the fold; one
+           column on a phone, the methods first. The cards scroll, Confirm
+           never does (`D-124`, `D-388`). -->
       <div
         class="grid min-h-0 content-start items-start gap-5 overflow-y-auto md:grid-cols-2 2xl:grid-cols-[minmax(0,0.85fr)_minmax(0,1fr)_minmax(0,1.35fr)]"
       >
         <!-- 1 — the bill's figures -->
-        <section class="order-3 rounded-xl border border-line bg-surface p-6 md:order-1">
+        <section class="order-2 rounded-xl border border-line bg-surface p-6 md:order-1">
           <h2 class="mb-4 font-semibold">
             {{ t("pay.summaryTitle") }}
           </h2>
@@ -913,7 +915,7 @@ async function confirm(): Promise<void> {
         </section>
 
         <!-- 2 — what reduces it -->
-        <section class="order-2 flex flex-col gap-4 rounded-xl border border-line bg-surface p-6 md:order-2">
+        <section class="order-3 flex flex-col gap-4 rounded-xl border border-line bg-surface p-6 2xl:order-2">
           <h2 class="font-semibold">
             {{ t("pay.discounts") }}
           </h2>
@@ -1072,7 +1074,7 @@ async function confirm(): Promise<void> {
 
         <!-- 3 — the methods, the split, and what has been taken -->
         <section
-          class="order-1 rounded-xl border border-line bg-surface p-6 md:order-3 md:col-span-2 2xl:col-span-1"
+          class="order-1 rounded-xl border border-line bg-surface p-6 md:order-2 md:row-span-2 2xl:order-3 2xl:row-span-1"
         >
           <div class="mb-4 flex items-center justify-between gap-3">
             <h2 class="font-semibold">
@@ -1104,11 +1106,11 @@ async function confirm(): Promise<void> {
               v-for="method in shownMethods"
               :key="method.payment_method"
               type="button"
-              class="flex min-h-14 items-center gap-3.5 rounded-[10px] border px-3 text-start transition duration-100 ease-rpos disabled:opacity-40"
+              class="flex min-h-14 items-center gap-3.5 rounded-[10px] border px-3 text-start transition duration-100 ease-rpos"
               :class="
                 taken(method)
                   ? 'border-primary bg-primary text-primary-contrast'
-                  : 'border-line bg-surface hover:bg-background'
+                  : 'border-line bg-surface hover:bg-background disabled:opacity-40'
               "
               :disabled="blocked || !canTakeMore || mixesSettlement(method)"
               @click="chooseMethod(method)"
@@ -1205,11 +1207,21 @@ async function confirm(): Promise<void> {
       <!-- Confirm, across the foot: grey until the bill is covered (`D-387`). -->
       <div
         data-pay-bar
-        class="shrink-0"
+        class="flex shrink-0 gap-3"
       >
+        <!-- The change, beside the button that ends the sale, so it is read
+             even on a screen too short for the methods card's foot. -->
+        <div
+          v-if="change > 0"
+          data-pay-change
+          class="flex shrink-0 flex-col justify-center rounded-[10px] bg-status-available/10 px-5 text-status-available"
+        >
+          <span class="text-xs">{{ t("pay.change") }}</span>
+          <span class="rpos-numeric text-2xl font-semibold leading-tight">{{ money(change) }}</span>
+        </div>
         <button
           type="button"
-          class="flex min-h-[3.75rem] w-full items-center justify-center gap-2.5 rounded-[10px] px-4 text-lg font-semibold transition duration-200 ease-rpos disabled:cursor-not-allowed"
+          class="flex min-h-[3.75rem] flex-1 items-center justify-center gap-2.5 rounded-[10px] px-4 text-lg font-semibold transition duration-200 ease-rpos disabled:cursor-not-allowed"
           :class="
             canConfirm
               ? 'bg-primary text-primary-contrast hover:brightness-110'

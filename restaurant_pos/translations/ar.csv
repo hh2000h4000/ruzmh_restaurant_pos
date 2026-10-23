@@ -1653,3 +1653,4 @@ Type the price of {0}.,اكتب سعر {0}.
 The price of {0} must be more than zero.,سعر {0} لازم يكون أكثر من صفر.
 "The hall {0} belongs to {1}, and this device to {2}. Choose a hall of the device's branch.",الصالة {0} تابعة لـ {1}، والجهاز تابع لـ {2}. اختر صالة من فرع الجهاز.
 "The branch this device sells in. Its day, drawer, stock and invoice numbers follow it.","الفرع اللي يبيع فيه الجهاز. يومه ودرجه ومخزونه وأرقام فواتيره تتبعه."
+"{0} has sold in {1}, and its invoices are numbered there. It cannot move to another branch.","{0} باع في {1}، وفواتيره مرقّمة هناك. ما يقدر ينتقل لفرع ثاني."

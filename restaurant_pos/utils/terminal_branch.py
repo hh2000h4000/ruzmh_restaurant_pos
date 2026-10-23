@@ -83,9 +83,33 @@ def keep_with_hall(doc, method=None) -> None:
 	"which branch", and every count, drawer and invoice number hangs off it.
 	"""
 	section = doc.get("restaurant_section")
-	if not section:
-		return
+	if section:
+		_match_the_hall(doc, section)
+	_stay_where_it_sold(doc)
 
+
+def _stay_where_it_sold(doc) -> None:
+	"""A terminal that has sold stays in its branch (`D-394`).
+
+	Its invoices are numbered branch, device, count (`D-309`), and its days,
+	drawers and stock were all that branch's. Moved, the next invoice would
+	start another branch's sequence and the history would read as two tills.
+	"""
+	before = doc.get_doc_before_save()
+	if not before:
+		return
+	was = branch_of_doc(before)
+	if not was or branch_of_doc(doc) == was:
+		return
+	if frappe.db.exists("Restaurant Order", {"pos_profile": doc.name}):
+		frappe.throw(
+			_(
+				"{0} has sold in {1}, and its invoices are numbered there. It cannot move to another branch."
+			).format(doc.name, was)
+		)
+
+
+def _match_the_hall(doc, section: str) -> None:
 	hall_branch = frappe.db.get_value("Restaurant Section", section, "branch")
 	if not doc.get(FIELD):
 		doc.set(FIELD, hall_branch)

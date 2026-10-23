@@ -29,7 +29,7 @@ from restaurant_pos.utils import addons, combos, device
 from restaurant_pos.utils import theme as theme_service
 from restaurant_pos.utils import totals as totals_service
 from restaurant_pos.utils.gift_card import is_gift_card_method
-from restaurant_pos.utils.order import is_order_type_allowed
+from restaurant_pos.utils.order import branch_of_profile, is_order_type_allowed
 from restaurant_pos.utils.permissions import (
 	assert_pos_user,
 	get_pos_permission_set,
@@ -284,11 +284,7 @@ def _profile(pos_profile: str) -> frappe._dict:
 	if not profile:
 		frappe.throw(_("POS Profile {0} does not exist.").format(pos_profile))
 
-	profile.branch = (
-		frappe.db.get_value("Restaurant Section", profile.restaurant_section, "branch")
-		if profile.restaurant_section
-		else None
-	)
+	profile.branch = branch_of_profile(pos_profile)
 	return profile
 
 

@@ -40,7 +40,7 @@ from frappe.utils import flt, getdate, now_datetime, nowdate
 from restaurant_pos.utils import codes
 from restaurant_pos.utils.audit import log_audit
 from restaurant_pos.utils.company import site_company
-from restaurant_pos.utils.order import table_section_branch
+from restaurant_pos.utils.order import branch_of_profile, table_section_branch
 from restaurant_pos.utils.permissions import assert_permission, validate_branch_access
 from restaurant_pos.utils.totals import money
 
@@ -227,8 +227,7 @@ def issue(
 
 	assert_may_sell(pos_profile)
 
-	section = frappe.db.get_value("POS Profile", pos_profile, "restaurant_section")
-	branch = table_section_branch(section)
+	branch = branch_of_profile(pos_profile)
 	validate_branch_access(branch)
 	assert_permission("can_sell_gift_card")
 

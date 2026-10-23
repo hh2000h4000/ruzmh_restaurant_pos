@@ -19,7 +19,17 @@ import frappe
 from frappe import _
 from frappe.utils import cint, flt, now_datetime
 
-from restaurant_pos.utils import activity, addons, availability, combos, kitchen, numbering, routing, totals
+from restaurant_pos.utils import (
+	activity,
+	addons,
+	availability,
+	combos,
+	kitchen,
+	numbering,
+	routing,
+	terminal_branch,
+	totals,
+)
 from restaurant_pos.utils.audit import log_audit
 from restaurant_pos.utils.permissions import (
 	assert_permission,
@@ -203,10 +213,9 @@ def _load_profile(pos_profile: str) -> frappe._dict:
 	if not profile:
 		frappe.throw(_("POS Profile {0} does not exist.").format(pos_profile))
 
-	if not profile.restaurant_section:
+	profile.branch = terminal_branch.branch_of(pos_profile)
+	if not profile.branch:
 		frappe.throw(_("POS Profile {0} has no Restaurant Section configured.").format(pos_profile))
-
-	profile.branch = table_section_branch(profile.restaurant_section)
 	return profile
 
 
@@ -362,31 +371,13 @@ def table_section_branch(section: str | None) -> str | None:
 
 
 def branch_of_profile(pos_profile: str | None) -> str | None:
-	"""Which branch a terminal belongs to.
-
-	**Through its section, because `POS Profile` has no branch of its own** —
-	the column does not exist, and code that asked for one got `None` and
-	carried on. Three places already reached for the section by hand before
-	this existed; a fourth would be the copy `CLAUDE.md` §5.5 is about.
-	"""
-	if not pos_profile:
-		return None
-
-	section = frappe.db.get_value("POS Profile", pos_profile, "restaurant_section")
-	return table_section_branch(section)
+	"""Which branch a terminal belongs to: `terminal_branch.branch_of` (`D-393`)."""
+	return terminal_branch.branch_of(pos_profile)
 
 
 def profiles_in(branch: str) -> list[str]:
-	"""The terminals of one branch, through the sections they serve.
-
-	`POS Profile` has no branch column — `branch_of_profile` walks the same two
-	links the other way.
-	"""
-	sections = frappe.get_all("Restaurant Section", filters={"branch": branch}, pluck="name")
-	if not sections:
-		return []
-
-	return frappe.get_all("POS Profile", filters={"restaurant_section": ("in", sections)}, pluck="name")
+	"""The terminals of one branch: `terminal_branch.terminals_in` (`D-393`)."""
+	return terminal_branch.terminals_in(branch)
 
 
 def section_of_table(table: str | None, profile) -> str | None:

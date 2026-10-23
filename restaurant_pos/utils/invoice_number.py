@@ -31,7 +31,8 @@ from frappe.model.naming import NamingSeries
 from frappe.query_builder.functions import Max
 from frappe.utils import cint
 
-from restaurant_pos.utils.order import branch_of_profile, profiles_in, table_section_branch
+from restaurant_pos.utils import terminal_branch
+from restaurant_pos.utils.order import branch_of_profile, profiles_in
 from restaurant_pos.utils.sale_doc import SALE
 
 BRANCH_NUMBER = "rpos_branch_number"
@@ -82,7 +83,7 @@ def number_branch(doc, method=None) -> None:
 
 def number_device(doc, method=None) -> None:
 	"""`POS Profile.validate` — give the terminal its number within its branch."""
-	branch = table_section_branch(doc.get("restaurant_section"))
+	branch = terminal_branch.branch_of_doc(doc)
 	if not branch:
 		# Not one of our tills: an ERPNext POS Profile nobody gave a section.
 		return
@@ -159,12 +160,7 @@ def number_existing() -> None:
 	):
 		_number_branch_now(branch)
 
-	for profile in frappe.get_all(
-		"POS Profile",
-		filters={"restaurant_section": ("is", "set")},
-		pluck="name",
-		order_by="creation",
-	):
+	for profile in terminal_branch.all_terminals():
 		# Counters too, whether or not the numbers are new: a terminal numbered
 		# before orders took its series has an invoice counter and no order one.
 		_ensure_counters(series_for(profile))

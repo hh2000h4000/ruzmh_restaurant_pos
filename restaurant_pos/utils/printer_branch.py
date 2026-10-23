@@ -41,8 +41,6 @@ def assert_in_branch(printer: str | None, branch: str | None, *, used_by: str) -
 
 def check_terminal(doc, method=None) -> None:
 	"""``POS Profile.validate`` — the terminal's own printer is one of its branch's."""
-	from restaurant_pos.utils.order import table_section_branch
+	from restaurant_pos.utils.terminal_branch import branch_of_doc
 
-	assert_in_branch(
-		doc.get("default_printer"), table_section_branch(doc.get("restaurant_section")), used_by=doc.name
-	)
+	assert_in_branch(doc.get("default_printer"), branch_of_doc(doc), used_by=doc.name)

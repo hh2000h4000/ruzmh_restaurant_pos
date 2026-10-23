@@ -86,9 +86,9 @@ def take_the_branch_warehouse(doc, method=None) -> None:
 	if doc.get("warehouse"):
 		return
 
-	from restaurant_pos.utils.order import table_section_branch
+	from restaurant_pos.utils.terminal_branch import branch_of_doc
 
-	branch = table_section_branch(doc.get("restaurant_section"))
+	branch = branch_of_doc(doc)
 	if branch:
 		doc.warehouse = frappe.db.get_value("Branch", branch, "default_warehouse")
 

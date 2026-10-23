@@ -188,7 +188,9 @@ def assert_this_device(profile, device_token: str | None) -> None:
 
 
 def _log(doc, what: str, device: str | None = None) -> None:
-	branch = frappe.db.get_value("Restaurant Section", doc.get("restaurant_section"), "branch")
+	from restaurant_pos.utils.terminal_branch import branch_of_doc
+
+	branch = branch_of_doc(doc)
 	log_audit(
 		"device_paired" if what == "paired" else "device_unpaired",
 		branch=branch,

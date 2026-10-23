@@ -38,7 +38,7 @@ from frappe import _
 from frappe.utils import flt, getdate, now_datetime
 
 from restaurant_pos.utils.audit import log_audit
-from restaurant_pos.utils.order import table_section_branch
+from restaurant_pos.utils.order import branch_of_profile, table_section_branch
 from restaurant_pos.utils.permissions import (
 	consume_override_token,
 	get_pos_permission_set,
@@ -83,10 +83,7 @@ def record(
 	# when there is no open drawer to move money out of.
 	assert_may_sell(pos_profile)
 
-	# A terminal carries no branch of its own; it hangs off its section, and this
-	# is the resolver the shift module already uses.
-	section = frappe.db.get_value("POS Profile", pos_profile, "restaurant_section")
-	branch = table_section_branch(section)
+	branch = branch_of_profile(pos_profile)
 
 	# **Somebody else's branch is not yours to take notes out of.** The shift gate
 	# above asks whether that terminal may sell, not whether this cashier belongs

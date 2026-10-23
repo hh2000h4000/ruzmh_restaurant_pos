@@ -23,6 +23,7 @@ from frappe import _
 
 from restaurant_pos.utils import attendance, manager_pin
 from restaurant_pos.utils.audit import log_audit
+from restaurant_pos.utils.order import branch_of_profile
 from restaurant_pos.utils.permissions import is_pos_user
 
 
@@ -118,12 +119,8 @@ def clock_out(pos_profile: str | None = None) -> dict:
 
 
 def _branch_of(pos_profile: str | None) -> str | None:
-	"""A terminal's branch, reached through its Restaurant Section."""
-	if not pos_profile:
-		return None
-
-	section = frappe.db.get_value("POS Profile", pos_profile, "restaurant_section")
-	return frappe.db.get_value("Restaurant Section", section, "branch") if section else None
+	"""A terminal's branch (`D-393`)."""
+	return branch_of_profile(pos_profile)
 
 
 def _punch(log_type: str, pos_profile: str | None) -> dict:

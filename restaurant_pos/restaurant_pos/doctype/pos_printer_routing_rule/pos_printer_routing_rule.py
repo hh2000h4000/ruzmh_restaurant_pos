@@ -6,7 +6,7 @@ from frappe import _
 from frappe.model.document import Document
 from frappe.utils import cint
 
-from restaurant_pos.utils.order import table_section_branch
+from restaurant_pos.utils.terminal_branch import branch_of
 
 
 class POSPrinterRoutingRule(Document):
@@ -29,9 +29,7 @@ class POSPrinterRoutingRule(Document):
 				)
 			)
 		if self.pos_profile:
-			till = table_section_branch(
-				frappe.db.get_value("POS Profile", self.pos_profile, "restaurant_section")
-			)
+			till = branch_of(self.pos_profile)
 			if till and till != self.branch:
 				frappe.throw(
 					_("Terminal {0} belongs to {1}; a rule of {2} cannot name it.").format(

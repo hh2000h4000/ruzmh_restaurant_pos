@@ -106,7 +106,9 @@ def keep_erpnext_out(doc, method=None) -> None:
 	if not doc.get("pos_profile"):
 		return
 
-	if not frappe.get_cached_value("POS Profile", doc.pos_profile, "restaurant_section"):
+	from restaurant_pos.utils.terminal_branch import is_till
+
+	if not is_till(doc.pos_profile):
 		return
 
 	doc.loyalty_program = None

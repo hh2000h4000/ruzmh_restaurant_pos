@@ -16,6 +16,7 @@ import frappe
 from restaurant_pos.utils import idempotency
 from restaurant_pos.utils import offline as service
 from restaurant_pos.utils.deadlock import retried
+from restaurant_pos.utils.order import branch_of_profile
 from restaurant_pos.utils.permissions import validate_branch_access
 
 
@@ -35,8 +36,7 @@ def submit_order(pos_profile: str, payload: dict | str, queue_id: str) -> dict:
 	if replay is not None:
 		return replay
 
-	section = frappe.db.get_value("POS Profile", pos_profile, "restaurant_section")
-	branch = frappe.db.get_value("Restaurant Section", section, "branch") if section else None
+	branch = branch_of_profile(pos_profile)
 	if branch:
 		validate_branch_access(branch)
 

@@ -39,8 +39,15 @@ def _branch_with_a_till(**over) -> dict:
 
 
 def _second_till(first: str) -> "frappe.model.document.Document":
-	"""Another terminal in the same branch as ``first``."""
-	twin = frappe.copy_doc(frappe.get_doc("POS Profile", first))
+	"""Another terminal in the same branch as ``first`` — copied as the desk's Duplicate copies.
+
+	`ignore_no_copy=False` is what makes it the desk's copy (`D-393`): the
+	Duplicate button (`frappe.model.copy_doc` in `create_new.js`) skips every
+	`no_copy` field, and `frappe.copy_doc` does the same only when told to — by
+	default it copies them all. `rpos_branch` is one, so a twin takes its branch
+	from its hall again, and a twin with no hall has none, as before.
+	"""
+	twin = frappe.copy_doc(frappe.get_doc("POS Profile", first), ignore_no_copy=False)
 	twin.name = None
 	twin.set("__newname", f"RPOS Numbered Twin {uuid.uuid4().hex[:6]}")
 	twin.set(numbers.DEVICE_NUMBER, None)

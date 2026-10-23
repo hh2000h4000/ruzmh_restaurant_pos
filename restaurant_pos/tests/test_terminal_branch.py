@@ -231,3 +231,70 @@ class TestTheBranchColumn(TerminalBranchTestBase):
 			terminal_branch.fill_from_halls()
 		self.assertIn(self.second, str(caught.exception))
 		frappe.db.set_value("POS Profile", self.second, terminal_branch.FIELD, BRANCH, update_modified=False)
+
+
+class TestOneSource(TerminalBranchTestBase):
+	"""Stage 3 (`D-393`): every place asks `terminal_branch.branch_of`."""
+
+	def test_a_terminal_with_a_branch_and_no_hall_is_a_till(self):
+		"""The column alone makes a till — numbered, counted, and in its branch."""
+		from restaurant_pos.utils import terminal_branch
+
+		name = _terminal("RPOS Baseline Hall-less Till", None)
+		doc = frappe.get_doc("POS Profile", name)
+		doc.set(terminal_branch.FIELD, OTHER_BRANCH)
+		doc.save(ignore_permissions=True)
+
+		self.assertEqual(terminal_branch.branch_of(name), OTHER_BRANCH)
+		self.assertEqual(orders.branch_of_profile(name), OTHER_BRANCH)
+		self.assertTrue(terminal_branch.is_till(name))
+		self.assertIn(name, orders.profiles_in(OTHER_BRANCH))
+		self.assertTrue(frappe.db.get_value("POS Profile", name, DEVICE_NUMBER))
+		self.assertEqual(shift._profile(name).branch, OTHER_BRANCH)
+
+	def test_an_empty_column_falls_back_to_the_hall(self):
+		"""Transitional: a site whose migrate has not filled the column yet."""
+		from restaurant_pos.utils import terminal_branch
+
+		frappe.db.set_value("POS Profile", self.second, terminal_branch.FIELD, None, update_modified=False)
+		self.assertEqual(terminal_branch.branch_of(self.second), BRANCH)
+		self.assertIn(self.second, orders.profiles_in(BRANCH))
+		frappe.db.set_value("POS Profile", self.second, terminal_branch.FIELD, BRANCH, update_modified=False)
+
+
+class TestDuplicatingATerminal(TerminalBranchTestBase):
+	"""What the desk's Duplicate makes of a till (`D-393`).
+
+	Copied the way the button copies — `ignore_no_copy=False`, which drops
+	`no_copy` fields as `frappe.model.copy_doc` does in the browser. The default
+	`frappe.copy_doc` keeps them, and a test built on it would carry a till's
+	branch into a copy no user can make.
+	"""
+
+	def _duplicate(self, source: str, name: str, *, keep_hall: bool):
+		from restaurant_pos.utils import terminal_branch
+
+		copy = frappe.copy_doc(frappe.get_doc("POS Profile", source), ignore_no_copy=False)
+		self.assertIsNone(copy.get(terminal_branch.FIELD))
+		copy.name = None
+		copy.set("__newname", name)
+		copy.set(DEVICE_NUMBER, None)
+		if not keep_hall:
+			copy.restaurant_section = None
+		return copy.insert(ignore_permissions=True)
+
+	def test_a_copy_with_its_hall_takes_the_halls_branch(self):
+		from restaurant_pos.utils import terminal_branch
+
+		copy = self._duplicate(self.elsewhere, "RPOS Baseline Copied Till", keep_hall=True)
+		self.assertEqual(copy.get(terminal_branch.FIELD), OTHER_BRANCH)
+		self.assertTrue(terminal_branch.is_till(copy.name))
+		self.assertTrue(copy.get(DEVICE_NUMBER))
+
+	def test_a_copy_with_no_hall_is_not_a_till(self):
+		from restaurant_pos.utils import terminal_branch
+
+		copy = self._duplicate(self.elsewhere, "RPOS Baseline Copied Plain", keep_hall=False)
+		self.assertFalse(copy.get(terminal_branch.FIELD))
+		self.assertFalse(terminal_branch.is_till(copy.name))
+		self.assertFalse(copy.get(DEVICE_NUMBER))

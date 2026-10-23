@@ -682,6 +682,10 @@ CUSTOM_FIELDS = {
 			"options": "Branch",
 			"label": "Branch",
 			"description": "The branch this device sells in. Its day, drawer, stock and invoice numbers follow it.",
+			# Not carried by Duplicate (`D-393`): a copy keeps its hall and takes
+			# the branch from it again; a copy with no hall stays ERPNext's own,
+			# as it always did, instead of inheriting a till's identity.
+			"no_copy": 1,
 			"insert_after": "rpos_section",
 		},
 		{

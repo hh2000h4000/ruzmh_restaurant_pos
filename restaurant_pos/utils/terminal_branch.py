@@ -1,18 +1,78 @@
 # Copyright (c) 2026, RPOS and contributors
 # For license information, please see license.txt
 
-"""A terminal's own branch, beside the hall it used to reach it through (`D-391`).
+"""A terminal's branch, read from one place (`D-391`, `D-393`).
 
-Stage 2 of separating a terminal from its hall. `POS Profile.rpos_branch` is
-added and filled from the hall, and kept equal to it — nothing reads it yet.
-The ten places that work a terminal's branch out still go through the hall;
-moving them here is stage 3, once this column is proved to say the same.
+`POS Profile.rpos_branch` is the terminal's own branch (stage 2, `D-392`), and
+every place that needs a terminal's branch asks `branch_of` (stage 3). Ten
+places used to walk terminal, hall, branch each in their own way.
+
+**Transitional, until every site has migrated:** where the column is empty, or
+not there yet on a site that has not run its migrate, the answer falls back to
+the hall's branch, which is what the column is filled from. The code reaches a
+site before its migrate does, and a till that loses its branch in between
+cannot sell. The fallback goes in the cleanup stage.
 """
 
 import frappe
 from frappe import _
 
 FIELD = "rpos_branch"
+
+
+def _has_column() -> bool:
+	return frappe.get_meta("POS Profile").has_field(FIELD)
+
+
+def _hall_branch(section: str | None) -> str | None:
+	return frappe.db.get_value("Restaurant Section", section, "branch") if section else None
+
+
+def branch_of(pos_profile: str | None) -> str | None:
+	"""The branch a terminal sells in, or None for a profile that is not a till."""
+	if not pos_profile:
+		return None
+	fields = [FIELD, "restaurant_section"] if _has_column() else ["restaurant_section"]
+	row = frappe.db.get_value("POS Profile", pos_profile, fields, as_dict=True)
+	if not row:
+		return None
+	return row.get(FIELD) or _hall_branch(row.restaurant_section)
+
+
+def branch_of_doc(doc) -> str | None:
+	"""The same, for a terminal being saved: its own unsaved values."""
+	return doc.get(FIELD) or _hall_branch(doc.get("restaurant_section"))
+
+
+def is_till(pos_profile: str | None) -> bool:
+	"""A POS Profile somebody made a till of. Any other stays ERPNext's (`D-309`)."""
+	return bool(branch_of(pos_profile))
+
+
+def terminals_in(branch: str) -> list[str]:
+	"""The tills of one branch."""
+	halls = frappe.get_all("Restaurant Section", filters={"branch": branch}, pluck="name")
+	names = []
+	if _has_column():
+		names += frappe.get_all("POS Profile", filters={FIELD: branch}, pluck="name", order_by="creation")
+		filters = {FIELD: ("is", "not set"), "restaurant_section": ("in", halls)}
+	else:
+		filters = {"restaurant_section": ("in", halls)}
+	if halls:
+		names += frappe.get_all("POS Profile", filters=filters, pluck="name", order_by="creation")
+	return list(dict.fromkeys(names))
+
+
+def all_terminals() -> list[str]:
+	"""Every till on the site, oldest first."""
+	names = frappe.get_all(
+		"POS Profile", filters={"restaurant_section": ("is", "set")}, pluck="name", order_by="creation"
+	)
+	if _has_column():
+		names += frappe.get_all(
+			"POS Profile", filters={FIELD: ("is", "set")}, pluck="name", order_by="creation"
+		)
+	return list(dict.fromkeys(names))
 
 
 def keep_with_hall(doc, method=None) -> None:

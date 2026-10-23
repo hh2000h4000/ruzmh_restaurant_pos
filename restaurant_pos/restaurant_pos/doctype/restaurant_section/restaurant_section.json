@@ -57,11 +57,10 @@
    "default": "dine_in",
    "fieldname": "section_type",
    "fieldtype": "Select",
-   "in_list_view": 1,
-   "in_standard_filter": 1,
    "label": "Section Type",
    "options": "dine_in\ncounter\ntakeaway\ndelivery\nbar",
-   "reqd": 1
+   "reqd": 1,
+   "hidden": 1
   },
   {
    "fieldname": "behaviour_section",
@@ -69,7 +68,7 @@
    "label": "Behaviour"
   },
   {
-   "description": "Set automatically from Section Type when left untouched.",
+   "description": "Whether the till lists this hall on the floor.",
    "fieldname": "has_tables",
    "fieldtype": "Check",
    "label": "Has Tables"
@@ -94,7 +93,7 @@
  "index_web_pages_for_search": 1,
  "istable": 0,
  "links": [],
- "modified": "2026-09-16 12:00:00.000000",
+ "modified": "2026-10-23 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Restaurant POS",
  "name": "Restaurant Section",

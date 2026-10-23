@@ -13,7 +13,7 @@ frappe.pages["rpos-quick-setup"].on_page_load = function (wrapper) {
 	});
 
 	$(`<p class="text-muted" style="max-width:640px">${__(
-		"A few answers, and the branch, its sections and tables, and a cashier terminal are made for you. You can change any of them later from their own pages.",
+		"A few answers, and the branch, its hall and tables, and a cashier terminal are made for you. You can change any of them later from their own pages.",
 	)}</p>`).appendTo(page.main);
 
 	const form = new frappe.ui.FieldGroup({
@@ -37,7 +37,13 @@ frappe.pages["rpos-quick-setup"].on_page_load = function (wrapper) {
 				description: __("As your staff call it, for example Olaya Branch."),
 			},
 			{ fieldtype: "Section Break", label: __("What does the branch have?") },
-			{ fieldname: "dine_in", fieldtype: "Check", label: __("Dining Hall"), default: 1 },
+			{
+				fieldname: "dine_in",
+				fieldtype: "Check",
+				label: __("Dining Hall with Tables"),
+				description: __("Leave it off for a counter or a supermarket. Takeaway and delivery are order types and need no hall."),
+				default: 1,
+			},
 			{
 				fieldname: "tables",
 				fieldtype: "Int",
@@ -46,8 +52,6 @@ frappe.pages["rpos-quick-setup"].on_page_load = function (wrapper) {
 				depends_on: "dine_in",
 			},
 			{ fieldtype: "Column Break" },
-			{ fieldname: "takeaway", fieldtype: "Check", label: __("Takeaway"), default: 1 },
-			{ fieldname: "delivery", fieldtype: "Check", label: __("Delivery"), default: 0 },
 			{ fieldtype: "Section Break", label: __("Cashier Terminal") },
 			{
 				fieldname: "terminal",

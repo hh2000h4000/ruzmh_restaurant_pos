@@ -44,8 +44,8 @@ def _second_till(first: str) -> "frappe.model.document.Document":
 	`ignore_no_copy=False` is what makes it the desk's copy (`D-393`): the
 	Duplicate button (`frappe.model.copy_doc` in `create_new.js`) skips every
 	`no_copy` field, and `frappe.copy_doc` does the same only when told to — by
-	default it copies them all. `rpos_branch` is one, so a twin takes its branch
-	from its hall again, and a twin with no hall has none, as before.
+	default it copies them all. `rpos_branch` is copied (`D-395`), so a twin
+	stays in its branch whether or not the first has a hall.
 	"""
 	twin = frappe.copy_doc(frappe.get_doc("POS Profile", first), ignore_no_copy=False)
 	twin.name = None
@@ -151,10 +151,13 @@ class ABranchAndItsTerminalsAreNumbered(FrappeTestCase):
 		self.assertEqual(frappe.db.get_value("POS Profile", made["pos_profile"], numbers.DEVICE_NUMBER), "01")
 
 	def test_a_profile_that_is_not_a_till_is_left_alone(self):
-		"""An ERPNext POS Profile nobody gave a section keeps ERPNext's own series."""
+		"""An ERPNext POS Profile nobody gave a branch or a hall keeps ERPNext's own series."""
+		from restaurant_pos.utils import terminal_branch
+
 		made = _branch_with_a_till()
 		plain = _second_till(made["pos_profile"])
 		plain.restaurant_section = None
+		plain.set(terminal_branch.FIELD, None)
 		plain.insert()
 
 		self.assertFalse(plain.get(numbers.DEVICE_NUMBER))

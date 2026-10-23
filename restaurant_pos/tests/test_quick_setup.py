@@ -19,15 +19,13 @@ def _answers(**over) -> dict:
 		"branch": f"RPOS Quick {tag}",
 		"dine_in": 1,
 		"tables": 3,
-		"takeaway": 1,
-		"delivery": 0,
 		"terminal": f"RPOS Quick Till {tag}",
 		**over,
 	}
 
 
 class QuickSetupMakesATillThatCanSell(FrappeTestCase):
-	def test_the_branch_its_sections_tables_and_terminal_are_made(self):
+	def test_the_branch_its_hall_tables_and_terminal_are_made(self):
 		answers = _answers()
 
 		made = service.run(answers)
@@ -37,20 +35,15 @@ class QuickSetupMakesATillThatCanSell(FrappeTestCase):
 		self.assertTrue(branch.default_warehouse)
 		self.assertTrue(branch.default_cost_center)
 
-		kinds = sorted(
-			frappe.db.get_value("Restaurant Section", name, "section_type") for name in made["sections"]
-		)
-		self.assertEqual(kinds, ["dine_in", "takeaway"])
-
-		hall = next(
-			name
-			for name in made["sections"]
-			if frappe.db.get_value("Restaurant Section", name, "section_type") == "dine_in"
-		)
+		# `D-395` — one hall, for the tables. Takeaway and delivery are order
+		# types; no hall is made for them.
+		self.assertEqual(len(made["sections"]), 1)
+		hall = made["sections"][0]
 		self.assertEqual(frappe.db.count("Restaurant Table", {"section": hall}), 3)
 
 		profile = frappe.get_doc("POS Profile", made["pos_profile"])
-		self.assertEqual(profile.restaurant_section, hall, "the hall is the terminal's home")
+		self.assertEqual(profile.rpos_branch, made["branch"], "the terminal belongs to the branch")
+		self.assertEqual(profile.restaurant_section, hall, "and opens on the hall")
 		self.assertEqual([row.mode_of_payment for row in profile.payments], ["Cash"])
 		self.assertTrue(profile.selling_price_list)
 
@@ -91,12 +84,15 @@ class QuickSetupMakesATillThatCanSell(FrappeTestCase):
 		self.assertTrue(made["pairing_code"])
 		self.assertTrue(frappe.db.get_value("POS Profile", made["pos_profile"], "rpos_pairing_code_hash"))
 
-	def test_a_takeaway_only_branch_has_no_tables(self):
-		made = service.run(_answers(dine_in=0, delivery=1))
+	def test_a_counter_branch_has_no_hall_and_its_terminal_belongs_to_the_branch(self):
+		"""`D-395` — a counter or a supermarket: no hall, no tables, a till all the same."""
+		made = service.run(_answers(dine_in=0))
 
 		self.assertEqual(made["tables"], 0)
-		for name in made["sections"]:
-			self.assertEqual(frappe.db.count("Restaurant Table", {"section": name}), 0)
+		self.assertEqual(made["sections"], [])
+		profile = frappe.get_doc("POS Profile", made["pos_profile"])
+		self.assertEqual(profile.rpos_branch, made["branch"])
+		self.assertFalse(profile.restaurant_section)
 
 	def test_a_name_already_taken_is_refused_before_anything_is_made(self):
 		first = service.run(_answers())
@@ -106,9 +102,9 @@ class QuickSetupMakesATillThatCanSell(FrappeTestCase):
 			service.run(again)
 		self.assertFalse(frappe.db.exists("POS Profile", again["terminal"]))
 
-	def test_a_branch_with_nothing_in_it_is_refused(self):
+	def test_a_hall_needs_at_least_one_table(self):
 		with self.assertRaises(frappe.ValidationError):
-			service.run(_answers(dine_in=0, takeaway=0, delivery=0))
+			service.run(_answers(dine_in=1, tables=0))
 
 	def test_somebody_who_may_not_create_a_branch_is_told_so(self):
 		frappe.set_user("Guest")

@@ -267,34 +267,47 @@ class TestDuplicatingATerminal(TerminalBranchTestBase):
 
 	Copied the way the button copies — `ignore_no_copy=False`, which drops
 	`no_copy` fields as `frappe.model.copy_doc` does in the browser. The default
-	`frappe.copy_doc` keeps them, and a test built on it would carry a till's
-	branch into a copy no user can make.
+	`frappe.copy_doc` keeps them, so a test built on it would carry fields the
+	button drops. The branch is not one of them (`D-395`): the copy keeps it.
 	"""
 
-	def _duplicate(self, source: str, name: str, *, keep_hall: bool):
+	def _duplicate(self, source: str, name: str, *, keep_hall: bool = True, keep_branch: bool = True):
 		from restaurant_pos.utils import terminal_branch
 
 		copy = frappe.copy_doc(frappe.get_doc("POS Profile", source), ignore_no_copy=False)
-		self.assertIsNone(copy.get(terminal_branch.FIELD))
 		copy.name = None
 		copy.set("__newname", name)
 		copy.set(DEVICE_NUMBER, None)
 		if not keep_hall:
 			copy.restaurant_section = None
+		if not keep_branch:
+			copy.set(terminal_branch.FIELD, None)
 		return copy.insert(ignore_permissions=True)
 
-	def test_a_copy_with_its_hall_takes_the_halls_branch(self):
+	def test_a_copy_with_its_hall_stays_in_the_branch(self):
 		from restaurant_pos.utils import terminal_branch
 
-		copy = self._duplicate(self.elsewhere, "RPOS Baseline Copied Till", keep_hall=True)
+		copy = self._duplicate(self.elsewhere, "RPOS Baseline Copied Till")
 		self.assertEqual(copy.get(terminal_branch.FIELD), OTHER_BRANCH)
 		self.assertTrue(terminal_branch.is_till(copy.name))
 		self.assertTrue(copy.get(DEVICE_NUMBER))
 
-	def test_a_copy_with_no_hall_is_not_a_till(self):
+	def test_a_copy_of_a_till_with_no_hall_stays_in_the_branch(self):
+		"""A counter till's copy is a counter till of the same branch (`D-395`)."""
 		from restaurant_pos.utils import terminal_branch
 
-		copy = self._duplicate(self.elsewhere, "RPOS Baseline Copied Plain", keep_hall=False)
+		copy = self._duplicate(self.elsewhere, "RPOS Baseline Copied Counter", keep_hall=False)
+		self.assertFalse(copy.restaurant_section)
+		self.assertEqual(copy.get(terminal_branch.FIELD), OTHER_BRANCH)
+		self.assertTrue(terminal_branch.is_till(copy.name))
+		self.assertTrue(copy.get(DEVICE_NUMBER))
+
+	def test_a_copy_with_no_hall_and_no_branch_is_not_a_till(self):
+		from restaurant_pos.utils import terminal_branch
+
+		copy = self._duplicate(
+			self.elsewhere, "RPOS Baseline Copied Plain", keep_hall=False, keep_branch=False
+		)
 		self.assertFalse(copy.get(terminal_branch.FIELD))
 		self.assertFalse(terminal_branch.is_till(copy.name))
 		self.assertFalse(copy.get(DEVICE_NUMBER))

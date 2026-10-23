@@ -24,12 +24,9 @@ from frappe.utils import cint
 
 from restaurant_pos.setup.defaults import fill_zatca_means
 
-#: The halls a restaurant may have, in the order the till lists them.
-SECTIONS = (
-	("dine_in", "Dining Hall", "الصالة"),
-	("takeaway", "Takeaway", "السفري"),
-	("delivery", "Delivery", "التوصيل"),
-)
+#: The hall a branch with tables gets. Takeaway and delivery are order types,
+#: not halls (`D-395`): no hall is made for them.
+HALL = ("Dining Hall", "الصالة")
 
 #: Tables a dining hall gets unless the form says otherwise — and at most.
 DEFAULT_TABLES = 10
@@ -60,12 +57,9 @@ def run(values: dict) -> dict:
 	if frappe.db.exists("POS Profile", terminal):
 		frappe.throw(_("A terminal called {0} already exists. Choose another name.").format(terminal))
 
-	wanted = [kind for kind, _title, _title_ar in SECTIONS if cint(values.get(kind))]
-	if not wanted:
-		frappe.throw(_("Choose at least one: dining hall, takeaway or delivery."))
-
+	with_hall = cint(values.get("dine_in"))
 	tables = cint(values.tables) if values.tables not in (None, "") else DEFAULT_TABLES
-	if "dine_in" in wanted and not 1 <= tables <= MAX_TABLES:
+	if with_hall and not 1 <= tables <= MAX_TABLES:
 		frappe.throw(_("A dining hall needs between 1 and {0} tables.").format(MAX_TABLES))
 
 	# Before the branch, which starts the only way the site's setting lets it
@@ -73,14 +67,13 @@ def run(values: dict) -> dict:
 	# about to allow negative stock.
 	allowed_now = _let_stock_go_below_zero()
 	branch = _branch(branch_name, company)
-	sections = {kind: _section(branch, kind) for kind in wanted}
-	if "dine_in" in sections:
-		_tables(sections["dine_in"], tables)
+	# A hall only for tables (`D-395`). A counter or a supermarket has none, and
+	# its terminal belongs to the branch directly.
+	hall = _section(branch) if with_hall else None
+	if hall:
+		_tables(hall, tables)
 
-	# The terminal's home is the hall if there is one: a table-less order still
-	# belongs to a section, and the hall is where most of them are rung.
-	home = sections.get("dine_in") or next(iter(sections.values()))
-	profile = _terminal(terminal, company, home, values.price_list, values.taxes_and_charges)
+	profile = _terminal(terminal, company, branch, hall, values.price_list, values.taxes_and_charges)
 
 	from restaurant_pos.utils import device
 
@@ -88,8 +81,8 @@ def run(values: dict) -> dict:
 	return {
 		"negative_stock_allowed": allowed_now,
 		"branch": branch,
-		"sections": list(sections.values()),
-		"tables": tables if "dine_in" in sections else 0,
+		"sections": [hall] if hall else [],
+		"tables": tables if hall else 0,
 		"pos_profile": profile,
 		"pairing_code": code["code"],
 		"minutes": code["minutes"],
@@ -227,8 +220,8 @@ def _branch(name: str, company: str) -> str:
 	return name
 
 
-def _section(branch: str, kind: str) -> str:
-	_kind, title, title_ar = next(row for row in SECTIONS if row[0] == kind)
+def _section(branch: str) -> str:
+	title, title_ar = HALL
 	return (
 		frappe.get_doc(
 			{
@@ -236,7 +229,7 @@ def _section(branch: str, kind: str) -> str:
 				"title": title,
 				"title_ar": title_ar,
 				"branch": branch,
-				"section_type": kind,
+				"section_type": "dine_in",
 				"is_active": 1,
 			}
 		)
@@ -259,7 +252,9 @@ def _tables(section: str, count: int) -> None:
 		).insert()
 
 
-def _terminal(name: str, company: str, section: str, price_list: str | None, taxes: str | None) -> str:
+def _terminal(
+	name: str, company: str, branch: str, hall: str | None, price_list: str | None, taxes: str | None
+) -> str:
 	basics = company_basics(company)
 	taxes = taxes or frappe.db.get_value(
 		"Sales Taxes and Charges Template", {"company": company, "is_default": 1, "disabled": 0}, "name"
@@ -275,7 +270,8 @@ def _terminal(name: str, company: str, section: str, price_list: str | None, tax
 			"write_off_cost_center": basics.cost_center,
 			"write_off_limit": 1,
 			"customer": walk_in_customer(),
-			"restaurant_section": section,
+			"rpos_branch": branch,
+			"restaurant_section": hall,
 			"selling_price_list": price_list or _menu_price_list(),
 			"taxes_and_charges": taxes,
 			"payments": [{"mode_of_payment": cash_method(company), "default": 1}],

@@ -682,20 +682,23 @@ CUSTOM_FIELDS = {
 			"options": "Branch",
 			"label": "Branch",
 			"description": "The branch this device sells in. Its day, drawer, stock and invoice numbers follow it.",
-			# Not carried by Duplicate (`D-393`): a copy keeps its hall and takes
-			# the branch from it again; a copy with no hall stays ERPNext's own,
-			# as it always did, instead of inheriting a till's identity.
-			"no_copy": 1,
+			# Carried by Duplicate (`D-395`): a copy of a till is a till of the same
+			# branch, hall or no hall. Was `no_copy` while every till had a hall to
+			# take it from again (`D-393`); a counter till has none, and its copy
+			# came out belonging to no branch. Written as 0, not left out: the
+			# update of an existing field only sets the keys it is given.
+			"no_copy": 0,
 			"insert_after": "rpos_section",
 		},
 		{
 			"fieldname": "restaurant_section",
 			"fieldtype": "Link",
 			"options": "Restaurant Section",
-			"label": "Restaurant Section",
-			# A device has no branch of its own, and the form never said so: the
-			# owner asked what a "section" was for on a supermarket's till (`D-354`).
-			"description": "The branch this device belongs to is its section's branch: the day, the drawer, the stock and the invoice numbers all follow it.",
+			"label": "Default Hall",
+			# `D-395` — the device belongs to its branch (above); the hall only
+			# decides which one the floor opens on. A counter or a supermarket
+			# till leaves it empty.
+			"description": "Optional. The hall the floor opens on. The device can still sell at any hall of its branch, and takeaway.",
 			"insert_after": "rpos_branch",
 		},
 		# **The terminal's own part of its invoice numbers** (`D-309`), unique

@@ -75,20 +75,12 @@ def station_of(production_center: str | None) -> tuple[str, str]:
 def prints_on_send(production_center: str | None, branch: str | None = None) -> bool:
 	"""Whether a new ticket goes to paper by itself.
 
-	A station decides for itself. A ticket with none goes to the cashier's
-	printer (`D-300`) — **in a branch that has a kitchen** (`D-364`): there an
-	item nobody routed is a slip in the setup, and paper is how it still reaches
-	the cook. A branch with no station at all — a counter, a café — has no
-	kitchen to reach, and nothing is assumed for it: no paper, no job.
+	A station decides for itself. A ticket with none — made only before
+	`D-396` — asks for nothing: no paper, no job.
 	"""
 	if production_center:
 		return bool(frappe.get_cached_doc("Production Center", production_center).auto_print_on_send)
-	return has_kitchen(branch) if branch else True
-
-
-def has_kitchen(branch: str | None) -> bool:
-	"""Whether this branch has any station to cook at (`D-364`)."""
-	return bool(branch) and bool(frappe.db.exists("Production Center", {"branch": branch, "is_active": 1}))
+	return False
 
 
 def queue_paper(kot, order, *, force: bool = False) -> None:
@@ -240,8 +232,9 @@ def mark_kitchen_told(kot_name: str) -> dict:
 def send_to_kitchen(order, *, kot_type: str | None = None) -> dict:
 	"""Raise a KOT per production center for everything not yet sent.
 
-	Returns the created tickets plus any items that no rule could route, which
-	fall to the cashier's printer under ``BR-070`` level 7.
+	A line no station takes (``BR-070`` level 7) is sent all the same — it is
+	on the bill, and it is done — but it gets no ticket and prints nowhere
+	(`D-396`).
 	"""
 	pending = [row for row in order.items if row.status == PENDING]
 	if not pending:
@@ -251,7 +244,7 @@ def send_to_kitchen(order, *, kot_type: str | None = None) -> dict:
 	header = _header(order)
 
 	routed = _split_by_center(_tickets_of(order, pending))
-	unrouted = routed.get(None, [])
+	unrouted = routed.pop(None, [])
 	created = []
 	named: set[int] = set()
 
@@ -307,10 +300,6 @@ def send_to_kitchen(order, *, kot_type: str | None = None) -> dict:
 			}
 			for kot in created
 		],
-		# BR-070 level 7. Surfaced rather than swallowed: an item nobody routed
-		# went to the cashier's printer, not to a station (`D-300`) — said only
-		# where there is a kitchen it should have gone to (`D-364`).
-		"unrouted_items": [row.item_name for row in unrouted] if has_kitchen(order.branch) else [],
 	}
 
 
@@ -326,6 +315,8 @@ def create_void_kot(order, rows) -> list[dict]:
 
 	header = _header(order)
 	routed = _split_by_center(_tickets_of(order, rows))
+	# What no station was given, no station is told to drop (`D-396`).
+	routed.pop(None, None)
 
 	created = []
 	for production_center, center_rows in routed.items():
@@ -464,11 +455,9 @@ def _tickets_of(order, rows) -> list[frappe._dict]:
 def _split_by_center(rows) -> dict:
 	"""Group rows by production center; rows no rule routed share the key ``None``.
 
-	**They still get a ticket** (`BR-070` level 7, `D-300`). They used to come
-	back on their own and go nowhere: the cashier was told they would print on
-	the cashier's printer, and nothing printed — a Fanta that reached no one,
-	and no alert, because no ticket existed to fail. A ticket with no station
-	prints on the cashier's printer, and fails into the bell like any other.
+	The callers drop that key (`D-396`): an item no station takes gets no
+	ticket. `D-300` printed it on the cashier's printer instead; the owner's
+	rule is that an item prints where it was routed, and nowhere by itself.
 	"""
 	grouped: dict = {}
 	for row in rows:

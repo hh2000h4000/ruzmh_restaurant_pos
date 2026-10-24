@@ -127,11 +127,11 @@ class TestSendToKitchen(KitchenTestBase):
 		for money_field in ("rate", "amount", "price", "price_list_rate"):
 			self.assertNotIn(money_field, row_fields)
 
-	def test_an_unrouted_item_gets_a_ticket_and_is_still_reported(self):
-		"""BR-070 level 7, `D-300` — an item no station cooks goes to the cashier's printer.
+	def test_an_item_no_station_takes_is_sent_with_no_ticket(self):
+		"""BR-070 level 7, `D-396` — it prints nowhere, and nothing says it will.
 
-		It used to be reported and then sent nowhere: the cashier read "printing on
-		the cashier printer" and nothing printed, and no ticket existed to fail.
+		`D-300` printed it on the cashier's printer. The owner's rule: an item
+		prints where the manager routed it, and nowhere by itself.
 		"""
 		order = self._order()
 		row = orders.add_item(order, item=ITEM, qty=1)
@@ -140,11 +140,21 @@ class TestSendToKitchen(KitchenTestBase):
 
 		result = service.send_to_kitchen(order)
 
-		self.assertEqual(len(result["unrouted_items"]), 1)
-		self.assertEqual(len(result["kots_created"]), 1)
-		self.assertIsNone(result["kots_created"][0]["production_center"])
+		self.assertEqual(result["kots_created"], [])
+		self.assertNotIn("unrouted_items", result)
 		self.assertEqual(order.items[0].status, "sent")
-		self.assertEqual(order.items[0].kot_reference, result["kots_created"][0]["kot_name"])
+		self.assertFalse(order.items[0].kot_reference)
+		self.assertFalse(frappe.db.exists("Kitchen Order Ticket", {"restaurant_order": order.name}))
+
+	def test_voiding_it_after_send_tells_no_station(self):
+		"""No station was given it, so none is told to drop it (`D-396`)."""
+		order = self._order()
+		row = orders.add_item(order, item=ITEM, qty=1)
+		row.production_center = None
+		order.save(ignore_permissions=True)
+		service.send_to_kitchen(order)
+
+		self.assertEqual(service.create_void_kot(order, list(order.items)), [])
 
 	def test_kots_start_unprinted(self):
 		"""A ticket is `pending` until an agent says otherwise (D-084).

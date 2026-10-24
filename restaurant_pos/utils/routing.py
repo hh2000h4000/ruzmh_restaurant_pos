@@ -14,7 +14,7 @@ Level Source
 4     Routing rule: POS Profile x Item Group
 5     ``Item.default_production_center``
 6     ``Item Group.default_production_center``
-7     Fallback: the cashier's printer on the POS Profile
+7     Nothing matched: no ticket, nothing printed (`D-396`)
 ===== ==================================================
 
 ``BR-070`` orders by specificity while ``FR-6.2`` says rules are evaluated in
@@ -87,9 +87,6 @@ def resolve_routes(
 	groups = _load_item_groups()
 	rules = _load_rules(branch)
 	elsewhere = _centers_of_other_branches(branch)
-	fallback_printer = (
-		frappe.db.get_value("POS Profile", pos_profile, "default_printer") if pos_profile else None
-	)
 
 	return {
 		code: _resolve_one(
@@ -99,7 +96,6 @@ def resolve_routes(
 			rules,
 			order_type=order_type,
 			pos_profile=pos_profile,
-			fallback_printer=fallback_printer,
 			elsewhere=elsewhere,
 		)
 		for code in item_codes
@@ -122,7 +118,7 @@ def resolve_route(
 def group_by_production_center(routes: dict[str, Route]) -> dict[str | None, list[str]]:
 	"""Group item codes by production center, for KOT generation (FR-6.3).
 
-	Items that fell through to the cashier printer are grouped under ``None``.
+	Items no station takes are grouped under ``None``.
 	"""
 	grouped: dict[str | None, list[str]] = {}
 	for code, route in routes.items():
@@ -217,7 +213,6 @@ def _resolve_one(
 	*,
 	order_type: str | None,
 	pos_profile: str | None,
-	fallback_printer: str | None,
 	elsewhere: frozenset[str] | set[str] = frozenset(),
 ) -> Route:
 	ancestry = _ancestry(item.get("item_group"), groups)
@@ -266,13 +261,15 @@ def _resolve_one(
 				item_group=group,
 			)
 
-	# Level 7 — nothing matched; the cashier's printer takes it.
+	# Level 7 — nothing matched. The item reaches no station and prints
+	# nowhere (`D-396`): where an item prints is the manager's to say, by
+	# routing it — to a station on the cashier's printer, if that is the place.
 	return Route(
 		item=item_code,
 		production_center=None,
 		level=FALLBACK_LEVEL,
 		matched_rule=None,
-		printer=fallback_printer,
+		printer=None,
 	)
 
 

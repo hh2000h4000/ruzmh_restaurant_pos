@@ -30,10 +30,10 @@ class PaperIsAskedForBeforeTheJob(FrappeTestCase):
 			frappe.db.set_value("Production Center", station, "is_active", 0)
 		self.profile = frappe.db.get_value("POS Profile", {"default_printer": ("is", "set")}, "name")
 
-	def test_a_branch_with_no_kitchen_prints_no_ticket(self):
-		"""A counter or a café: nothing is assumed, no job is made."""
-		self.assertFalse(kitchen.has_kitchen(self.bare))
+	def test_a_ticket_with_no_station_prints_nothing(self):
+		"""Nothing is assumed, no job is made — in any branch (`D-396`)."""
 		self.assertFalse(kitchen.prints_on_send(None, self.bare))
+		self.assertFalse(kitchen.prints_on_send(None, BRANCH))
 
 		with (
 			patch.object(printing, "enqueue_print") as queued,
@@ -43,18 +43,6 @@ class PaperIsAskedForBeforeTheJob(FrappeTestCase):
 
 		queued.assert_not_called()
 		failed.assert_not_called()
-
-	def test_a_branch_with_a_kitchen_still_prints_what_nobody_routed(self):
-		"""`D-300` stands where there is a kitchen: the slip in the setup still reaches the cook."""
-		if not kitchen.has_kitchen(BRANCH):
-			self.skipTest("the test branch has no station")
-		if not self.profile:
-			self.skipTest("no terminal with a printer")
-
-		with patch.object(printing, "enqueue_print") as queued:
-			kitchen.queue_paper(_ticket(), frappe._dict(branch=BRANCH, pos_profile=self.profile))
-
-		queued.assert_called_once()
 
 	def test_a_ticket_that_wants_paper_and_has_no_printer_fails_without_a_job(self):
 		with (

@@ -178,15 +178,13 @@ class TestKitchenRouting(FrappeTestCase):
 		self.assertEqual(route.level, 6)
 		self.assertEqual(route.production_center, self.fryer)
 
-	def test_level_7_falls_back_to_the_cashier_printer(self):
+	def test_level_7_goes_nowhere(self):
+		"""`D-396` — no station, and not the cashier's printer either."""
 		route = self._resolve()
 		self.assertEqual(route.level, routing.FALLBACK_LEVEL)
 		self.assertIsNone(route.production_center)
 		self.assertTrue(route.is_fallback)
-		self.assertEqual(
-			route.printer,
-			frappe.db.get_value("POS Profile", self.pos_profile, "default_printer"),
-		)
+		self.assertIsNone(route.printer)
 
 	# ------------------------------------------------------------- ordering
 
@@ -355,7 +353,7 @@ def _other_grill() -> str:
 class AnotherBranchsStationIsNotThisBranchs(TestKitchenRouting):
 	"""`D-361` — an item's default station belongs to one branch; another branch selling it does not print there."""
 
-	def test_an_item_default_in_another_branch_falls_through_to_the_cashier(self):
+	def test_an_item_default_in_another_branch_falls_through_to_nowhere(self):
 		frappe.db.set_value("Item", self.item_burger, "default_production_center", _other_grill())
 
 		route = self._resolve()

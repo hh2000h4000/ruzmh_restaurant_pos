@@ -10,7 +10,6 @@ import * as local from "@/offline/localOrder";
 import { isQueued } from "@/offline/queue";
 import { useAlertsStore } from "@/stores/alerts";
 import { useConnectionStore } from "@/stores/connection";
-import { useNoticeStore } from "@/stores/notice";
 import { useSessionStore } from "@/stores/session";
 
 /**
@@ -508,13 +507,6 @@ export const useOrderStore = defineStore("order", () => {
     }
 
     const name = order.value.order_name;
-    // Said once and gone, not a banner over the items: the tickets are already
-    // on their way to the cashier's printer, and nothing waits on the cashier.
-    if (result.unrouted_items.length) {
-      useNoticeStore().info(
-        t("order.notRouted", { items: result.unrouted_items.join(t("common.listSeparator")) }),
-      );
-    }
     await open(name);
     void followPrinting(name);
     return true;

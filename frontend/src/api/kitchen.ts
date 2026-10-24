@@ -12,7 +12,6 @@ export interface KotCreated {
 export interface SendResult {
   kots_created: KotCreated[];
   /** Items no routing rule matched — BR-070 level 7 sends them to the till. */
-  unrouted_items: string[];
   status: string;
 }
 

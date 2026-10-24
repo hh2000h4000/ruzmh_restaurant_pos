@@ -57,7 +57,7 @@
    "reqd": 1
   },
   {
-   "description": "Empty when no rule routed the items: the ticket goes to the cashier's printer (BR-070 level 7, D-300).",
+   "description": "The station that cooks these items. Empty only on tickets made before D-396.",
    "fieldname": "production_center",
    "fieldtype": "Link",
    "in_list_view": 1,
@@ -181,7 +181,7 @@
  "index_web_pages_for_search": 1,
  "istable": 0,
  "links": [],
- "modified": "2026-10-06 18:00:00.000000",
+ "modified": "2026-10-24 10:00:00.000000",
  "modified_by": "Administrator",
  "module": "Restaurant POS",
  "name": "Kitchen Order Ticket",

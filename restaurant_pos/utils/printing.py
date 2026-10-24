@@ -541,15 +541,17 @@ def queue_report(pos_profile: str | None, **kwargs) -> None:
 
 
 def kot_printer(production_center: str | None, pos_profile: str | None) -> str | None:
-	"""Which printer a ticket comes out of, if any.
+	"""Which printer a ticket comes out of, if any: its station's own (`D-396`).
 
-	BR-070 level 7: a station with no printer of its own — or no station at all
-	(`D-300`) — falls to the cashier's, the one printer somebody is standing
-	next to. Asked before the job is queued (`D-364`) and by the job itself, so
+	Never the cashier's by itself. `D-300` sent a station with no printer, or
+	no station at all, there; the owner's rule is that a ticket prints where
+	the manager routed it — a station on the cashier's printer, if that is the
+	place. Asked before the job is queued (`D-364`) and by the job itself, so
 	the two cannot disagree.
 	"""
-	center = frappe.get_cached_doc("Production Center", production_center) if production_center else None
-	return (center.printer if center else None) or _cashier_printer(pos_profile)
+	if not production_center:
+		return None
+	return frappe.get_cached_doc("Production Center", production_center).printer
 
 
 def _modifier_lines(stored) -> list[str]:

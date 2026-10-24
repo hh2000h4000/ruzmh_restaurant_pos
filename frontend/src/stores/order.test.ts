@@ -20,7 +20,6 @@ import type { OrderDetail } from "@/api/order";
 import * as orderApi from "@/api/order";
 import { t } from "@/i18n";
 import { useAlertsStore } from "@/stores/alerts";
-import { useNoticeStore } from "@/stores/notice";
 import { useOrderStore } from "@/stores/order";
 import { useSessionStore } from "@/stores/session";
 import type { PosSession } from "@/types/session";
@@ -67,7 +66,7 @@ describe("putting a bill down", () => {
       order_type: "OT-DELIVERY",
       items: [{ idx: 1, status }],
     } as unknown as OrderDetail;
-    vi.mocked(kitchenApi.sendToKitchen).mockResolvedValue({ kots_created: [], unrouted_items: [] } as never);
+    vi.mocked(kitchenApi.sendToKitchen).mockResolvedValue({ kots_created: [] } as never);
     vi.mocked(orderApi.getOrder).mockResolvedValue(bill());
     return orders;
   }
@@ -105,7 +104,7 @@ describe("a kitchen ticket on its way", () => {
   function sent(): ReturnType<typeof useOrderStore> {
     const orders = useOrderStore();
     orders.order = printing({ tickets_printing: 1 });
-    vi.mocked(kitchenApi.sendToKitchen).mockResolvedValue({ kots_created: [], unrouted_items: [] } as never);
+    vi.mocked(kitchenApi.sendToKitchen).mockResolvedValue({ kots_created: [] } as never);
     return orders;
   }
 
@@ -149,17 +148,6 @@ describe("a kitchen ticket on its way", () => {
     } finally {
       vi.useRealTimers();
     }
-  });
-
-  it("says a dish no station takes once, as a notice, not a banner", async () => {
-    const orders = sent();
-    vi.mocked(kitchenApi.sendToKitchen).mockResolvedValue({ kots_created: [], unrouted_items: ["Fanta"] } as never);
-    vi.mocked(orderApi.getOrder).mockResolvedValue(printing({}));
-
-    await orders.sendToKitchen();
-
-    expect(useNoticeStore().current?.kind).toBe("info");
-    expect(useNoticeStore().current?.text).toContain("Fanta");
   });
 });
 

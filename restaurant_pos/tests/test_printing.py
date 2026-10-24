@@ -779,32 +779,28 @@ class TheBellSaysWhatDidNotPrint(PrintingTestBase):
 
 		self.assertEqual(self._alert(kot)["state"], "failed")
 
-	def _unrouted_kot(self):
+	def test_an_item_no_station_takes_prints_nowhere(self):
+		"""`D-396` — not on the cashier's printer either, and no alert: nothing failed."""
+		frappe.db.set_value("POS Profile", self.profile, "default_printer", self.printer)
 		order = self._order()
 		row = orders.add_item(order, item=ITEM, qty=1)
 		row.production_center = None
 		order.save(ignore_permissions=True)
-		result = kitchen.send_to_kitchen(order)
-		return frappe.get_doc("Kitchen Order Ticket", result["kots_created"][0]["kot_name"])
 
-	def test_an_item_no_station_takes_prints_on_the_cashier_printer(self):
-		"""`D-300` — BR-070 level 7, which the screen promised and nothing did."""
+		with patch.object(service, "enqueue_print") as queued:
+			kitchen.send_to_kitchen(order)
+
+		queued.assert_not_called()
+
+	def test_a_station_without_a_printer_does_not_borrow_the_cashiers(self):
+		"""`D-396` — a ticket comes out of its station's printer or none."""
 		frappe.db.set_value("POS Profile", self.profile, "default_printer", self.printer)
-		kot = self._unrouted_kot()
-
-		job = service.print_kot(kot.name)
-
-		self.assertEqual(frappe.db.get_value("POS Print Job", job, "printer"), self.printer)
-
-	def test_with_no_cashier_printer_it_rings_the_bell(self):
-		frappe.db.set_value("POS Profile", self.profile, "default_printer", None)
-		kot = self._unrouted_kot()
-
-		service.print_kot(kot.name)
-
-		alert = self._alert(kot)
-		self.assertEqual(alert["state"], "failed")
-		self.assertEqual(alert["station"], "Cashier printer")
+		own = frappe.db.get_value("Production Center", self.grill, "printer")
+		frappe.db.set_value("Production Center", self.grill, "printer", None)
+		try:
+			self.assertIsNone(service.kot_printer(self.grill, self.profile))
+		finally:
+			frappe.db.set_value("Production Center", self.grill, "printer", own)
 
 	def test_the_newest_is_first(self):
 		older = self._failed()

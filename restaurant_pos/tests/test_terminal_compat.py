@@ -65,9 +65,21 @@ class TerminalKindsBase(ReturnTestBase):
 	def _a_whole_sale(self):
 		"""Open, cook, pay, refund one — and check what each step left behind."""
 		order = self._order()
-		orders.add_item(order, item=ITEM, qty=2)
-		order.reload()
-		sent = kitchen.send_to_kitchen(order)
+		# Routed to a station of the branch: an item no station takes gets no
+		# ticket (`D-396`), and the kitchen step would test nothing.
+		station = frappe.get_all(
+			"Production Center", filters={"branch": self.branch, "is_active": 1}, pluck="name", limit=1
+		)
+		if not station:
+			self.skipTest("the test branch has no station")
+		own = frappe.db.get_value("Item", ITEM, "default_production_center")
+		frappe.db.set_value("Item", ITEM, "default_production_center", station[0])
+		try:
+			orders.add_item(order, item=ITEM, qty=2)
+			order.reload()
+			sent = kitchen.send_to_kitchen(order)
+		finally:
+			frappe.db.set_value("Item", ITEM, "default_production_center", own)
 		order.reload()
 		from restaurant_pos.tests.test_payment import CASH, _ensure_fiscal_year
 		from restaurant_pos.utils import payment

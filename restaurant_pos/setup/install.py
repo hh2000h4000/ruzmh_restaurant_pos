@@ -729,7 +729,7 @@ CUSTOM_FIELDS = {
 			"fieldtype": "Link",
 			"options": "POS Printer",
 			"label": "Default Printer",
-			"description": "Cashier printer, and the final fallback for kitchen routing.",
+			"description": "The printer this terminal prints the customer's receipt on.",
 			"insert_after": "rpos_section_cb",
 		},
 		{

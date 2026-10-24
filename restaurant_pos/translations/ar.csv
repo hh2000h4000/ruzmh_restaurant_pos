@@ -191,7 +191,7 @@ Hidden Item Groups,مجموعات ما تظهر في هذا النوع
 Additional Fields,خانات إضافية,Restaurant Order Type
 Screen Layout,ترتيب شاشة الكاشير
 Default Printer,طابعة الكاشير,POS Profile
-"Cashier printer, and the final fallback for kitchen routing.",الطابعة اللي تطبع فاتورة العميل من هذا الجهاز. وإذا تذكرة مطبخ ما لقت طابعة، تنطبع هنا.
+"The printer this terminal prints the customer's receipt on.",الطابعة اللي تطبع فاتورة العميل من هذا الجهاز.
 Receipt Template,نموذج فاتورة العميل
 "The customer receipt this terminal prints, as chosen — Preview it on the template. Empty uses the branch's template, then the default (D-214).",شكل فاتورة العميل اللي يطبعها هذا الجهاز. تقدر تشوف شكله من شاشة النموذج. إذا تركتها فاضية يستخدم نموذج الفرع أو النموذج الافتراضي.
 Current Restaurant Shift,اليوم المفتوح حالياً
@@ -454,7 +454,7 @@ Payload Bytes,حجم المحتوى,POS Print Job
 What it prints,الأصناف اللي تطبع هنا
 What {0} prints,الأصناف اللي يطبعها {0}
 "Ticking a group here takes it off whichever station had it. Two stations claiming one group is a coin toss, not a richer setup.","لما تختار مجموعة هنا تنشال من المحطة اللي كانت عندها. مجموعة وحدة على محطتين معناها ما تدري وين بتطبع."
-No printer on this station. Tickets fall back to the cashier's printer.,ما فيه طابعة على هذي المحطة. التذاكر بتطبع على طابعة الكاشير.
+No printer on this station. Its tickets show on its screen only.,ما فيه طابعة على هذي المحطة. تذاكرها تظهر على شاشتها بس.
 {0} now prints {1} group(s).,{0} صار يطبع {1} مجموعة.
 now on {0},الحين على {0}
 Scope,على وش تنطبق,POS Printer Routing Rule
@@ -1388,7 +1388,7 @@ Kitchen Told At,وقت إبلاغ المطبخ,Kitchen Order Ticket
 "Who said the kitchen was told by hand, so the unprinted ticket stops alerting (D-298).","من قال إنه أبلغ المطبخ بنفسه، فتوقّف تنبيه التذكرة التي لم تُطبع (D-298).",Kitchen Order Ticket
 This ticket is not waiting on the kitchen.,هذه التذكرة لا تحتاج إبلاغ المطبخ.
 Cashier printer,طابعة الكاشير
-"Empty when no rule routed the items: the ticket goes to the cashier's printer (BR-070 level 7, D-300).","فارغ إذا ما وجّهت أي قاعدة الأصناف: التذكرة تنطبع على طابعة الكاشير (BR-070 المستوى 7، D-300).",Kitchen Order Ticket
+"The station that cooks these items. Empty only on tickets made before D-396.","المحطة اللي تحضّر هالأصناف. فاضي بس في التذاكر القديمة قبل D-396.",Kitchen Order Ticket
 Alerts,التنبيهات,Restaurant POS Settings
 Alerts per page,عدد التنبيهات في الصفحة,Restaurant POS Settings
 "How many alerts the bell shows at a time, newest first. The older ones come a page at a time when asked for. Between 5 and 50.","كم تنبيه يعرض الجرس في المرة، الأحدث أول. والأقدم يجي صفحة صفحة لما تطلبه. من 5 إلى 50.",Restaurant POS Settings

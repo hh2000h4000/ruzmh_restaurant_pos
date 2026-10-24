@@ -155,7 +155,23 @@ class AFixedPriceCombo(ComboTestBase):
 
 	def test_each_item_reaches_the_kitchen_saying_which_meal_it_is_from(self):
 		order = self._ordered(COLA)
-		result = kitchen.send_to_kitchen(order)
+		# Each item routed to a station of the branch: one no station takes
+		# prints nowhere (`D-396`), and there would be nothing to read here.
+		station = frappe.get_all(
+			"Production Center", filters={"branch": order.branch, "is_active": 1}, pluck="name", limit=1
+		)
+		if not station:
+			self.skipTest("the test branch has no station")
+		before = {
+			code: frappe.db.get_value("Item", code, "default_production_center") for code in (ITEM, COLA)
+		}
+		for code in before:
+			frappe.db.set_value("Item", code, "default_production_center", station[0])
+		try:
+			result = kitchen.send_to_kitchen(order)
+		finally:
+			for code, own in before.items():
+				frappe.db.set_value("Item", code, "default_production_center", own)
 
 		sent = [
 			row
@@ -164,7 +180,7 @@ class AFixedPriceCombo(ComboTestBase):
 				"KOT Item", filters={"parent": ticket["kot_name"]}, fields=["item", "notes"]
 			)
 		]
-		# Two items, each on a ticket — a station's, or the cashier printer's (`D-300`).
+		# Two items, each on its station's ticket.
 		self.assertEqual(len(sent), 2)
 		self.assertLessEqual({row.item for row in sent}, {ITEM, COLA})
 		for row in sent:

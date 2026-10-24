@@ -11,7 +11,7 @@ frappe.ui.form.on("Production Center", {
 
 		if (!frm.doc.printer) {
 			frm.dashboard.set_headline(
-				__("No printer on this station. Tickets fall back to the cashier's printer."),
+				__("No printer on this station. Its tickets show on its screen only."),
 			);
 		}
 	},

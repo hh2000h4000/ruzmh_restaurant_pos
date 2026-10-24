@@ -225,7 +225,6 @@ const messages: Catalogue["messages"] = {
   // Order screen
   "order.typeUnavailable": "نوع الطلب غير متاح على هذا الجهاز.",
   "order.busy": "الكاشير لسا يخلّص العملية اللي قبل. ما تغيّر شي، جرّب مرة ثانية.",
-  "order.notRouted": "لم يُوجَّه للمطبخ: {items} — ستُطبع على طابعة الكاشير.",
   "order.sendToKitchen": "إرسال للمطبخ",
   "order.reprintTicket": "أعد الطباعة",
   "alerts.title": "التنبيهات",

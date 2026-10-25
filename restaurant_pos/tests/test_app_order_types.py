@@ -164,6 +164,9 @@ class TestAppOrderTypes(PaymentTestBase):
 
 	def test_and_the_day_s_posting_puts_it_on_the_platform_s_account(self):
 		"""The accountant reads what HungerStation owes off one account, and clears it there."""
+		# This class commits after every test, so platform sales of earlier runs
+		# may still wait to be posted; posted first, so the batch below is this one's.
+		posting.post_branch(frappe.db.get_value("POS Profile", self.profile, "rpos_branch"))
 		order, _customer = self._activated_app_order()
 		total = flt(order.total_amount)
 		payment_service.process_payment(order, payments=[{"method": "HungerStation", "amount": total}])

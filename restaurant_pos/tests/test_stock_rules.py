@@ -12,7 +12,7 @@ warehouse, which its terminals take.
 import frappe
 
 from restaurant_pos.tests.test_order import BRANCH, OrderTestBase
-from restaurant_pos.utils import stock_rules
+from restaurant_pos.utils import stock_rules, terminal_defaults
 
 
 class StockRulesTestBase(OrderTestBase):
@@ -98,7 +98,7 @@ class OneWarehouse(StockRulesTestBase):
 		expected = frappe.db.get_value("Branch", BRANCH, "default_warehouse")
 		profile.warehouse = None
 
-		stock_rules.take_the_branch_warehouse(profile)
+		terminal_defaults.fill_from_branch(profile)
 
 		self.assertEqual(profile.warehouse, expected)
 
@@ -106,7 +106,7 @@ class OneWarehouse(StockRulesTestBase):
 		profile = frappe.get_doc("POS Profile", self.profile)
 		own = profile.warehouse
 
-		stock_rules.take_the_branch_warehouse(profile)
+		terminal_defaults.fill_from_branch(profile)
 
 		self.assertEqual(profile.warehouse, own)
 

@@ -1661,3 +1661,9 @@ Branch,الفرع,POS Profile
 Dining Hall with Tables,صالة فيها طاولات
 "Leave it off for a counter or a supermarket. Takeaway and delivery are order types and need no hall.","خلّها بدون علامة للكاونتر أو السوبر ماركت. السفري والتوصيل أنواع طلب وما يحتاجون صالة."
 Whether the till lists this hall on the floor.,هل تظهر هذي الصالة في شاشة الطاولات.
+Essentials,الأساسي,POS Profile
+"Filled from the branch and its company when left empty. Change them only if this device books differently.","تتعبّى من الفرع وشركته لو تركتها فاضية. غيّرها بس لو هذا الجهاز يقيّد بطريقة مختلفة."
+"The VAT on every invoice of this device. Filled from the company's default template when left empty.","ضريبة القيمة المضافة على كل فواتير هذا الجهاز. تتعبّى من القالب الافتراضي للشركة لو تركتها فاضية."
+"The prices this device sells at. Filled from the default selling list when left empty.","الأسعار اللي يبيع فيها هذا الجهاز. تتعبّى من قائمة البيع الافتراضية لو تركتها فاضية."
+Accounting,المحاسبة,POS Profile
+"Choose the branch this device sells in.",اختر الفرع اللي يبيع فيه هذا الجهاز.

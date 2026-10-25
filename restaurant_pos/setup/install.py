@@ -669,7 +669,8 @@ CUSTOM_FIELDS = {
 		{
 			"fieldname": "rpos_section",
 			"fieldtype": "Section Break",
-			"label": "Restaurant POS",
+			# `D-400` — what has to be answered, first; `TERMINAL_FORM_ORDER` below.
+			"label": "Essentials",
 			"insert_after": "company",
 		},
 		# **The terminal's own branch** (`D-391`). It reached its branch through its
@@ -688,6 +689,10 @@ CUSTOM_FIELDS = {
 			# came out belonging to no branch. Written as 0, not left out: the
 			# update of an existing field only sets the keys it is given.
 			"no_copy": 0,
+			# `D-400` — required: a terminal with no branch has no day, drawer or
+			# invoice number, and found out only at its first sale. One left from
+			# before keeps its hall and takes the branch from it before the check.
+			"reqd": 1,
 			"insert_after": "rpos_section",
 		},
 		{
@@ -888,6 +893,32 @@ CUSTOM_FIELDS = {
 			"fieldtype": "Section Break",
 			"insert_after": "rpos_alert_volume",
 		},
+		# `D-400` — ERPNext's own required fields, gathered and folded: they are
+		# filled from the branch, and a manager opens them only to change one.
+		{
+			"fieldname": "rpos_accounting_section",
+			"fieldtype": "Section Break",
+			"label": "Accounting",
+			"collapsible": 1,
+			"description": "Filled from the branch and its company when left empty. Change them only if this device books differently.",
+			"insert_after": "rpos_alert_end",
+		},
+		{
+			"fieldname": "rpos_accounting_cb",
+			"fieldtype": "Column Break",
+			"insert_after": "rpos_accounting_section",
+		},
+		{
+			"fieldname": "rpos_more_section",
+			"fieldtype": "Section Break",
+			"label": "Restaurant POS",
+			"insert_after": "rpos_accounting_cb",
+		},
+		{
+			"fieldname": "rpos_more_cb",
+			"fieldtype": "Column Break",
+			"insert_after": "rpos_more_section",
+		},
 	],
 }
 
@@ -973,6 +1004,14 @@ REQUIRED_ERPNEXT_FIELDS = {
 		"Every sale on this terminal is invoiced to this customer unless the cashier "
 		"names another. Payment is refused while it is empty."
 	),
+	# `D-400` — without one the invoices go out with no VAT, and nothing says so.
+	("POS Profile", "taxes_and_charges"): (
+		"The VAT on every invoice of this device. Filled from the company's default template when left empty."
+	),
+	# `D-400` — without one the till has no prices to sell at.
+	("POS Profile", "selling_price_list"): (
+		"The prices this device sells at. Filled from the default selling list when left empty."
+	),
 }
 
 
@@ -992,6 +1031,116 @@ def require_erpnext_fields() -> None:
 		make_property_setter(
 			doctype, fieldname, "description", description, "Text", validate_fields_for_doctype=False
 		)
+
+
+#: The device form, required first (`D-400`). What the manager must answer sits
+#: at the top; ERPNext's required accounting fields are folded under it, filled
+#: from the branch; the rest follows. A field not named here — a later ERPNext
+#: field, another app's — keeps its place by its own `insert_after`.
+TERMINAL_FORM_ORDER = [
+	"rpos_section",
+	"rpos_branch",
+	"company",
+	"customer",
+	"taxes_and_charges",
+	"rpos_section_cb",
+	"selling_price_list",
+	"restaurant_section",
+	"default_printer",
+	"section_break_11",
+	"payments",
+	"rpos_accounting_section",
+	"currency",
+	"warehouse",
+	"write_off_limit",
+	"rpos_accounting_cb",
+	"write_off_account",
+	"write_off_cost_center",
+	"rpos_more_section",
+	"rpos_device_number",
+	"screen_layout",
+	"receipt_template",
+	"rpos_more_cb",
+	"restaurant_shift",
+	"rpos_theme",
+	"rpos_order_types_section",
+	"allowed_order_types",
+	"rpos_device_section",
+	"rpos_device_name",
+	"rpos_paired_at",
+	"rpos_device_cb",
+	"rpos_paired_by",
+	"rpos_pairing_expires",
+	"rpos_device_token_hash",
+	"rpos_pairing_code_hash",
+	"rpos_alert_section",
+	"rpos_alert_sound",
+	"rpos_alert_tone",
+	"rpos_alert_cb",
+	"rpos_alert_volume",
+	"rpos_alert_end",
+	"country",
+	"disabled",
+	"column_break_9",
+	"campaign",
+	"company_address",
+	"section_break_15",
+	"applicable_for_users",
+	"section_break_14",
+	"hide_images",
+	"hide_unavailable_items",
+	"auto_add_item_to_cart",
+	"validate_stock_on_save",
+	"print_receipt_on_order_complete",
+	"column_break_16",
+	"ignore_pricing_rule",
+	"allow_rate_change",
+	"allow_discount_change",
+	"disable_grand_total_to_default_mop",
+	"allow_partial_payment",
+	"section_break_23",
+	"item_groups",
+	"column_break_25",
+	"customer_groups",
+	"section_break_16",
+	"print_format",
+	"letter_head",
+	"column_break0",
+	"tc_name",
+	"select_print_heading",
+	"section_break_19",
+	"account_for_change_amount",
+	"disable_rounded_total",
+	"column_break_23",
+	"income_account",
+	"expense_account",
+	"tax_category",
+	"apply_discount_on",
+	"accounting_dimensions_section",
+	"cost_center",
+	"dimension_col_break",
+	"project",
+]
+
+
+def arrange_terminal_form() -> None:
+	"""Put the device form in `TERMINAL_FORM_ORDER` — the way Customize Form saves an order.
+
+	A Property Setter, not an edit to ERPNext's DocType (`CLAUDE.md` §3).
+	"""
+	import json
+
+	from frappe.custom.doctype.property_setter.property_setter import make_property_setter
+
+	make_property_setter(
+		"POS Profile",
+		None,
+		"field_order",
+		json.dumps(TERMINAL_FORM_ORDER),
+		"Data",
+		for_doctype=True,
+		validate_fields_for_doctype=False,
+	)
 
 
 GUIDE_ROUTE = "/rpos-guide"
@@ -1030,6 +1179,7 @@ def after_install():
 	create_custom_fields(CUSTOM_FIELDS, ignore_validate=True)
 	ensure_portion_uom()
 	require_erpnext_fields()
+	arrange_terminal_form()
 	grant_erpnext_permissions()
 	create_default_templates()
 	add_guide_to_help_menu()
@@ -1053,6 +1203,7 @@ def after_migrate():
 	create_custom_fields(CUSTOM_FIELDS, ignore_validate=True)
 	ensure_portion_uom()
 	require_erpnext_fields()
+	arrange_terminal_form()
 	grant_erpnext_permissions()
 
 	# Unlike the defaults above, templates are re-checked on every migrate: they

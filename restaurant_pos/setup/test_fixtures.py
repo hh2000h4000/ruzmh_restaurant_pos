@@ -342,8 +342,11 @@ def _pos_profile(company: str, section: str) -> str:
 	with known rates and points the profile at it, so a money assertion never
 	depends on what the site happens to be selling from.
 	"""
+	no_vat = _no_vat(company)
 	if frappe.db.exists("POS Profile", PROFILE):
-		frappe.db.set_value("POS Profile", PROFILE, "restaurant_section", section)
+		frappe.db.set_value(
+			"POS Profile", PROFILE, {"restaurant_section": section, "taxes_and_charges": no_vat}
+		)
 		_pair_test_device(PROFILE)
 		return PROFILE
 
@@ -361,12 +364,46 @@ def _pos_profile(company: str, section: str) -> str:
 			"write_off_limit": 1,
 			"customer": quick_setup.walk_in_customer(),
 			"restaurant_section": section,
+			"taxes_and_charges": no_vat,
 			"payments": [{"mode_of_payment": quick_setup.cash_method(company), "default": 1}],
 		}
 	)
 	profile.insert(ignore_permissions=True)
 	_pair_test_device(profile.name)
 	return profile.name
+
+
+def _no_vat(company: str) -> str:
+	"""A tax template with no tax, for the suite's terminal (`D-400`).
+
+	The template is required on a terminal now. The suite's money assertions are
+	written without VAT — the tests that need a rate give the terminal one — so
+	the fixture says «none» explicitly rather than leaving the field empty.
+
+	And it is the company's default, so a terminal a test makes through quick
+	setup takes it the way a real one takes the real template.
+	"""
+	existing = frappe.db.get_value(
+		"Sales Taxes and Charges Template", {"title": "RPOS Test No VAT", "company": company}, "name"
+	)
+	if existing:
+		if not frappe.db.get_value("Sales Taxes and Charges Template", existing, "is_default"):
+			doc = frappe.get_doc("Sales Taxes and Charges Template", existing)
+			doc.is_default = 1
+			doc.save(ignore_permissions=True)
+		return existing
+	return (
+		frappe.get_doc(
+			{
+				"doctype": "Sales Taxes and Charges Template",
+				"title": "RPOS Test No VAT",
+				"company": company,
+				"is_default": 1,
+			}
+		)
+		.insert(ignore_permissions=True)
+		.name
+	)
 
 
 def _pair_test_device(profile: str) -> None:

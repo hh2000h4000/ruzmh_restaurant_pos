@@ -164,3 +164,15 @@ def is_tiled(page: str) -> bool:
 	"""Whether a page holds the tiles block — what the settings form's button reads."""
 	content = frappe.db.get_value("Workspace", page, "content") or "[]"
 	return any(_is_the_tiles(block) for block in json.loads(content))
+
+
+@frappe.whitelist()
+def terminal_defaults(branch: str) -> dict:
+	"""What the device form fills when its branch is chosen (`D-400`).
+
+	A desk form's endpoint, so it follows the form's own permission (`D-208`).
+	"""
+	from restaurant_pos.utils import terminal_defaults as service
+
+	frappe.has_permission("POS Profile", "write", throw=True)
+	return service.defaults_for(branch)

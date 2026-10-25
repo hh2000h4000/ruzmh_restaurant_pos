@@ -5,6 +5,22 @@
 // the till types it once; freeing the terminal for another machine is this
 // form's job too, because it is the manager's decision and nobody else's.
 frappe.ui.form.on("POS Profile", {
+	// D-400 — the branch answers the rest of ERPNext's form.
+	rpos_branch(frm) {
+		fill_from_branch(frm);
+	},
+
+	// A hall belongs to one branch: picked first, it names the branch too.
+	async restaurant_section(frm) {
+		if (!frm.doc.restaurant_section || frm.doc.rpos_branch) return;
+		const { message } = await frappe.db.get_value(
+			"Restaurant Section",
+			frm.doc.restaurant_section,
+			"branch",
+		);
+		if (message && message.branch) frm.set_value("rpos_branch", message.branch);
+	},
+
 	refresh(frm) {
 		if (frm.is_new()) return;
 
@@ -22,6 +38,35 @@ frappe.ui.form.on("POS Profile", {
 		frm.add_custom_button(__("Unpair the Till"), () => unpair_till(frm));
 	},
 });
+
+// Only what is empty is filled: a value somebody chose stays. Asked of the
+// server, which runs the same fill on save — one rule, two moments.
+function fill_from_branch(frm) {
+	if (!frm.doc.rpos_branch) return;
+
+	frappe.call({
+		method: "restaurant_pos.api.desk.terminal_defaults",
+		args: { branch: frm.doc.rpos_branch },
+		callback: async ({ message }) => {
+			if (!message) return;
+			const { payments, company, ...rest } = message;
+
+			// The company first: the other fields are looked up within it.
+			if (company && !frm.doc.company) await frm.set_value("company", company);
+
+			const empty = {};
+			for (const [field, value] of Object.entries(rest)) {
+				if (value !== null && value !== "" && !frm.doc[field]) empty[field] = value;
+			}
+			await frm.set_value(empty);
+
+			if (!(frm.doc.payments || []).length) {
+				for (const row of payments) frm.add_child("payments", row);
+				frm.refresh_field("payments");
+			}
+		},
+	});
+}
 
 function pair_till(frm) {
 	frappe.call({

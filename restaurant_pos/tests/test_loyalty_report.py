@@ -183,6 +183,10 @@ class TestBalanceReport(LoyaltyTestBase):
 		terminal.rpos_device_number = None
 		label = "no VAT" if rate is None else f"{rate:g}"
 		terminal.insert(ignore_permissions=True, set_name=f"RPOS Test Terminal {label}")
+		if rate is None:
+			# None can be saved without a template any more (`D-400`); one from
+			# before reads like this — blanked underneath, not filled.
+			frappe.db.set_value("POS Profile", terminal.name, "taxes_and_charges", None)
 		# Registered last so it runs first: the terminal names the template.
 		self.addCleanup(frappe.delete_doc, terminal.doctype, terminal.name, force=1, ignore_permissions=True)
 		return terminal.name

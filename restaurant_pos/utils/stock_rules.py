@@ -81,18 +81,6 @@ def warn_when_the_ceiling_drops(doc, method=None) -> None:
 # --------------------------------------------------------------------------- #
 
 
-def take_the_branch_warehouse(doc, method=None) -> None:
-	"""`POS Profile.before_validate` — a terminal with no warehouse of its own sells from its branch's."""
-	if doc.get("warehouse"):
-		return
-
-	from restaurant_pos.utils.terminal_branch import branch_of_doc
-
-	branch = branch_of_doc(doc)
-	if branch:
-		doc.warehouse = frappe.db.get_value("Branch", branch, "default_warehouse")
-
-
 def move_the_terminals_with_the_branch(doc, method=None) -> None:
 	"""`Branch.on_update` — terminals that were on the branch's warehouse follow it to the new one.
 

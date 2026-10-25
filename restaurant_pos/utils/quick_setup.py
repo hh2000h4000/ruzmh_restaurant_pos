@@ -73,7 +73,7 @@ def run(values: dict) -> dict:
 	if hall:
 		_tables(hall, tables)
 
-	profile = _terminal(terminal, company, branch, hall, values.price_list, values.taxes_and_charges)
+	profile = _terminal(terminal, branch, hall, values.price_list, values.taxes_and_charges)
 
 	from restaurant_pos.utils import device
 
@@ -252,29 +252,16 @@ def _tables(section: str, count: int) -> None:
 		).insert()
 
 
-def _terminal(
-	name: str, company: str, branch: str, hall: str | None, price_list: str | None, taxes: str | None
-) -> str:
-	basics = company_basics(company)
-	taxes = taxes or frappe.db.get_value(
-		"Sales Taxes and Charges Template", {"company": company, "is_default": 1, "disabled": 0}, "name"
-	)
+def _terminal(name: str, branch: str, hall: str | None, price_list: str | None, taxes: str | None) -> str:
+	"""The branch, and what the form was told; the rest is filled from the branch (`D-400`)."""
 	profile = frappe.get_doc(
 		{
 			"doctype": "POS Profile",
 			"name": name,
-			"company": company,
-			"currency": frappe.db.get_value("Company", company, "default_currency"),
-			"warehouse": basics.warehouse,
-			"write_off_account": basics.write_off,
-			"write_off_cost_center": basics.cost_center,
-			"write_off_limit": 1,
-			"customer": walk_in_customer(),
 			"rpos_branch": branch,
 			"restaurant_section": hall,
-			"selling_price_list": price_list or _menu_price_list(),
+			"selling_price_list": price_list,
 			"taxes_and_charges": taxes,
-			"payments": [{"mode_of_payment": cash_method(company), "default": 1}],
 		}
 	)
 	profile.insert()

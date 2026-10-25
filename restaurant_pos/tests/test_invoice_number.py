@@ -151,16 +151,21 @@ class ABranchAndItsTerminalsAreNumbered(FrappeTestCase):
 		self.assertEqual(frappe.db.get_value("POS Profile", made["pos_profile"], numbers.DEVICE_NUMBER), "01")
 
 	def test_a_profile_that_is_not_a_till_is_left_alone(self):
-		"""An ERPNext POS Profile nobody gave a branch or a hall keeps ERPNext's own series."""
+		"""An ERPNext POS Profile from before the app — no branch, no hall — keeps ERPNext's own series.
+
+		None can be saved like that any more (`D-400`); a site may still hold one.
+		"""
 		from restaurant_pos.utils import terminal_branch
 
 		made = _branch_with_a_till()
-		plain = _second_till(made["pos_profile"])
-		plain.restaurant_section = None
-		plain.set(terminal_branch.FIELD, None)
-		plain.insert()
+		plain = _second_till(made["pos_profile"]).insert()
+		frappe.db.set_value(
+			"POS Profile",
+			plain.name,
+			{"restaurant_section": None, terminal_branch.FIELD: None, numbers.DEVICE_NUMBER: None},
+			update_modified=False,
+		)
 
-		self.assertFalse(plain.get(numbers.DEVICE_NUMBER))
 		self.assertIsNone(numbers.series_for(plain.name))
 
 

@@ -16,6 +16,7 @@ from frappe.tests.utils import FrappeTestCase
 
 from restaurant_pos.setup.install import REQUIRED_ERPNEXT_FIELDS, require_erpnext_fields
 from restaurant_pos.setup.test_fixtures import PROFILE
+from restaurant_pos.utils import quick_setup
 
 
 class TestRequiredErpnextFields(FrappeTestCase):
@@ -38,19 +39,17 @@ class TestRequiredErpnextFields(FrappeTestCase):
 			with self.subTest(field=f"{doctype}.{fieldname}"):
 				self.assertEqual(frappe.get_meta(doctype).get_field(fieldname).description, description)
 
-	def test_a_terminal_with_no_customer_is_refused_at_the_form(self):
+	def test_a_terminal_is_never_saved_with_no_customer(self):
+		"""Required on the form — and an emptied one is filled from the branch's defaults (`D-400`)."""
 		require_erpnext_fields()
 		frappe.clear_cache(doctype="POS Profile")
+		self.assertTrue(frappe.get_meta("POS Profile").get_field("customer").reqd)
 
 		profile = frappe.get_doc("POS Profile", PROFILE)
-		customer = profile.customer
 		profile.customer = None
+		profile.save(ignore_permissions=True)
 
-		with self.assertRaises(frappe.MandatoryError):
-			profile.save(ignore_permissions=True)
-
-		profile.reload()
-		self.assertEqual(profile.customer, customer, "the saved terminal is untouched")
+		self.assertEqual(profile.customer, quick_setup.walk_in_customer())
 
 	def test_applying_it_twice_changes_nothing(self):
 		"""`after_migrate` runs it on every migrate."""

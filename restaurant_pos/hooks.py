@@ -87,8 +87,9 @@ doc_events = {
 	# would have ERPNext post every sale a second time.
 	"POS Closing Entry": {"validate": "restaurant_pos.overrides.pos_invoice.keep_sales_out_of_the_closing"},
 	"POS Profile": {
-		# D-337 — a terminal sells from its branch's warehouse unless given its own.
-		"before_validate": "restaurant_pos.utils.stock_rules.take_the_branch_warehouse",
+		# D-400 — what ERPNext asks of a terminal, filled from its branch where empty
+		# (its warehouse among them, `D-337`).
+		"before_validate": "restaurant_pos.utils.terminal_defaults.fill_from_branch",
 		"validate": [
 			# D-391 — the terminal's own branch, kept equal to its hall's.
 			"restaurant_pos.utils.terminal_branch.keep_with_hall",

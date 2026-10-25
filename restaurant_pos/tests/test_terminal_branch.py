@@ -44,7 +44,9 @@ def _hall(branch: str, title: str, *, kind: str = "dine_in") -> str:
 	)
 
 
-def _terminal(name: str, section: str | None, *, warehouse: str | None = "branch") -> str:
+def _terminal(
+	name: str, section: str | None, *, warehouse: str | None = "branch", branch: str | None = None
+) -> str:
 	"""A terminal like the suite's own, on whatever hall it is given."""
 	if frappe.db.exists("POS Profile", name):
 		frappe.delete_doc("POS Profile", name, force=True, ignore_permissions=True)
@@ -64,12 +66,33 @@ def _terminal(name: str, section: str | None, *, warehouse: str | None = "branch
 				"write_off_limit": 1,
 				"customer": quick_setup.walk_in_customer(),
 				"restaurant_section": section,
+				"rpos_branch": branch,
+				"taxes_and_charges": frappe.db.get_value("POS Profile", PROFILE, "taxes_and_charges"),
 				"payments": [{"mode_of_payment": quick_setup.cash_method(company), "default": 1}],
 			}
 		)
 		.insert(ignore_permissions=True)
 		.name
 	)
+
+
+def _outsider(name: str, hall: str) -> str:
+	"""An ERPNext POS Profile from before the app — no branch, no hall.
+
+	One cannot be saved like that any more (`D-400`), but a site may hold rows
+	made before the app was installed. Made the only way one exists now: saved
+	whole, then blanked underneath, as the old row would read.
+	"""
+	from restaurant_pos.utils import terminal_branch
+
+	made = _terminal(name, hall)
+	frappe.db.set_value(
+		"POS Profile",
+		made,
+		{"restaurant_section": None, terminal_branch.FIELD: None, DEVICE_NUMBER: None},
+		update_modified=False,
+	)
+	return made
 
 
 class TerminalBranchTestBase(FrappeTestCase):
@@ -96,7 +119,7 @@ class TerminalBranchTestBase(FrappeTestCase):
 
 		cls.second = _terminal("RPOS Baseline Second Till", cls.hall)
 		cls.elsewhere = _terminal("RPOS Baseline Other Till", cls.other_hall)
-		cls.outsider = _terminal("RPOS Baseline Not A Till", None)
+		cls.outsider = _outsider("RPOS Baseline Not A Till", cls.hall)
 
 
 class TestEveryPlaceAgrees(TerminalBranchTestBase):
@@ -240,10 +263,7 @@ class TestOneSource(TerminalBranchTestBase):
 		"""The column alone makes a till — numbered, counted, and in its branch."""
 		from restaurant_pos.utils import terminal_branch
 
-		name = _terminal("RPOS Baseline Hall-less Till", None)
-		doc = frappe.get_doc("POS Profile", name)
-		doc.set(terminal_branch.FIELD, OTHER_BRANCH)
-		doc.save(ignore_permissions=True)
+		name = _terminal("RPOS Baseline Hall-less Till", None, branch=OTHER_BRANCH)
 
 		self.assertEqual(terminal_branch.branch_of(name), OTHER_BRANCH)
 		self.assertEqual(orders.branch_of_profile(name), OTHER_BRANCH)
@@ -302,12 +322,7 @@ class TestDuplicatingATerminal(TerminalBranchTestBase):
 		self.assertTrue(terminal_branch.is_till(copy.name))
 		self.assertTrue(copy.get(DEVICE_NUMBER))
 
-	def test_a_copy_with_no_hall_and_no_branch_is_not_a_till(self):
-		from restaurant_pos.utils import terminal_branch
-
-		copy = self._duplicate(
-			self.elsewhere, "RPOS Baseline Copied Plain", keep_hall=False, keep_branch=False
-		)
-		self.assertFalse(copy.get(terminal_branch.FIELD))
-		self.assertFalse(terminal_branch.is_till(copy.name))
-		self.assertFalse(copy.get(DEVICE_NUMBER))
+	def test_a_copy_with_no_hall_and_no_branch_is_refused(self):
+		"""`D-400` — a device saves with a branch or not at all."""
+		with self.assertRaises(frappe.MandatoryError):
+			self._duplicate(self.elsewhere, "RPOS Baseline Copied Plain", keep_hall=False, keep_branch=False)

@@ -58,21 +58,27 @@ def keep_under_the_ceiling(doc, method=None) -> None:
 		)
 
 
-def warn_when_the_ceiling_drops(doc, method=None) -> None:
-	"""`Stock Settings.validate` — say which branches no longer fit, when negative stock is turned off."""
+def refuse_lowering_the_ceiling(doc, method=None) -> None:
+	"""`Stock Settings.validate` — negative stock is not turned off under a branch that sells unchecked (`D-401`).
+
+	The branch side already refuses this (`keep_under_the_ceiling`); this side
+	only warned, so the contradiction could still be made from here: tills that
+	sell without checking, over books that refuse to go below zero. The cashier
+	then met a refusal at payment, and the day's stock waited unposted. Now
+	neither side can make it, and the manager decides which way to resolve it.
+	"""
 	if cint(doc.allow_negative_stock) or not doc.has_value_changed("allow_negative_stock"):
 		return
 
 	loose = frappe.get_all("Branch", filters={ENFORCE: 0}, pluck="name")
 	if loose:
-		frappe.msgprint(
+		frappe.throw(
 			_(
 				"These branches sell without checking stock: {0}. With negative stock not allowed, their "
-				"day's stock will not post whenever something is short. Tick «Refuse a Sale When Stock Is "
-				"Short» on each, or allow negative stock."
+				"day's stock could not be posted whenever something is short. Tick «Refuse a Sale When "
+				"Stock Is Short» on each first, or keep negative stock allowed."
 			).format(", ".join(loose)),
 			title=_("Branches that no longer fit"),
-			indicator="orange",
 		)
 
 

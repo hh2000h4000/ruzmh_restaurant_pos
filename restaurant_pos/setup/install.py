@@ -693,6 +693,10 @@ CUSTOM_FIELDS = {
 			# invoice number, and found out only at its first sale. One left from
 			# before keeps its hall and takes the branch from it before the check.
 			"reqd": 1,
+			# `D-401` — the device list tells tills apart by branch, not by
+			# company: a restaurant has one company and several branches.
+			"in_list_view": 1,
+			"in_standard_filter": 1,
 			"insert_after": "rpos_section",
 		},
 		{

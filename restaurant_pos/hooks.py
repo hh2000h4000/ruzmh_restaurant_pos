@@ -82,7 +82,7 @@ doc_events = {
 		"onload": "restaurant_pos.utils.stock_rules.say_the_site_setting",
 	},
 	# D-337 — and turning negative stock off names the branches that no longer fit.
-	"Stock Settings": {"validate": "restaurant_pos.utils.stock_rules.warn_when_the_ceiling_drops"},
+	"Stock Settings": {"validate": "restaurant_pos.utils.stock_rules.refuse_lowering_the_ceiling"},
 	# D-312 — our drawers close with an empty invoice list; one that lists them
 	# would have ERPNext post every sale a second time.
 	"POS Closing Entry": {"validate": "restaurant_pos.overrides.pos_invoice.keep_sales_out_of_the_closing"},

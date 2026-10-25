@@ -67,29 +67,28 @@ class TheSiteSettingIsTheCeiling(StockRulesTestBase):
 
 		self.assertEqual(fresh.get(stock_rules.ENFORCE), 1)
 
-	def test_turning_negative_stock_off_names_the_branches_that_no_longer_fit(self):
+	def test_negative_stock_cannot_be_turned_off_under_a_branch_that_sells_unchecked(self):
+		"""`D-401` — refused, and the branches named, as the branch side refuses its half."""
 		self._negative(1)
 		self._branch(0)
 		settings = frappe.get_doc("Stock Settings")
 		settings.allow_negative_stock = 0
-		frappe.clear_messages()
 
-		stock_rules.warn_when_the_ceiling_drops(settings)
+		with self.assertRaises(frappe.ValidationError) as refused:
+			settings.save(ignore_permissions=True)
 
-		said = " ".join(str(message) for message in frappe.get_message_log())
-		self.assertIn(BRANCH, said)
-		frappe.clear_messages()
+		self.assertIn(BRANCH, str(refused.exception))
+		self.assertEqual(frappe.db.get_single_value("Stock Settings", "allow_negative_stock"), 1)
 
-	def test_and_says_nothing_when_every_branch_already_refuses(self):
+	def test_it_may_once_every_branch_refuses(self):
 		self._negative(1)
 		frappe.db.set_value("Branch", {"name": ("is", "set")}, stock_rules.ENFORCE, 1)
 		settings = frappe.get_doc("Stock Settings")
 		settings.allow_negative_stock = 0
-		frappe.clear_messages()
 
-		stock_rules.warn_when_the_ceiling_drops(settings)
+		settings.save(ignore_permissions=True)
 
-		self.assertEqual(frappe.get_message_log(), [])
+		self.assertEqual(frappe.db.get_single_value("Stock Settings", "allow_negative_stock"), 0)
 
 
 class OneWarehouse(StockRulesTestBase):

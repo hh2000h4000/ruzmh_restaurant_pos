@@ -122,3 +122,9 @@ class TheFormAsksTheEssentialsFirst(FrappeTestCase):
 		meta = frappe.get_meta("POS Profile", cached=False)
 		missing = [name for name in TERMINAL_FORM_ORDER if not meta.has_field(name)]
 		self.assertEqual(missing, [])
+
+	def test_the_device_list_shows_and_filters_by_branch(self):
+		"""`D-401` — the column that tells tills apart."""
+		branch = frappe.get_meta("POS Profile", cached=False).get_field("rpos_branch")
+		self.assertTrue(branch.in_list_view)
+		self.assertTrue(branch.in_standard_filter)

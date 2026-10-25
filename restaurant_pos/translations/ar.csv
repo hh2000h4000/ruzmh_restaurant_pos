@@ -1667,3 +1667,17 @@ Essentials,الأساسي,POS Profile
 Accounting,المحاسبة,POS Profile
 "Choose the branch this device sells in.",اختر الفرع اللي يبيع فيه هذا الجهاز.
 "These branches sell without checking stock: {0}. With negative stock not allowed, their day's stock could not be posted whenever something is short. Tick «Refuse a Sale When Stock Is Short» on each first, or keep negative stock allowed.","هالفروع تبيع بدون فحص المخزون: {0}. لو المخزون السالب ممنوع، مخزون يومها ما يترحّل كل ما نقص شي. علّم «امنع البيع لما المخزون ما يكفي» على كل فرع منها أول، أو خلّ المخزون السالب مسموح."
+The print agent installed on this device's computer. A receipt printer joined by cable must be one of its printers.,برنامج الطباعة المثبّت على كمبيوتر هذا الجهاز. طابعة الفاتورة الموصولة بسلك لازم تكون من طابعاته.
+Agent's Computer,كمبيوتر البرنامج
+"The computer the agent last reported from. If it is not this device's, the agent was paired on another computer.",الكمبيوتر اللي اتصل منه البرنامج آخر مرة. لو ما هو كمبيوتر هذا الجهاز، فالبرنامج انربط على كمبيوتر ثاني.
+{0} is joined by cable to one computer. Choose this device's print agent — the one installed on its computer — before choosing it.,{0} موصولة بسلك بكمبيوتر واحد. اختر برنامج الطباعة حق هذا الجهاز (المثبّت على كمبيوتره) قبل ما تختارها.
+"{0} is on the computer of {1}, not on this device's ({2}). Receipts would come out at another counter. Choose a printer on this device's computer.",{0} على كمبيوتر {1}، مو على كمبيوتر هذا الجهاز ({2}). الفواتير بتطلع عند كاونتر ثاني. اختر طابعة على كمبيوتر هذا الجهاز.
+Enter the printer's name exactly as Windows lists it.,اكتب اسم الطابعة بالضبط مثل ما يطلع في ويندوز.
+{0} receipts,فواتير {0}
+no agent,بدون برنامج
+Set Up Printing for This Device,جهّز الطباعة لهذا الجهاز
+Exactly as Windows lists it under Printers & scanners on this device's computer.,بالضبط مثل ما يطلع في «الطابعات والماسحات الضوئية» على كمبيوتر هذا الجهاز.
+Set Up,جهّز
+Done. Now pair the print agent on this device's computer.,تم. الحين اربط برنامج الطباعة على كمبيوتر هذا الجهاز.
+"This agent is running on {0} (last seen {1}). Pairing it on another computer stops it there, and that computer's printers stop printing. Continue?",هذا البرنامج شغال على {0} (آخر اتصال {1}). ربطه على كمبيوتر ثاني يوقفه هناك، وطابعات ذاك الكمبيوتر توقف عن الطباعة. تكمل؟
+another computer,كمبيوتر ثاني

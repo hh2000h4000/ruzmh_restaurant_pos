@@ -96,6 +96,8 @@ doc_events = {
 			"restaurant_pos.utils.invoice_number.number_device",
 			# D-363 — the terminal's printer is one of its own branch's.
 			"restaurant_pos.utils.printer_branch.check_terminal",
+			# D-402 — and, joined by cable, one on its own computer's agent.
+			"restaurant_pos.utils.terminal_printing.check_receipt_printer",
 		],
 		"on_update": "restaurant_pos.utils.invoice_number.make_counter",
 	},

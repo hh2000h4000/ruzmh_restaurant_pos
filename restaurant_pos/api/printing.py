@@ -456,3 +456,18 @@ TEST_PAGE = """
 	</div>
 </body></html>
 """
+
+
+@frappe.whitelist(methods=["POST"])
+def prepare_terminal_printing(pos_profile: str, windows_printer_name: str, paper_width: str = "80mm") -> dict:
+	"""«Set up printing for this device»: its agent and receipt printer in one step (`D-402`).
+
+	Makes an agent and a printer and changes the device, so the caller needs
+	all three of those desk rights — the forms' own (`D-208`).
+	"""
+	from restaurant_pos.utils import terminal_printing
+
+	frappe.has_permission("POS Profile", "write", pos_profile, throw=True)
+	frappe.has_permission("POS Print Agent", "create", throw=True)
+	frappe.has_permission("POS Printer", "create", throw=True)
+	return terminal_printing.prepare(pos_profile, windows_printer_name, paper_width)

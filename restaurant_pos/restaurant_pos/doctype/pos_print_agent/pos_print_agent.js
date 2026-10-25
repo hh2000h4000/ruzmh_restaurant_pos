@@ -43,6 +43,26 @@ frappe.ui.form.on("POS Print Agent", {
 });
 
 function pair_device(frm) {
+	// D-402 — pairing another computer takes the agent off this one. Said
+	// before it happens: with printers named alike, the old computer's receipts
+	// would print at the new one's counter, and nothing would ring.
+	if (frm.doc.last_seen) {
+		frappe.confirm(
+			__(
+				"This agent is running on {0} (last seen {1}). Pairing it on another computer stops it there, and that computer's printers stop printing. Continue?",
+				[
+					frappe.utils.escape_html(frm.doc.host_name || __("another computer")),
+					frappe.datetime.prettyDate(frm.doc.last_seen),
+				],
+			),
+			() => issue_code(frm),
+		);
+		return;
+	}
+	issue_code(frm);
+}
+
+function issue_code(frm) {
 	frappe.call({
 		method: "restaurant_pos.restaurant_pos.doctype.pos_print_agent.pos_print_agent.issue_pairing_code",
 		args: { agent: frm.doc.name },

@@ -21,10 +21,18 @@ frappe.ui.form.on("POS Profile", {
 		if (message && message.branch) frm.set_value("rpos_branch", message.branch);
 	},
 
+	setup(frm) {
+		// D-402 — this device's agent is one of its own branch's.
+		frm.set_query("rpos_print_agent", () => ({
+			filters: { branch: frm.doc.rpos_branch, is_active: 1 },
+		}));
+	},
+
 	refresh(frm) {
 		if (frm.is_new()) return;
 
 		frm.add_custom_button(__("Pair a Till"), () => pair_till(frm));
+		frm.add_custom_button(__("Set Up Printing for This Device"), () => set_up_printing(frm));
 		// D-301 — heard here, at the volume chosen, before a cashier hears it.
 		frm.add_custom_button(__("Test the Alert Sound"), () => play_alert_tone(frm.doc));
 
@@ -66,6 +74,48 @@ function fill_from_branch(frm) {
 			}
 		},
 	});
+}
+
+// D-402 — the agent and the receipt printer, made and joined in one step. The
+// agent is then paired from its own form, where the one pairing dialog lives.
+function set_up_printing(frm) {
+	const dialog = new frappe.ui.Dialog({
+		title: __("Set Up Printing for This Device"),
+		fields: [
+			{
+				fieldtype: "Data",
+				fieldname: "windows_printer_name",
+				label: __("Windows Printer Name"),
+				reqd: 1,
+				description: __("Exactly as Windows lists it under Printers & scanners on this device's computer."),
+			},
+			{
+				fieldtype: "Select",
+				fieldname: "paper_width",
+				label: __("Paper Width"),
+				options: ["58mm", "76mm", "80mm"],
+				default: "80mm",
+			},
+		],
+		primary_action_label: __("Set Up"),
+		primary_action(values) {
+			frappe.call({
+				method: "restaurant_pos.api.printing.prepare_terminal_printing",
+				args: { pos_profile: frm.doc.name, ...values },
+				freeze: true,
+				callback: ({ message }) => {
+					if (!message) return;
+					dialog.hide();
+					frappe.show_alert({
+						message: __("Done. Now pair the print agent on this device's computer."),
+						indicator: "green",
+					});
+					frappe.set_route("Form", "POS Print Agent", message.agent);
+				},
+			});
+		},
+	});
+	dialog.show();
 }
 
 function pair_till(frm) {

@@ -741,6 +741,25 @@ CUSTOM_FIELDS = {
 			"description": "The printer this terminal prints the customer's receipt on.",
 			"insert_after": "rpos_section_cb",
 		},
+		# `D-402` — the agent on this device's own computer; a cable receipt
+		# printer must be one of its printers.
+		{
+			"fieldname": "rpos_print_agent",
+			"fieldtype": "Link",
+			"options": "POS Print Agent",
+			"label": "Print Agent",
+			"description": "The print agent installed on this device's computer. A receipt printer joined by cable must be one of its printers.",
+			"insert_after": "default_printer",
+		},
+		{
+			"fieldname": "rpos_print_agent_host",
+			"fieldtype": "Data",
+			"label": "Agent's Computer",
+			"read_only": 1,
+			"fetch_from": "rpos_print_agent.host_name",
+			"description": "The computer the agent last reported from. If it is not this device's, the agent was paired on another computer.",
+			"insert_after": "rpos_print_agent",
+		},
 		{
 			"fieldname": "receipt_template",
 			"fieldtype": "Link",
@@ -1051,6 +1070,8 @@ TERMINAL_FORM_ORDER = [
 	"selling_price_list",
 	"restaurant_section",
 	"default_printer",
+	"rpos_print_agent",
+	"rpos_print_agent_host",
 	"section_break_11",
 	"payments",
 	"rpos_accounting_section",

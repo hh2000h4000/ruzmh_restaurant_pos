@@ -7,16 +7,13 @@ import frappe
 from frappe import _
 
 from restaurant_pos.utils import availability as service
-from restaurant_pos.utils import idempotency
+from restaurant_pos.utils import idempotency, terminal_branch
 from restaurant_pos.utils.deadlock import retried
-from restaurant_pos.utils.order import branch_of_profile
 from restaurant_pos.utils.permissions import validate_branch_access
 
 
 def _branch(pos_profile: str) -> str:
-	branch = branch_of_profile(pos_profile)
-	if not branch:
-		frappe.throw(_("POS Profile {0} has no Restaurant Section configured.").format(pos_profile))
+	branch = terminal_branch.required(pos_profile)
 	validate_branch_access(branch)
 	return branch
 

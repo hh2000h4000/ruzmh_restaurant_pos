@@ -213,9 +213,7 @@ def _load_profile(pos_profile: str) -> frappe._dict:
 	if not profile:
 		frappe.throw(_("POS Profile {0} does not exist.").format(pos_profile))
 
-	profile.branch = terminal_branch.branch_of(pos_profile)
-	if not profile.branch:
-		frappe.throw(_("POS Profile {0} has no Restaurant Section configured.").format(pos_profile))
+	profile.branch = terminal_branch.required(pos_profile)
 	return profile
 
 

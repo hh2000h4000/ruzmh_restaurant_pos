@@ -37,7 +37,7 @@ import frappe
 from frappe import _
 from frappe.utils import cint, flt, format_datetime, now_datetime, nowdate, nowtime
 
-from restaurant_pos.utils import availability, cash_movement, gift_card, printing
+from restaurant_pos.utils import availability, cash_movement, gift_card, printing, terminal_branch
 from restaurant_pos.utils.bulk import get_all_in
 from restaurant_pos.utils.order import branch_of_profile, profiles_in, table_section_branch
 from restaurant_pos.utils.payment import is_credit_method
@@ -1224,9 +1224,7 @@ def _profile(pos_profile: str) -> frappe._dict:
 	if not profile:
 		frappe.throw(_("POS Profile {0} does not exist.").format(pos_profile))
 
-	profile.branch = branch_of_profile(pos_profile)
-	if not profile.branch:
-		frappe.throw(_("POS Profile {0} has no Restaurant Section configured.").format(pos_profile))
+	profile.branch = terminal_branch.required(pos_profile)
 
 	branch = frappe.db.get_value(
 		"Branch", profile.branch, ["shift_type", "settlement_required"], as_dict=True

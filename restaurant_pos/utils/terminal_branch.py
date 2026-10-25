@@ -39,6 +39,20 @@ def branch_of(pos_profile: str | None) -> str | None:
 	return row.get(FIELD) or _hall_branch(row.restaurant_section)
 
 
+def required(pos_profile: str) -> str:
+	"""The branch a terminal sells in — or the cashier is told it has none.
+
+	One message for every endpoint that needs it. Five said the terminal had
+	no "Restaurant Section", which a counter till never needs (`D-395`).
+	"""
+	branch = branch_of(pos_profile)
+	if not branch:
+		frappe.throw(
+			_("The device {0} has no branch. Choose its branch on the device form.").format(pos_profile)
+		)
+	return branch
+
+
 def branch_of_doc(doc) -> str | None:
 	"""The same, for a terminal being saved: its own unsaved values."""
 	return doc.get(FIELD) or _hall_branch(doc.get("restaurant_section"))

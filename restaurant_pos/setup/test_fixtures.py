@@ -36,6 +36,18 @@ TABLE_COUNT = 6
 #: The item every money assertion is written against (``tests/test_order.py``).
 TEST_ITEM = "RPOS-TEST-BURGER"
 
+#: The second item, for an order that reaches two stations (``tests/test_kitchen.py``).
+SECOND_ITEM = "RPOS-TEST-FRIES"
+
+#: The stations the kitchen and printing tests send to. They were leftovers of
+#: an old smoke test on the first test site, which the suite then leaned on: a
+#: site rebuilt from nothing had neither, and seventy tests failed on it.
+STATIONS = ("RPOS Test Grill", "RPOS Test Fryer")
+
+#: The group the suite's items sit in, under a parent group: the routing tests
+#: route by group and by the group above it (``tests/test_routing.py``).
+ITEM_GROUP, PARENT_GROUP = "RPOS Test Burgers", "RPOS Test Food"
+
 
 #: The only sites this may run against. **An allow-list, because everything
 #: below is destructive by design** — it grants roles to Administrator, rewrites
@@ -114,7 +126,11 @@ def before_tests():
 	section = _section(branch)
 	_tables(section)
 	_pos_profile(company, section)
+	_item_groups()
 	_test_item()
+	_test_item(SECOND_ITEM, "RPOS Test Fries", "بطاطس الاختبار")
+	for title in STATIONS:
+		_station(title, branch)
 
 	_pin_rounding()
 
@@ -143,29 +159,65 @@ def _pin_rounding() -> None:
 	frappe.db.set_single_value("System Settings", "rounding_method", "Banker's Rounding")
 
 
-def _test_item() -> str:
-	"""The one item the suite sells.
+def _test_item(code: str = TEST_ITEM, name: str = "RPOS Test Burger", name_ar: str = "برغر الاختبار") -> str:
+	"""An item the suite sells.
 
 	Its price is not set here: ``tests/test_order.py`` owns the price list and
 	the rate, so an assertion about arithmetic never depends on a fixture.
 	"""
-	if frappe.db.exists("Item", TEST_ITEM):
-		return TEST_ITEM
+	if frappe.db.exists("Item", code):
+		return code
 
 	frappe.get_doc(
 		{
 			"doctype": "Item",
-			"item_code": TEST_ITEM,
-			"item_name": "RPOS Test Burger",
-			"pos_display_name_ar": "برغر الاختبار",
-			"item_group": frappe.db.get_value("Item Group", {"is_group": 0}, "name"),
+			"item_code": code,
+			"item_name": name,
+			"pos_display_name_ar": name_ar,
+			"item_group": ITEM_GROUP,
 			"stock_uom": "Nos",
 			"is_stock_item": 0,
 			"is_sales_item": 1,
 			"include_item_in_manufacturing": 0,
 		}
 	).insert(ignore_permissions=True)
-	return TEST_ITEM
+	return code
+
+
+def _item_groups() -> None:
+	root = frappe.db.get_value("Item Group", {"is_group": 1, "parent_item_group": ""}, "name")
+	for name, parent, is_group in ((PARENT_GROUP, root, 1), (ITEM_GROUP, PARENT_GROUP, 0)):
+		if not frappe.db.exists("Item Group", name):
+			frappe.get_doc(
+				{
+					"doctype": "Item Group",
+					"item_group_name": name,
+					"parent_item_group": parent,
+					"is_group": is_group,
+				}
+			).insert(ignore_permissions=True)
+
+
+def _station(title: str, branch: str) -> str:
+	"""A kitchen station with a screen and no printer: the tests give it one when they need it."""
+	existing = frappe.db.get_value("Production Center", {"title": title, "branch": branch}, "name")
+	if existing:
+		return existing
+
+	return (
+		frappe.get_doc(
+			{
+				"doctype": "Production Center",
+				"title": title,
+				"title_ar": title,
+				"branch": branch,
+				"has_kds": 1,
+				"kds_display_id": title.lower().replace(" ", "-"),
+			}
+		)
+		.insert(ignore_permissions=True)
+		.name
+	)
 
 
 def _enable_all_roles_for_admin() -> None:

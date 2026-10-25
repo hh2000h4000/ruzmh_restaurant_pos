@@ -6,18 +6,15 @@
 import frappe
 from frappe import _
 
-from restaurant_pos.utils import announcements
+from restaurant_pos.utils import announcements, terminal_branch
 from restaurant_pos.utils import bell as service
-from restaurant_pos.utils.order import branch_of_profile
 from restaurant_pos.utils.permissions import validate_branch_access
 
 
 @frappe.whitelist()
 def get_bell(pos_profile: str, start: int = 0) -> dict:
 	"""This branch's unprinted tickets and this cashier's announcements, a page at a time."""
-	branch = branch_of_profile(pos_profile)
-	if not branch:
-		frappe.throw(_("POS Profile {0} has no Restaurant Section configured.").format(pos_profile))
+	branch = terminal_branch.required(pos_profile)
 	validate_branch_access(branch)
 	return service.feed(branch, frappe.session.user, start=start)
 

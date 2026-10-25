@@ -19,19 +19,16 @@ Refs: FR-14, BR-090..BR-094, D-191
 import frappe
 from frappe import _
 
-from restaurant_pos.utils import idempotency
+from restaurant_pos.utils import idempotency, terminal_branch
 from restaurant_pos.utils import reservation as service
 from restaurant_pos.utils.deadlock import retried
-from restaurant_pos.utils.order import branch_of_profile
 from restaurant_pos.utils.permissions import validate_branch_access
 
 DOCTYPE = "Restaurant Reservation"
 
 
 def _branch_of_terminal(pos_profile: str) -> str:
-	branch = branch_of_profile(pos_profile)
-	if not branch:
-		frappe.throw(_("POS Profile {0} has no Restaurant Section configured.").format(pos_profile))
+	branch = terminal_branch.required(pos_profile)
 
 	# The till role is checked in there too (`D-208`) — this file carried its own copy.
 	validate_branch_access(branch)

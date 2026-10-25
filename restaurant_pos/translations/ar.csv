@@ -667,7 +667,7 @@ POS Print Job,مهمة طباعة
 POS Print Template,نموذج طباعة
 POS Printer Routing Rule,قاعدة طباعة
 POS Printer,طابعة
-POS Profile {0} has no Restaurant Section configured.,جهاز الكاشير {0} ما له قسم. اختر له قسم من ملف الجهاز.
+The device {0} has no branch. Choose its branch on the device form.,الجهاز {0} ما له فرع. اختر فرعه من نموذج الجهاز.
 POS Quick Note,ملاحظة سريعة
 POS Cash Movement,حركة نقد
 Accounting Account,الحساب المحاسبي

@@ -9,6 +9,7 @@
 import frappe
 from frappe.tests.utils import FrappeTestCase
 
+from restaurant_pos.setup.test_fixtures import PROFILE
 from restaurant_pos.utils import routing
 
 BRANCH = "Riyadh"
@@ -92,7 +93,7 @@ class TestKitchenRouting(FrappeTestCase):
 		cls.cold = _center("RPOS Test Cold")
 
 		cls.order_type = frappe.db.get_value("Restaurant Order Type", {"title": "Dine In"}, "name")
-		cls.pos_profile = frappe.db.get_value("POS Profile", {}, "name")
+		cls.pos_profile = PROFILE
 		frappe.db.commit()
 
 	def setUp(self):

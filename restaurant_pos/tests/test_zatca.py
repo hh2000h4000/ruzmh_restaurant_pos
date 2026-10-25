@@ -17,6 +17,7 @@ import frappe
 from frappe.tests.utils import FrappeTestCase
 from frappe.utils import get_datetime
 
+from restaurant_pos.setup.test_fixtures import PROFILE
 from restaurant_pos.utils import zatca
 
 
@@ -153,7 +154,7 @@ class TestTheIntegrationOwnsTheQr(FrappeTestCase):
 
 	def test_we_answer_when_it_does_not(self):
 		"""A site with no integration still prints a compliant phase-one code."""
-		company = frappe.db.get_value("POS Profile", {}, "company")
+		company = frappe.db.get_value("POS Profile", PROFILE, "company")
 		frappe.db.set_value("Company", company, "tax_id", "300000000000003")
 		frappe.clear_document_cache("Company", company)
 

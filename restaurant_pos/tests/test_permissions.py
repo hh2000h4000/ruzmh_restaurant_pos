@@ -10,6 +10,7 @@ import frappe
 from frappe.tests.utils import FrappeTestCase
 
 from restaurant_pos.setup.defaults import PERMISSION_SETS, create_default_data
+from restaurant_pos.setup.test_fixtures import BRANCH, PROFILE
 from restaurant_pos.utils import manager_pin as pins
 from restaurant_pos.utils import permissions as perms
 from restaurant_pos.utils.audit import log_audit, redact
@@ -496,15 +497,10 @@ class TestAudit(FrappeTestCase):
 		self.assertEqual(clean["item"], "BURGER")
 
 	def test_log_audit_writes_an_entry_and_redacts(self):
-		branch = frappe.db.get_value("Branch", {}, "name")
-		profile = frappe.db.get_value("POS Profile", {}, "name")
-		if not (branch and profile):
-			self.skipTest("no Branch/POS Profile on this site")
-
 		name = log_audit(
 			"void_item",
-			branch=branch,
-			pos_profile=profile,
+			branch=BRANCH,
+			pos_profile=PROFILE,
 			reason="test",
 			details={"pin": "9999", "item": "BURGER"},
 		)
@@ -516,12 +512,7 @@ class TestAudit(FrappeTestCase):
 		self.assertEqual(entry.cashier, frappe.session.user)
 
 	def _new_entry(self, reason: str) -> str:
-		branch = frappe.db.get_value("Branch", {}, "name")
-		profile = frappe.db.get_value("POS Profile", {}, "name")
-		if not (branch and profile):
-			self.skipTest("no Branch/POS Profile on this site")
-
-		return log_audit("void_item", branch=branch, pos_profile=profile, reason=reason)
+		return log_audit("void_item", branch=BRANCH, pos_profile=PROFILE, reason=reason)
 
 	def test_audit_entries_cannot_be_modified(self):
 		name = self._new_entry("original")

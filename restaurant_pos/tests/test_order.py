@@ -14,6 +14,7 @@ from frappe.tests.utils import FrappeTestCase
 from frappe.utils import get_datetime, now_datetime
 
 from restaurant_pos.api import order as api
+from restaurant_pos.setup.test_fixtures import PROFILE
 from restaurant_pos.utils import order as service
 from restaurant_pos.utils import totals
 
@@ -159,7 +160,7 @@ class OrderTestBase(FrappeTestCase):
 	@classmethod
 	def setUpClass(cls):
 		super().setUpClass()
-		cls.profile = frappe.db.get_value("POS Profile", {}, "name")
+		cls.profile = PROFILE
 		cls.section = frappe.db.get_value("POS Profile", cls.profile, "restaurant_section")
 		cls.order_type = frappe.db.get_value("Restaurant Order Type", {"title": "Takeaway"}, "name")
 		cls.dine_in = frappe.db.get_value("Restaurant Order Type", {"title": "Dine In"}, "name")

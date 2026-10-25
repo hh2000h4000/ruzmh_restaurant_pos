@@ -108,6 +108,7 @@ def before_tests():
 	and the fiscal year are business data, not fixtures.
 	"""
 	refuse_on_a_site_somebody_uses()
+	_close_drawers_as_production_does()
 
 	if not frappe.db.a_row_exists("Company"):
 		frappe.throw(
@@ -141,6 +142,39 @@ def before_tests():
 	frappe.clear_cache()
 
 	frappe.db.commit()
+
+
+def _close_drawers_as_production_does() -> None:
+	"""Keep ERPNext's drawer closing from committing the test that called it.
+
+	Submitting a `POS Closing Entry` calls `consolidate_pos_invoices`. Ours lists
+	no invoices (`D-022`), so in production it merges nothing — but under
+	`frappe.flags.in_test` an empty list means **every** unmerged POS Invoice on
+	the site, and `create_merge_logs` ends in `finally: frappe.db.commit()`,
+	merged or not. So every test that closed a drawer committed everything it had
+	made, and the test site kept it (1517 orders once, `D-397`).
+
+	Patched here, once for the whole run, because `before_tests` runs in the
+	process the tests run in — not in each test that closes a drawer, where the
+	one that forgets is the one that leaks. ERPNext's own code still runs; only
+	the test-only pull and the commit are taken out. Nothing stops the patch: the
+	process ends with the run.
+	"""
+	from unittest.mock import patch
+
+	from erpnext.accounts.doctype.pos_closing_entry import pos_closing_entry
+	from erpnext.accounts.doctype.pos_invoice_merge_log import pos_invoice_merge_log
+
+	consolidate = pos_invoice_merge_log.consolidate_pos_invoices
+
+	def consolidate_without_commit(pos_invoices=None, closing_entry=None):
+		with (
+			patch.object(pos_invoice_merge_log, "get_all_unconsolidated_invoices", return_value=[]),
+			patch.object(frappe.db, "commit"),
+		):
+			return consolidate(pos_invoices, closing_entry)
+
+	patch.object(pos_closing_entry, "consolidate_pos_invoices", consolidate_without_commit).start()
 
 
 def _pin_rounding() -> None:

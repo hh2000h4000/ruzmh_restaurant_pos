@@ -19,6 +19,7 @@ Refs: FR-8.1..8.3, BR-040..BR-045, D-029, D-046, D-047
 from unittest.mock import patch
 
 import frappe
+from frappe.tests.utils import FrappeTestCase
 from frappe.utils import add_to_date, flt, now_datetime
 
 from restaurant_pos.tests.test_order import BRANCH, ITEM, OrderTestBase
@@ -1161,3 +1162,23 @@ class ADisabledTerminalStopsTakingMoney(ShiftTestBase):
 			service.close_till(opening_entry=entry)
 
 		self.assertEqual(frappe.db.get_value("POS Opening Entry", entry, "status"), "Closed")
+
+
+class ClosingADrawerCommitsNothingInTheSuite(FrappeTestCase):
+	"""ERPNext's closing commits in a `finally`; the suite's hook takes it out.
+
+	Without it every test that closed a drawer committed everything it had made,
+	and the test site kept it (`D-398`). A commit releases the savepoint, so the
+	rollback to it below would fail instead of undoing the row.
+	"""
+
+	def test_the_row_made_before_closing_is_rolled_back(self):
+		from erpnext.accounts.doctype.pos_closing_entry import pos_closing_entry
+
+		frappe.db.savepoint("before_closing")
+		note = frappe.get_doc({"doctype": "ToDo", "description": "RPOS closing commit probe"}).insert()
+		# What `POS Closing Entry.on_submit` calls, with the empty list ours sends.
+		pos_closing_entry.consolidate_pos_invoices()
+		frappe.db.rollback(save_point="before_closing")
+
+		self.assertFalse(frappe.db.exists("ToDo", note.name))

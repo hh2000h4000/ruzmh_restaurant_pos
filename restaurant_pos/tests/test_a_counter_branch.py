@@ -99,23 +99,11 @@ class ACounterBranchSellsWithNothingElseSetUp(FrappeTestCase):
 
 	def test_a_cashier_s_day_on_it(self):
 		queued = []
-		with (
-			patch(
-				"restaurant_pos.utils.printing.enqueue_print",
-				side_effect=lambda method, **kwargs: queued.append(method),
-			),
-			# Under tests only, ERPNext's closing merges **every** unmerged POS
-			# Invoice on the site when the entry lists none — ours always lists
-			# none (`D-022`), so in production it merges nothing. Made to do here
-			# what it does there.
-			patch(
-				"erpnext.accounts.doctype.pos_invoice_merge_log.pos_invoice_merge_log.get_all_unconsolidated_invoices",
-				return_value=[],
-			),
-			# And its `finally` commits, merged or not — which here would keep
-			# this branch on the test site for every later test to find as «the
-			# first terminal». The class's rollback is what cleans up after it.
-			patch.object(frappe.db, "commit"),
+		# Closing the drawer commits nothing through ERPNext — the suite's hook
+		# sees to that for every test (`setup/test_fixtures`, `D-398`).
+		with patch(
+			"restaurant_pos.utils.printing.enqueue_print",
+			side_effect=lambda method, **kwargs: queued.append(method),
 		):
 			# The terminal loads, with no hall to open on.
 			session = session_api.load_pos_session(pos_profile=self.profile, device_token=self.device_token)

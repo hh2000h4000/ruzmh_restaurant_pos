@@ -15,6 +15,7 @@ import frappe
 from frappe.tests.utils import FrappeTestCase
 
 from restaurant_pos.setup.install import REQUIRED_ERPNEXT_FIELDS, require_erpnext_fields
+from restaurant_pos.setup.test_fixtures import PROFILE
 
 
 class TestRequiredErpnextFields(FrappeTestCase):
@@ -41,7 +42,7 @@ class TestRequiredErpnextFields(FrappeTestCase):
 		require_erpnext_fields()
 		frappe.clear_cache(doctype="POS Profile")
 
-		profile = frappe.get_doc("POS Profile", frappe.db.get_value("POS Profile", {}, "name"))
+		profile = frappe.get_doc("POS Profile", PROFILE)
 		customer = profile.customer
 		profile.customer = None
 

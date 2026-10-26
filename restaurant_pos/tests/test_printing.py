@@ -659,6 +659,25 @@ class TestWhatTheAgentReports(PrintingTestBase):
 		self.assertEqual(frappe.db.get_value("Kitchen Order Ticket", kot.name, "print_status"), "printed")
 		self.assertEqual(frappe.db.get_value("Kitchen Order Ticket", kot.name, "printer_used"), self.printer)
 
+	def test_a_failure_keeps_the_reason_the_screen_says_it_by(self):
+		"""`D-403` — agent 1.1.0 names why; the test print says it in words."""
+		kot = self._sent_kot()
+		job = service.print_kot(kot.name)
+
+		service.settle(job, printed=False, error="PrintFailure: status 0x10", reason="paper_out")
+
+		self.assertEqual(frappe.db.get_value("POS Print Job", job, "reason"), "paper_out")
+
+	def test_a_reason_it_does_not_know_is_not_kept(self):
+		"""An agent may name a reason this server has no words for; the raw error stays."""
+		kot = self._sent_kot()
+		job = service.print_kot(kot.name)
+
+		service.settle(job, printed=False, error="something new", reason="cosmic_rays")
+
+		self.assertFalse(frappe.db.get_value("POS Print Job", job, "reason"))
+		self.assertEqual(frappe.db.get_value("POS Print Job", job, "error"), "something new")
+
 	def test_a_failure_goes_to_the_fallback_printer(self):
 		"""BR-072 — the same bytes, somewhere else."""
 		kot = self._sent_kot()

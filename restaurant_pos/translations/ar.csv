@@ -204,7 +204,7 @@ Row order determines display order in the modifier popup.,ترتيب الصفو�
 Title,الاسم,POS Printer
 Identity,البيانات,POS Printer
 Identity,البيانات,POS Print Agent
-"Use <b>Pair a Device</b> and type the short code into the agent installer on the restaurant's computer — it works once, for ten minutes. <b>Generate Keys</b> is the manual way: the secret is shown once, to copy into the agent's configuration by hand.","اضغط <b>ربط جهاز</b> واكتب الرمز في برنامج الطباعة على كمبيوتر المطعم. الرمز يشتغل مرة وحدة ولمدة عشر دقائق. أما <b>إنشاء مفاتيح يدوياً</b> فهي للفني."
+"Use <b>Pair the Print Agent</b> and type the short code into the agent installer on the restaurant's computer — it works once, for ten minutes. <b>Generate Keys</b> is the manual way: the secret is shown once, to copy into the agent's configuration by hand.","اضغط <b>ربط برنامج الطباعة</b> واكتب الرمز في برنامج الطباعة على كمبيوتر المطعم. الرمز يشتغل مرة وحدة ولمدة عشر دقائق. أما <b>إنشاء مفاتيح يدوياً</b> فهي للفني."
 Title,الاسم,POS Print Agent
 Fallback Printer,الطابعة البديلة
 Connection,الاتصال,POS Printer
@@ -738,7 +738,6 @@ Too many wrong pairing codes from this device. Try again in {0} minutes.,دخل�
 "That pairing code is not valid, or it has expired. Ask for a new one.","رمز الربط غير صحيح أو انتهت صلاحيته. اطلب رمزاً جديداً."
 Paired from {0}.,تم الربط من {0}.
 an unknown machine,جهاز غير معروف
-Pair a Device,ربط جهاز
 network,شبكة,POS Printer
 windows,ويندوز,POS Printer
 usb,USB مباشر,POS Printer
@@ -1681,3 +1680,14 @@ Set Up,جهّز
 Done. Now pair the print agent on this device's computer.,تم. الحين اربط برنامج الطباعة على كمبيوتر هذا الجهاز.
 "This agent is running on {0} (last seen {1}). Pairing it on another computer stops it there, and that computer's printers stop printing. Continue?",هذا البرنامج شغال على {0} (آخر اتصال {1}). ربطه على كمبيوتر ثاني يوقفه هناك، وطابعات ذاك الكمبيوتر توقف عن الطباعة. تكمل؟
 another computer,كمبيوتر ثاني
+Pair the Print Agent,ربط برنامج الطباعة
+"This address works on this computer only. On the restaurant's computer, type the address it reaches this server by, such as http://192.168.1.10:8000.","هذا العنوان يشتغل على هذا الكمبيوتر بس. على كمبيوتر المطعم اكتب العنوان اللي يوصل فيه للسيرفر، مثل http://192.168.1.10:8000."
+"Why the agent could not print it, as a short code the screens say in plain words (D-403). Empty from agents before 1.1.0.",ليش برنامج الطباعة ما قدر يطبعها، كرمز قصير تقوله الشاشات بكلام واضح (D-403). فاضي من البرامج الأقدم من 1.1.0.
+{0} is out of paper. Load paper and try again.,{0} خلص فيها الورق. حط ورق وجرّب مرة ثانية.
+"{0} is paused in Windows. Resume it from its queue in Windows, then try again.",{0} موقوفة في ويندوز. شغّلها من طابور الطباعة في ويندوز، وجرّب مرة ثانية.
+"Windows sees {0} as offline. Check it is on and its cable is in, then try again.",ويندوز يشوف {0} غير متصلة. تأكد إنها شغالة وسلكها مركّب، وجرّب مرة ثانية.
+"{0} needs attention — a cover open or a paper jam. Check the printer, then try again.",{0} تحتاج تدخّل: غطاء مفتوح أو ورق عالق. افحص الطابعة، وجرّب مرة ثانية.
+"{0} reports an error. Switch it off and on, then try again.",{0} فيها خطأ. طفّها وشغّلها، وجرّب مرة ثانية.
+"The agent's computer has no printer by this name. Check the Windows printer name here, exactly as Windows lists it.",كمبيوتر برنامج الطباعة ما فيه طابعة بهالاسم. تأكد من «اسم الطابعة في ويندوز» هنا، بالضبط مثل ما يطلع في ويندوز.
+"{0} did not take the paper within 10 seconds, so it was cancelled to keep it from printing late. Check it is on and connected.",{0} ما أخذت الورقة خلال ١٠ ثواني، فانلغت عشان ما تنطبع متأخرة. تأكد إنها شغالة وموصولة.
+"{0} cannot be reached on the network. Check it is on, and its IP address and port.",{0} ما يوصل لها على الشبكة. تأكد إنها شغالة، ومن عنوان IP والمنفذ.

@@ -26,12 +26,27 @@ function test_print(frm) {
 		freeze_message: __("Rendering…"),
 		callback: ({ message }) => {
 			if (!message) return;
-			watch(message.job);
+			watch(message.job, frm.doc.title);
 		},
 	});
 }
 
-function watch(job_name) {
+function failure_in_words(reason, printer) {
+	const name = frappe.utils.escape_html(printer || "");
+	const words = {
+		paper_out: __("{0} is out of paper. Load paper and try again.", [name]),
+		paused: __("{0} is paused in Windows. Resume it from its queue in Windows, then try again.", [name]),
+		offline: __("Windows sees {0} as offline. Check it is on and its cable is in, then try again.", [name]),
+		attention: __("{0} needs attention — a cover open or a paper jam. Check the printer, then try again.", [name]),
+		error: __("{0} reports an error. Switch it off and on, then try again.", [name]),
+		not_found: __("The agent's computer has no printer by this name. Check the Windows printer name here, exactly as Windows lists it."),
+		not_taken: __("{0} did not take the paper within 10 seconds, so it was cancelled to keep it from printing late. Check it is on and connected.", [name]),
+		unreachable: __("{0} cannot be reached on the network. Check it is on, and its IP address and port.", [name]),
+	};
+	return words[reason];
+}
+
+function watch(job_name, title) {
 	// Queued is not printed. Saying "sent" here and stopping would report
 	// success for a printer that is switched off — which is exactly the answer
 	// this button exists to rule out.
@@ -47,7 +62,7 @@ function watch(job_name) {
 	paint(`<p>${__("Waiting for the agent to take it…")}</p>`);
 
 	const poll = setInterval(() => {
-		frappe.db.get_value("POS Print Job", job_name, ["status", "error"]).then(({ message }) => {
+		frappe.db.get_value("POS Print Job", job_name, ["status", "error", "reason"]).then(({ message }) => {
 			if (!message) return;
 
 			if (message.status === "printed") {
@@ -58,8 +73,12 @@ function watch(job_name) {
 
 			if (message.status === "failed") {
 				clearInterval(poll);
+				// D-403 — what to do, in words; the agent's own text stays below for
+				// the technician. An agent before 1.1.0 sends no reason.
+				const said = failure_in_words(message.reason, title);
 				paint(
-					`<p class="text-danger">${__("The agent could not print it.")}</p>
+					`<p class="text-danger">${said || __("The agent could not print it.")}</p>
+					<p class="text-muted" style="margin-bottom:4px">${__("Details")}</p>
 					<pre>${frappe.utils.escape_html(message.error || "")}</pre>`,
 				);
 				return;

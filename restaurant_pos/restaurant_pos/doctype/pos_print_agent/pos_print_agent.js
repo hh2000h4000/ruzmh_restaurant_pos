@@ -9,14 +9,14 @@ frappe.ui.form.on("POS Print Agent", {
 			"credentials_help",
 			"options",
 			`<p class="text-muted">${__(
-				"Use <b>Pair a Device</b> and type the short code into the agent installer on the restaurant's computer — it works once, for ten minutes. <b>Generate Keys</b> is the manual way: the secret is shown once, to copy into the agent's configuration by hand.",
+				"Use <b>Pair the Print Agent</b> and type the short code into the agent installer on the restaurant's computer — it works once, for ten minutes. <b>Generate Keys</b> is the manual way: the secret is shown once, to copy into the agent's configuration by hand.",
 			)}</p>`,
 		);
 
 		if (frm.is_new()) return;
 
 		// D-212 — the everyday way: a short code typed into the installer.
-		frm.add_custom_button(__("Pair a Device"), () => pair_device(frm));
+		frm.add_custom_button(__("Pair the Print Agent"), () => pair_device(frm));
 		frm.add_custom_button(__("Generate Keys"), () => generate_keys(frm));
 
 		if (!frm.doc.last_seen) {
@@ -77,8 +77,9 @@ function issue_code(frm) {
 
 function show_pairing_code({ code, minutes, url }) {
 	// Large and plain: it is read off this screen and typed on another one.
+	// D-402 — named for what it pairs: a till is paired from its own form.
 	const dialog = new frappe.ui.Dialog({
-		title: __("Pair a Device"),
+		title: __("Pair the Print Agent"),
 		fields: [
 			{
 				fieldtype: "HTML",
@@ -86,6 +87,7 @@ function show_pairing_code({ code, minutes, url }) {
 					<p>${__("On the restaurant's computer, run the print agent installer and enter:")}</p>
 					<p class="text-muted" style="margin-bottom:4px">${__("Site address")}</p>
 					<p style="font-size:16px;font-family:monospace;direction:ltr">${frappe.utils.escape_html(url)}</p>
+					${only_here(url) ? `<p class="text-danger">${__("This address works on this computer only. On the restaurant's computer, type the address it reaches this server by, such as http://192.168.1.10:8000.")}</p>` : ""}
 					<p class="text-muted" style="margin-bottom:4px">${__("Pairing code")}</p>
 					<p style="font-size:32px;font-weight:600;letter-spacing:4px;font-family:monospace;direction:ltr">${frappe.utils.escape_html(code)}</p>
 					<p class="text-muted">${__("It works once, for {0} minutes. Asking for a new code cancels this one.", [minutes])}</p>
@@ -99,6 +101,19 @@ function show_pairing_code({ code, minutes, url }) {
 	});
 
 	dialog.show();
+}
+
+// The address is the one this browser opened the desk by. Opened as localhost,
+// it names this machine — and from the restaurant's computer, that one. Not
+// guessed instead: inside WSL the server's own address is not the one the
+// network knows it by, and a wrong address said confidently is worse.
+function only_here(url) {
+	try {
+		const host = new URL(url).hostname;
+		return ["localhost", "127.0.0.1", "[::1]", "::1"].includes(host) || host.endsWith(".localhost");
+	} catch (e) {
+		return false;
+	}
 }
 
 function generate_keys(frm) {

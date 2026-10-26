@@ -997,7 +997,21 @@ def prune_jobs() -> None:
 	)
 
 
-def settle(job_name: str, *, printed: bool, error: str | None = None, try_fallback: bool = True) -> None:
+#: Why an agent could not print, as it reports it (agent 1.1.0, `D-403`). Said
+#: in plain words on the screen; anything else is kept as the raw error only.
+REASONS = frozenset(
+	{"paper_out", "paused", "offline", "attention", "error", "not_found", "not_taken", "unreachable"}
+)
+
+
+def settle(
+	job_name: str,
+	*,
+	printed: bool,
+	error: str | None = None,
+	reason: str | None = None,
+	try_fallback: bool = True,
+) -> None:
 	"""Record what the agent reported, and try the fallback if it failed.
 
 	``try_fallback`` is off for a job that expired unprinted (`D-108`): a ticket
@@ -1009,6 +1023,7 @@ def settle(job_name: str, *, printed: bool, error: str | None = None, try_fallba
 			"status": "printed" if printed else "failed",
 			"printed_at": now_datetime() if printed else None,
 			"error": None if printed else (error or "")[:500],
+			"reason": None if printed or reason not in REASONS else reason,
 		},
 		update_modified=False,
 	)

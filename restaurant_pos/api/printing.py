@@ -102,7 +102,7 @@ def claim(version: str | None = None, host: str | None = None) -> list[dict]:
 
 
 @frappe.whitelist()
-def report(job: str, printed: bool | int | str, error: str | None = None) -> dict:
+def report(job: str, printed: bool | int | str, error: str | None = None, reason: str | None = None) -> dict:
 	"""The agent says what happened to one job.
 
 	A failure re-queues the ticket on the fallback printer here rather than in
@@ -114,7 +114,7 @@ def report(job: str, printed: bool | int | str, error: str | None = None) -> dic
 	if frappe.db.get_value("POS Print Job", job, "agent") != agent_name:
 		frappe.throw(_("That job was not given to this agent."), frappe.PermissionError)
 
-	service.settle(job, printed=bool(frappe.parse_json(printed)), error=error)
+	service.settle(job, printed=bool(frappe.parse_json(printed)), error=error, reason=reason)
 
 	return {"ok": True}
 

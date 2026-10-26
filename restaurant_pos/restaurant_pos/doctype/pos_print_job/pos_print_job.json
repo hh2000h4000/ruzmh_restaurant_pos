@@ -26,6 +26,7 @@
   "claimed_at",
   "printed_at",
   "result_cb",
+  "reason",
   "error",
   "payload_section",
   "payload_bytes",
@@ -152,6 +153,14 @@
    "fieldtype": "Column Break"
   },
   {
+   "fieldname": "reason",
+   "fieldtype": "Select",
+   "label": "Reason",
+   "options": "\npaper_out\npaused\noffline\nattention\nerror\nnot_found\nnot_taken\nunreachable",
+   "read_only": 1,
+   "description": "Why the agent could not print it, as a short code the screens say in plain words (D-403). Empty from agents before 1.1.0."
+  },
+  {
    "description": "What the agent said went wrong, in its own words. \"Out of paper\" and \"connection refused\" are not the same call-out.",
    "fieldname": "error",
    "fieldtype": "Small Text",
@@ -181,7 +190,7 @@
  "index_web_pages_for_search": 0,
  "istable": 0,
  "links": [],
- "modified": "2026-10-06 18:00:00.000000",
+ "modified": "2026-10-26 10:00:00.000000",
  "modified_by": "Administrator",
  "module": "Restaurant POS",
  "name": "POS Print Job",

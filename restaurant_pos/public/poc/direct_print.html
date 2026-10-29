@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>تجربة الطباعة المباشرة</title>
+<style>
+	body { font-family: Tahoma, Arial, sans-serif; margin: 0; padding: 16px; background: #f5f5f2; color: #1d1d1b; }
+	main { max-width: 640px; margin: 0 auto; display: grid; gap: 12px; }
+	h1 { font-size: 20px; margin: 0; }
+	.box { background: #fff; border: 1px solid #ddd; border-radius: 10px; padding: 12px; display: grid; gap: 8px; }
+	label { font-size: 13px; color: #555; }
+	input { font: inherit; padding: 8px; border: 1px solid #ccc; border-radius: 6px; direction: ltr; text-align: left; }
+	button { font: inherit; padding: 10px; border: 0; border-radius: 8px; background: #1f4b43; color: #fff; cursor: pointer; }
+	button.alt { background: #555; }
+	pre { white-space: pre-wrap; word-break: break-word; direction: ltr; text-align: left; background: #111; color: #e6e6e6; padding: 10px; border-radius: 8px; font-size: 12px; min-height: 120px; margin: 0; }
+	.row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+</style>
+</head>
+<body>
+<main>
+	<h1>تجربة الطباعة المباشرة (المتصفح ← برنامج الطباعة)</h1>
+	<p style="margin:0;font-size:13px;color:#555">صفحة اختبار مؤقتة (docs/15 §11). لا تلمس النظام. تطبع نصاً تجريبياً فقط. تُحذف بعد الاختبار.</p>
+
+	<div class="box">
+		<label>عنوان برنامج الطباعة</label>
+		<input id="agent" value="http://127.0.0.1:17891">
+		<label>المفتاح (يطلع في نافذة البرنامج)</label>
+		<input id="token" placeholder="مثل 43db44c2">
+		<button class="alt" onclick="health()">١. اختبر الاتصال بالبرنامج</button>
+	</div>
+
+	<div class="box">
+		<label>اسم طابعة الـ USB في ويندوز</label>
+		<input id="usb" placeholder="Raport Bill">
+		<button onclick="printUsb()">٢. اطبع فاتورة تجريبية على USB</button>
+	</div>
+
+	<div class="box">
+		<div class="row">
+			<div><label>عنوان طابعة الشبكة</label><input id="ip" placeholder="192.168.8.192"></div>
+			<div><label>المنفذ</label><input id="port" value="9100"></div>
+		</div>
+		<button onclick="printNet()">٣. اطبع تذكرة مطبخ تجريبية على الشبكة</button>
+	</div>
+
+	<pre id="out"></pre>
+</main>
+<script>
+	const out = document.getElementById("out");
+	const say = (line) => { out.textContent += line + "\n"; };
+	const val = (id) => document.getElementById(id).value.trim();
+
+	say("الصفحة: " + location.origin + "   secure=" + window.isSecureContext);
+	say("المتصفح: " + navigator.userAgent);
+
+	function ticket(title) {
+		// Plain ESC/POS text: this tests the road, not the drawing (the real ticket is drawn by the server).
+		const now = new Date().toLocaleString("en-GB");
+		const text = "\x1b@" + "RPOS DIRECT PRINT TEST\n" + title + "\n" + now + "\n" + location.host + "\n\n\n\n" + "\x1dV\x00";
+		return btoa(text);
+	}
+
+	// Chrome's Local Network Access names where a request goes: "loopback" for this
+	// computer, "local" for another one on the network. Named wrongly, the request is
+	// refused — the first Chrome test failed on exactly that. On an http page nothing
+	// needs naming; on https it is what lets an http agent be reached at all.
+	function addressSpace(url) {
+		const host = new URL(url).hostname;
+		if (["127.0.0.1", "localhost", "[::1]", "::1"].includes(host)) return "loopback";
+		if (/^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(host)) return "local";
+		return undefined;
+	}
+
+	async function call(path, body) {
+		const started = performance.now();
+		const options = {
+			method: body ? "POST" : "GET",
+			headers: { "X-RPOS-Token": val("token"), "Content-Type": "application/json" },
+			body: body ? JSON.stringify(body) : undefined,
+		};
+		const space = location.protocol === "https:" ? addressSpace(val("agent")) : undefined;
+		if (space) options.targetAddressSpace = space;
+		say(`${path} … (targetAddressSpace=${space || "none"})`);
+		try {
+			const res = await fetch(val("agent") + path, options);
+			const text = await res.text();
+			say(`${path} → HTTP ${res.status} (${Math.round(performance.now() - started)} ms) ${text}`);
+		} catch (e) {
+			say(`${path} → فشل: ${e.name}: ${e.message}   (افتح F12 ← Console للتفاصيل)`);
+		}
+	}
+
+	const health = () => call("/health");
+	const printUsb = () =>
+		call("/print", { printer: { connection_type: "windows", windows_printer_name: val("usb") }, payload_b64: ticket("USB RECEIPT") });
+	const printNet = () =>
+		call("/print", {
+			printer: { connection_type: "network", ip_address: val("ip"), port: Number(val("port") || 9100) },
+			payload_b64: ticket("KITCHEN TICKET (NETWORK)"),
+		});
+</script>
+</body>
+</html>

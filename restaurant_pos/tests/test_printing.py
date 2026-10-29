@@ -668,6 +668,23 @@ class TestWhatTheAgentReports(PrintingTestBase):
 
 		self.assertEqual(frappe.db.get_value("POS Print Job", job, "reason"), "paper_out")
 
+	def test_a_site_not_yet_migrated_still_takes_the_report(self):
+		"""`D-404` — the code ran before the column existed; every report failed and every
+		ticket printed again every two minutes. The outcome must land regardless."""
+		kot = self._sent_kot()
+		job = service.print_kot(kot.name)
+		from frappe.model.meta import Meta
+
+		real = Meta.has_field
+
+		def without_reason(meta, fieldname):
+			return False if (meta.name, fieldname) == ("POS Print Job", "reason") else real(meta, fieldname)
+
+		with patch.object(Meta, "has_field", without_reason):
+			service.settle(job, printed=True, reason="paper_out")
+
+		self.assertEqual(frappe.db.get_value("POS Print Job", job, "status"), "printed")
+
 	def test_a_reason_it_does_not_know_is_not_kept(self):
 		"""An agent may name a reason this server has no words for; the raw error stays."""
 		kot = self._sent_kot()

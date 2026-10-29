@@ -1018,15 +1018,18 @@ def settle(
 	too late for its own printer is too late for the backup as well.
 	"""
 	job = frappe.get_doc("POS Print Job", job_name)
-	job.db_set(
-		{
-			"status": "printed" if printed else "failed",
-			"printed_at": now_datetime() if printed else None,
-			"error": None if printed else (error or "")[:500],
-			"reason": None if printed or reason not in REASONS else reason,
-		},
-		update_modified=False,
-	)
+	outcome = {
+		"status": "printed" if printed else "failed",
+		"printed_at": now_datetime() if printed else None,
+		"error": None if printed else (error or "")[:500],
+	}
+	# The code reaches a site before its migrate does. Writing a column the site
+	# does not have yet failed every report, so every ticket was taken back and
+	# printed again every two minutes for twenty (`D-404`). The outcome is the
+	# point; the reason is a nicety that waits for the migrate.
+	if job.meta.has_field("reason"):
+		outcome["reason"] = None if printed or reason not in REASONS else reason
+	job.db_set(outcome, update_modified=False)
 
 	retry = fall_back(job_name) if not printed and try_fallback else None
 

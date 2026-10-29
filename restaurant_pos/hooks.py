@@ -140,6 +140,11 @@ scheduler_events = {
 		# goes through within the hour without anybody pressing anything.
 		"restaurant_pos.utils.posting.retry_unfinished",
 	],
+	"cron": {
+		# D-405 — a print job nobody reported on rings the bell within the
+		# minute, and is never handed out a second time.
+		"* * * * *": ["restaurant_pos.utils.printing.sweep_jobs"],
+	},
 }
 
 # D-090 — `{{ field | rtl }}` in the print templates. The renderer that turns a

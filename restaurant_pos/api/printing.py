@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import frappe
 from frappe import _
-from frappe.utils import add_to_date, now_datetime
+from frappe.utils import now_datetime
 
 from restaurant_pos.restaurant_pos.doctype.pos_print_agent import pos_print_agent
 from restaurant_pos.utils import idempotency
@@ -29,28 +29,9 @@ from restaurant_pos.utils.deadlock import retried
 from restaurant_pos.utils.permissions import assert_permission, validate_branch_access
 from restaurant_pos.utils.sale_doc import SALE
 
-#: How long a job may sit with an agent before another claim may take it back.
-#:
-#: An agent that is killed between claiming and printing leaves the ticket in
-#: `claimed` forever, and a kitchen ticket that exists but never prints is the
-#: worst state in this whole module: the order looks sent and no food is made.
-STALE_CLAIM_SECONDS = 120
-
 #: Enough that a busy till does not need several round trips, few enough that a
 #: crashed agent strands a small number of tickets.
 CLAIM_BATCH = 5
-
-#: How long a queued job is still worth printing (`D-108`).
-#:
-#: **A kitchen ticket has a shelf life.** An agent that has been off all day and
-#: connects at closing time would otherwise print every ticket the day queued —
-#: sending a cook a rush of orders that were served hours ago, or cancelled.
-#: Twenty minutes is longer than any outage a cook could work through and far
-#: shorter than a service.
-#:
-#: A receipt is the same argument from the other side: a customer who left
-#: without one an hour ago is not helped by it appearing now.
-STALE_AFTER_MINUTES = 20
 
 
 # --------------------------------------------------------------------------- #
@@ -66,13 +47,16 @@ def claim(version: str | None = None, host: str | None = None) -> list[dict]:
 	run behind an ordinary router with no fixed address, no forwarded port and
 	no firewall exception — which is the difference between an install a
 	technician can do in ten minutes and one that needs the ISP.
+
+	**A job is handed out once, ever** (`D-405`). Nothing here takes back a job
+	an agent never reported on: that is `utils.printing.sweep_jobs`'s to call
+	unconfirmed, and the cashier's to reprint.
 	"""
 	agent_name = pos_print_agent.for_session()
 	agent = frappe.get_doc("POS Print Agent", agent_name)
 	agent.seen(version=version, host=host)
 
-	_reclaim_stale(agent_name)
-	_expire_old(agent_name)
+	service.expire_old(agent_name)
 
 	queued = frappe.get_all(
 		"POS Print Job",
@@ -84,10 +68,13 @@ def claim(version: str | None = None, host: str | None = None) -> list[dict]:
 
 	jobs = []
 	for row in queued:
-		# Re-read before taking it: a second poll overlapping the first would
-		# otherwise hand the same ticket out twice, and two identical tickets in
-		# the kitchen become two plates of food.
-		if frappe.db.get_value("POS Print Job", row.name, "status") != "queued":
+		# Read under a row lock before taking it. A plain re-read is two steps,
+		# and two polls between them took the same ticket: measured, sixty jobs
+		# were taken a hundred and fifty times (`docs/15` §7). The lock makes the
+		# second wait for the first to commit and then read "claimed". Oldest
+		# first, always, so two pollers lock in the same order and never wait on
+		# each other in a circle.
+		if frappe.db.get_value("POS Print Job", row.name, "status", for_update=True) != "queued":
 			continue
 
 		frappe.db.set_value(
@@ -108,7 +95,8 @@ def report(job: str, printed: bool | int | str, error: str | None = None, reason
 	A failure re-queues the ticket on the fallback printer here rather than in
 	the agent: the fallback may belong to a different agent, and an agent that
 	could redirect work to another one would be an agent that could print
-	anything anywhere.
+	anything anywhere. **Only a failure that sent nothing** goes there
+	(`D-405`) — `service.settle` decides which that is.
 	"""
 	agent_name = pos_print_agent.for_session()
 	if frappe.db.get_value("POS Print Job", job, "agent") != agent_name:
@@ -117,58 +105,6 @@ def report(job: str, printed: bool | int | str, error: str | None = None, reason
 	service.settle(job, printed=bool(frappe.parse_json(printed)), error=error, reason=reason)
 
 	return {"ok": True}
-
-
-def _reclaim_stale(agent_name: str) -> None:
-	"""Put back anything the agent took and never reported on."""
-	cutoff = add_to_date(now_datetime(), seconds=-STALE_CLAIM_SECONDS)
-	stale = frappe.get_all(
-		"POS Print Job",
-		filters={"agent": agent_name, "status": "claimed", "claimed_at": ("<", cutoff)},
-		fields=["name", "attempts"],
-	)
-	for row in stale:
-		frappe.db.set_value(
-			"POS Print Job",
-			row.name,
-			{"status": "queued", "attempts": (row.attempts or 0) + 1},
-			update_modified=False,
-		)
-
-
-def _expire_old(agent_name: str) -> None:
-	"""Drop the backlog rather than print it (`D-108`).
-
-	An agent that was switched off all day, or a printer nobody had plugged in
-	yet, comes back to a queue full of tickets whose moment has passed. Printing
-	them is not catching up — it is a cook receiving twenty orders that were
-	served, cancelled or paid hours ago, with no way to tell which.
-
-	Marked failed rather than deleted: "this was queued and never printed" is
-	the answer to a question somebody will ask, and a row that vanished answers
-	nothing. The fallback printer is not tried either — the same staleness
-	applies there.
-	"""
-	cutoff = add_to_date(now_datetime(), minutes=-STALE_AFTER_MINUTES)
-	stale = frappe.get_all(
-		"POS Print Job",
-		filters={"agent": agent_name, "status": "queued", "creation": ("<", cutoff)},
-		pluck="name",
-	)
-
-	# Through `settle`, not a status written here: that wrote the job and left its
-	# kitchen ticket saying `pending` for ever, so the order screen could never
-	# warn about the failure that lasts longest (`D-211`).
-	for name in stale:
-		service.settle(
-			name,
-			printed=False,
-			error=f"Not printed within {STALE_AFTER_MINUTES} minutes; too late to be useful.",
-			try_fallback=False,
-		)
-
-	if stale:
-		frappe.log_error(f"{len(stale)} stale print jobs dropped for {agent_name}", "RPOS printing")
 
 
 def _connection(printer: str) -> dict:

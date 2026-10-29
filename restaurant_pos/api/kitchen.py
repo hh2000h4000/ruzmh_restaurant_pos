@@ -100,6 +100,30 @@ def mark_kitchen_told(kot_name: str, queue_id: str | None = None) -> dict:
 
 
 @frappe.whitelist()
+@retried
+def confirm_printed(kot_name: str, queue_id: str | None = None) -> dict:
+	"""Say a ticket nobody could confirm did come out of the printer (`D-405`)."""
+	replay = idempotency.previous_result(queue_id)
+	if replay is not None:
+		return replay
+
+	order_name = frappe.db.get_value("Kitchen Order Ticket", kot_name, "restaurant_order")
+	if not order_name:
+		frappe.throw(_("Kitchen Order Ticket {0} does not exist.").format(kot_name))
+	validate_branch_access(frappe.db.get_value("Restaurant Order", order_name, "branch"))
+
+	result = service.confirm_printed(kot_name)
+	idempotency.remember(
+		queue_id,
+		"confirm_printed",
+		result,
+		reference_doctype="Kitchen Order Ticket",
+		reference_name=kot_name,
+	)
+	return result
+
+
+@frappe.whitelist()
 def get_kots(order_name: str) -> list[dict]:
 	"""Every ticket raised for an order, newest first."""
 	branch = frappe.db.get_value("Restaurant Order", order_name, "branch")

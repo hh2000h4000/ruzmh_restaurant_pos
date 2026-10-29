@@ -59,6 +59,8 @@ export interface PrintAlert {
   station_ar: string;
   failed_at: string;
   state: PrintAlertState;
+  /** No answer came from the printer: it may have printed (`D-405`). */
+  unconfirmed: boolean;
 }
 
 /**
@@ -69,4 +71,9 @@ export interface PrintAlert {
  */
 export function markKitchenTold(kotName: string): Promise<{ kot_name: string; state: PrintAlertState }> {
   return mutate("kitchen.mark_kitchen_told", { kot_name: kotName });
+}
+
+/** The cashier saw the paper of a ticket nobody could confirm (`D-405`). */
+export function confirmPrinted(kotName: string): Promise<{ kot_name: string; state: PrintAlertState }> {
+  return mutate("kitchen.confirm_printed", { kot_name: kotName });
 }

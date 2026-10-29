@@ -157,6 +157,8 @@ def print_alerts(branch: str, limit: int) -> list[dict]:
 		.run(as_dict=True)
 	)
 
+	unsure = _unconfirmed([row.name for row in rows if row.print_status == "failed"])
+
 	alerts = []
 	for row in rows:
 		station, station_ar = station_of(row.production_center)
@@ -175,10 +177,32 @@ def print_alerts(branch: str, limit: int) -> list[dict]:
 				"station_ar": station_ar,
 				"failed_at": row.print_failed_at,
 				"state": _alert_state(row),
+				# `D-405` — "it did not print" and "nobody knows" are different
+				# sentences: the second may already be in the cook's hand.
+				"unconfirmed": row.name in unsure,
 			}
 		)
 
 	return alerts
+
+
+def _unconfirmed(kot_names: list[str]) -> set[str]:
+	"""The tickets whose newest copy has no answer, in one read for the page."""
+	if not kot_names:
+		return set()
+	newest: dict[str, str] = {}
+	for job in frappe.get_all(
+		"POS Print Job",
+		filters={
+			"reference_doctype": "Kitchen Order Ticket",
+			"reference_name": ("in", kot_names),
+			"status": ("!=", "cancelled"),
+		},
+		fields=["reference_name", "status"],
+		order_by="creation desc",
+	):
+		newest.setdefault(job.reference_name, job.status)
+	return {name for name, status in newest.items() if status == "unconfirmed"}
 
 
 def _alert_state(ticket) -> str:
@@ -227,6 +251,32 @@ def mark_kitchen_told(kot_name: str) -> dict:
 	)
 	activity.log(kot.restaurant_order, "kitchen_told", subject=station_of(kot.production_center)[1])
 	return {"kot_name": kot.name, "state": "told"}
+
+
+def confirm_printed(kot_name: str) -> dict:
+	"""The cashier saw the paper: a ticket nobody could confirm did print (`D-405`).
+
+	The other answer to "check the printer". Without it a ticket that came out
+	could only be closed by "the kitchen was told" — which is not what happened —
+	or by a reprint, which is the second plate this whole rule exists to stop.
+	"""
+	kot = frappe.db.get_value(
+		"Kitchen Order Ticket",
+		kot_name,
+		["name", "restaurant_order", "production_center", "print_status"],
+		as_dict=True,
+	)
+	if kot.print_status != "failed":
+		frappe.throw(_("This ticket is not waiting on the kitchen."))
+
+	frappe.db.set_value(
+		"Kitchen Order Ticket",
+		kot.name,
+		{"print_status": "printed", "printed_at": now_datetime()},
+		update_modified=False,
+	)
+	activity.log(kot.restaurant_order, "print_confirmed", subject=station_of(kot.production_center)[1])
+	return {"kot_name": kot.name, "state": "printed"}
 
 
 def send_to_kitchen(order, *, kot_type: str | None = None) -> dict:

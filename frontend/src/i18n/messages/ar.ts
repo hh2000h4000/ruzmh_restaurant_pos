@@ -88,6 +88,7 @@ const messages: Catalogue["messages"] = {
   "log.returned": "أرجع — {subject}",
   "log.reprinted": "أعاد الطباعة",
   "log.kitchen_told": "أبلغ المطبخ",
+  "log.print_confirmed": "أكّد أنها طُبعت",
   "log.tables_merged": "ضمّ الطاولات — {subject}",
 
   // Errors raised by the API client
@@ -233,6 +234,8 @@ const messages: Catalogue["messages"] = {
   "alerts.none": "لا توجد تنبيهات",
   "alerts.offline": "التنبيهات تحتاج اتصالاً بالخادم.",
   "alerts.ticket": "لم تُطبع تذكرة {station}",
+  "alerts.ticketUnsure": "تأكد من تذكرة {station}، قد تكون طُبعت",
+  "alerts.itPrinted": "طُبعت",
   "alerts.order": "طلب {number}",
   "alerts.told": "أبلغ المطبخ",
   "alerts.unread": "{count} غير مقروء",

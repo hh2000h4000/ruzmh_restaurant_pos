@@ -358,6 +358,8 @@ queued,في الطابور,POS Print Job
 claimed,عند البرنامج,POS Print Job
 printed,انطبعت,POS Print Job
 failed,ما انطبعت,POS Print Job
+unconfirmed,تأكد من الطباعة,POS Print Job
+cancelled,أُلغيت بإعادة طباعة,POS Print Job
 Source,مصدرها,POS Print Job
 Reference Doctype,نوع المستند,POS Print Job
 Reference Name,رقم المستند,POS Print Job

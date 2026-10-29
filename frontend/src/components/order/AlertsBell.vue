@@ -2,7 +2,7 @@
 import { computed, ref, watch } from "vue";
 
 import type { Announcement, BellItem } from "@/api/bell";
-import { markKitchenTold, reprintKot, type PrintAlert } from "@/api/kitchen";
+import { confirmPrinted, markKitchenTold, reprintKot, type PrintAlert } from "@/api/kitchen";
 import AppIcon from "@/components/AppIcon.vue";
 import { useDismiss } from "@/composables/useDismiss";
 import { dateOnly, formatNumber, pick, t, timeOnly, type MessageKey } from "@/i18n";
@@ -287,7 +287,11 @@ function badge(row: BellItem): { mark: string; tone: string } {
                 class="text-[14.5px] text-content [text-wrap:pretty]"
                 :class="alerts.isUnread(row) ? 'font-semibold' : 'font-normal'"
               >
-                {{ t("alerts.ticket", { station: pick(row.station_ar, row.station) }) }}
+                {{
+                  t(row.state === "failed" && row.unconfirmed ? "alerts.ticketUnsure" : "alerts.ticket", {
+                    station: pick(row.station_ar, row.station),
+                  })
+                }}
               </p>
               <p class="rpos-numeric text-[12.5px] text-muted">
                 {{ source(row) }}
@@ -296,9 +300,25 @@ function badge(row: BellItem): { mark: string; tone: string } {
                 v-if="row.state === 'failed'"
                 class="mt-2 flex flex-wrap gap-2"
               >
+                <!-- D-405 — first, because the likeliest answer to "it may have
+                     printed" is that it did; reprinting is how two plates happen. -->
                 <button
+                  v-if="row.unconfirmed"
                   type="button"
                   class="h-10 rounded-[11px] bg-primary px-4 text-[13px] font-medium text-primary-contrast transition-colors duration-150 hover:bg-primary/90 disabled:opacity-50"
+                  :disabled="busy"
+                  @click="act(row, () => confirmPrinted(row.kot_name))"
+                >
+                  {{ t("alerts.itPrinted") }}
+                </button>
+                <button
+                  type="button"
+                  class="h-10 rounded-[11px] px-4 text-[13px] font-medium transition-colors duration-150 disabled:opacity-50"
+                  :class="
+                    row.unconfirmed
+                      ? 'border border-line-strong hover:border-primary'
+                      : 'bg-primary text-primary-contrast hover:bg-primary/90'
+                  "
                   :disabled="busy"
                   @click="act(row, () => markKitchenTold(row.kot_name))"
                 >

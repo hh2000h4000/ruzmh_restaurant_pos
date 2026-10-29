@@ -463,6 +463,9 @@ class TestTheAgentSeam(PrintingTestBase):
 		frappe.set_user("Administrator")
 		super().tearDown()
 
+	def _unreported_for(self, job, seconds):
+		frappe.db.set_value("POS Print Job", job, "claimed_at", add_to_date(now_datetime(), seconds=-seconds))
+
 	def test_claiming_marks_the_job_taken(self):
 		kot = self._sent_kot()
 		job = service.print_kot(kot.name)
@@ -543,22 +546,20 @@ class TestTheAgentSeam(PrintingTestBase):
 		self.assertTrue(first)
 		self.assertFalse(first & second)
 
-	def test_a_job_the_agent_never_reported_comes_back(self):
-		"""An agent killed mid-print must not strand a ticket forever."""
+	def test_a_job_the_agent_never_reported_is_not_handed_out_again(self):
+		"""`D-405` — it used to come back after two minutes and print again, and
+		did: one receipt, two tickets and a drawer kick, four times each (`D-404`)."""
 		kot = self._sent_kot()
 		job = service.print_kot(kot.name)
 		self._as_agent()
 		api.claim()
+		self._unreported_for(job, service.UNREPORTED_SECONDS + 10)
 
-		frappe.db.set_value(
-			"POS Print Job",
-			job,
-			"claimed_at",
-			add_to_date(now_datetime(), seconds=-(api.STALE_CLAIM_SECONDS + 10)),
-		)
-
-		self.assertIn(job, [row["name"] for row in api.claim()])
-		self.assertEqual(frappe.db.get_value("POS Print Job", job, "attempts"), 1)
+		self.assertNotIn(job, [row["name"] for row in api.claim()])
+		service.sweep_jobs()
+		self.assertNotIn(job, [row["name"] for row in api.claim()])
+		self.assertEqual(frappe.db.get_value("POS Print Job", job, "status"), "unconfirmed")
+		self.assertEqual(frappe.db.get_value("POS Print Job", job, "agent"), self.agent)
 
 	def test_a_ticket_whose_moment_has_passed_is_not_printed(self):
 		"""D-108 — a kitchen ticket has a shelf life.
@@ -573,7 +574,7 @@ class TestTheAgentSeam(PrintingTestBase):
 			"POS Print Job",
 			job,
 			"creation",
-			add_to_date(now_datetime(), minutes=-(api.STALE_AFTER_MINUTES + 1)),
+			add_to_date(now_datetime(), minutes=-(service.STALE_AFTER_MINUTES + 1)),
 			update_modified=False,
 		)
 
@@ -591,7 +592,7 @@ class TestTheAgentSeam(PrintingTestBase):
 			"POS Print Job",
 			job,
 			"creation",
-			add_to_date(now_datetime(), minutes=-(api.STALE_AFTER_MINUTES + 1)),
+			add_to_date(now_datetime(), minutes=-(service.STALE_AFTER_MINUTES + 1)),
 			update_modified=False,
 		)
 
@@ -611,7 +612,7 @@ class TestTheAgentSeam(PrintingTestBase):
 			"POS Print Job",
 			job,
 			"creation",
-			add_to_date(now_datetime(), minutes=-(api.STALE_AFTER_MINUTES + 1)),
+			add_to_date(now_datetime(), minutes=-(service.STALE_AFTER_MINUTES + 1)),
 			update_modified=False,
 		)
 
@@ -700,7 +701,7 @@ class TestWhatTheAgentReports(PrintingTestBase):
 		kot = self._sent_kot()
 		job = service.print_kot(kot.name)
 
-		service.settle(job, printed=False, error="Connection refused")
+		service.settle(job, printed=False, error="Connection refused", reason="unreachable")
 
 		retry = frappe.db.get_value(
 			"POS Print Job", {"retry_of": job}, ["name", "printer", "status", "payload"], as_dict=True
@@ -714,10 +715,10 @@ class TestWhatTheAgentReports(PrintingTestBase):
 		"""One hop. A chain that loops prints until the paper runs out."""
 		kot = self._sent_kot()
 		job = service.print_kot(kot.name)
-		service.settle(job, printed=False, error="first")
+		service.settle(job, printed=False, error="first", reason="unreachable")
 
 		retry = frappe.db.get_value("POS Print Job", {"retry_of": job}, "name")
-		service.settle(retry, printed=False, error="second")
+		service.settle(retry, printed=False, error="second", reason="unreachable")
 
 		self.assertFalse(frappe.db.exists("POS Print Job", {"retry_of": retry}))
 
@@ -738,19 +739,344 @@ class TestWhatTheAgentReports(PrintingTestBase):
 		kot = self._sent_kot()
 		job = service.print_kot(kot.name)
 
-		service.settle(job, printed=False, error="Connection refused")
+		service.settle(job, printed=False, error="Connection refused", reason="unreachable")
 
 		self.assertEqual(frappe.db.get_value("Kitchen Order Ticket", kot.name, "print_status"), "pending")
 
 	def test_when_the_backup_fails_too_the_ticket_is_failed(self):
 		kot = self._sent_kot()
 		job = service.print_kot(kot.name)
-		service.settle(job, printed=False, error="first")
+		service.settle(job, printed=False, error="first", reason="unreachable")
 		retry = frappe.db.get_value("POS Print Job", {"retry_of": job}, "name")
 
-		service.settle(retry, printed=False, error="second")
+		service.settle(retry, printed=False, error="second", reason="unreachable")
 
 		self.assertEqual(frappe.db.get_value("Kitchen Order Ticket", kot.name, "print_status"), "failed")
+
+
+class NothingPrintsTwiceByItself(PrintingTestBase):
+	"""`D-405`, `docs/15` §5.12 — the acceptance tests of stage 1.
+
+	A job is printed again, or printed somewhere else, only when it is **known**
+	not to have printed. Everything else is said to the cashier, who can see the
+	printer. Driven through the agent's own endpoints, as the agent drives them.
+	"""
+
+	def setUp(self):
+		super().setUp()
+		self.other = _agent("RPOS Test Other Agent")
+
+	def tearDown(self):
+		frappe.set_user("Administrator")
+		super().tearDown()
+
+	def _as(self, agent):
+		frappe.set_user(frappe.db.get_value("POS Print Agent", agent, "user"))
+
+	def _taken(self):
+		"""A ticket the agent has taken and not yet reported on."""
+		kot = self._sent_kot()
+		job = service.print_kot(kot.name)
+		self._as(self.agent)
+		self.assertIn(job, [row["name"] for row in api.claim()])
+		frappe.set_user("Administrator")
+		return kot, job
+
+	def _aged(self, job, field, seconds):
+		frappe.db.set_value(
+			"POS Print Job", job, field, add_to_date(now_datetime(), seconds=-seconds), update_modified=False
+		)
+
+	def _status(self, job):
+		return frappe.db.get_value("POS Print Job", job, "status")
+
+	def _ticket(self, kot):
+		return frappe.db.get_value("Kitchen Order Ticket", kot.name, "print_status")
+
+	def _reprinted(self, kot):
+		"""The cashier's reprint, and the worker that renders it."""
+		kitchen.reprint(kot.name)
+		return service.print_kot(kot.name, force=True)
+
+	# ق١ ------------------------------------------------------------------
+
+	def test_q1_a_slow_report_never_sends_the_ticket_to_another_agent(self):
+		_kot, job = self._taken()
+		self._aged(job, "claimed_at", service.UNREPORTED_SECONDS + 30)
+		service.sweep_jobs()
+
+		self._as(self.other)
+		self.assertNotIn(job, [row["name"] for row in api.claim()])
+		self._as(self.agent)
+		self.assertNotIn(job, [row["name"] for row in api.claim()])
+
+		self.assertEqual(frappe.db.get_value("POS Print Job", job, "agent"), self.agent)
+		self.assertFalse(frappe.db.exists("POS Print Job", {"retry_of": job}))
+
+	def test_q1_nor_before_the_sweep_has_looked(self):
+		_kot, job = self._taken()
+		self._aged(job, "claimed_at", 600)
+
+		self._as(self.other)
+		self.assertNotIn(job, [row["name"] for row in api.claim()])
+		self.assertEqual(self._status(job), "claimed")
+
+	# ق٢ ------------------------------------------------------------------
+
+	def test_q2_no_report_is_said_to_the_cashier_and_stays_where_it_is(self):
+		kot, job = self._taken()
+		self._aged(job, "claimed_at", service.UNREPORTED_SECONDS + 1)
+
+		service.sweep_jobs()
+
+		self.assertEqual(self._status(job), "unconfirmed")
+		self.assertEqual(self._ticket(kot), "failed")
+		alert = next(row for row in kitchen.print_alerts(BRANCH, 50) if row["kot_name"] == kot.name)
+		self.assertTrue(alert["unconfirmed"])
+		self.assertEqual(alert["state"], "failed")
+
+	def test_q2_a_report_still_on_time_is_left_alone(self):
+		kot, job = self._taken()
+		self._aged(job, "claimed_at", service.UNREPORTED_SECONDS - 10)
+
+		service.sweep_jobs()
+
+		self.assertEqual(self._status(job), "claimed")
+		self.assertEqual(self._ticket(kot), "pending")
+
+	def test_q2_a_ticket_no_agent_took_rings_and_still_waits(self):
+		"""Nobody took it, so nothing was sent: known unprinted, and an agent
+		that comes back still prints it."""
+		kot = self._sent_kot()
+		job = service.print_kot(kot.name)
+		self._aged(job, "creation", service.UNTAKEN_SECONDS + 5)
+
+		service.sweep_jobs()
+
+		self.assertEqual(self._status(job), "queued")
+		self.assertEqual(self._ticket(kot), "failed")
+		alert = next(row for row in kitchen.print_alerts(BRANCH, 50) if row["kot_name"] == kot.name)
+		self.assertFalse(alert["unconfirmed"], "nothing was sent, so it is known not to have printed")
+
+		self._as(self.agent)
+		self.assertIn(job, [row["name"] for row in api.claim()])
+		api.report(job=job, printed=1)
+		self.assertEqual(self._ticket(kot), "printed")
+
+	def test_q2_a_dead_agent_s_backlog_expires_without_it(self):
+		"""`D-108` used to run only when the agent itself asked again — which a
+		dead agent never does."""
+		kot = self._sent_kot()
+		job = service.print_kot(kot.name)
+		self._aged(job, "creation", (service.STALE_AFTER_MINUTES + 1) * 60)
+
+		service.sweep_jobs()
+
+		self.assertEqual(self._status(job), "failed")
+		self.assertFalse(frappe.db.exists("POS Print Job", {"retry_of": job}))
+
+	# ق٣أ -----------------------------------------------------------------
+
+	def test_q3a_a_reprint_cancels_the_copy_nobody_took(self):
+		kot = self._sent_kot()
+		first = service.print_kot(kot.name)
+
+		second = self._reprinted(kot)
+
+		self.assertEqual(self._status(first), "cancelled")
+		self._as(self.agent)
+		taken = [row["name"] for row in api.claim()]
+		self.assertNotIn(first, taken, "the agent that comes back must not print the original")
+		self.assertIn(second, taken)
+
+	def test_q3a_a_report_on_a_cancelled_copy_changes_nothing(self):
+		kot = self._sent_kot()
+		first = service.print_kot(kot.name)
+		self._reprinted(kot)
+
+		service.settle(first, printed=True)
+
+		self.assertEqual(self._status(first), "cancelled")
+
+	# ق٣ب -----------------------------------------------------------------
+
+	def test_q3b_a_reprint_leaves_a_taken_copy_with_its_agent(self):
+		"""It may be on the roll or in the Windows queue; no row pulls it back."""
+		kot, first = self._taken()
+
+		second = self._reprinted(kot)
+
+		self.assertEqual(self._status(first), "claimed")
+		self.assertEqual(self._status(second), "queued")
+		self.assertNotEqual(first, second)
+
+	def test_q3b_the_taken_copy_going_quiet_does_not_ring_over_the_reprint(self):
+		kot, first = self._taken()
+		self._reprinted(kot)
+		self._aged(first, "claimed_at", service.UNREPORTED_SECONDS + 1)
+
+		service.sweep_jobs()
+
+		self.assertEqual(self._status(first), "unconfirmed")
+		self.assertEqual(self._ticket(kot), "pending", "the reprint speaks for the ticket now")
+
+	# ق٤ ------------------------------------------------------------------
+
+	def test_q4_a_late_report_on_the_original_leaves_the_reprint_alone(self):
+		kot, first = self._taken()
+		self._aged(first, "claimed_at", service.UNREPORTED_SECONDS + 1)
+		service.sweep_jobs()
+		second = self._reprinted(kot)
+
+		self._as(self.agent)
+		api.report(job=first, printed=1)
+
+		self.assertEqual(self._status(first), "printed")
+		self.assertEqual(self._status(second), "queued")
+
+	def test_q4_a_late_failure_of_the_original_does_not_ring_for_the_reprint(self):
+		kot, first = self._taken()
+		self._aged(first, "claimed_at", service.UNREPORTED_SECONDS + 1)
+		service.sweep_jobs()
+		second = self._reprinted(kot)
+		self._as(self.agent)
+		api.claim()
+		api.report(job=second, printed=1)
+
+		api.report(job=first, printed=0, error="Connection refused", reason="unreachable")
+
+		self.assertEqual(self._ticket(kot), "printed")
+		self.assertFalse(frappe.db.exists("POS Print Job", {"retry_of": first}))
+
+	def test_q4_a_late_failure_does_not_overrule_the_cashier(self):
+		kot, job = self._taken()
+		self._aged(job, "claimed_at", service.UNREPORTED_SECONDS + 1)
+		service.sweep_jobs()
+		kitchen.confirm_printed(kot.name)
+
+		self._as(self.agent)
+		api.report(job=job, printed=0, error="Connection refused", reason="unreachable")
+
+		self.assertEqual(self._ticket(kot), "printed")
+		self.assertFalse(frappe.db.exists("POS Print Job", {"retry_of": job}), "late is never a reason")
+
+	def test_q4_a_late_success_closes_its_own_alert(self):
+		kot, job = self._taken()
+		self._aged(job, "claimed_at", service.UNREPORTED_SECONDS + 1)
+		service.sweep_jobs()
+
+		self._as(self.agent)
+		api.report(job=job, printed=1)
+
+		self.assertEqual(self._status(job), "printed")
+		self.assertEqual(self._ticket(kot), "printed")
+
+	# ق٦أ -----------------------------------------------------------------
+
+	def test_q6a_a_failure_that_sent_nothing_goes_to_the_backup_once(self):
+		kot, job = self._taken()
+
+		self._as(self.agent)
+		api.report(job=job, printed=0, error="cannot reach", reason="unreachable")
+		api.report(job=job, printed=0, error="cannot reach", reason="unreachable")
+
+		self.assertEqual(self._status(job), "failed")
+		self.assertEqual(frappe.db.count("POS Print Job", {"retry_of": job}), 1)
+		self.assertEqual(self._ticket(kot), "pending")
+
+	def test_q6a_every_reason_that_sent_nothing_is_known(self):
+		for reason in ("unreachable", "not_found", "paper_out", "paused", "offline", "attention", "error"):
+			with self.subTest(reason=reason):
+				kot = self._sent_kot()
+				job = service.print_kot(kot.name)
+				service.settle(job, printed=False, error="x", reason=reason)
+				self.assertEqual(self._status(job), "failed")
+
+	# ق٦ب -----------------------------------------------------------------
+
+	def test_q6b_anything_else_is_unconfirmed_and_stays_off_the_backup(self):
+		"""`not_taken` was in the Windows queue; no reason is an older agent or a
+		socket that broke half way down a receipt."""
+		for reason in ("not_taken", None, "cosmic_rays"):
+			with self.subTest(reason=reason):
+				kot = self._sent_kot()
+				job = service.print_kot(kot.name)
+				service.settle(job, printed=False, error="broke", reason=reason)
+				self.assertEqual(self._status(job), "unconfirmed")
+				self.assertFalse(frappe.db.exists("POS Print Job", {"retry_of": job}))
+				self.assertEqual(self._ticket(kot), "failed")
+
+	def test_q6b_a_second_copy_failing_is_not_nothing_sent(self):
+		"""The first copy may be out when the second cannot reach the printer."""
+		kot = self._sent_kot()
+		job = service.print_kot(kot.name)
+		frappe.db.set_value("POS Print Job", job, "copies", 2)
+
+		service.settle(job, printed=False, error="cannot reach", reason="unreachable")
+
+		self.assertEqual(self._status(job), "unconfirmed")
+		self.assertFalse(frappe.db.exists("POS Print Job", {"retry_of": job}))
+
+	# The cashier's answer --------------------------------------------------
+
+	def test_it_printed_is_an_answer_and_is_on_the_bill_s_story(self):
+		kot, job = self._taken()
+		self._aged(job, "claimed_at", service.UNREPORTED_SECONDS + 1)
+		service.sweep_jobs()
+
+		kitchen.confirm_printed(kot.name)
+
+		self.assertEqual(self._ticket(kot), "printed")
+		self.assertTrue(
+			frappe.db.exists(
+				"POS Order Activity", {"restaurant_order": kot.restaurant_order, "action": "print_confirmed"}
+			)
+		)
+
+	def test_it_printed_is_refused_for_a_ticket_that_is_not_waiting(self):
+		kot = self._sent_kot()
+		service.settle(service.print_kot(kot.name), printed=True)
+
+		with self.assertRaises(frappe.ValidationError):
+			kitchen.confirm_printed(kot.name)
+
+
+class AnAgentIsSeenWithoutAWriteEveryPoll(PrintingTestBase):
+	"""`docs/15` §2 — the heartbeat was a third of every database write."""
+
+	def tearDown(self):
+		frappe.set_user("Administrator")
+		super().tearDown()
+
+	def test_a_poll_within_the_minute_writes_nothing(self):
+		agent = frappe.get_doc("POS Print Agent", self.agent)
+		agent.seen(version="1.1.0", host="till")
+		first = frappe.db.get_value("POS Print Agent", self.agent, "last_seen")
+
+		frappe.get_doc("POS Print Agent", self.agent).seen(version="1.1.0", host="till")
+
+		self.assertEqual(frappe.db.get_value("POS Print Agent", self.agent, "last_seen"), first)
+
+	def test_an_old_heartbeat_is_written_again(self):
+		frappe.db.set_value(
+			"POS Print Agent",
+			self.agent,
+			"last_seen",
+			add_to_date(now_datetime(), seconds=-(pos_print_agent.SEEN_EVERY_SECONDS + 5)),
+		)
+		before = frappe.db.get_value("POS Print Agent", self.agent, "last_seen")
+
+		frappe.get_doc("POS Print Agent", self.agent).seen()
+
+		self.assertGreater(frappe.db.get_value("POS Print Agent", self.agent, "last_seen"), before)
+
+	def test_a_new_version_is_written_at_once(self):
+		agent = frappe.get_doc("POS Print Agent", self.agent)
+		agent.seen(version="1.1.0", host="till")
+
+		frappe.get_doc("POS Print Agent", self.agent).seen(version="1.2.0", host="till")
+
+		self.assertEqual(frappe.db.get_value("POS Print Agent", self.agent, "agent_version"), "1.2.0")
 
 
 class TheOrderScreenFollowsWhatIsPrinting(PrintingTestBase):

@@ -4,7 +4,7 @@
 import frappe
 from frappe import _
 from frappe.model.document import Document
-from frappe.utils import get_url, now_datetime
+from frappe.utils import get_url, now_datetime, time_diff_in_seconds
 
 from restaurant_pos.utils import pairing
 
@@ -22,6 +22,9 @@ AGENT_ROLE = "Restaurant Print Agent"
 #: Reserved by RFC 2606 — it can never resolve, so the agent's user can never
 #: be mailed by accident.
 AGENT_EMAIL_DOMAIN = "print-agent.invalid"
+
+#: How often an agent that keeps asking is written down as seen.
+SEEN_EVERY_SECONDS = 60
 
 
 class POSPrintAgent(Document):
@@ -75,7 +78,21 @@ class POSPrintAgent(Document):
 		Written with ``db_set`` and no modification stamp: this happens every two
 		seconds per agent, and a version row for each would bury the document's
 		real history under a heartbeat.
+
+		**And at most once a minute** (`docs/15` §2): a write every two seconds
+		per agent was a third of everything the database wrote while the
+		restaurants were empty. The form calls an agent silent after two minutes,
+		so a minute's lag never says a live one is dead.
 		"""
+		unchanged = (version or self.agent_version) == self.agent_version and (
+			host or self.host_name
+		) == self.host_name
+		if (
+			unchanged
+			and self.last_seen
+			and time_diff_in_seconds(now_datetime(), self.last_seen) < SEEN_EVERY_SECONDS
+		):
+			return
 		self.db_set(
 			{
 				"last_seen": now_datetime(),

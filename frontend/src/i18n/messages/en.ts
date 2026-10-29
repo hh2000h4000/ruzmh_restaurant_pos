@@ -99,6 +99,7 @@ export const messages = {
   "log.returned": "Returned — {subject}",
   "log.reprinted": "Reprinted",
   "log.kitchen_told": "Told the kitchen",
+  "log.print_confirmed": "Confirmed it printed",
   /** BR-063 — one party seated across more than one table. */
   "log.tables_merged": "Tables joined — {subject}",
 
@@ -249,6 +250,8 @@ export const messages = {
   "alerts.none": "No alerts",
   "alerts.offline": "Alerts need a connection to the server.",
   "alerts.ticket": "The {station} ticket did not print",
+  "alerts.ticketUnsure": "Check the {station} ticket — it may have printed",
+  "alerts.itPrinted": "It printed",
   "alerts.order": "Order {number}",
   "alerts.told": "Tell the kitchen",
   "alerts.unread": "{count} unread",

@@ -28,7 +28,7 @@ from dataclasses import dataclass
 
 import frappe
 from frappe import _
-from frappe.utils import add_days, cint, flt, now_datetime, nowdate
+from frappe.utils import add_days, add_to_date, cint, flt, now_datetime, nowdate
 
 from restaurant_pos.utils.sale_doc import SALE
 
@@ -330,6 +330,9 @@ def queue(
 			_("{0} has no print agent, so nothing can reach it.").format(printer),
 		)
 
+	if reference_name and not retry_of and job_type in ONE_COPY_WAITING:
+		_cancel_waiting(reference_doctype, reference_name, job_type)
+
 	job = frappe.get_doc(
 		{
 			"doctype": "POS Print Job",
@@ -348,6 +351,46 @@ def queue(
 	job.insert(ignore_permissions=True)
 
 	return job.name
+
+
+#: The papers whose second copy replaces the first (`D-405`): the same ticket or
+#: the same receipt asked for again. Not a drawer kick or a shift report — those
+#: share a reference (the terminal) without being the same paper, and an X
+#: report must not cancel the Z queued behind it.
+ONE_COPY_WAITING = frozenset({"kot", "customer_receipt"})
+
+
+def _cancel_waiting(reference_doctype: str | None, reference_name: str, job_type: str) -> list[str]:
+	"""A reprint replaces the copy nobody has taken yet (`D-405`).
+
+	Without this, an agent that comes back after the cashier reprinted prints
+	both. Read under the same row lock `claim` takes, so a cancel and a claim at
+	the same instant cannot both win: whichever locks second sees the other's
+	answer. **A job already taken is left alone** — it may be on the roll or in
+	the Windows queue, and no row written here can pull it back; the bell says
+	"it may have printed" and the cashier decides.
+	"""
+	waiting = frappe.get_all(
+		"POS Print Job",
+		filters={
+			"reference_doctype": reference_doctype,
+			"reference_name": reference_name,
+			"job_type": job_type,
+			"status": "queued",
+		},
+		pluck="name",
+	)
+	cancelled = []
+	for name in waiting:
+		if frappe.db.get_value("POS Print Job", name, "status", for_update=True) == "queued":
+			frappe.db.set_value(
+				"POS Print Job",
+				name,
+				{"status": "cancelled", "error": "Replaced by a reprint before any agent took it."},
+				update_modified=False,
+			)
+			cancelled.append(name)
+	return cancelled
 
 
 # --------------------------------------------------------------------------- #
@@ -978,7 +1021,7 @@ def prune_jobs() -> None:
 	stale = frappe.get_all(
 		"POS Print Job",
 		filters={
-			"status": ("in", ["printed", "failed"]),
+			"status": ("in", FINISHED),
 			"creation": ("<", payload_cutoff),
 			"payload": ("is", "set"),
 		},
@@ -991,10 +1034,15 @@ def prune_jobs() -> None:
 	frappe.db.delete(
 		"POS Print Job",
 		{
-			"status": ("in", ["printed", "failed"]),
+			"status": ("in", FINISHED),
 			"creation": ("<", add_days(nowdate(), -JOB_DAYS)),
 		},
 	)
+
+
+#: Every state a job does not leave by itself. ``unconfirmed`` is among them: it
+#: waits for a late report or for the cashier, and nothing else moves it.
+FINISHED = ["printed", "failed", "unconfirmed", "cancelled"]
 
 
 #: Why an agent could not print, as it reports it (agent 1.1.0, `D-403`). Said
@@ -1002,6 +1050,17 @@ def prune_jobs() -> None:
 REASONS = frozenset(
 	{"paper_out", "paused", "offline", "attention", "error", "not_found", "not_taken", "unreachable"}
 )
+
+#: The reasons an agent gives **before a single byte left it** (`D-405`): the
+#: printer could not be opened, or Windows said it was not ready and nothing was
+#: written. Only these are a known "it did not print", and only these may go to
+#: the fallback printer.
+#:
+#: Not ``not_taken``: the job was written into the Windows queue and taken back
+#: after `WINDOWS_JOB_SECONDS`, and a printer that woke in between may have
+#: started it. Not a failure with no reason either — an agent older than 1.1.0,
+#: or a socket that broke half way down a receipt.
+NOTHING_SENT = frozenset({"unreachable", "not_found", "paper_out", "paused", "offline", "attention", "error"})
 
 
 def settle(
@@ -1011,15 +1070,41 @@ def settle(
 	error: str | None = None,
 	reason: str | None = None,
 	try_fallback: bool = True,
+	nothing_sent: bool | None = None,
 ) -> None:
-	"""Record what the agent reported, and try the fallback if it failed.
+	"""Record what happened to one job (`D-405`).
+
+	Three outcomes, and the difference between the last two is the whole point:
+
+	- ``printed`` — the agent sent every byte. As far as anyone can know: a
+	  thermal printer does not say the paper came out.
+	- ``failed`` — **known** not to have printed: nothing was sent. The only
+	  outcome that may go to the fallback printer.
+	- ``unconfirmed`` — anything else. It may be on the roll. Nothing prints it
+	  again by itself; the bell asks the cashier, who can see the printer.
+
+	``nothing_sent`` is for a caller that knows without an agent — a job that
+	expired before anyone took it. Otherwise the agent's reason decides, and a
+	job printed in several copies is never "nothing sent": the first copy may
+	be out when the second fails.
 
 	``try_fallback`` is off for a job that expired unprinted (`D-108`): a ticket
 	too late for its own printer is too late for the backup as well.
 	"""
 	job = frappe.get_doc("POS Print Job", job_name)
+	if job.status in ("printed", "failed", "cancelled"):
+		# A report after the answer is in: an agent repeating itself, or one that
+		# took a job a reprint had already replaced. Neither changes what is true —
+		# and a repeated failure must not send a second copy to the backup.
+		return
+
+	if nothing_sent is None:
+		nothing_sent = reason in NOTHING_SENT and (job.copies or 1) == 1
+	late = job.status == "unconfirmed"
+
+	status = "printed" if printed else ("failed" if nothing_sent else "unconfirmed")
 	outcome = {
-		"status": "printed" if printed else "failed",
+		"status": status,
 		"printed_at": now_datetime() if printed else None,
 		"error": None if printed else (error or "")[:500],
 	}
@@ -1031,32 +1116,185 @@ def settle(
 		outcome["reason"] = None if printed or reason not in REASONS else reason
 	job.db_set(outcome, update_modified=False)
 
-	retry = fall_back(job_name) if not printed and try_fallback else None
+	# **Late is never a reason to print elsewhere.** A report that arrives after
+	# the bell already asked the cashier may meet a reprint they already made.
+	retry = fall_back(job_name) if status == "failed" and try_fallback and not late else None
 
-	# A kitchen ticket says whether it reached the kitchen; the job says whether
-	# bytes went down a wire. Two questions, but **one answer** — the ticket
-	# reflects its job rather than keeping a second opinion that could disagree
-	# with it (CLAUDE.md §5.5).
-	#
-	# **Still `pending` while the backup has it** (`D-211`). The order screen
-	# warns on `failed`, and a warning now would send the cashier to reprint a
-	# ticket that is about to come out of the backup printer — two tickets, two
-	# plates.
-	if job.reference_doctype == "Kitchen Order Ticket" and frappe.db.exists(
+	# A late failure tells the ticket nothing new — it has rung already, and the
+	# cashier may have answered it. A late success is news: the paper is out.
+	if printed or not late:
+		_tell_the_ticket(job, printed=printed, on_its_way=bool(retry))
+
+
+def mark_unconfirmed(job_name: str, error: str) -> None:
+	"""No report came: say so, and leave the job where it is (`D-405`).
+
+	Replaces the old "take it back and hand it out again", which printed one
+	user's receipt, two kitchen tickets and a drawer kick four times each
+	(`D-404`). The job stays with its agent; a report that turns up later still
+	lands (`settle` takes it from ``unconfirmed``).
+	"""
+	if frappe.db.get_value("POS Print Job", job_name, "status", for_update=True) != "claimed":
+		return
+	job = frappe.get_doc("POS Print Job", job_name)
+	job.db_set({"status": "unconfirmed", "error": error[:500]}, update_modified=False)
+	_tell_the_ticket(job, printed=False, on_its_way=False)
+
+
+def _tell_the_ticket(job, *, printed: bool, on_its_way: bool) -> None:
+	"""A kitchen ticket says whether it reached the kitchen.
+
+	The job says whether bytes went down a wire. Two questions, but **one
+	answer** — the ticket reflects its job rather than keeping a second opinion
+	that could disagree with it (CLAUDE.md §5.5).
+
+	**Still `pending` while the backup has it** (`D-211`). The bell rings on
+	`failed`, and ringing now would send the cashier to reprint a ticket that is
+	about to come out of the backup printer — two tickets, two plates.
+
+	**Only the newest job speaks for the ticket** (`D-405`). After a reprint, a
+	late failure from the first copy must not ring for a ticket the second has
+	printed. A late *success* still counts: the kitchen has the paper.
+	"""
+	if job.reference_doctype != "Kitchen Order Ticket" or not frappe.db.exists(
 		"Kitchen Order Ticket", job.reference_name
 	):
-		status = "printed" if printed else ("pending" if retry else "failed")
-		frappe.db.set_value(
-			"Kitchen Order Ticket",
-			job.reference_name,
+		return
+	if not printed and _superseded(job):
+		return
+
+	status = "printed" if printed else ("pending" if on_its_way else "failed")
+	frappe.db.set_value(
+		"Kitchen Order Ticket",
+		job.reference_name,
+		{
+			"print_status": status,
+			"printed_at": now_datetime() if printed else None,
+			"printer_used": job.printer,
+			# `D-298` — the bell lists tickets by this, so it is written on
+			# every road to `failed`: a ticket with no printer at all never
+			# had a job, and a list read off the jobs missed it.
+			**({"print_failed_at": now_datetime()} if status == "failed" else {}),
+		},
+		update_modified=False,
+	)
+
+
+def _superseded(job) -> bool:
+	"""A later job for the same paper — a reprint, or the fallback's copy."""
+	return bool(
+		frappe.db.exists(
+			"POS Print Job",
 			{
-				"print_status": status,
-				"printed_at": job.printed_at,
-				"printer_used": job.printer,
-				# `D-298` — the bell lists tickets by this, so it is written on
-				# every road to `failed`: a ticket with no printer at all never
-				# had a job, and a list read off the jobs missed it.
-				**({"print_failed_at": now_datetime()} if status == "failed" else {}),
+				"reference_doctype": job.reference_doctype,
+				"reference_name": job.reference_name,
+				"name": ("!=", job.name),
+				"creation": (">", job.creation),
+				"status": ("!=", "cancelled"),
 			},
-			update_modified=False,
 		)
+	)
+
+
+#: A job nobody took in this long has no agent listening: agents ask every two
+#: seconds, so thirty is fifteen chances missed (`D-405`).
+UNTAKEN_SECONDS = 30
+
+#: A job taken and not reported on in this long is unconfirmed (`D-405`).
+#: Sixty, not thirty, because of agents already installed: one takes up to five
+#: jobs at a time and waits up to ten seconds on each Windows printer, so the
+#: fifth may honestly be reported fifty seconds after it was taken.
+UNREPORTED_SECONDS = 60
+
+#: How long a queued job is still worth printing (`D-108`).
+#:
+#: **A kitchen ticket has a shelf life.** An agent that has been off all day and
+#: connects at closing time would otherwise print every ticket the day queued —
+#: sending a cook a rush of orders that were served hours ago, or cancelled.
+#: Twenty minutes is longer than any outage a cook could work through and far
+#: shorter than a service.
+#:
+#: A receipt is the same argument from the other side: a customer who left
+#: without one an hour ago is not helped by it appearing now.
+STALE_AFTER_MINUTES = 20
+
+
+def sweep_jobs() -> None:
+	"""Every minute: nothing waits in silence (`D-405`).
+
+	Three questions, each an indexed read:
+
+	1. **Taken and never reported** → ``unconfirmed``, and the bell rings. The
+	   job stays with its agent and is never handed out again.
+	2. **Not taken by anyone** → the ticket rings now; the job keeps waiting, so
+	   an agent that comes back still prints it, unless the cashier reprinted.
+	3. **Waiting past its shelf life** → dropped (`D-108`), for every agent —
+	   it used to happen only when the dead agent itself asked again.
+
+	Here and not in `claim`: an agent that stopped asking is exactly the one
+	whose jobs need looking at.
+	"""
+	now = now_datetime()
+
+	for name in frappe.get_all(
+		"POS Print Job",
+		filters={
+			"status": "claimed",
+			"claimed_at": ("<", add_to_date(now, seconds=-UNREPORTED_SECONDS)),
+		},
+		pluck="name",
+	):
+		mark_unconfirmed(name, "No report from the agent; it may have printed.")
+
+	untaken = frappe.get_all(
+		"POS Print Job",
+		filters={
+			"status": "queued",
+			"reference_doctype": "Kitchen Order Ticket",
+			"creation": ("<", add_to_date(now, seconds=-UNTAKEN_SECONDS)),
+		},
+		pluck="reference_name",
+	)
+	for kot in set(untaken):
+		if frappe.db.get_value("Kitchen Order Ticket", kot, "print_status") == "pending":
+			mark_kot_failed(kot)
+
+	expire_old()
+
+
+def expire_old(agent: str | None = None) -> None:
+	"""Drop the backlog rather than print it (`D-108`).
+
+	An agent that was switched off all day, or a printer nobody had plugged in
+	yet, comes back to a queue full of tickets whose moment has passed. Printing
+	them is not catching up — it is a cook receiving twenty orders that were
+	served, cancelled or paid hours ago, with no way to tell which.
+
+	Marked failed rather than deleted: "this was queued and never printed" is
+	the answer to a question somebody will ask, and a row that vanished answers
+	nothing. **Failed, not unconfirmed** — nobody took it, so nothing was sent.
+	The fallback printer is not tried either — the same staleness applies there.
+	"""
+	filters = {
+		"status": "queued",
+		"creation": ("<", add_to_date(now_datetime(), minutes=-STALE_AFTER_MINUTES)),
+	}
+	if agent:
+		filters["agent"] = agent
+	stale = frappe.get_all("POS Print Job", filters=filters, pluck="name")
+
+	for name in stale:
+		# Under the claim's lock: an agent taking it this instant wins, and its
+		# report is what counts.
+		if frappe.db.get_value("POS Print Job", name, "status", for_update=True) != "queued":
+			continue
+		settle(
+			name,
+			printed=False,
+			error=f"Not printed within {STALE_AFTER_MINUTES} minutes; too late to be useful.",
+			try_fallback=False,
+			nothing_sent=True,
+		)
+
+	if stale:
+		frappe.log_error(f"{len(stale)} stale print jobs dropped", "RPOS printing")

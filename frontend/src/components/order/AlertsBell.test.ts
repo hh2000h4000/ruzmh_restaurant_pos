@@ -27,6 +27,7 @@ vi.mock("@/api/bell", () => ({
 }));
 
 vi.mock("@/api/kitchen", () => ({
+  confirmPrinted: vi.fn(),
   markKitchenTold: vi.fn(),
   reprintKot: vi.fn(),
 }));
@@ -52,6 +53,7 @@ function alert(over: Partial<PrintAlert> = {}): PrintAlert {
     station_ar: "المشاوي",
     failed_at: NOW,
     state: "failed",
+    unconfirmed: false,
     ...over,
   };
 }
@@ -149,6 +151,31 @@ describe("the bell", () => {
     expect(wrapper.text()).not.toContain(t("alerts.state.told"));
     await button(wrapper, t("alerts.tabAll")).trigger("click");
     expect(wrapper.text()).toContain(t("alerts.state.told"));
+  });
+
+  it("says a ticket nobody confirmed may have printed, and takes 'it printed' for an answer", async () => {
+    // D-405 — "did not print" sends the cashier to reprint; this one may be in
+    // the cook's hand already.
+    vi.mocked(bellApi.getBell)
+      .mockResolvedValueOnce(answer([alert({ unconfirmed: true })]))
+      .mockResolvedValueOnce(answer([alert({ unconfirmed: true })]))
+      .mockResolvedValue(answer([alert({ state: "printed" })]));
+    vi.mocked(kitchenApi.confirmPrinted).mockResolvedValue({ kot_name: "KOT-1", state: "printed" });
+    const wrapper = await opened();
+
+    expect(wrapper.text()).toContain(t("alerts.ticketUnsure", { station: "المشاوي" }));
+    expect(wrapper.text()).not.toContain(t("alerts.ticket", { station: "المشاوي" }));
+
+    await button(wrapper, t("alerts.itPrinted")).trigger("click");
+    await flushPromises();
+
+    expect(kitchenApi.confirmPrinted).toHaveBeenCalledWith("KOT-1");
+  });
+
+  it("offers 'it printed' only where nobody knows", async () => {
+    vi.mocked(bellApi.getBell).mockResolvedValue(answer([alert()]));
+
+    expect((await opened()).text()).not.toContain(t("alerts.itPrinted"));
   });
 
   it("marks everything read, and remembers it on this till", async () => {

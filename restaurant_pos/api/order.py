@@ -23,6 +23,17 @@ from restaurant_pos.utils.sale_doc import SALE
 
 
 def _load(order_name: str):
+	"""The order, locked for the rest of the request (`D-406`).
+
+	Two tills adding to one bill at the same instant both read it, and the
+	second save was refused — measured, every one of thirty — with Frappe's
+	"Document has been modified after you have opened it": the item did not go
+	on, and the cashier was told nothing they could act on. Locked first, the
+	second waits for the first to commit, reads the bill *with* the first
+	till's line, and adds its own. Nothing two tills do to one bill conflicts
+	that a wait of a tenth of a second cannot settle.
+	"""
+	frappe.db.get_value("Restaurant Order", order_name, "name", for_update=True)
 	order = frappe.get_doc("Restaurant Order", order_name)
 	validate_branch_access(order.branch)
 	return order

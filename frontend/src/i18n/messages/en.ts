@@ -278,8 +278,6 @@ export const messages = {
   "order.confirmCancel": "Confirm the cancellation",
   "convert.title": "Change order type",
   "convert.body": "Only types billed to the customer here can be swapped.",
-  "convert.targetIsAccount": "Billed to an account — cannot be converted",
-  "convert.sourceIsAccount": "This order is billed to an account",
   "convert.totalNow": "Total now",
   "convert.totalAfter": "New total",
   "convert.samePrice": "The total stays at {total}.",

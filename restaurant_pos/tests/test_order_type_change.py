@@ -3,15 +3,16 @@
 
 """Changing an order's type.
 
-An order changes type only when the parties to the sale do not. Getting this
-wrong moves a platform's debt onto a walk-in customer — or, the other way, hands
-a delivery platform a bill it never took an order for.
+Any type becomes any other while the order is unpaid (`D-408`), the right to
+change types the only gate. What must not go wrong is the customer: a platform's
+account comes with its type and goes with it, so a walk-in sale is never billed
+to HungerStation, nor a HungerStation order to nobody.
 
 The second half of the file is the money: a type that sells from another price
 list has to re-price every line, or the till quietly charges dining-room prices
 for a delivery order all day.
 
-Refs: D-038, D-036, FR-1.6, FR-2.1
+Refs: D-038, D-408, D-036, FR-1.6, FR-2.1b
 """
 
 import frappe
@@ -95,38 +96,83 @@ class TestWhatMayBeConverted(OrderTypeChangeBase):
 		self.assertEqual(frappe.db.get_value("Restaurant Table", table, "status"), "available")
 		self.assertIsNone(frappe.db.get_value("Restaurant Table", table, "current_order"))
 
-	def test_an_app_order_cannot_become_a_walk_in_one(self):
-		"""D-038 — the platform is owed the money, not the person at the counter."""
+	def _platform_customer(self) -> str:
+		"""The account HungerStation is owed by — the type's, never the cashier's (BR-002)."""
+		customer = frappe.db.get_value("POS Profile", self.profile, "customer")
+		frappe.db.set_value(
+			"Restaurant Order Type",
+			self.app_type,
+			{"customer_mode": "pre_set", "pre_set_customer": customer, "is_active": 1},
+		)
+		frappe.clear_cache(doctype="Restaurant Order Type")
+		return customer
+
+	def _app_order(self):
+		"""An order opened under HungerStation, its customer the platform."""
+		customer = self._platform_customer()
 		order = self._order()
-		frappe.db.set_value("Restaurant Order", order.name, "order_type", self.app_type)
+		frappe.db.set_value(
+			"Restaurant Order", order.name, {"order_type": self.app_type, "customer": customer}
+		)
 		order.reload()
+		return order
 
-		with self.assertRaises(frappe.ValidationError):
-			service.change_order_type(order, order_type=self.order_type)
+	def test_an_app_order_becomes_a_walk_in_one_and_drops_the_platform(self):
+		"""`D-408` — its customer cancelled on the app, so it is sold at the counter.
 
-	def test_a_walk_in_order_cannot_become_an_app_one(self):
-		"""There is no platform order behind it to be paid against."""
+		Unpaid, so nothing is owed by anybody yet. The platform's account goes
+		with the platform: left on, a walk-in sale would be billed to HungerStation.
+		"""
+		order = self._app_order()
+		service.add_item(order, item=self.item, qty=1)
+
+		service.change_order_type(order, order_type=self.order_type)
+
+		self.assertEqual(order.order_type, self.order_type)
+		self.assertIsNone(order.customer)
+
+	def test_a_walk_in_order_becomes_an_app_one_and_takes_the_platform(self):
+		"""`D-408` — the cashier tapped Takeaway for a HungerStation order."""
+		customer = self._platform_customer()
+		order = self._order()
+		service.add_item(order, item=self.item, qty=1)
+
+		service.change_order_type(
+			order, order_type=self.app_type, order_type_data={"App Order No": "HS-29541"}
+		)
+
+		self.assertEqual(order.order_type, self.app_type)
+		self.assertEqual(order.customer, customer)
+
+	def test_becoming_an_app_order_still_asks_for_its_number(self):
+		"""The type's own fields are asked as they are when an order opens under it."""
+		self._platform_customer()
 		order = self._order()
 
-		with self.assertRaises(frappe.ValidationError):
+		with self.assertRaisesRegex(frappe.ValidationError, "App Order No"):
 			service.change_order_type(order, order_type=self.app_type)
 
-	def test_one_app_cannot_become_another(self):
-		"""The order arrived through one platform and cannot be claimed from another.
-
-		This is the case the earlier "same settlement kind" rule got wrong: both
-		are credit, and both are still impossible.
-		"""
+	def test_one_app_becomes_another(self):
+		"""Typed under the wrong platform: the other one's account replaces it."""
 		jahez = frappe.db.get_value("Restaurant Order Type", {"title": "Jahez"}, "name")
-		frappe.db.set_value("Restaurant Order Type", jahez, "counterparty", "account")
+		other = frappe.db.get_value("Customer", {"name": ("!=", self._platform_customer())}, "name")
+		frappe.db.set_value(
+			"Restaurant Order Type",
+			jahez,
+			{
+				"counterparty": "account",
+				"customer_mode": "pre_set",
+				"pre_set_customer": other,
+				"is_active": 1,
+			},
+		)
 		frappe.clear_cache(doctype="Restaurant Order Type")
+		order = self._app_order()
 
-		order = self._order()
-		frappe.db.set_value("Restaurant Order", order.name, "order_type", self.app_type)
-		order.reload()
+		service.change_order_type(order, order_type=jahez, order_type_data={"App Order No": "J-77"})
 
-		with self.assertRaises(frappe.ValidationError):
-			service.change_order_type(order, order_type=jahez)
+		self.assertEqual(order.order_type, jahez)
+		self.assertEqual(order.customer, other)
 
 	def test_a_closed_order_is_not_converted(self):
 		order = self._order()

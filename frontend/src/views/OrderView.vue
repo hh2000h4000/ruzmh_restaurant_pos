@@ -1233,9 +1233,8 @@ const moreActions = computed<OrderAction[]>(() => {
     });
   }
 
-  // D-038 — offered only where a conversion is possible at all: an app order
-  // is billed to the platform and can never become a walk-in sale.
-  if (session.can("can_change_order_type") && orderType.value?.counterparty === "walk_in") {
+  // D-408 — any order, whatever its type: the right is the only gate.
+  if (session.can("can_change_order_type")) {
     entries.push({
       key: "convert",
       label: "convert.action",

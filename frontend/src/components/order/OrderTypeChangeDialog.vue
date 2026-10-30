@@ -11,11 +11,9 @@ import type { OrderType } from "@/types/session";
 /**
  * Turning an open order into another type (D-038).
  *
- * **Why the app types are still listed.** An order billed to a platform or a
- * company cannot be converted — the debt would move to somebody who ordered
- * nothing — so they appear greyed with the reason written out. Hiding them
- * would leave the cashier asking where HungerStation went; one disabled row
- * teaches the rule once and is never asked about again.
+ * **Any type to any type** (`D-408`): a bill typed under HungerStation by a slip
+ * of the finger, or a platform order its customer cancelled, becomes the sale it
+ * really is. The right to change types is the only gate, as for every other.
  *
  * **Why a preview.** The new type may sell from another price list, and a total
  * already read out to a customer does not change without them hearing it first.
@@ -40,30 +38,13 @@ const emit = defineEmits<{
 
 const session = useSessionStore();
 
-const current = computed(
-  () => session.orderTypes.find((type) => type.name === props.currentType) ?? null,
-);
-
 /**
- * Every type the terminal offers, convertible ones first.
+ * Every type the terminal offers but the one the order has.
  *
  * The order is stable — permissions may remove an entry, but the survivors keep
  * their positions, because a cashier learns them by hand (D-037).
  */
-const options = computed(() => {
-  const rows = session.orderTypes.filter((type) => type.name !== props.currentType);
-  return [...rows].sort((a, b) => Number(!convertible(a)) - Number(!convertible(b)));
-});
-
-/** D-038 — both sides must bill the customer standing there. */
-function convertible(type: OrderType): boolean {
-  return type.counterparty === "walk_in" && current.value?.counterparty === "walk_in";
-}
-
-function reasonFor(type: OrderType): string {
-  if (type.counterparty !== "walk_in") return t("convert.targetIsAccount");
-  return t("convert.sourceIsAccount");
-}
+const options = computed(() => session.orderTypes.filter((type) => type.name !== props.currentType));
 
 // --------------------------------------------------------------------------
 // The preview
@@ -75,8 +56,6 @@ const loading = ref(false);
 const failure = ref<string | null>(null);
 
 async function choose(type: OrderType): Promise<void> {
-  if (!convertible(type)) return;
-
   chosen.value = type;
   preview.value = null;
   failure.value = null;
@@ -162,9 +141,7 @@ function money(value: number): string {
             chosen?.name === type.name
               ? 'border-primary bg-primary/5'
               : 'border-line hover:border-primary/40 hover:bg-background',
-            convertible(type) ? '' : 'cursor-not-allowed opacity-50 hover:border-line hover:bg-transparent',
           ]"
-          :disabled="!convertible(type)"
           @click="choose(type)"
         >
           <span
@@ -179,10 +156,6 @@ function money(value: number): string {
 
           <span class="min-w-0">
             <span class="block truncate font-semibold">{{ pick(type.title_ar, type.title) }}</span>
-            <span
-              v-if="!convertible(type)"
-              class="block truncate text-xs text-muted"
-            >{{ reasonFor(type) }}</span>
           </span>
 
           <AppIcon

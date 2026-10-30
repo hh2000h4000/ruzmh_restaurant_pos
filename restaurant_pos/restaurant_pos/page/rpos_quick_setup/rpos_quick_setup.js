@@ -115,7 +115,8 @@ function show_result($area, made) {
 			<p class="text-muted">${__("It works once, for {0} minutes. A new one can be issued from the terminal's page.", [made.minutes])}</p>
 			${
 				made.negative_stock_allowed
-					? `<p class="text-muted">${__("Stock may now go below zero (Stock Settings), so a day's sales are posted even when a delivery was entered late.")}</p>`
+					? `<p class="text-muted">${__("Stock may now go below zero (Stock Settings), so a day's sales are posted even when a delivery was entered late.")}</p>
+					<p class="text-warning">${__("Record your purchases as they arrive: until a delivery is entered, what was sold below zero is costed at the last price known, so the profit report is not right.")}</p>`
 					: ""
 			}
 			<p>${__("Next: add your menu items and prices, then your staff and their PINs.")} <a href="/rpos-guide">${__("Open the guide")}</a></p>

@@ -262,8 +262,6 @@ const messages: Catalogue["messages"] = {
   "order.confirmCancel": "تأكيد الإلغاء",
   "convert.title": "تغيير نوع الطلب",
   "convert.body": "التحويل بين الأنواع التي يدفعها العميل الواقف أمامك فقط.",
-  "convert.targetIsAccount": "على حساب طرف آخر — لا يقبل التحويل",
-  "convert.sourceIsAccount": "هذا الطلب على حساب طرف آخر",
   "convert.totalNow": "الإجمالي الحالي",
   "convert.totalAfter": "الإجمالي الجديد",
   "convert.samePrice": "الإجمالي يبقى {total}.",

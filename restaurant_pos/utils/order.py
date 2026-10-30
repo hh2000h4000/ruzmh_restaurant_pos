@@ -1435,27 +1435,6 @@ def set_table_status(table: str, status: str, order_name: str | None) -> None:
 # --------------------------------------------------------------------------- #
 
 
-def assert_convertible(current, target) -> None:
-	"""D-038 — an order changes type only when the parties to the sale do not.
-
-	Dine in, takeaway and the restaurant's own delivery all bill the customer
-	standing there; only the way the food is served differs, and a customer
-	changes their mind about that at the counter every day.
-
-	An app or a corporate order is owed by somebody else. Converting it would
-	move the debt onto a party that ordered nothing, and it would strand the
-	platform's own order number — the evidence for the monthly statement — on a
-	sale that no longer refers to it. That is not an edit; it is a different
-	order.
-	"""
-	for config in (current, target):
-		if config.counterparty != "walk_in":
-			frappe.throw(
-				_("{0} is billed to an account and cannot be converted.").format(config.title),
-				frappe.ValidationError,
-			)
-
-
 def preview_order_type_change(order, *, order_type: str) -> dict:
 	"""What the bill would become, without changing anything (D-038).
 
@@ -1464,8 +1443,6 @@ def preview_order_type_change(order, *, order_type: str) -> dict:
 	a copy the caller never saves.
 	"""
 	target = _load_order_type(order_type)
-	current = frappe.get_cached_doc("Restaurant Order Type", order.order_type)
-	assert_convertible(current, target)
 
 	before = flt(order.total_amount)
 
@@ -1511,7 +1488,6 @@ def change_order_type(
 
 	target = _load_order_type(order_type)
 	current = frappe.get_cached_doc("Restaurant Order Type", order.order_type)
-	assert_convertible(current, target)
 
 	approved_by = authorise("can_change_order_type", override_token)
 
@@ -1531,6 +1507,13 @@ def change_order_type(
 
 	released = _move_table(order, target, table)
 	order.order_type = order_type
+	# Any type to any type, the right alone deciding (`D-408`): an order typed
+	# under the wrong platform by a slip of the finger, or a platform order its
+	# customer cancelled, becomes the sale it really is. Unpaid, so no debt has
+	# been raised yet. A platform's customer is the type's, never the cashier's
+	# (BR-002): it comes with the type and goes with it.
+	if "pre_set" in (current.customer_mode, target.customer_mode):
+		_apply_customer(order, target, None if current.customer_mode == "pre_set" else order.customer)
 	order.section = section
 
 	_apply_cover_count(order, target, cover_count if cover_count is not None else order.cover_count)

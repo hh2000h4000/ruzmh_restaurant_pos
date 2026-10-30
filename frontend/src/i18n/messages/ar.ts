@@ -279,6 +279,8 @@ const messages: Catalogue["messages"] = {
   "orders.viewReturned": "مرتجعات",
   "orders.viewAll": "الكل",
   "orders.stale": "نسخة هذا الجهاز، من {when}. تتحدّث عند عودة الاتصال.",
+  "typeFields.required": "مطلوب",
+  "typeFields.continue": "متابعة",
   "covers.title": "كم عدد الضيوف؟",
   "covers.body": "هذا النوع من الطلبات يسجّل عدد الضيوف.",
   "action.save": "حفظ",

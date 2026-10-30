@@ -496,6 +496,7 @@ export function changeOrderType(payload: {
   order_type: string;
   table?: string | null;
   cover_count?: number | null;
+  order_type_data?: Record<string, unknown>;
   manager_override_token?: string | null;
 }): Promise<OrderSummary & { order_type: string; changed: boolean }> {
   return mutate("order.change_order_type", payload);

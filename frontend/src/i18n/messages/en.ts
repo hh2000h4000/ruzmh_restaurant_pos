@@ -295,6 +295,8 @@ export const messages = {
   "orders.viewReturned": "Refunded",
   "orders.viewAll": "All",
   "orders.stale": "This device's copy, from {when}. It refreshes when the connection returns.",
+  "typeFields.required": "Required",
+  "typeFields.continue": "Continue",
   "covers.title": "How many guests?",
   "covers.body": "This order type records the number of guests.",
   "action.save": "Save",

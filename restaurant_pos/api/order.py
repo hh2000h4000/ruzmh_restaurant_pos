@@ -266,11 +266,11 @@ def change_order_type(
 	manager_override_token: str | None = None,
 	queue_id: str | None = None,
 ) -> dict:
-	"""Turn an open order into another type, re-pricing it (D-038).
+	"""Turn an open order into another type, re-pricing it (D-038, D-408).
 
-	Only between two types billed to the customer standing there. An app or
-	corporate order is owed by somebody else and is refused in the service layer,
-	not here — the same rule has to hold for a queued replay.
+	Any type to any type while the order is unpaid; the rules — the right, the
+	platform's customer, the type's own fields — are the service layer's, so a
+	queued replay meets them too.
 	"""
 	replay = idempotency.previous_result(queue_id)
 	if replay is not None:

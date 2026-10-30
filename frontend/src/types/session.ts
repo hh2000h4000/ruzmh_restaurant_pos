@@ -121,9 +121,9 @@ export interface OrderType {
    * Who owes the money (D-038).
    *
    * `walk_in` is the customer standing there; `account` is a delivery platform
-   * or a company that settles on a statement. An open order changes type only
-   * between two `walk_in` types — converting across would move the debt to
-   * somebody who ordered nothing.
+   * or a company that settles on a statement. It decides how the bill is paid,
+   * not whether its type may change: any unpaid order changes to any type
+   * (`D-408`).
    */
   counterparty: "walk_in" | "account";
   send_to_kitchen_on: "manual" | "save" | "payment";

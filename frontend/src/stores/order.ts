@@ -11,6 +11,7 @@ import { isQueued } from "@/offline/queue";
 import { useAlertsStore } from "@/stores/alerts";
 import { useConnectionStore } from "@/stores/connection";
 import { useSessionStore } from "@/stores/session";
+import { useTypeFieldsStore } from "@/stores/typeFields";
 
 /**
  * The order the cashier is working on.
@@ -205,7 +206,12 @@ export const useOrderStore = defineStore("order", () => {
       });
     }
 
-    const summary = await run(() => orderApi.createOrder(payload));
+    // `D-409` — the type's own questions, before the server is asked and
+    // refuses for an answer nobody was offered the chance to give.
+    const asked = await askTypeFields(payload.order_type);
+    if (!asked) return null;
+
+    const summary = await run(() => orderApi.createOrder({ ...payload, order_type_data: asked }));
     if (!summary) return null;
 
     await open(summary.order_name);
@@ -395,6 +401,12 @@ export const useOrderStore = defineStore("order", () => {
    * line's rate can have moved, and patching the totals alone would leave the
    * lines showing yesterday's prices under today's figure.
    */
+  /** What the type asks, answered — `null` when the cashier backed out. */
+  async function askTypeFields(orderType: string): Promise<Record<string, string> | null> {
+    const type = useSessionStore().orderTypes.find((row) => row.name === orderType);
+    return type ? useTypeFieldsStore().ask(type) : {};
+  }
+
   async function changeType(
     orderType: string,
     options: { table?: string | null; coverCount?: number | null } = {},
@@ -402,12 +414,16 @@ export const useOrderStore = defineStore("order", () => {
     if (!order.value) return false;
 
     const orderName = order.value.order_name;
+    const asked = await askTypeFields(orderType);
+    if (!asked) return false;
+
     const done = await run(() =>
       orderApi.changeOrderType({
         order_name: orderName,
         order_type: orderType,
         table: options.table ?? null,
         cover_count: options.coverCount ?? null,
+        order_type_data: asked,
       }),
     );
 

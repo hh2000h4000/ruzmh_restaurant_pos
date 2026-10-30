@@ -2,6 +2,7 @@
 import { onMounted, onUnmounted, watch } from "vue";
 import { useRouter } from "vue-router";
 
+import OrderTypeFieldsDialog from "@/components/order/OrderTypeFieldsDialog.vue";
 import { pairedDevice } from "@/device";
 import { t, tn } from "@/i18n";
 import { useAuthStore } from "@/stores/auth";
@@ -100,5 +101,8 @@ onUnmounted(connection.stop);
     <div class="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)] overflow-hidden">
       <RouterView />
     </div>
+
+    <!-- `D-409` — one dialog for every path that opens or converts an order. -->
+    <OrderTypeFieldsDialog />
   </div>
 </template>

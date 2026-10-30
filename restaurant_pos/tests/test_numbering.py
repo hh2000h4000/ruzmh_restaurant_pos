@@ -38,7 +38,6 @@ class TestTheNumberIsShortAndClimbs(OrderTestBase):
 
 		key = numbering.period_key("daily")
 		frappe.db.delete("POS Order Counter", {"branch": BRANCH, "period_key": key})
-		frappe.db.commit()
 
 		self.assertEqual(numbering.next_order_number(branch=BRANCH, shift=None), 1)
 

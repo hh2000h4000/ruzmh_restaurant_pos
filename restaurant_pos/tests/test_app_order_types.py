@@ -42,6 +42,9 @@ class TestAppOrderTypes(PaymentTestBase):
 		ordering.
 		"""
 		super().tearDown()
+		# Throw the test's own work away first (`D-398`): the commit below is for
+		# the restore, and without this it also saved every bill the test made.
+		frappe.db.rollback()
 		for app in DELIVERY_APPS:
 			name = frappe.db.get_value("Restaurant Order Type", {"title": app["title"]}, "name")
 			if name:

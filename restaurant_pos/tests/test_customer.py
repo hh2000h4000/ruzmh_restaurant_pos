@@ -28,6 +28,9 @@ class CustomerTestBase(OrderTestBase):
 		self._forget()
 
 	def tearDown(self):
+		# Throw the test's own work away first (`D-398`): the commit below is for
+		# the restore, and without this it also saved every bill the test made.
+		frappe.db.rollback()
 		self._forget()
 
 	def _forget(self) -> None:

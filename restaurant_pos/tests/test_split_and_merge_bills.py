@@ -34,6 +34,9 @@ class MovingLinesBetweenBills(OrderTestBase):
 		frappe.db.commit()
 
 	def tearDown(self):
+		# Throw the test's own work away first (`D-398`): the commit below is for
+		# the restore, and without this it also saved every bill the test made.
+		frappe.db.rollback()
 		frappe.db.set_value("Branch", BRANCH, "allow_multiple_orders_per_table", self.allowed)
 		frappe.clear_cache(doctype="Branch")
 		free_table(self.table)

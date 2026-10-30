@@ -36,6 +36,9 @@ class BillsOnOneTable(OrderTestBase):
 		self._free_the_table()
 
 	def tearDown(self):
+		# Throw the test's own work away first (`D-398`): the commit below is for
+		# the restore, and without this it also saved every bill the test made.
+		frappe.db.rollback()
 		frappe.db.set_value("Branch", BRANCH, "allow_multiple_orders_per_table", self.allowed)
 		self._free_the_table()
 		frappe.db.commit()

@@ -38,6 +38,15 @@ def process_payment(
 	if replay is not None:
 		return replay
 
+	# **Two tills, one bill, the same instant.** Measured with two processes
+	# paying the same ten bills at once: no bill was ever invoiced twice — the
+	# order's save refused the second — but the second cashier was told
+	# "Document has been modified after you have opened it", which says nothing
+	# about a bill already paid. Locked first, the second request waits for the
+	# first to commit and then reads the invoice, so the check below answers it
+	# in words (`D-406`). One row, for the length of one payment, like the table
+	# lock of `D-355`.
+	frappe.db.get_value("Restaurant Order", order_name, "name", for_update=True)
 	order = frappe.get_doc("Restaurant Order", order_name)
 	validate_branch_access(order.branch)
 

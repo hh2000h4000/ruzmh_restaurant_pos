@@ -23,7 +23,7 @@ Refs: FR-2.1..FR-2.7, FR-8.1..FR-8.3, FR-9.2, BR-042, D-144, D-157, D-188
 from unittest.mock import patch
 
 import frappe
-from frappe.utils import flt
+from frappe.utils import add_days, flt, nowdate
 
 from restaurant_pos.api import kitchen as kitchen_api
 from restaurant_pos.api import order as order_api
@@ -190,6 +190,105 @@ class TestADayAtTheTill(ShiftTestBase, PaymentTestBase):
 
 		with self.subTest("every borrowed right was handed back"):
 			self.assertEqual(frappe.session.user, self.cashier)
+
+	def test_a_service_that_runs_past_midnight_is_one_day(self):
+		"""The open walkthrough case "a sale across midnight" (`D-339`), whole.
+
+		Its pieces each have a test — the tabs (`D-216`), the drawer's period
+		(`D-217`), the batch per calendar date (`docs/14` §6.4). None walked one
+		evening through all of them. The clock is not faked: the day and the
+		first bill are dated yesterday evening, which is exactly what a till sees
+		at ten past midnight — a day that began before today, and now is today.
+		"""
+		yesterday = add_days(nowdate(), -1)
+		evening, late = f"{yesterday} 18:00:00", f"{yesterday} 23:50:00"
+
+		with (
+			patch("restaurant_pos.utils.printing.enqueue_print"),
+			patch("restaurant_pos.utils.printing.receipt_printer", return_value=None),
+			patch("restaurant_pos.utils.printing.kot_printer", return_value=None),
+		):
+			till = shift_api.open_till(pos_profile=self.profile, opening_floats={CASH: FLOAT})
+			frappe.db.set_value(
+				"Restaurant Shift", till["shift"], {"opened_at": evening, "shift_date": yesterday}
+			)
+			frappe.db.set_value(
+				"POS Opening Entry", till["entry"], {"period_start_date": evening, "posting_date": yesterday}
+			)
+			# Measured from here, not from zero: a window opened yesterday evening on
+			# the test site also takes in what earlier runs sold on this terminal then.
+			drawer_before = shift_api.get_till_summary(till["entry"])["till_expected"]
+			day_before = shift_api.get_day_summary(till["shift"])["sales"]
+
+			# Five to midnight: a takeaway is rung up and paid **before** midnight —
+			# the bill a count from midnight would lose. Paid now, then dated where
+			# it happened, the way the books hold it.
+			early = order_api.create_order(order_type=self.order_type, pos_profile=self.profile)
+			order_api.add_item(order_name=early["order_name"], item=ITEM, qty=1)
+			early_total = flt(frappe.db.get_value("Restaurant Order", early["order_name"], "total_amount"))
+			early_invoice = payment_api.process_payment(
+				order_name=early["order_name"], payments=[{"method": CASH, "amount": early_total}]
+			)["sales_invoice"]
+			paid_early = f"{yesterday} 23:55:00"
+			frappe.db.set_value(
+				SALE,
+				early_invoice,
+				{"posting_date": yesterday, "posting_time": "23:55:00", "creation": paid_early},
+				update_modified=False,
+			)
+			frappe.db.set_value(
+				"Restaurant Order",
+				early["order_name"],
+				{"opened_at": f"{yesterday} 23:45:00", "closed_at": paid_early},
+			)
+
+			# Ten to midnight: a table orders.
+			before = order_api.create_order(order_type=self.order_type, pos_profile=self.profile)
+			order_api.add_item(order_name=before["order_name"], item=ITEM, qty=2)
+			frappe.db.set_value("Restaurant Order", before["order_name"], "opened_at", late)
+
+			# Ten past: another bill, then both are paid.
+			after = order_api.create_order(order_type=self.order_type, pos_profile=self.profile)
+			order_api.add_item(order_name=after["order_name"], item=ITEM, qty=1)
+
+			totals_paid = early_total
+			invoices = []
+			for bill in (before, after):
+				total = flt(frappe.db.get_value("Restaurant Order", bill["order_name"], "total_amount"))
+				paid = payment_api.process_payment(
+					order_name=bill["order_name"], payments=[{"method": CASH, "amount": total}]
+				)
+				invoices.append(paid["sales_invoice"])
+				totals_paid += total
+
+			closed_tab = {row["name"] for row in order_api.list_orders(self.profile, view="closed")}
+			drawer = shift_api.get_till_summary(till["entry"])
+			shift_api.close_till(opening_entry=till["entry"], counted={CASH: drawer["till_expected"]})
+			shift_api.close_day(shift=till["shift"], pos_profile=self.profile)
+			day = shift_api.get_day_summary(till["shift"])
+
+		with self.subTest("one day, one count: the bills after midnight go on numbering, not from 1"):
+			numbers = [
+				frappe.db.get_value("Restaurant Order", bill["order_name"], "daily_number")
+				for bill in (early, before, after)
+			]
+			self.assertEqual(numbers, [numbers[0], numbers[0] + 1, numbers[0] + 2])
+
+		with self.subTest("'closed today' holds the bill paid before midnight too"):
+			for bill in (early, before, after):
+				self.assertIn(bill["order_name"], closed_tab)
+
+		with self.subTest("the drawer holds all three"):
+			self.assertAlmostEqual(drawer["till_expected"] - drawer_before, totals_paid, places=2)
+
+		with self.subTest("the day's report holds all three, and nothing is left open"):
+			self.assertAlmostEqual(day["sales"] - day_before, totals_paid, places=2)
+			self.assertEqual(day["orders"]["still_open"], 0)
+
+		with self.subTest("each invoice is dated the day it was paid"):
+			self.assertEqual(str(frappe.db.get_value(SALE, early_invoice, "posting_date")), yesterday)
+			for invoice in invoices:
+				self.assertEqual(str(frappe.db.get_value(SALE, invoice, "posting_date")), nowdate())
 
 	def _as(self, user: str) -> None:
 		frappe.set_user(user)

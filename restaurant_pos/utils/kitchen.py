@@ -249,6 +249,10 @@ def mark_kitchen_told(kot_name: str) -> dict:
 		{"kitchen_told_by": frappe.session.user, "kitchen_told_at": now_datetime()},
 		update_modified=False,
 	)
+	# The kitchen has the order by word of mouth now. A copy still waiting for an
+	# agent would come out when the agent is back, and the cook — who cannot
+	# tell it is the same order — would make it again (`D-412`).
+	printing.cancel_waiting("Kitchen Order Ticket", kot.name, "kot")
 	activity.log(kot.restaurant_order, "kitchen_told", subject=station_of(kot.production_center)[1])
 	return {"kot_name": kot.name, "state": "told"}
 

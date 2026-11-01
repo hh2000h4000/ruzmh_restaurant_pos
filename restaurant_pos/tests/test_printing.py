@@ -574,7 +574,7 @@ class TestTheAgentSeam(PrintingTestBase):
 			"POS Print Job",
 			job,
 			"creation",
-			add_to_date(now_datetime(), minutes=-(service.STALE_AFTER_MINUTES + 1)),
+			add_to_date(now_datetime(), seconds=-(service.SHELF_SECONDS + 10)),
 			update_modified=False,
 		)
 
@@ -592,7 +592,7 @@ class TestTheAgentSeam(PrintingTestBase):
 			"POS Print Job",
 			job,
 			"creation",
-			add_to_date(now_datetime(), minutes=-(service.STALE_AFTER_MINUTES + 1)),
+			add_to_date(now_datetime(), seconds=-(service.SHELF_SECONDS + 10)),
 			update_modified=False,
 		)
 
@@ -612,7 +612,7 @@ class TestTheAgentSeam(PrintingTestBase):
 			"POS Print Job",
 			job,
 			"creation",
-			add_to_date(now_datetime(), minutes=-(service.STALE_AFTER_MINUTES + 1)),
+			add_to_date(now_datetime(), seconds=-(service.SHELF_SECONDS + 10)),
 			update_modified=False,
 		)
 
@@ -624,6 +624,36 @@ class TestTheAgentSeam(PrintingTestBase):
 			frappe.db.exists("POS Print Job", {"retry_of": job}),
 			"too late for its printer, too late for the backup",
 		)
+
+	def _aged_by(self, job, seconds):
+		frappe.db.set_value(
+			"POS Print Job",
+			job,
+			"creation",
+			add_to_date(now_datetime(), seconds=-seconds),
+			update_modified=False,
+		)
+
+	def test_a_drawer_kick_lives_thirty_seconds_and_a_ticket_two_minutes(self):
+		"""`D-412` — a drawer that springs open a minute after the sale is cash on
+		show with nobody at the till; a ticket printed after its order was called
+		through by voice and served is a second plate."""
+		frappe.db.set_value("POS Profile", self.profile, "default_printer", self.printer)
+		kick = service.open_drawer(self.profile, reason="test")
+		young = service.print_kot(self._sent_kot().name)
+		old = service.print_kot(self._sent_kot().name)
+		self._aged_by(kick, 40)
+		self._aged_by(young, 90)
+		self._aged_by(old, 130)
+
+		self._as_agent()
+		claimed = [row["name"] for row in api.claim()]
+
+		self.assertNotIn(kick, claimed)
+		self.assertNotIn(old, claimed)
+		self.assertIn(young, claimed, "ninety seconds is still inside two minutes")
+		self.assertEqual(frappe.db.get_value("POS Print Job", kick, "status"), "failed")
+		self.assertEqual(frappe.db.get_value("POS Print Job", old, "status"), "failed")
 
 	def test_a_fresh_ticket_is_untouched_by_that(self):
 		kot = self._sent_kot()
@@ -868,7 +898,7 @@ class NothingPrintsTwiceByItself(PrintingTestBase):
 		dead agent never does."""
 		kot = self._sent_kot()
 		job = service.print_kot(kot.name)
-		self._aged(job, "creation", (service.STALE_AFTER_MINUTES + 1) * 60)
+		self._aged(job, "creation", service.SHELF_SECONDS + 10)
 
 		service.sweep_jobs()
 
@@ -1171,6 +1201,17 @@ class TheBellSaysWhatDidNotPrint(PrintingTestBase):
 		names = [row["kot_name"] for row in kitchen.print_alerts(BRANCH, 50)]
 
 		self.assertLess(names.index(newer.name), names.index(older.name))
+
+	def test_told_by_hand_the_copy_nobody_took_never_prints(self):
+		"""`D-412` — the kitchen has it by word of mouth; the waiting copy coming
+		out when the agent is back would be made a second time."""
+		kot = self._sent_kot()
+		job = service.print_kot(kot.name)
+		service.mark_kot_failed(kot.name)
+
+		kitchen.mark_kitchen_told(kot.name)
+
+		self.assertEqual(frappe.db.get_value("POS Print Job", job, "status"), "cancelled")
 
 	def test_told_by_hand_it_stays_on_the_list_with_who_answered(self):
 		"""Recorded, not hidden: the paper never came, and the list says who answered for it."""

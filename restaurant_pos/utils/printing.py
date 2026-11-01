@@ -331,7 +331,7 @@ def queue(
 		)
 
 	if reference_name and not retry_of and job_type in ONE_COPY_WAITING:
-		_cancel_waiting(reference_doctype, reference_name, job_type)
+		cancel_waiting(reference_doctype, reference_name, job_type)
 
 	job = frappe.get_doc(
 		{
@@ -360,7 +360,7 @@ def queue(
 ONE_COPY_WAITING = frozenset({"kot", "customer_receipt"})
 
 
-def _cancel_waiting(reference_doctype: str | None, reference_name: str, job_type: str) -> list[str]:
+def cancel_waiting(reference_doctype: str | None, reference_name: str, job_type: str) -> list[str]:
 	"""A reprint replaces the copy nobody has taken yet (`D-405`).
 
 	Without this, an agent that comes back after the cashier reprinted prints
@@ -1206,17 +1206,27 @@ UNTAKEN_SECONDS = 30
 #: fifth may honestly be reported fifty seconds after it was taken.
 UNREPORTED_SECONDS = 60
 
-#: How long a queued job is still worth printing (`D-108`).
+#: How long a queued paper is still worth printing, in seconds (`D-108`, `D-412`).
 #:
-#: **A kitchen ticket has a shelf life.** An agent that has been off all day and
-#: connects at closing time would otherwise print every ticket the day queued —
-#: sending a cook a rush of orders that were served hours ago, or cancelled.
-#: Twenty minutes is longer than any outage a cook could work through and far
-#: shorter than a service.
-#:
-#: A receipt is the same argument from the other side: a customer who left
-#: without one an hour ago is not helped by it appearing now.
-STALE_AFTER_MINUTES = 20
+#: **Two minutes, for every paper.** It was twenty, and the user said what that
+#: does in a real kitchen: the agent is down, the cashier calls the order through
+#: by voice, the food goes out — and fifteen minutes later the ticket prints, and
+#: the cook, who cannot tell it is the same order, makes it again. A receipt that
+#: prints after its customer left is paper thrown away. Two minutes covers what
+#: comes back by itself — an agent restarting, a Windows update, the Wi-Fi gone
+#: for seconds — and is too short for any kitchen to have served the order. After
+#: that the ticket is not lost: the bell already says it did not print (within a
+#: minute), and the cashier reprints it or tells the kitchen.
+SHELF_SECONDS = 120
+
+#: A drawer kick lives thirty seconds (`D-412`). A drawer that did not open is
+#: opened with its key; one that springs open a minute later is cash on show
+#: with nobody at the till.
+SHELF_SECONDS_BY_TYPE = {"drawer": 30}
+
+
+def shelf_seconds(job_type: str) -> int:
+	return SHELF_SECONDS_BY_TYPE.get(job_type, SHELF_SECONDS)
 
 
 def sweep_jobs() -> None:
@@ -1270,28 +1280,31 @@ def expire_old(agent: str | None = None) -> None:
 	them is not catching up — it is a cook receiving twenty orders that were
 	served, cancelled or paid hours ago, with no way to tell which.
 
+	Run by every poll, before anything is handed out, so a paper past its shelf
+	life never reaches an agent that comes back (`D-412`).
+
 	Marked failed rather than deleted: "this was queued and never printed" is
 	the answer to a question somebody will ask, and a row that vanished answers
 	nothing. **Failed, not unconfirmed** — nobody took it, so nothing was sent.
 	The fallback printer is not tried either — the same staleness applies there.
 	"""
-	filters = {
-		"status": "queued",
-		"creation": ("<", add_to_date(now_datetime(), minutes=-STALE_AFTER_MINUTES)),
-	}
+	now = now_datetime()
+	shortest = min([SHELF_SECONDS, *SHELF_SECONDS_BY_TYPE.values()])
+	filters = {"status": "queued", "creation": ("<", add_to_date(now, seconds=-shortest))}
 	if agent:
 		filters["agent"] = agent
-	stale = frappe.get_all("POS Print Job", filters=filters, pluck="name")
+	waiting = frappe.get_all("POS Print Job", filters=filters, fields=["name", "job_type", "creation"])
+	stale = [row for row in waiting if row.creation < add_to_date(now, seconds=-shelf_seconds(row.job_type))]
 
-	for name in stale:
+	for row in stale:
 		# Under the claim's lock: an agent taking it this instant wins, and its
 		# report is what counts.
-		if frappe.db.get_value("POS Print Job", name, "status", for_update=True) != "queued":
+		if frappe.db.get_value("POS Print Job", row.name, "status", for_update=True) != "queued":
 			continue
 		settle(
-			name,
+			row.name,
 			printed=False,
-			error=f"Not printed within {STALE_AFTER_MINUTES} minutes; too late to be useful.",
+			error=f"Not printed within {shelf_seconds(row.job_type)} seconds; too late to be useful.",
 			try_fallback=False,
 			nothing_sent=True,
 		)

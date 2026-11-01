@@ -89,22 +89,76 @@ def claim(version: str | None = None, host: str | None = None) -> list[dict]:
 
 
 @frappe.whitelist()
-def report(job: str, printed: bool | int | str, error: str | None = None, reason: str | None = None) -> dict:
+def report(
+	job: str,
+	printed: bool | int | str,
+	error: str | None = None,
+	reason: str | None = None,
+	nothing_sent: bool | int | str | None = None,
+) -> dict:
 	"""The agent says what happened to one job.
 
 	A failure re-queues the ticket on the fallback printer here rather than in
 	the agent: the fallback may belong to a different agent, and an agent that
 	could redirect work to another one would be an agent that could print
 	anything anywhere. **Only a failure that sent nothing** goes there
-	(`D-405`) — `service.settle` decides which that is.
+	(`D-405`).
+
+	**``nothing_sent`` is said by the agent, from 1.2** (`D-414`): it is the one
+	that knows whether a byte left it. An older agent does not say, and
+	`service.settle` reads it off the reason as before.
 	"""
 	agent_name = pos_print_agent.for_session()
 	if frappe.db.get_value("POS Print Job", job, "agent") != agent_name:
 		frappe.throw(_("That job was not given to this agent."), frappe.PermissionError)
 
-	service.settle(job, printed=bool(frappe.parse_json(printed)), error=error, reason=reason)
+	service.settle(
+		job,
+		printed=bool(frappe.parse_json(printed)),
+		error=error,
+		reason=reason,
+		nothing_sent=None if nothing_sent is None else bool(frappe.parse_json(nothing_sent)),
+	)
 
 	return {"ok": True}
+
+
+@frappe.whitelist()
+def agent_settings() -> dict:
+	"""What an agent needs to take paper straight from a till (`D-414`, `docs/15` §5.9).
+
+	- ``token`` — the key every till's request must carry.
+	- ``origins`` — the only pages it takes paper from: this site, by the address
+	  the agent itself reaches it at and by the site's own name. Another page in
+	  the same browser is refused even if it knows the port.
+	- ``listen_on_network`` — off unless set on the agent's form: it hears its
+	  own computer only, and a phone or a tablet needs it on.
+
+	Asked by the agent when it starts and again every minute, so a change on the
+	form, or a key issued again, reaches it without anyone at the computer.
+	"""
+	agent_name = pos_print_agent.for_session()
+	return {
+		"token": pos_print_agent.direct_token(agent_name),
+		"origins": _site_origins(),
+		"listen_on_network": bool(frappe.db.get_value("POS Print Agent", agent_name, "listen_on_network")),
+	}
+
+
+def _site_origins() -> list[str]:
+	from urllib.parse import urlsplit
+
+	from frappe.utils import get_url
+
+	origins = []
+	for url in (frappe.request.host_url if frappe.request else None, get_url()):
+		if not url:
+			continue
+		parts = urlsplit(url)
+		origin = f"{parts.scheme}://{parts.netloc}"
+		if origin not in origins:
+			origins.append(origin)
+	return origins
 
 
 def _connection(printer: str) -> dict:

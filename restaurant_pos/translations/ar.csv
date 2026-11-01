@@ -1693,3 +1693,7 @@ Pair the Print Agent,ربط برنامج الطباعة
 "The agent's computer has no printer by this name. Check the Windows printer name here, exactly as Windows lists it.",كمبيوتر برنامج الطباعة ما فيه طابعة بهالاسم. تأكد من «اسم الطابعة في ويندوز» هنا، بالضبط مثل ما يطلع في ويندوز.
 "{0} did not take the paper within 10 seconds, so it was cancelled to keep it from printing late. Check it is on and connected.",{0} ما أخذت الورقة خلال ١٠ ثواني، فانلغت عشان ما تنطبع متأخرة. تأكد إنها شغالة وموصولة.
 "{0} cannot be reached on the network. Check it is on, and its IP address and port.",{0} ما يوصل لها على الشبكة. تأكد إنها شغالة، ومن عنوان IP والمنفذ.
+Direct Printing,الطباعة المباشرة,POS Print Agent
+Listen on the Network,الاستماع على الشبكة,POS Print Agent
+"Tick only on the computer that prints for phones or tablets on the restaurant's network. Untouched, the agent hears this computer alone. Windows asks to allow it through the firewall: allow it on private networks only.","علّمها بس على الكمبيوتر اللي يطبع للجوالات أو التابلت على شبكة المطعم. لو ما علّمتها، البرنامج يسمع هالكمبيوتر بس. ويندوز بيسألك تسمح له بالجدار الناري: اسمح له على الشبكات الخاصة بس.",POS Print Agent
+Direct Printing Key,مفتاح الطباعة المباشرة,POS Print Agent

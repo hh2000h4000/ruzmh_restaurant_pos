@@ -1071,6 +1071,87 @@ class NothingPrintsTwiceByItself(PrintingTestBase):
 			kitchen.confirm_printed(kot.name)
 
 
+class AnAgentLearnsHowToTakePaperFromATill(PrintingTestBase):
+	"""`D-414`, `docs/15` §5.9 — the key, the pages and the listening, from the server."""
+
+	def tearDown(self):
+		frappe.set_user("Administrator")
+		super().tearDown()
+
+	def _as_agent(self):
+		frappe.set_user(frappe.db.get_value("POS Print Agent", self.agent, "user"))
+
+	def test_it_gets_a_strong_key_the_same_every_time(self):
+		self._as_agent()
+
+		first = api.agent_settings()["token"]
+
+		self.assertGreaterEqual(len(first), 40, "thirty-two random bytes, not eight characters")
+		self.assertEqual(api.agent_settings()["token"], first)
+
+	def test_new_keys_for_the_agent_are_a_new_key_for_the_tills(self):
+		"""Pairing again revokes the old secret; a till's key goes with it."""
+		self._as_agent()
+		before = api.agent_settings()["token"]
+		frappe.set_user("Administrator")
+
+		pos_print_agent._issue_keys(frappe.get_doc("POS Print Agent", self.agent))
+
+		self._as_agent()
+		self.assertNotEqual(api.agent_settings()["token"], before)
+
+	def test_it_takes_paper_from_this_site_only(self):
+		from urllib.parse import urlsplit
+
+		from frappe.utils import get_url
+
+		self._as_agent()
+		site = urlsplit(get_url())
+
+		self.assertIn(f"{site.scheme}://{site.netloc}", api.agent_settings()["origins"])
+
+	def test_it_hears_its_own_computer_unless_told(self):
+		self._as_agent()
+		self.assertFalse(api.agent_settings()["listen_on_network"])
+
+		frappe.db.set_value("POS Print Agent", self.agent, "listen_on_network", 1)
+
+		self.assertTrue(api.agent_settings()["listen_on_network"])
+
+	def test_nobody_else_is_told(self):
+		with self.assertRaises(frappe.PermissionError):
+			api.agent_settings()
+
+
+class TheAgentSaysWhetherAnythingLeftIt(PrintingTestBase):
+	"""`D-414` — from 1.2 the agent says it; the reason list is for older agents."""
+
+	def tearDown(self):
+		frappe.set_user("Administrator")
+		super().tearDown()
+
+	def _report(self, **kwargs):
+		kot = self._sent_kot()
+		job = service.print_kot(kot.name)
+		frappe.set_user(frappe.db.get_value("POS Print Agent", self.agent, "user"))
+		api.claim()
+		api.report(job=job, printed=0, error="x", **kwargs)
+		frappe.set_user("Administrator")
+		return job
+
+	def test_nothing_sent_goes_to_the_backup_whatever_the_reason(self):
+		job = self._report(reason="cosmic_rays", nothing_sent=1)
+
+		self.assertEqual(frappe.db.get_value("POS Print Job", job, "status"), "failed")
+		self.assertTrue(frappe.db.exists("POS Print Job", {"retry_of": job}))
+
+	def test_something_sent_is_unconfirmed_even_for_an_unreachable_reason(self):
+		job = self._report(reason="unreachable", nothing_sent=0)
+
+		self.assertEqual(frappe.db.get_value("POS Print Job", job, "status"), "unconfirmed")
+		self.assertFalse(frappe.db.exists("POS Print Job", {"retry_of": job}))
+
+
 class AnAgentIsSeenWithoutAWriteEveryPoll(PrintingTestBase):
 	"""`docs/15` §2 — the heartbeat was a third of every database write."""
 

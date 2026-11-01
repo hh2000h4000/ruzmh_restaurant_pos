@@ -135,8 +135,39 @@ def _issue_keys(doc) -> tuple[str, str]:
 		user.api_key = frappe.generate_hash(length=15)
 	user.api_secret = api_secret
 	user.save(ignore_permissions=True)
+	# The till's key to this agent goes with the agent's own (`D-414`): pairing
+	# again, or new keys, and a till still holding the old one is refused too.
+	_new_direct_token(doc.name)
 
 	return user.api_key, api_secret
+
+
+def direct_token(agent: str) -> str:
+	"""The key a till shows this agent when it hands it paper (`D-414`, `docs/15` §5.9).
+
+	Made on first asking for an agent paired before direct printing existed, so
+	no machine has to be paired again for it.
+	"""
+	from frappe.utils.password import get_decrypted_password
+
+	return get_decrypted_password(
+		"POS Print Agent", agent, "direct_token", raise_exception=False
+	) or _new_direct_token(agent)
+
+
+def _new_direct_token(agent: str) -> str:
+	"""Thirty-two random bytes, not the eight characters of the trial (`docs/15` §11).
+
+	The agent may listen on the restaurant's network for its phones and tablets,
+	and anything on that network that knows the key can print.
+	"""
+	import secrets
+
+	from frappe.utils.password import set_encrypted_password
+
+	token = secrets.token_urlsafe(32)
+	set_encrypted_password("POS Print Agent", agent, token, "direct_token")
+	return token
 
 
 @frappe.whitelist()

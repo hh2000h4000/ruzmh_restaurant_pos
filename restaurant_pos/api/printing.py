@@ -60,7 +60,8 @@ def claim(version: str | None = None, host: str | None = None) -> list[dict]:
 
 	queued = frappe.get_all(
 		"POS Print Job",
-		filters={"agent": agent_name, "status": "queued"},
+		# A till's paper went to its agent from the till itself (`D-415`).
+		filters={"agent": agent_name, "status": "queued", "is_direct": 0},
 		fields=["name", "printer", "job_type", "copies", "payload"],
 		order_by="creation asc",
 		limit=CLAIM_BATCH,
@@ -120,6 +121,23 @@ def report(
 		nothing_sent=None if nothing_sent is None else bool(frappe.parse_json(nothing_sent)),
 	)
 
+	return {"ok": True}
+
+
+@frappe.whitelist(methods=["POST"])
+def not_handed(job: str, error: str | None = None) -> dict:
+	"""The till drew its paper but its agent did not answer (`D-415`, `docs/15` §5.3).
+
+	A till endpoint: the cashier's own branch only. The paper becomes
+	unconfirmed — the till cannot tell "never arrived" from "printed, answer
+	lost" — and a kitchen ticket rings the bell. Nothing is printed again.
+	"""
+	branch = frappe.db.get_value("POS Print Job", job, "branch")
+	if not branch:
+		frappe.throw(_("Print job {0} does not exist.").format(job))
+	validate_branch_access(branch)
+
+	service.mark_not_handed(job, error or _("The print agent did not answer."))
 	return {"ok": True}
 
 

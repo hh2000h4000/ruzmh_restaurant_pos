@@ -1,0 +1,128 @@
+/**
+ * Paper the server handed back, taken straight to this till's print agent (`D-415`, `docs/15` §5.3).
+ *
+ * The server puts it beside the answer to whatever action made it — a payment,
+ * a kitchen send, a reprint — as `rpos_papers`; the API client passes it here.
+ * The till draws it (`raster.ts`) and posts it to its agent on `127.0.0.1`, or
+ * to the computer that prints for this phone or tablet.
+ *
+ * **What the cashier is told is the server's to say.** The agent reports each
+ * paper to the server itself, and a kitchen ticket that did not print rings the
+ * bell from there (`D-413`). When the agent does not answer at all, this says
+ * so to the server — unconfirmed, never printed again (`D-405`).
+ */
+import { command, onPapers, setTillName } from "@/api/client";
+
+import { drawHtml, packRaster, toBase64, type Ink } from "./raster";
+
+/** One paper, as `printing._hand_to_till` puts it in a response. */
+export interface Paper {
+  job: string;
+  printer: { name: string; title: string } & Record<string, unknown>;
+  copies: number;
+  /** Drawn here. */
+  html?: string;
+  width?: number;
+  cut?: boolean;
+  /** Bytes already made — a drawer kick. */
+  raw?: string;
+}
+
+/** The session's `printing` block. */
+export interface TillPrinting {
+  direct: boolean;
+  agent_url?: string;
+  token?: string;
+  ink_threshold?: number;
+  band_rows?: number;
+}
+
+/**
+ * How long a paper may take, from handing it over to the agent's answer —
+ * longer than the agent's slowest known answer (`docs/15` §5.3). Past it the
+ * paper may still print; it is unconfirmed, and the agent's own report settles it.
+ */
+export const HAND_OVER_MS = 20_000;
+
+let till: { agentUrl: string; token: string; ink: Ink } | null = null;
+
+/**
+ * Set from the session: a direct till names itself on every request and takes
+ * the paper that comes back; any other till does neither, and the server draws.
+ */
+export function configure(name: string | null, printing: TillPrinting | null | undefined): void {
+  const direct = Boolean(name && printing?.direct && printing.agent_url && printing.token);
+  till = direct
+    ? {
+        agentUrl: printing!.agent_url!.replace(/\/$/, ""),
+        token: printing!.token!,
+        ink: { threshold: printing!.ink_threshold ?? 170, bandRows: printing!.band_rows ?? 128 },
+      }
+    : null;
+  setTillName(direct ? name : null);
+  onPapers(direct ? handPapers : null);
+}
+
+/**
+ * Hand every paper to the agent: each printer's papers in the order they came,
+ * different printers side by side — so a dead kitchen printer never holds the
+ * receipt (`D-411`).
+ */
+export async function handPapers(papers: Paper[]): Promise<void> {
+  const lines = new Map<string, Paper[]>();
+  for (const paper of papers) {
+    const key = paper.printer.name ?? paper.printer.title;
+    lines.set(key, [...(lines.get(key) ?? []), paper]);
+  }
+  await Promise.all(
+    [...lines.values()].map(async (line) => {
+      for (const paper of line) await handOver(paper);
+    }),
+  );
+}
+
+async function handOver(paper: Paper): Promise<void> {
+  if (!till) return;
+  const { agentUrl, token, ink } = till;
+  try {
+    const bytes = paper.raw ?? toBase64(packRaster(await drawHtml(paper.html!, paper.width!), ink, Boolean(paper.cut)));
+    const url = `${agentUrl}/print`;
+    const answer = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-RPOS-Token": token },
+      body: JSON.stringify({ job: paper.job, printer: paper.printer, payload: bytes, copies: paper.copies }),
+      signal: AbortSignal.timeout(HAND_OVER_MS),
+      ...addressSpace(url),
+    } as RequestInit);
+    if (!answer.ok) {
+      // Refused — wrong page, wrong key: nothing was printed, but the till
+      // cannot know that the agent is not merely confused, so it asks.
+      await notHanded(paper, `agent answered ${answer.status}`);
+    }
+    // An answer of any status was also reported to the server by the agent.
+  } catch (cause) {
+    // No answer, a timeout, or a drawing that failed: "never arrived" and
+    // "arrived, answer lost" look the same from here (`docs/15` §5.3).
+    await notHanded(paper, cause instanceof Error ? `${cause.name}: ${cause.message}` : String(cause));
+  }
+}
+
+/**
+ * Chrome's local-network rule names the target only for an `https` page
+ * (`docs/15` §11): `loopback` for this computer, `local` for another one.
+ * Named on a plain-`http` page, it failed outright in Chrome 156.
+ */
+function addressSpace(url: string): { targetAddressSpace?: "loopback" | "local" } {
+  if (location.protocol !== "https:") return {};
+  const host = new URL(url).hostname;
+  return { targetAddressSpace: host === "127.0.0.1" || host === "localhost" ? "loopback" : "local" };
+}
+
+async function notHanded(paper: Paper, error: string): Promise<void> {
+  try {
+    await command("printing.not_handed", { job: paper.job, error: error.slice(0, 400) });
+  } catch {
+    // The server unreachable as well: in a minute it marks the paper
+    // unconfirmed by itself (`printing.sweep_jobs`).
+  }
+}

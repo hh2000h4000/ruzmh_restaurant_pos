@@ -1697,3 +1697,11 @@ Direct Printing,الطباعة المباشرة,POS Print Agent
 Listen on the Network,الاستماع على الشبكة,POS Print Agent
 "Tick only on the computer that prints for phones or tablets on the restaurant's network. Untouched, the agent hears this computer alone. Windows asks to allow it through the firewall: allow it on private networks only.","علّمها بس على الكمبيوتر اللي يطبع للجوالات أو التابلت على شبكة المطعم. لو ما علّمتها، البرنامج يسمع هالكمبيوتر بس. ويندوز بيسألك تسمح له بالجدار الناري: اسمح له على الشبكات الخاصة بس.",POS Print Agent
 Direct Printing Key,مفتاح الطباعة المباشرة,POS Print Agent
+Printing,طريقة الطباعة,POS Profile
+server,عبر السيرفر,POS Profile
+direct,مباشر,POS Profile
+"server: the server draws the paper and the agent fetches it. direct: this device draws it and hands it to the agent straight away — faster, and nothing for the server to do. Direct needs the print agent above, version 1.2 or later.","عبر السيرفر: السيرفر يرسم الورقة والبرنامج يجيبها. مباشر: هالجهاز يرسمها ويسلّمها للبرنامج على طول — أسرع، والسيرفر ما يتعب فيها. المباشر يحتاج برنامج الطباعة اللي فوق، نسخة 1.2 أو أحدث.",POS Profile
+Print Agent Address,عنوان برنامج الطباعة,POS Profile
+"Where this device reaches its agent. 127.0.0.1 is the agent on this same computer; a phone or a tablet uses the address of the computer that runs it, with Listen on the Network ticked on that agent.","وين يلقى هالجهاز برنامج الطباعة. 127.0.0.1 يعني البرنامج على نفس الكمبيوتر؛ والجوال أو التابلت يكتب عنوان الكمبيوتر اللي عليه البرنامج، مع تعليم «الاستماع على الشبكة» على ذاك البرنامج.",POS Profile
+Straight from the Till,مباشرة من الكاشير,POS Print Job
+"Drawn by the till and handed to its agent directly (D-415). Never fetched from the queue, so it cannot print twice.","رسمها الكاشير وسلّمها لبرنامج الطباعة مباشرة (D-415). ما تنسحب من الطابور، فما تنطبع مرتين.",POS Print Job

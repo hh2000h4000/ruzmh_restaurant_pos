@@ -21,6 +21,7 @@
   "reference_name",
   "source_cb",
   "retry_of",
+  "is_direct",
   "result_section",
   "attempts",
   "claimed_at",
@@ -125,6 +126,15 @@
    "read_only": 1
   },
   {
+   "default": "0",
+   "description": "Drawn by the till and handed to its agent directly (D-415). Never fetched from the queue, so it cannot print twice.",
+   "fieldname": "is_direct",
+   "fieldtype": "Check",
+   "in_standard_filter": 1,
+   "label": "Straight from the Till",
+   "read_only": 1
+  },
+  {
    "fieldname": "result_section",
    "fieldtype": "Section Break",
    "label": "Result"
@@ -190,7 +200,7 @@
  "index_web_pages_for_search": 0,
  "istable": 0,
  "links": [],
- "modified": "2026-10-29 12:00:00.000000",
+ "modified": "2026-11-01 18:00:00.000000",
  "modified_by": "Administrator",
  "module": "Restaurant POS",
  "name": "POS Print Job",

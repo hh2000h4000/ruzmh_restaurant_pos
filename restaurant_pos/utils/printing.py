@@ -324,6 +324,21 @@ def queue(
 	from restaurant_pos.utils.printer_branch import assert_in_branch
 
 	assert_in_branch(printer, branch, used_by=reference_name or job_type)
+
+	terminal = requesting_terminal()
+	if terminal and _reaches(terminal, frappe.get_cached_doc("POS Printer", printer), branch):
+		# Bytes already made — a drawer kick: nothing for the till to draw.
+		return _hand_to_till(
+			terminal,
+			printer=printer,
+			branch=branch,
+			job_type=job_type,
+			copies=copies,
+			reference_doctype=reference_doctype,
+			reference_name=reference_name,
+			paper={"raw": base64.b64encode(rendered.payload).decode("ascii")},
+		)
+
 	agent = frappe.db.get_value("POS Printer", printer, "print_agent")
 	if not agent:
 		frappe.throw(
@@ -377,6 +392,9 @@ def cancel_waiting(reference_doctype: str | None, reference_name: str, job_type:
 			"reference_name": reference_name,
 			"job_type": job_type,
 			"status": "queued",
+			# A till hands its paper over the moment it has it: "queued" there only
+			# means the agent has not reported yet, and it may be printing (`D-415`).
+			"is_direct": 0,
 		},
 		pluck="name",
 	)
@@ -409,7 +427,13 @@ def print_document(
 	reference_doctype: str | None = None,
 	reference_name: str | None = None,
 ) -> str:
-	"""Render a document and queue it for its printer. Returns the job name."""
+	"""Render a document and queue it for its printer. Returns the job name.
+
+	**Drawn by the till, where the till asked and can reach the printer** (`D-415`):
+	the HTML goes back in the till's own response, and the browser draws it and
+	hands it to its agent. The server's drawing — about half a second a page,
+	measured on the user's site — is spent only on paper no till will draw.
+	"""
 	printer_doc = frappe.get_cached_doc("POS Printer", printer)
 	if not printer_doc.is_active:
 		frappe.throw(_("{0} is switched off.").format(printer_doc.title))
@@ -422,6 +446,59 @@ def print_document(
 	)
 
 	html = render_html(template_name, context)
+
+	terminal = requesting_terminal()
+	if terminal and _reaches(terminal, printer_doc, branch):
+		return _hand_to_till(
+			terminal,
+			printer=printer,
+			branch=branch,
+			job_type=job_type,
+			copies=copies,
+			reference_doctype=reference_doctype,
+			reference_name=reference_name,
+			paper={"html": html, "width": print_dots(printer_doc), "cut": bool(printer_doc.cut_after_print)},
+		)
+	if terminal:
+		# Running in the till's request (see `enqueue_print`), for a printer its
+		# agent cannot reach: drawn off the request, as before direct printing.
+		frappe.enqueue(
+			"restaurant_pos.utils.printing.render_and_queue",
+			queue="short",
+			enqueue_after_commit=True,
+			html=html,
+			printer=printer,
+			branch=branch,
+			job_type=job_type,
+			copies=copies,
+			reference_doctype=reference_doctype,
+			reference_name=reference_name,
+		)
+		return None
+
+	return render_and_queue(
+		html=html,
+		printer=printer,
+		branch=branch,
+		job_type=job_type,
+		copies=copies,
+		reference_doctype=reference_doctype,
+		reference_name=reference_name,
+	)
+
+
+def render_and_queue(
+	*,
+	html: str,
+	printer: str,
+	branch: str | None,
+	job_type: str,
+	copies: int = 1,
+	reference_doctype: str | None = None,
+	reference_name: str | None = None,
+) -> str:
+	"""The server's own drawing: HTML to bitmap to ESC/POS, queued for the agent."""
+	printer_doc = frappe.get_cached_doc("POS Printer", printer)
 	png = html_to_png(html, width_dots=print_dots(printer_doc))
 	rendered = png_to_escpos(png, cut=bool(printer_doc.cut_after_print))
 
@@ -496,7 +573,16 @@ def enqueue_print(method: str, **kwargs) -> None:
 	`enqueue_after_commit` is not optional: the worker is a separate connection,
 	and without it the render can start before the ticket it is rendering has
 	been committed, and fail on a document that certainly exists.
+
+	**Run in the request when a direct till asked** (`D-415`): its paper is only
+	HTML, milliseconds to make, and it has to be in that request's response for
+	the till to draw it. Anything the till cannot reach is still drawn off the
+	request (`print_document`).
 	"""
+	if requesting_terminal():
+		globals()[method](**kwargs)
+		return
+
 	try:
 		frappe.enqueue(
 			f"restaurant_pos.utils.printing.{method}",
@@ -1256,10 +1342,24 @@ def sweep_jobs() -> None:
 	):
 		mark_unconfirmed(name, "No report from the agent; it may have printed.")
 
+	# A till hands its paper over at once, so "queued" past this means the agent
+	# never reported — or the till never handed it. Either may have printed.
+	for name in frappe.get_all(
+		"POS Print Job",
+		filters={
+			"status": "queued",
+			"is_direct": 1,
+			"creation": ("<", add_to_date(now, seconds=-UNREPORTED_SECONDS)),
+		},
+		pluck="name",
+	):
+		mark_not_handed(name, "No report from the agent; it may have printed.")
+
 	untaken = frappe.get_all(
 		"POS Print Job",
 		filters={
 			"status": "queued",
+			"is_direct": 0,
 			"reference_doctype": "Kitchen Order Ticket",
 			"creation": ("<", add_to_date(now, seconds=-UNTAKEN_SECONDS)),
 		},
@@ -1290,7 +1390,9 @@ def expire_old(agent: str | None = None) -> None:
 	"""
 	now = now_datetime()
 	shortest = min([SHELF_SECONDS, *SHELF_SECONDS_BY_TYPE.values()])
-	filters = {"status": "queued", "creation": ("<", add_to_date(now, seconds=-shortest))}
+	# Not a till's paper: it went to its agent at once and is settled as
+	# unconfirmed, never as "nothing sent" (`sweep_jobs`).
+	filters = {"status": "queued", "is_direct": 0, "creation": ("<", add_to_date(now, seconds=-shortest))}
 	if agent:
 		filters["agent"] = agent
 	waiting = frappe.get_all("POS Print Job", filters=filters, fields=["name", "job_type", "creation"])
@@ -1311,3 +1413,109 @@ def expire_old(agent: str | None = None) -> None:
 
 	if stale:
 		frappe.log_error(f"{len(stale)} stale print jobs dropped", "RPOS printing")
+
+
+# --------------------------------------------------------------------------- #
+# Paper the till draws itself (`D-415`, `docs/15` §5.1 to §5.3)
+# --------------------------------------------------------------------------- #
+
+#: The header a till sends on every request, naming its terminal. Paper is
+#: handed back only to a till that asked, set to print direct.
+TILL_HEADER = "X-RPOS-Till"
+
+
+def requesting_terminal():
+	"""The terminal of the till making this request, when it prints direct.
+
+	None outside a web request (a worker, a scheduled job, a test), from anything
+	but the till (the desk sends no header), and for a terminal printing through
+	the server. A forged header could only send a paper to the forger's own
+	browser rather than the queue: it never prints anywhere it should not.
+	"""
+	if not getattr(frappe.local, "request", None):
+		return None
+	name = frappe.get_request_header(TILL_HEADER)
+	if not name:
+		return None
+	from urllib.parse import unquote
+
+	name = unquote(name)
+	if not frappe.db.exists("POS Profile", name):
+		return None
+	terminal = frappe.get_cached_doc("POS Profile", name)
+	if terminal.get("rpos_print_route") != "direct" or not terminal.get("rpos_print_agent"):
+		return None
+	return terminal
+
+
+def _reaches(terminal, printer_doc, branch: str | None) -> bool:
+	"""Whether this till's agent can put this paper on this printer.
+
+	A network printer is reached by any agent on the restaurant's network; a
+	printer on a cable only by the agent on the computer it is plugged into
+	(`D-402`). And only in the till's own branch (`D-363`).
+	"""
+	if branch and terminal.get("rpos_branch") and terminal.rpos_branch != branch:
+		return False
+	return printer_doc.connection_type == "network" or printer_doc.print_agent == terminal.rpos_print_agent
+
+
+def _hand_to_till(
+	terminal,
+	*,
+	printer: str,
+	branch: str | None,
+	job_type: str,
+	copies: int,
+	reference_doctype: str | None,
+	reference_name: str | None,
+	paper: dict,
+) -> str:
+	"""Record the paper, and put it in this request's response for the till.
+
+	The row is the light record of `docs/15` §5.2: no bitmap, never fetched by
+	an agent (`is_direct`), settled by the agent's own report. Its agent is the
+	till's, the one that will print it and report it. Read by the till from
+	``rpos_papers`` beside ``message`` — every endpoint carries it, so none has
+	to remember to.
+	"""
+	from restaurant_pos.api.printing import _connection
+
+	job = frappe.get_doc(
+		{
+			"doctype": "POS Print Job",
+			"printer": printer,
+			"agent": terminal.rpos_print_agent,
+			"branch": branch,
+			"job_type": job_type,
+			"copies": copies or 1,
+			"status": "queued",
+			"is_direct": 1,
+			"reference_doctype": reference_doctype,
+			"reference_name": reference_name,
+		}
+	)
+	job.insert(ignore_permissions=True)
+	if reference_name and job_type in ONE_COPY_WAITING:
+		# A reprint from the till replaces a copy still waiting in the queue.
+		cancel_waiting(reference_doctype, reference_name, job_type)
+
+	frappe.response.setdefault("rpos_papers", []).append(
+		{"job": job.name, "printer": _connection(printer), "copies": copies or 1, **paper}
+	)
+	return job.name
+
+
+def mark_not_handed(job_name: str, error: str) -> None:
+	"""The till could not get its paper to its agent, or heard nothing back (`D-405`).
+
+	Unconfirmed, not failed: the till cannot tell "never arrived" from "arrived
+	and the answer was lost". The agent's own report, if it comes, still lands.
+	"""
+	if frappe.db.get_value("POS Print Job", job_name, "status", for_update=True) != "queued":
+		return
+	job = frappe.get_doc("POS Print Job", job_name)
+	if not job.is_direct:
+		return
+	job.db_set({"status": "unconfirmed", "error": (error or "")[:500]}, update_modified=False)
+	_tell_the_ticket(job, printed=False, on_its_way=False)

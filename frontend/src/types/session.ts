@@ -1,3 +1,5 @@
+import type { TillPrinting } from "@/printing/direct";
+
 /**
  * The `load_pos_session` contract (07_API_Design.md §2).
  *
@@ -284,6 +286,8 @@ export interface PosSession {
     /** How long each banner holds the screen. */
     seconds: number;
   };
+  /** Whether this till draws its own paper, and where its agent is (`D-415`). */
+  printing?: TillPrinting;
   /** The signed-in user's ERPNext language, narrowed to what the app ships. */
   lang: "ar" | "en";
   /** Who is on this till: the login, and the name to show. */

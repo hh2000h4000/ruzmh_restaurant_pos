@@ -1152,6 +1152,162 @@ class TheAgentSaysWhetherAnythingLeftIt(PrintingTestBase):
 		self.assertFalse(frappe.db.exists("POS Print Job", {"retry_of": job}))
 
 
+class TheTillDrawsItsOwnPaper(PrintingTestBase):
+	"""`D-415`, `docs/15` §5.1 to §5.3 — paper a direct till asked for goes back to it as HTML."""
+
+	def setUp(self):
+		super().setUp()
+		frappe.db.set_value(
+			"POS Profile", self.profile, {"rpos_print_route": "direct", "rpos_print_agent": self.agent}
+		)
+		frappe.clear_document_cache("POS Profile", self.profile)
+		self.addCleanup(frappe.clear_document_cache, "POS Profile", self.profile)
+		frappe.local.response = frappe._dict({"docs": []})
+
+	def tearDown(self):
+		frappe.local.request = None
+		frappe.set_user("Administrator")
+		super().tearDown()
+
+	def _from_the_till(self, profile=None):
+		"""Requests from here on carry the till's header, as the till's client sends it."""
+		from types import SimpleNamespace
+		from urllib.parse import quote
+
+		frappe.local.request = SimpleNamespace(headers={"X-RPOS-Till": quote(profile or self.profile)})
+
+	def _papers(self):
+		return frappe.local.response.get("rpos_papers") or []
+
+	def test_a_ticket_goes_back_as_html_and_the_server_draws_nothing(self):
+		self._from_the_till()
+
+		with patch.object(service, "html_to_png", side_effect=AssertionError("drawn on the server")):
+			kot = self._sent_kot()
+
+		(paper,) = self._papers()
+		self.assertIn("<html", paper["html"])
+		self.assertEqual(paper["printer"]["ip_address"], "127.0.0.1")
+		job = frappe.get_doc("POS Print Job", paper["job"])
+		self.assertEqual((job.is_direct, job.status, job.agent), (1, "queued", self.agent))
+		self.assertFalse(job.payload, "no bitmap is kept (docs/15 §5.2)")
+		self.assertEqual(job.reference_name, kot.name)
+
+	def test_the_agent_never_fetches_a_till_s_paper(self):
+		self._from_the_till()
+		self._sent_kot()
+		job = self._papers()[0]["job"]
+		frappe.local.request = None
+
+		frappe.set_user(frappe.db.get_value("POS Print Agent", self.agent, "user"))
+		self.assertNotIn(job, [row["name"] for row in api.claim()])
+
+	def test_the_agent_s_report_settles_it_as_any_other(self):
+		self._from_the_till()
+		kot = self._sent_kot()
+		job = self._papers()[0]["job"]
+		frappe.local.request = None
+
+		frappe.set_user(frappe.db.get_value("POS Print Agent", self.agent, "user"))
+		api.report(job=job, printed=1)
+
+		self.assertEqual(frappe.db.get_value("POS Print Job", job, "status"), "printed")
+		self.assertEqual(frappe.db.get_value("Kitchen Order Ticket", kot.name, "print_status"), "printed")
+
+	def test_an_agent_that_did_not_answer_is_unconfirmed_and_rings(self):
+		self._from_the_till()
+		kot = self._sent_kot()
+		job = self._papers()[0]["job"]
+
+		api.not_handed(job=job, error="Failed to fetch")
+
+		self.assertEqual(frappe.db.get_value("POS Print Job", job, "status"), "unconfirmed")
+		self.assertEqual(frappe.db.get_value("Kitchen Order Ticket", kot.name, "print_status"), "failed")
+		self.assertFalse(frappe.db.exists("POS Print Job", {"retry_of": job}), "never printed again")
+
+	def test_no_report_in_a_minute_is_unconfirmed_never_expired_as_unsent(self):
+		"""It went to the agent at once; it may well be on the roll."""
+		self._from_the_till()
+		self._sent_kot()
+		job = self._papers()[0]["job"]
+		frappe.local.request = None
+		frappe.db.set_value(
+			"POS Print Job",
+			job,
+			"creation",
+			add_to_date(now_datetime(), seconds=-(service.SHELF_SECONDS + 10)),
+			update_modified=False,
+		)
+
+		service.sweep_jobs()
+
+		self.assertEqual(frappe.db.get_value("POS Print Job", job, "status"), "unconfirmed")
+
+	def test_a_printer_on_another_computer_is_drawn_by_the_server(self):
+		"""A cable printer is reached only by the agent it is plugged into (`D-402`)."""
+		other = _agent("RPOS Test Other Agent")
+		frappe.db.set_value(
+			"POS Printer",
+			self.printer,
+			{"connection_type": "windows", "windows_printer_name": "Kitchen USB", "print_agent": other},
+		)
+		frappe.clear_document_cache("POS Printer", self.printer)
+		self.addCleanup(frappe.clear_document_cache, "POS Printer", self.printer)
+		self._from_the_till()
+
+		with patch.object(frappe, "enqueue") as queued:
+			self._sent_kot()
+
+		self.assertEqual(self._papers(), [])
+		self.assertTrue(
+			any(call.args[0].endswith("printing.render_and_queue") for call in queued.call_args_list),
+			"drawn off the request, as before",
+		)
+
+	def test_without_the_till_s_header_nothing_changes(self):
+		"""The desk, a worker, a scheduled job: the server draws and queues."""
+		kot = self._sent_kot()
+
+		self.assertEqual(self._papers(), [])
+		job = service.print_kot(kot.name, force=True)
+		self.assertEqual(frappe.db.get_value("POS Print Job", job, "is_direct"), 0)
+		self.assertTrue(frappe.db.get_value("POS Print Job", job, "payload"))
+
+	def test_a_terminal_printing_through_the_server_is_unchanged(self):
+		frappe.db.set_value("POS Profile", self.profile, "rpos_print_route", "server")
+		frappe.clear_document_cache("POS Profile", self.profile)
+		self._from_the_till()
+
+		self.assertIsNone(service.requesting_terminal())
+
+	def test_a_drawer_kick_goes_back_as_its_bytes(self):
+		frappe.db.set_value("POS Profile", self.profile, "default_printer", self.printer)
+		frappe.clear_document_cache("POS Profile", self.profile)
+		self._from_the_till()
+
+		service.open_drawer(self.profile, reason="test")
+
+		(paper,) = self._papers()
+		self.assertEqual(base64.b64decode(paper["raw"]), service.drawer_kick(2))
+
+	def test_the_till_learns_its_agent_only_once_the_agent_has_a_key(self):
+		"""Switched to direct before its agent is 1.2, the till keeps printing via the server."""
+		from frappe.utils.password import set_encrypted_password
+
+		from restaurant_pos.api import session
+
+		frappe.db.delete("__Auth", {"doctype": "POS Print Agent", "name": self.agent})
+		self.assertEqual(session._printing(self.profile), {"direct": False})
+		self.assertFalse(
+			pos_print_agent.direct_token(self.agent, create=False), "a till's session makes no key"
+		)
+
+		set_encrypted_password("POS Print Agent", self.agent, "k" * 43, "direct_token")
+		printing = session._printing(self.profile)
+		self.assertEqual((printing["direct"], printing["token"]), (True, "k" * 43))
+		self.assertEqual(printing["agent_url"], "http://127.0.0.1:17891")
+
+
 class AnAgentIsSeenWithoutAWriteEveryPoll(PrintingTestBase):
 	"""`docs/15` §2 — the heartbeat was a third of every database write."""
 

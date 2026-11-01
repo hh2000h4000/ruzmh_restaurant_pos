@@ -173,6 +173,32 @@ function withLanguage(body: unknown): unknown {
   return { ...(body as Record<string, unknown>), _lang: locale.value };
 }
 
+/**
+ * A till that draws its own paper names itself on every request (`D-415`).
+ *
+ * The server hands paper back only to a till that asked and prints direct, and
+ * this header is how it knows which till asked. Set from the session
+ * (`printing/direct.ts`); null on a till that prints through the server.
+ */
+let tillName: string | null = null;
+
+export function setTillName(name: string | null): void {
+  tillName = name;
+}
+
+/** Paper the server put beside an answer, as `rpos_papers` (`D-415`). */
+export type PapersHandler = (papers: never[]) => unknown;
+
+let papersHandler: PapersHandler | null = null;
+
+/**
+ * Who takes the paper. One place for every endpoint, so no screen has to
+ * remember that a payment, a kitchen send or a reprint can carry paper.
+ */
+export function onPapers(handler: PapersHandler | null): void {
+  papersHandler = handler;
+}
+
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
   if (method !== "GET") await ensureCsrfToken();
 
@@ -186,6 +212,7 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
         "Content-Type": "application/json",
         Accept: "application/json",
         "X-Frappe-CSRF-Token": csrfToken(),
+        ...(tillName ? { "X-RPOS-Till": encodeURIComponent(tillName) } : {}),
       },
       body: method === "GET" ? undefined : JSON.stringify(withLanguage(body)),
     });
@@ -198,7 +225,14 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   const payload = await response.json().catch(() => null);
 
   if (!response.ok) {
+    // A refused request was rolled back with any paper it made: none is taken.
     throw readError(payload, response.status);
+  }
+
+  const papers = (payload as { rpos_papers?: never[] } | null)?.rpos_papers;
+  if (papers?.length && papersHandler) {
+    // Not awaited: the cashier's answer does not wait for the paper.
+    void papersHandler(papers);
   }
 
   return (payload as { message: T }).message;

@@ -5,6 +5,7 @@ import { ApiError, query } from "@/api/client";
 import { pairedDevice } from "@/device";
 import { initLocale } from "@/i18n";
 import { loadSession, saveSession } from "@/offline/cache";
+import { configure as configurePrinting } from "@/printing/direct";
 import type { CatalogItem, OrderType, PosSession } from "@/types/session";
 
 import { useThemeStore } from "./theme";
@@ -101,6 +102,8 @@ export const useSessionStore = defineStore("session", () => {
     // Only used when this terminal has no stored choice of its own; a shared
     // till keeps the language it was set up in (`i18n/index.ts`).
     initLocale(payload.lang);
+    // `D-415` — whether this till draws its own paper, and where its agent is.
+    configurePrinting(payload.pos_profile.name, payload.printing);
   }
 
   async function load(posProfile: string, deviceToken?: string): Promise<void> {
@@ -139,6 +142,7 @@ export const useSessionStore = defineStore("session", () => {
   }
 
   function clear(): void {
+    configurePrinting(null, null);
     data.value = null;
     error.value = null;
     cachedAt.value = null;

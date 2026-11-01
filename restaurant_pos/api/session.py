@@ -193,6 +193,8 @@ def load_pos_session(pos_profile: str, device_token: str | None = None) -> dict:
 		# `theme`; the sentence and the banners are the restaurant's own
 		# (`D-202`, `D-203`).
 		"customer_display": _customer_display(),
+		# `D-415` — whether this till draws its own paper, and where its agent is.
+		"printing": _printing(pos_profile),
 		"lang": _lang(),
 		# The header names the cashier on duty, and the home screen tells their
 		# own orders from the rest of the floor.
@@ -200,6 +202,38 @@ def load_pos_session(pos_profile: str, device_token: str | None = None) -> dict:
 		"user_name": frappe.db.get_value("User", frappe.session.user, "full_name"),
 		"server_time": now_datetime(),
 	}
+
+
+def _printing(pos_profile: str) -> dict:
+	"""How this till prints (`D-415`, `docs/15` §5.3).
+
+	Direct only once its agent has a key — that is, once a 1.2 agent has asked
+	the server for its settings. Until then the till prints through the server,
+	so switching a terminal to direct before its agent is updated loses nothing.
+	"""
+	from restaurant_pos.restaurant_pos.doctype.pos_print_agent.pos_print_agent import direct_token
+
+	route, agent, address = frappe.db.get_value(
+		"POS Profile", pos_profile, ["rpos_print_route", "rpos_print_agent", "rpos_agent_address"]
+	)
+	token = direct_token(agent, create=False) if route == "direct" and agent else None
+	if not token:
+		return {"direct": False}
+	from restaurant_pos.utils.printing import BAND_ROWS, INK_THRESHOLD
+
+	return {
+		"direct": True,
+		"agent_url": (address or DEFAULT_AGENT_ADDRESS).rstrip("/"),
+		"token": token,
+		# How the server turns a bitmap into dots, so the till's paper is the
+		# server's paper: one threshold, one band size, defined once (`D-109`).
+		"ink_threshold": INK_THRESHOLD,
+		"band_rows": BAND_ROWS,
+	}
+
+
+#: Where a till finds the agent on its own computer.
+DEFAULT_AGENT_ADDRESS = "http://127.0.0.1:17891"
 
 
 def _quick_notes() -> list[dict]:

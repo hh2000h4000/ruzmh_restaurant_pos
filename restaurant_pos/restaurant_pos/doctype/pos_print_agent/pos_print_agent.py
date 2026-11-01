@@ -142,17 +142,19 @@ def _issue_keys(doc) -> tuple[str, str]:
 	return user.api_key, api_secret
 
 
-def direct_token(agent: str) -> str:
+def direct_token(agent: str, *, create: bool = True) -> str | None:
 	"""The key a till shows this agent when it hands it paper (`D-414`, `docs/15` §5.9).
 
 	Made on first asking for an agent paired before direct printing existed, so
-	no machine has to be paired again for it.
+	no machine has to be paired again for it — **by the agent's own request**,
+	which commits. A till's session only reads it (``create=False``): a key made
+	in a request that is not committed would be a key the agent never learns,
+	and every paper would be refused as "wrong key".
 	"""
 	from frappe.utils.password import get_decrypted_password
 
-	return get_decrypted_password(
-		"POS Print Agent", agent, "direct_token", raise_exception=False
-	) or _new_direct_token(agent)
+	token = get_decrypted_password("POS Print Agent", agent, "direct_token", raise_exception=False)
+	return token or (_new_direct_token(agent) if create else None)
 
 
 def _new_direct_token(agent: str) -> str:

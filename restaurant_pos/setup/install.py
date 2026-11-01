@@ -760,6 +760,26 @@ CUSTOM_FIELDS = {
 			"description": "The computer the agent last reported from. If it is not this device's, the agent was paired on another computer.",
 			"insert_after": "rpos_print_agent",
 		},
+		# `D-415` — the browser draws the paper and hands it to the agent itself
+		# (docs/15). Off until switched on, so no terminal changes by itself.
+		{
+			"fieldname": "rpos_print_route",
+			"fieldtype": "Select",
+			"options": "server\ndirect",
+			"default": "server",
+			"label": "Printing",
+			"description": "server: the server draws the paper and the agent fetches it. direct: this device draws it and hands it to the agent straight away — faster, and nothing for the server to do. Direct needs the print agent above, version 1.2 or later.",
+			"insert_after": "rpos_print_agent_host",
+		},
+		{
+			"fieldname": "rpos_agent_address",
+			"fieldtype": "Data",
+			"default": "http://127.0.0.1:17891",
+			"label": "Print Agent Address",
+			"description": "Where this device reaches its agent. 127.0.0.1 is the agent on this same computer; a phone or a tablet uses the address of the computer that runs it, with Listen on the Network ticked on that agent.",
+			"depends_on": "eval:doc.rpos_print_route=='direct'",
+			"insert_after": "rpos_print_route",
+		},
 		{
 			"fieldname": "receipt_template",
 			"fieldtype": "Link",
@@ -1072,6 +1092,8 @@ TERMINAL_FORM_ORDER = [
 	"default_printer",
 	"rpos_print_agent",
 	"rpos_print_agent_host",
+	"rpos_print_route",
+	"rpos_agent_address",
 	"section_break_11",
 	"payments",
 	"rpos_accounting_section",

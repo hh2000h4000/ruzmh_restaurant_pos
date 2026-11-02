@@ -1396,6 +1396,62 @@ class TheTillDrawsItsOwnPaper(PrintingTestBase):
 		self.assertEqual(printing["agent_url"], "http://127.0.0.1:17891")
 
 
+class TheServerRingsTheAgent(PrintingTestBase):
+	"""`D-418` — the agent hears there is paper instead of asking every two seconds."""
+
+	def _rings(self, action):
+		with patch.object(frappe, "publish_realtime") as published:
+			action()
+		return [call for call in published.call_args_list if call.args and call.args[0] == "rpos_print_jobs"]
+
+	def test_a_queued_job_rings_its_agent_s_user_once_committed(self):
+		kot = self._sent_kot()
+
+		(ring,) = self._rings(lambda: service.print_kot(kot.name, force=True))
+
+		self.assertEqual(ring.kwargs["user"], frappe.db.get_value("POS Print Agent", self.agent, "user"))
+		self.assertTrue(ring.kwargs["after_commit"], "before the commit the agent asks too soon")
+
+	def test_a_backup_copy_rings_too(self):
+		"""Every path passes the job's own insert: none has to remember."""
+		kot = self._sent_kot()
+		job = service.print_kot(kot.name, force=True)
+
+		rings = self._rings(lambda: service.settle(job, printed=False, reason="unreachable"))
+
+		self.assertTrue(frappe.db.exists("POS Print Job", {"retry_of": job}))
+		self.assertEqual(len(rings), 1)
+
+	def test_a_till_s_own_paper_rings_nothing(self):
+		frappe.db.set_value(
+			"POS Profile", self.profile, {"rpos_print_route": "direct", "rpos_print_agent": self.agent}
+		)
+		frappe.clear_document_cache("POS Profile", self.profile)
+		self.addCleanup(frappe.clear_document_cache, "POS Profile", self.profile)
+		self.addCleanup(setattr, frappe.local, "request", None)
+		frappe.local.response = frappe._dict({"docs": []})
+		from types import SimpleNamespace
+		from urllib.parse import quote
+
+		frappe.local.request = SimpleNamespace(headers={"X-RPOS-Till": quote(self.profile)})
+
+		self.assertEqual(self._rings(self._sent_kot), [])
+		self.assertTrue(frappe.local.response.get("rpos_papers"), "it went to the till")
+
+	def test_the_agent_learns_where_to_listen(self):
+		frappe.set_user(frappe.db.get_value("POS Print Agent", self.agent, "user"))
+		self.addCleanup(frappe.set_user, "Administrator")
+
+		self.assertEqual(api.agent_settings()["socket"], {"site": frappe.local.site, "port": None})
+
+		# Set and put back by hand: `patch.object` on `frappe.local` deletes the
+		# attribute on the way out, and Frappe reads it on every request after.
+		self.addCleanup(setattr, frappe.local, "dev_server", getattr(frappe.local, "dev_server", False))
+		frappe.local.dev_server = True
+		port = api.agent_settings()["socket"]["port"]
+		self.assertEqual(port, frappe.conf.socketio_port, "a bench's notices are on their own port")
+
+
 class AnAgentIsSeenWithoutAWriteEveryPoll(PrintingTestBase):
 	"""`docs/15` §2 — the heartbeat was a third of every database write."""
 

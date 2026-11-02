@@ -5,8 +5,26 @@ import frappe
 from frappe import _
 from frappe.model.document import Document
 
+#: What an agent hears when a job is queued for it — `PAPER_EVENT` in the agent.
+PAPER_EVENT = "rpos_print_jobs"
+
 
 class POSPrintJob(Document):
+	def after_insert(self):
+		"""Ring the agent: there is paper (`D-418`, `docs/15` §5.6).
+
+		Here, where every job passes — a sale, a delivery order, the desk, a
+		backup — so no path has to remember it. After the commit, or the agent
+		asks before the job is there to take. A till's own paper is not fetched
+		(`is_direct`), so it rings nothing. An agent before 1.3 hears nothing and
+		finds the job on its next poll, as always.
+		"""
+		if self.is_direct or self.status != "queued":
+			return
+		user = frappe.db.get_value("POS Print Agent", self.agent, "user")
+		if user:
+			frappe.publish_realtime(PAPER_EVENT, user=user, after_commit=True)
+
 	def validate(self):
 		if self.copies is None or self.copies < 1:
 			self.copies = 1

@@ -151,6 +151,9 @@ def agent_settings() -> dict:
 	  the same browser is refused even if it knows the port.
 	- ``listen_on_network`` — off unless set on the agent's form: it hears its
 	  own computer only, and a phone or a tablet needs it on.
+	- ``socket`` — where the server rings when it queues paper (`D-418`): the
+	  site's namespace, and on a development bench the port, which is not the
+	  site's. In production the site's own address passes it on.
 
 	Asked by the agent when it starts and again every minute, so a change on the
 	form, or a key issued again, reaches it without anyone at the computer.
@@ -160,6 +163,10 @@ def agent_settings() -> dict:
 		"token": pos_print_agent.direct_token(agent_name),
 		"origins": _site_origins(),
 		"listen_on_network": bool(frappe.db.get_value("POS Print Agent", agent_name, "listen_on_network")),
+		"socket": {
+			"site": frappe.local.site,
+			"port": frappe.conf.socketio_port if getattr(frappe.local, "dev_server", False) else None,
+		},
 	}
 
 

@@ -1214,6 +1214,45 @@ class TheTillDrawsItsOwnPaper(PrintingTestBase):
 		self.assertEqual(frappe.db.get_value("POS Print Job", job, "status"), "printed")
 		self.assertEqual(frappe.db.get_value("Kitchen Order Ticket", kot.name, "print_status"), "printed")
 
+	def _failed_with_nothing_sent(self, job):
+		frappe.local.request = None
+		frappe.set_user(frappe.db.get_value("POS Print Agent", self.agent, "user"))
+		api.report(job=job, printed=0, error="cannot reach", reason="unreachable", nothing_sent=1)
+		frappe.set_user("Administrator")
+
+	def test_a_known_failure_sends_the_till_s_own_paper_to_the_backup(self):
+		"""`D-416` — found on the user's printers: the backup got a copy of nothing."""
+		self._from_the_till()
+		kot = self._sent_kot()
+		(paper,) = self._papers()
+
+		with patch.object(service, "html_to_png", wraps=service.html_to_png) as drawn:
+			self._failed_with_nothing_sent(paper["job"])
+
+		retry = frappe.get_doc("POS Print Job", {"retry_of": paper["job"]})
+		self.assertEqual((retry.printer, retry.is_direct, retry.status), (self.backup_printer, 0, "queued"))
+		backup = frappe.get_doc("POS Printer", self.backup_printer)
+		drawn.assert_called_once_with(paper["html"], width_dots=service.print_dots(backup))
+		payload = base64.b64decode(retry.payload)
+		self.assertTrue(payload.startswith(b"\x1b@\x1dv0"), "a raster, not an empty copy")
+		self.assertEqual(retry.payload_bytes, len(payload))
+		self.assertEqual(
+			frappe.db.get_value("Kitchen Order Ticket", kot.name, "print_status"),
+			"pending",
+			"the backup has it: no bell",
+		)
+
+	def test_a_paper_no_longer_held_rings_instead_of_sending_nothing(self):
+		self._from_the_till()
+		kot = self._sent_kot()
+		job = self._papers()[0]["job"]
+		frappe.cache().delete_value(service._paper_key(job))
+
+		self._failed_with_nothing_sent(job)
+
+		self.assertFalse(frappe.db.exists("POS Print Job", {"retry_of": job}))
+		self.assertEqual(frappe.db.get_value("Kitchen Order Ticket", kot.name, "print_status"), "failed")
+
 	def test_an_agent_that_did_not_answer_is_unconfirmed_and_rings(self):
 		self._from_the_till()
 		kot = self._sent_kot()

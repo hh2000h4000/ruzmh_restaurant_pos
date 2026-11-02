@@ -1037,11 +1037,12 @@ def _cashier_printer(pos_profile: str | None) -> str | None:
 def fall_back(job_name: str) -> str | None:
 	"""Re-queue a failed job on the fallback printer (`BR-072`).
 
-	The bytes are reused rather than rendered again. A receipt that comes out of
+	The paper is reused rather than made again. A receipt that comes out of
 	the second printer differing from the first — a later timestamp, a price
 	edited in between — is the kind of discrepancy nobody can explain afterwards.
 
-	Returns the new job, or None when there is nowhere else to send it.
+	Returns the new job, or None when there is nowhere else to send it — or
+	nothing to send: **never an empty copy** (`D-416`). The bell rings instead.
 	"""
 	job = frappe.get_doc("POS Print Job", job_name)
 	fallback = frappe.db.get_value("POS Printer", job.printer, "fallback_printer")
@@ -1063,6 +1064,10 @@ def fall_back(job_name: str) -> str | None:
 	if not agent:
 		return None
 
+	payload = _paper_for_fallback(job, fallback)
+	if not payload:
+		return None
+
 	retry = frappe.get_doc(
 		{
 			"doctype": "POS Print Job",
@@ -1074,13 +1079,44 @@ def fall_back(job_name: str) -> str | None:
 			"reference_doctype": job.reference_doctype,
 			"reference_name": job.reference_name,
 			"retry_of": job.name,
-			"payload": job.payload,
-			"payload_bytes": job.payload_bytes,
+			"payload": payload,
+			"payload_bytes": len(base64.b64decode(payload)),
 		}
 	)
 	retry.insert(ignore_permissions=True)
 
 	return retry.name
+
+
+def _paper_for_fallback(job, fallback: str) -> str | None:
+	"""The paper for the backup printer, in base64, or None when there is none.
+
+	A job the server drew carries its bytes. A job a till drew carries nothing
+	(`docs/15` §5.2), so the server kept the till's paper for its shelf life
+	(`_hand_to_till`) and draws that same HTML here, for the backup's width —
+	the one time the server draws a till's paper, and only on a failure.
+	Aloha's and Simphony's print controllers do the same: whoever decides on
+	the backup holds the ticket until it is known to have printed (`D-416`).
+	"""
+	if job.payload:
+		return job.payload
+	paper = frappe.cache().get_value(_paper_key(job.name)) if job.is_direct else None
+	if not paper:
+		# Gone with its shelf life, or with a Redis restart: the bell asks.
+		return None
+	if paper.get("raw"):
+		return paper["raw"]
+
+	printer_doc = frappe.get_cached_doc("POS Printer", fallback)
+	try:
+		png = html_to_png(paper["html"], width_dots=print_dots(printer_doc))
+	except Exception:
+		# Inside the agent's report: a drawing that fails must not fail the
+		# report, or the agent sends it again. The bell rings instead.
+		frappe.log_error(title="RPOS: drawing a till's paper for the backup printer")
+		return None
+	rendered = png_to_escpos(png, cut=bool(printer_doc.cut_after_print))
+	return base64.b64encode(rendered.payload).decode("ascii")
 
 
 #: How long a finished job keeps the bytes it printed.
@@ -1500,10 +1536,18 @@ def _hand_to_till(
 		# A reprint from the till replaces a copy still waiting in the queue.
 		cancel_waiting(reference_doctype, reference_name, job_type)
 
+	# Held for the backup printer, in case the agent says nothing left it
+	# (`_paper_for_fallback`). In Redis for the paper's shelf life, not on the row.
+	frappe.cache().set_value(_paper_key(job.name), paper, expires_in_sec=shelf_seconds(job_type))
+
 	frappe.response.setdefault("rpos_papers", []).append(
 		{"job": job.name, "printer": _connection(printer), "copies": copies or 1, **paper}
 	)
 	return job.name
+
+
+def _paper_key(job_name: str) -> str:
+	return f"rpos_till_paper:{job_name}"
 
 
 def mark_not_handed(job_name: str, error: str) -> None:

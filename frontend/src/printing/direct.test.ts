@@ -25,8 +25,19 @@ function paper(job: string, printer = "PRT-1"): Paper {
   return { job, printer: { name: printer, title: printer }, copies: 1, raw: "G0A=" };
 }
 
-function answered(status = 200) {
-  return { ok: status < 400, status, json: async () => ({ ok: status < 400, status: "printed" }) };
+function answered(status = 200, outcome = "printed") {
+  return { ok: status < 400, status, json: async () => ({ ok: status < 400, status: outcome }) };
+}
+
+function withBackup(job: string): Paper {
+  return {
+    ...paper(job, "grill"),
+    fallback: { job: `${job}-b`, printer: { name: "cashier", title: "cashier" }, width: 512, cut: true },
+  };
+}
+
+function sent(fetched: ReturnType<typeof vi.fn>) {
+  return fetched.mock.calls.map(([, init]) => JSON.parse(init.body) as { job: string; printer: { name: string } });
 }
 
 beforeEach(() => {
@@ -72,6 +83,33 @@ describe("a direct till", () => {
     await handPapers([paper("JOB-3")]);
 
     expect(client.command).toHaveBeenCalledWith("printing.not_handed", { job: "JOB-3", error: "agent answered 401" });
+  });
+
+  it("sends the same paper to its backup when the agent says nothing left it, asking the server nothing", async () => {
+    const fetched = vi.fn().mockResolvedValueOnce(answered(200, "failed")).mockResolvedValue(answered());
+    vi.stubGlobal("fetch", fetched);
+
+    await handPapers([withBackup("KOT-7")]);
+
+    expect(sent(fetched).map((body) => [body.job, body.printer.name])).toEqual([
+      ["KOT-7", "grill"],
+      ["KOT-7-b", "cashier"],
+    ]);
+    expect(client.command).not.toHaveBeenCalled();
+  });
+
+  it("never sends to the backup a paper that may be on the roll, nor a backup's paper again", async () => {
+    for (const outcome of ["unconfirmed", "printed"]) {
+      const fetched = vi.fn().mockResolvedValue(answered(200, outcome));
+      vi.stubGlobal("fetch", fetched);
+      await handPapers([withBackup("KOT-8")]);
+      expect(sent(fetched).map((body) => body.job)).toEqual(["KOT-8"]);
+    }
+
+    const failing = vi.fn().mockResolvedValue(answered(200, "failed"));
+    vi.stubGlobal("fetch", failing);
+    await handPapers([withBackup("KOT-9")]);
+    expect(sent(failing).map((body) => body.job)).toEqual(["KOT-9", "KOT-9-b"]);
   });
 
   it("keeps one printer's papers in order and never holds another printer behind it", async () => {

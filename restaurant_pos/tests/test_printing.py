@@ -1220,8 +1220,55 @@ class TheTillDrawsItsOwnPaper(PrintingTestBase):
 		api.report(job=job, printed=0, error="cannot reach", reason="unreachable", nothing_sent=1)
 		frappe.set_user("Administrator")
 
+	def _backup_out_of_reach(self):
+		"""A cable printer on another computer: the server's to send to (`D-416`)."""
+		frappe.db.set_value(
+			"POS Printer",
+			self.backup_printer,
+			{
+				"connection_type": "windows",
+				"windows_printer_name": "Cashier USB",
+				"print_agent": _agent("RPOS Test Other Agent"),
+			},
+		)
+		frappe.clear_document_cache("POS Printer", self.backup_printer)
+		self.addCleanup(frappe.clear_document_cache, "POS Printer", self.backup_printer)
+
+	def test_a_backup_the_till_reaches_goes_with_the_paper(self):
+		"""`D-417` — the till sends it there itself; the server keeps nothing."""
+		self._from_the_till()
+		self._sent_kot()
+
+		(paper,) = self._papers()
+		self.assertEqual(paper["fallback"]["job"], f"{paper['job']}-b")
+		self.assertEqual(paper["fallback"]["printer"]["name"], self.backup_printer)
+		self.assertIsNone(frappe.cache().get_value(service._paper_key(paper["job"])))
+
+	def test_the_agent_s_failure_report_makes_the_row_the_till_prints_under(self):
+		"""No request of its own: the row comes from the report the agent sends anyway."""
+		self._from_the_till()
+		kot = self._sent_kot()
+		(paper,) = self._papers()
+
+		with patch.object(service, "html_to_png", side_effect=AssertionError("drawn on the server")):
+			self._failed_with_nothing_sent(paper["job"])
+
+		retry = frappe.get_doc("POS Print Job", paper["fallback"]["job"])
+		self.assertEqual(
+			(retry.retry_of, retry.printer, retry.agent, retry.is_direct, retry.status),
+			(paper["job"], self.backup_printer, self.agent, 1, "queued"),
+		)
+		self.assertFalse(retry.payload)
+		self.assertEqual(frappe.db.get_value("Kitchen Order Ticket", kot.name, "print_status"), "pending")
+
+		frappe.set_user(frappe.db.get_value("POS Print Agent", self.agent, "user"))
+		api.report(job=retry.name, printed=1)
+		frappe.set_user("Administrator")
+		self.assertEqual(frappe.db.get_value("Kitchen Order Ticket", kot.name, "print_status"), "printed")
+
 	def test_a_known_failure_sends_the_till_s_own_paper_to_the_backup(self):
 		"""`D-416` — found on the user's printers: the backup got a copy of nothing."""
+		self._backup_out_of_reach()
 		self._from_the_till()
 		kot = self._sent_kot()
 		(paper,) = self._papers()
@@ -1229,6 +1276,7 @@ class TheTillDrawsItsOwnPaper(PrintingTestBase):
 		with patch.object(service, "html_to_png", wraps=service.html_to_png) as drawn:
 			self._failed_with_nothing_sent(paper["job"])
 
+		self.assertNotIn("fallback", paper)
 		retry = frappe.get_doc("POS Print Job", {"retry_of": paper["job"]})
 		self.assertEqual((retry.printer, retry.is_direct, retry.status), (self.backup_printer, 0, "queued"))
 		backup = frappe.get_doc("POS Printer", self.backup_printer)
@@ -1243,6 +1291,7 @@ class TheTillDrawsItsOwnPaper(PrintingTestBase):
 		)
 
 	def test_a_paper_no_longer_held_rings_instead_of_sending_nothing(self):
+		self._backup_out_of_reach()
 		self._from_the_till()
 		kot = self._sent_kot()
 		job = self._papers()[0]["job"]

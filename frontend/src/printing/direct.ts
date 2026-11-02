@@ -9,7 +9,8 @@
  * **What the cashier is told is the server's to say.** The agent reports each
  * paper to the server itself, and a kitchen ticket that did not print rings the
  * bell from there (`D-413`). When the agent does not answer at all, this says
- * so to the server — unconfirmed, never printed again (`D-405`).
+ * so to the server — unconfirmed, never printed again (`D-405`). Only when the
+ * agent says **nothing left it** does the paper go on, to its backup (`D-417`).
  */
 import { command, onPapers, setTillName } from "@/api/client";
 
@@ -26,6 +27,12 @@ export interface Paper {
   cut?: boolean;
   /** Bytes already made — a drawer kick. */
   raw?: string;
+  /**
+   * The backup printer, when this till's agent reaches it (`D-417`): where the
+   * same paper goes if the agent says nothing left it. The server makes the
+   * row under `job` from the agent's own report, so this asks the server nothing.
+   */
+  fallback?: { job: string; printer: Paper["printer"]; width: number; cut: boolean };
 }
 
 /** The session's `printing` block. */
@@ -98,8 +105,14 @@ async function handOver(paper: Paper): Promise<void> {
       // Refused — wrong page, wrong key: nothing was printed, but the till
       // cannot know that the agent is not merely confused, so it asks.
       await notHanded(paper, `agent answered ${answer.status}`);
+      return;
     }
     // An answer of any status was also reported to the server by the agent.
+    const outcome = (await answer.json().catch(() => ({}))) as { status?: string };
+    if (outcome.status === "failed" && paper.fallback) {
+      // One hop: the backup's own paper names no backup.
+      await handOver({ ...paper, ...paper.fallback, fallback: undefined });
+    }
   } catch (cause) {
     // No answer, a timeout, or a drawing that failed: "never arrived" and
     // "arrived, answer lost" look the same from here (`docs/15` §5.3).

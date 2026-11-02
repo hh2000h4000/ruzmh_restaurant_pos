@@ -1034,6 +1034,21 @@ def _cashier_printer(pos_profile: str | None) -> str | None:
 	return frappe.db.get_value("POS Profile", pos_profile, "default_printer") if pos_profile else None
 
 
+def backup_printer(printer: str) -> str | None:
+	"""Where a failure on ``printer`` may go (`BR-072`), or None."""
+	fallback = frappe.db.get_value("POS Printer", printer, "fallback_printer")
+	if not fallback or not frappe.db.get_value("POS Printer", fallback, "is_active"):
+		return None
+
+	# D-363 — never into another branch, even from a fallback saved before the rule.
+	if frappe.db.get_value("POS Printer", fallback, "branch") != frappe.db.get_value(
+		"POS Printer", printer, "branch"
+	):
+		return None
+
+	return fallback if frappe.db.get_value("POS Printer", fallback, "print_agent") else None
+
+
 def fall_back(job_name: str) -> str | None:
 	"""Re-queue a failed job on the fallback printer (`BR-072`).
 
@@ -1041,28 +1056,42 @@ def fall_back(job_name: str) -> str | None:
 	the second printer differing from the first — a later timestamp, a price
 	edited in between — is the kind of discrepancy nobody can explain afterwards.
 
+	**A till that reaches the backup sends it there itself** (`D-417`): it holds
+	the paper and hears "nothing left" from its agent at once. The row is made
+	here, in the agent's own report, under the name the till was given with the
+	paper — so the switch costs no request of its own.
+
 	Returns the new job, or None when there is nowhere else to send it — or
 	nothing to send: **never an empty copy** (`D-416`). The bell rings instead.
 	"""
 	job = frappe.get_doc("POS Print Job", job_name)
-	fallback = frappe.db.get_value("POS Printer", job.printer, "fallback_printer")
-	if not fallback or job.retry_of:
+	if job.retry_of:
 		# One hop only. A fallback chain that loops back prints the same ticket
 		# until somebody notices the paper is gone.
 		return None
 
-	if not frappe.db.get_value("POS Printer", fallback, "is_active"):
+	fallback = backup_printer(job.printer)
+	if not fallback:
 		return None
 
-	# D-363 — never into another branch, even from a fallback saved before the rule.
-	if frappe.db.get_value("POS Printer", fallback, "branch") != frappe.db.get_value(
-		"POS Printer", job.printer, "branch"
-	):
-		return None
-
-	agent = frappe.db.get_value("POS Printer", fallback, "print_agent")
-	if not agent:
-		return None
+	if job.is_direct and _agent_reaches(job.agent, frappe.get_cached_doc("POS Printer", fallback)):
+		retry = frappe.get_doc(
+			{
+				"doctype": "POS Print Job",
+				"printer": fallback,
+				"agent": job.agent,
+				"branch": job.branch,
+				"job_type": job.job_type,
+				"copies": job.copies,
+				"status": "queued",
+				"is_direct": 1,
+				"reference_doctype": job.reference_doctype,
+				"reference_name": job.reference_name,
+				"retry_of": job.name,
+			}
+		)
+		retry.insert(ignore_permissions=True, set_name=backup_job_name(job.name))
+		return retry.name
 
 	payload = _paper_for_fallback(job, fallback)
 	if not payload:
@@ -1072,7 +1101,7 @@ def fall_back(job_name: str) -> str | None:
 		{
 			"doctype": "POS Print Job",
 			"printer": fallback,
-			"agent": agent,
+			"agent": frappe.db.get_value("POS Printer", fallback, "print_agent"),
 			"job_type": job.job_type,
 			"copies": job.copies,
 			"status": "queued",
@@ -1493,7 +1522,11 @@ def _reaches(terminal, printer_doc, branch: str | None) -> bool:
 	"""
 	if branch and terminal.get("rpos_branch") and terminal.rpos_branch != branch:
 		return False
-	return printer_doc.connection_type == "network" or printer_doc.print_agent == terminal.rpos_print_agent
+	return _agent_reaches(terminal.rpos_print_agent, printer_doc)
+
+
+def _agent_reaches(agent: str, printer_doc) -> bool:
+	return printer_doc.connection_type == "network" or printer_doc.print_agent == agent
 
 
 def _hand_to_till(
@@ -1536,9 +1569,25 @@ def _hand_to_till(
 		# A reprint from the till replaces a copy still waiting in the queue.
 		cancel_waiting(reference_doctype, reference_name, job_type)
 
-	# Held for the backup printer, in case the agent says nothing left it
-	# (`_paper_for_fallback`). In Redis for the paper's shelf life, not on the row.
-	frappe.cache().set_value(_paper_key(job.name), paper, expires_in_sec=shelf_seconds(job_type))
+	# In case the agent says nothing left it (`fall_back`). A backup this till
+	# reaches goes with the paper, and the till sends it there itself (`D-417`);
+	# one it cannot reach is the server's, which holds the paper in Redis for
+	# its shelf life, not on the row (`D-416`).
+	backup = backup_printer(printer)
+	if backup:
+		backup_doc = frappe.get_cached_doc("POS Printer", backup)
+		if _agent_reaches(job.agent, backup_doc):
+			paper = {
+				**paper,
+				"fallback": {
+					"job": backup_job_name(job.name),
+					"printer": _connection(backup),
+					"width": print_dots(backup_doc),
+					"cut": bool(backup_doc.cut_after_print),
+				},
+			}
+		else:
+			frappe.cache().set_value(_paper_key(job.name), paper, expires_in_sec=shelf_seconds(job_type))
 
 	frappe.response.setdefault("rpos_papers", []).append(
 		{"job": job.name, "printer": _connection(printer), "copies": copies or 1, **paper}
@@ -1548,6 +1597,11 @@ def _hand_to_till(
 
 def _paper_key(job_name: str) -> str:
 	return f"rpos_till_paper:{job_name}"
+
+
+def backup_job_name(job_name: str) -> str:
+	"""The backup copy's name, known to the till before the copy exists (`D-417`)."""
+	return f"{job_name}-b"
 
 
 def mark_not_handed(job_name: str, error: str) -> None:

@@ -1438,6 +1438,19 @@ class TheServerRingsTheAgent(PrintingTestBase):
 		self.assertEqual(self._rings(self._sent_kot), [])
 		self.assertTrue(frappe.local.response.get("rpos_papers"), "it went to the till")
 
+	def test_the_minute_s_ask_carries_the_settings_in_one_answer(self):
+		"""One request a minute, not a claim and a settings call (`D-418`)."""
+		kot = self._sent_kot()
+		job = service.print_kot(kot.name, force=True)
+		frappe.set_user(frappe.db.get_value("POS Print Agent", self.agent, "user"))
+		self.addCleanup(frappe.set_user, "Administrator")
+
+		answer = api.claim(version="1.3.2", settings=1)
+
+		self.assertEqual([row["name"] for row in answer["jobs"]], [job])
+		self.assertEqual(answer["settings"], api.agent_settings())
+		self.assertIsInstance(api.claim(version="1.2.0"), list, "an older agent gets the list, as always")
+
 	def test_the_agent_learns_where_to_listen(self):
 		frappe.set_user(frappe.db.get_value("POS Print Agent", self.agent, "user"))
 		self.addCleanup(frappe.set_user, "Administrator")

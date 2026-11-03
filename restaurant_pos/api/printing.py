@@ -40,8 +40,14 @@ CLAIM_BATCH = 5
 
 
 @frappe.whitelist()
-def claim(version: str | None = None, host: str | None = None) -> list[dict]:
+def claim(
+	version: str | None = None, host: str | None = None, settings: bool | int | str | None = None
+) -> list[dict] | dict:
 	"""Hand the calling agent its next jobs, and mark them as taken.
+
+	With ``settings``, its settings come in the same answer (`agent_settings`):
+	the minute's safety ask and the minute's settings are one request, not two
+	(`D-418`). An agent before 1.3.2 does not ask, and gets the list as always.
 
 	The agent asks; the server never calls out. That is what lets a restaurant
 	run behind an ordinary router with no fixed address, no forwarded port and
@@ -86,6 +92,8 @@ def claim(version: str | None = None, host: str | None = None) -> list[dict]:
 		)
 		jobs.append(row | {"printer": _connection(row.printer)})
 
+	if frappe.parse_json(settings or 0):
+		return {"jobs": jobs, "settings": _settings_for(agent_name)}
 	return jobs
 
 
@@ -158,7 +166,10 @@ def agent_settings() -> dict:
 	Asked by the agent when it starts and again every minute, so a change on the
 	form, or a key issued again, reaches it without anyone at the computer.
 	"""
-	agent_name = pos_print_agent.for_session()
+	return _settings_for(pos_print_agent.for_session())
+
+
+def _settings_for(agent_name: str) -> dict:
 	return {
 		"token": pos_print_agent.direct_token(agent_name),
 		"origins": _site_origins(),

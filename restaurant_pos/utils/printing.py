@@ -341,6 +341,12 @@ def queue(
 
 	agent = frappe.db.get_value("POS Printer", printer, "print_agent")
 	if not agent:
+		# Required on the form (`D-419`); only a printer saved before that rule
+		# lands here. Raised into a worker — a printer the till could not reach,
+		# drawn off the request — it reached nobody, so the ticket says it
+		# failed and the bell rings, as for any ticket that will not print.
+		if reference_doctype == "Kitchen Order Ticket" and reference_name:
+			mark_kot_failed(reference_name)
 		frappe.throw(
 			_("{0} has no print agent, so nothing can reach it.").format(printer),
 		)

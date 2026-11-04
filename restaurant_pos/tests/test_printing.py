@@ -1465,6 +1465,35 @@ class TheServerRingsTheAgent(PrintingTestBase):
 		self.assertEqual(port, frappe.conf.socketio_port, "a bench's notices are on their own port")
 
 
+class APrinterHasAnAgent(PrintingTestBase):
+	"""`D-419` — a printer nothing can reach is not saved, and an old one says so on the ticket."""
+
+	def test_a_printer_is_not_saved_without_its_agent(self):
+		printer = frappe.copy_doc(frappe.get_doc("POS Printer", self.printer))
+		printer.title = "RPOS Test Printer With No Agent"
+		printer.print_agent = None
+
+		with self.assertRaises(frappe.MandatoryError):
+			printer.insert(ignore_permissions=True)
+
+	def test_a_ticket_for_a_printer_saved_before_the_rule_rings_the_bell(self):
+		"""Drawn in a worker, the error reached nobody: the ticket stayed pending, no bell."""
+		kot = self._sent_kot()
+		frappe.db.set_value("POS Printer", self.printer, "print_agent", None)
+
+		with self.assertRaises(frappe.ValidationError):
+			service.queue(
+				printer=self.printer,
+				branch=BRANCH,
+				job_type="kot",
+				rendered=service.Rendered(payload=b"x", width_dots=0, height_dots=0),
+				reference_doctype="Kitchen Order Ticket",
+				reference_name=kot.name,
+			)
+
+		self.assertEqual(frappe.db.get_value("Kitchen Order Ticket", kot.name, "print_status"), "failed")
+
+
 class AnAgentIsSeenWithoutAWriteEveryPoll(PrintingTestBase):
 	"""`docs/15` §2 — the heartbeat was a third of every database write."""
 

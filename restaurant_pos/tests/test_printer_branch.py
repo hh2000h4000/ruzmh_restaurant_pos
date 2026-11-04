@@ -27,12 +27,22 @@ def _other_branch() -> str:
 	return OTHER
 
 
+def _agent_in(branch: str) -> str:
+	title = "RPOS Branch Test Agent"
+	return frappe.db.get_value("POS Print Agent", {"title": title, "branch": branch}) or (
+		frappe.get_doc({"doctype": "POS Print Agent", "title": title, "branch": branch, "is_active": 1})
+		.insert(ignore_permissions=True)
+		.name
+	)
+
+
 def _printer(title: str, branch: str):
 	return frappe.get_doc(
 		{
 			"doctype": "POS Printer",
 			"title": title,
 			"branch": branch,
+			"print_agent": _agent_in(branch),
 			"connection_type": "network",
 			"ip_address": "127.0.0.1",
 			"port": 9100,

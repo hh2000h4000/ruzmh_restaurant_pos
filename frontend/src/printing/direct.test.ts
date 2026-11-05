@@ -11,7 +11,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import * as client from "@/api/client";
 
-import { configure, handPapers, type Paper } from "./direct";
+import { blockedByBrowser, checkReach, configure, handPapers, type Paper } from "./direct";
 
 vi.mock("@/api/client", () => ({
   command: vi.fn().mockResolvedValue({ ok: true }),
@@ -143,9 +143,83 @@ describe("a direct till", () => {
   });
 });
 
+describe("a browser that refuses the page its agent (D-420)", () => {
+  /** The browser's permission, as `navigator.permissions` answers; null for a browser without one. */
+  function permission(state: PermissionState | null) {
+    const status = { state, onchange: null as null | (() => void) };
+    Object.defineProperty(navigator, "permissions", {
+      configurable: true,
+      value: state === null ? undefined : { query: vi.fn().mockResolvedValue(status) },
+    });
+    return status;
+  }
+
+  afterEach(() => {
+    Object.defineProperty(navigator, "permissions", { configurable: true, value: undefined });
+  });
+
+  it("says so when the agent is not reached and the browser says it refused", async () => {
+    permission("denied");
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("Failed to fetch")));
+
+    await checkReach();
+
+    expect(blockedByBrowser.value).toBe(true);
+  });
+
+  it("trusts the agent over the browser: reached, nothing is said whatever the browser answers", async () => {
+    // A browser that cannot show its prompt says "denied" to a page that prints.
+    permission("denied");
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(answered(401)));
+
+    await checkReach();
+
+    expect(blockedByBrowser.value).toBe(false);
+  });
+
+  it("an agent that is off is not the browser's doing, nor a browser with no such permission", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("Failed to fetch")));
+
+    for (const state of ["granted", "prompt", null] as const) {
+      permission(state);
+      await checkReach();
+      expect(blockedByBrowser.value, String(state)).toBe(false);
+    }
+  });
+
+  it("goes away by itself once it is allowed", async () => {
+    configure("كاشير 2", { direct: false }); // the last test's watch let go, as when a session ends
+    configure("كاشير 2", DIRECT);
+    const status = permission("denied");
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("Failed to fetch")));
+    await checkReach();
+    expect(blockedByBrowser.value).toBe(true);
+
+    status.state = "granted";
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(answered()));
+    status.onchange?.();
+    await vi.waitFor(() => expect(blockedByBrowser.value).toBe(false));
+  });
+
+  it("asks the agent itself, with the key", async () => {
+    permission("prompt");
+    const fetched = vi.fn().mockResolvedValue(answered());
+    vi.stubGlobal("fetch", fetched);
+
+    await checkReach();
+
+    const [url, init] = fetched.mock.calls[0];
+    expect(url).toBe("http://127.0.0.1:17891/health");
+    expect(init.headers["X-RPOS-Token"]).toBe(DIRECT.token);
+  });
+});
+
 describe("a till printing through the server", () => {
   it("names nothing and takes no paper", () => {
+    blockedByBrowser.value = true;
     configure("كاشير 2", { direct: false });
+
+    expect(blockedByBrowser.value, "nothing of its own to reach").toBe(false);
 
     expect(client.setTillName).toHaveBeenLastCalledWith(null);
     expect(client.onPapers).toHaveBeenLastCalledWith(null);

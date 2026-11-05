@@ -42,6 +42,9 @@ export const messages = {
   "conn.syncing": "Syncing…",
   "conn.syncNow": "Sync now",
   "conn.staleConfig": "Working from this device's copy, saved {when}.",
+  // `D-420` — the browser refuses this page its print agent
+  "print.blockedByBrowser": "Printing is stopped: this browser does not allow the page to reach the print agent.",
+  "print.blockedHow": "To allow it: the icon left of the address → Site settings → Local network → Allow. Guide: “Printing didn’t work?”",
   // Selling offline (09 §5)
   "offline.itemUnknown": "That item is not in this device's menu.",
   "offline.bill": "Offline — this bill is on the device until the connection returns.",

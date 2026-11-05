@@ -5,7 +5,7 @@ import { ApiError, query } from "@/api/client";
 import { pairedDevice } from "@/device";
 import { initLocale } from "@/i18n";
 import { loadSession, saveSession } from "@/offline/cache";
-import { configure as configurePrinting } from "@/printing/direct";
+import { checkReach, configure as configurePrinting } from "@/printing/direct";
 import type { CatalogItem, OrderType, PosSession } from "@/types/session";
 
 import { useThemeStore } from "./theme";
@@ -104,6 +104,8 @@ export const useSessionStore = defineStore("session", () => {
     initLocale(payload.lang);
     // `D-415` — whether this till draws its own paper, and where its agent is.
     configurePrinting(payload.pos_profile.name, payload.printing);
+    // `D-420` — whether the browser lets this page reach its agent at all.
+    void checkReach();
   }
 
   async function load(posProfile: string, deviceToken?: string): Promise<void> {

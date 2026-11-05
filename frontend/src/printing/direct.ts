@@ -12,6 +12,8 @@
  * so to the server — unconfirmed, never printed again (`D-405`). Only when the
  * agent says **nothing left it** does the paper go on, to its backup (`D-417`).
  */
+import { ref } from "vue";
+
 import { command, onPapers, setTillName } from "@/api/client";
 
 import { drawHtml, packRaster, toBase64, type Ink } from "./raster";
@@ -51,7 +53,21 @@ export interface TillPrinting {
  */
 export const HAND_OVER_MS = 20_000;
 
+/** How long the opening check waits for the agent; the browser's own prompt may hold it. */
+export const REACH_MS = 10_000;
+
 let till: { agentUrl: string; token: string; ink: Ink } | null = null;
+
+/**
+ * The browser refuses this page its print agent (`D-420`, `docs/15` §5.10).
+ *
+ * A setting on this machine, not a fault: said on the screen, with how to
+ * change it, until it is changed. Nothing goes to the server instead — the
+ * person who set the till up fixes it once, as Odoo asks of its users.
+ */
+export const blockedByBrowser = ref(false);
+
+let watching: PermissionStatus | null = null;
 
 /**
  * Set from the session: a direct till names itself on every request and takes
@@ -68,6 +84,60 @@ export function configure(name: string | null, printing: TillPrinting | null | u
     : null;
   setTillName(direct ? name : null);
   onPapers(direct ? handPapers : null);
+  if (!till) {
+    blockedByBrowser.value = false;
+    watching = null;
+  }
+}
+
+/**
+ * When the till opens, and again when the browser's answer changes: can this
+ * page reach its agent? Asked of the agent itself — the browser's answer alone
+ * is not trusted, since a browser that cannot show its prompt says "denied" to
+ * a page that prints. Blocked only when the agent was not reached **and** the
+ * browser says it refused. Asking also brings the browser's prompt up now,
+ * not in the middle of the first sale.
+ */
+export async function checkReach(): Promise<void> {
+  if (!till) return;
+  const status = await localNetworkPermission(till.agentUrl);
+  if (status && !watching) {
+    watching = status;
+    status.onchange = () => void checkReach();
+  }
+  const reached = await reachesAgent();
+  blockedByBrowser.value = !reached && status?.state === "denied";
+}
+
+async function reachesAgent(): Promise<boolean> {
+  if (!till) return false;
+  const url = `${till.agentUrl}/health`;
+  try {
+    // Any answer, a refusal included, is an agent this page reached.
+    await fetch(url, {
+      headers: { "X-RPOS-Token": till.token },
+      signal: AbortSignal.timeout(REACH_MS),
+      ...addressSpace(url),
+    } as RequestInit);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** The browser's permission for this agent, by the names Chrome has used; null where it has none. */
+async function localNetworkPermission(url: string): Promise<PermissionStatus | null> {
+  const names = isLoopback(url)
+    ? ["loopback-network", "local-network-access"]
+    : ["local-network", "local-network-access"];
+  for (const name of names) {
+    try {
+      return await navigator.permissions.query({ name } as unknown as PermissionDescriptor);
+    } catch {
+      // Not a name this browser knows: an older one has no such permission at all.
+    }
+  }
+  return null;
 }
 
 /**
@@ -127,8 +197,12 @@ async function handOver(paper: Paper): Promise<void> {
  */
 function addressSpace(url: string): { targetAddressSpace?: "loopback" | "local" } {
   if (location.protocol !== "https:") return {};
+  return { targetAddressSpace: isLoopback(url) ? "loopback" : "local" };
+}
+
+function isLoopback(url: string): boolean {
   const host = new URL(url).hostname;
-  return { targetAddressSpace: host === "127.0.0.1" || host === "localhost" ? "loopback" : "local" };
+  return host === "127.0.0.1" || host === "localhost";
 }
 
 async function notHanded(paper: Paper, error: string): Promise<void> {

@@ -5,6 +5,7 @@ import { useRouter } from "vue-router";
 import OrderTypeFieldsDialog from "@/components/order/OrderTypeFieldsDialog.vue";
 import { pairedDevice } from "@/device";
 import { t, tn } from "@/i18n";
+import { blockedByBrowser } from "@/printing/direct";
 import { useAuthStore } from "@/stores/auth";
 import { useConnectionStore } from "@/stores/connection";
 
@@ -90,6 +91,17 @@ onUnmounted(connection.stop);
       >
         {{ t("conn.syncNow") }}
       </button>
+    </div>
+
+    <!-- `D-420` — a setting on this machine stops every paper: said until it is changed. -->
+    <div
+      v-if="blockedByBrowser"
+      role="alert"
+      class="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 bg-status-reserved px-4 py-2 text-sm font-medium text-white"
+    >
+      <span aria-hidden="true">●</span>
+      <span>{{ t("print.blockedByBrowser") }}</span>
+      <span class="font-normal">{{ t("print.blockedHow") }}</span>
     </div>
 
     <!--

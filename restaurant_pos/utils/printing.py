@@ -1208,17 +1208,6 @@ REASONS = frozenset(
 	{"paper_out", "paused", "offline", "attention", "error", "not_found", "not_taken", "unreachable"}
 )
 
-#: The reasons an agent gives **before a single byte left it** (`D-405`): the
-#: printer could not be opened, or Windows said it was not ready and nothing was
-#: written. Only these are a known "it did not print", and only these may go to
-#: the fallback printer.
-#:
-#: Not ``not_taken``: the job was written into the Windows queue and taken back
-#: after `WINDOWS_JOB_SECONDS`, and a printer that woke in between may have
-#: started it. Not a failure with no reason either — an agent older than 1.1.0,
-#: or a socket that broke half way down a receipt.
-NOTHING_SENT = frozenset({"unreachable", "not_found", "paper_out", "paused", "offline", "attention", "error"})
-
 
 def settle(
 	job_name: str,
@@ -1227,7 +1216,7 @@ def settle(
 	error: str | None = None,
 	reason: str | None = None,
 	try_fallback: bool = True,
-	nothing_sent: bool | None = None,
+	nothing_sent: bool = False,
 ) -> None:
 	"""Record what happened to one job (`D-405`).
 
@@ -1240,10 +1229,9 @@ def settle(
 	- ``unconfirmed`` — anything else. It may be on the roll. Nothing prints it
 	  again by itself; the bell asks the cashier, who can see the printer.
 
-	``nothing_sent`` is for a caller that knows without an agent — a job that
-	expired before anyone took it. Otherwise the agent's reason decides, and a
-	job printed in several copies is never "nothing sent": the first copy may
-	be out when the second fails.
+	``nothing_sent`` is said by whoever knows: the agent, which counts the bytes
+	across every copy, or the server for a job that expired before anyone took
+	it. Not said is not known, and not known is unconfirmed.
 
 	``try_fallback`` is off for a job that expired unprinted (`D-108`): a ticket
 	too late for its own printer is too late for the backup as well.
@@ -1255,8 +1243,6 @@ def settle(
 		# and a repeated failure must not send a second copy to the backup.
 		return
 
-	if nothing_sent is None:
-		nothing_sent = reason in NOTHING_SENT and (job.copies or 1) == 1
 	late = job.status == "unconfirmed"
 
 	status = "printed" if printed else ("failed" if nothing_sent else "unconfirmed")

@@ -84,7 +84,6 @@ UNSCOPED = {
 	# about the jobs belonging to that agent.
 	"api.printing.claim": "authenticated by the agent's api key; scoped to that agent's own jobs",
 	"api.printing.report": "authenticated by the agent's api key; scoped to that agent's own jobs",
-	"api.printing.agent_settings": "authenticated by the agent's api key; that agent's own key and listening (D-414)",
 	# Desk-only, on the DocType itself, behind ERPNext's own document
 	# permissions rather than the POS permission set.
 	"api.session.issue_device_code": (

@@ -74,7 +74,7 @@ function watch(job_name, title) {
 			if (message.status === "failed") {
 				clearInterval(poll);
 				// D-403 — what to do, in words; the agent's own text stays below for
-				// the technician. An agent before 1.1.0 sends no reason.
+				// the technician.
 				const said = failure_in_words(message.reason, title);
 				paint(
 					`<p class="text-danger">${said || __("The agent could not print it.")}</p>

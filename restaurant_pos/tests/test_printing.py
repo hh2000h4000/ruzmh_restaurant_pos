@@ -471,7 +471,7 @@ class TestTheAgentSeam(PrintingTestBase):
 		job = service.print_kot(kot.name)
 		self._as_agent()
 
-		claimed = api.claim(version="test", host="bench")
+		claimed = api.claim(version="test", host="bench")["jobs"]
 		names = [row["name"] for row in claimed]
 
 		self.assertIn(job, names)
@@ -483,7 +483,7 @@ class TestTheAgentSeam(PrintingTestBase):
 		service.print_kot(kot.name)
 		self._as_agent()
 
-		row = api.claim()[0]
+		row = api.claim()["jobs"][0]
 
 		self.assertEqual(row["printer"]["ip_address"], "127.0.0.1")
 		self.assertEqual(row["printer"]["port"], 9100)
@@ -502,7 +502,7 @@ class TestTheAgentSeam(PrintingTestBase):
 		service.print_kot(kot.name)
 		self._as_agent()
 
-		row = api.claim()[0]
+		row = api.claim()["jobs"][0]
 
 		self.assertEqual(row["printer"]["connection_type"], "windows")
 		self.assertEqual(row["printer"]["windows_printer_name"], "POS-X Thermal Printer")
@@ -540,8 +540,8 @@ class TestTheAgentSeam(PrintingTestBase):
 		service.print_kot(kot.name)
 		self._as_agent()
 
-		first = {row["name"] for row in api.claim()}
-		second = {row["name"] for row in api.claim()}
+		first = {row["name"] for row in api.claim()["jobs"]}
+		second = {row["name"] for row in api.claim()["jobs"]}
 
 		self.assertTrue(first)
 		self.assertFalse(first & second)
@@ -552,12 +552,12 @@ class TestTheAgentSeam(PrintingTestBase):
 		kot = self._sent_kot()
 		job = service.print_kot(kot.name)
 		self._as_agent()
-		api.claim()
+		api.claim()["jobs"]
 		self._unreported_for(job, service.UNREPORTED_SECONDS + 10)
 
-		self.assertNotIn(job, [row["name"] for row in api.claim()])
+		self.assertNotIn(job, [row["name"] for row in api.claim()["jobs"]])
 		service.sweep_jobs()
-		self.assertNotIn(job, [row["name"] for row in api.claim()])
+		self.assertNotIn(job, [row["name"] for row in api.claim()["jobs"]])
 		self.assertEqual(frappe.db.get_value("POS Print Job", job, "status"), "unconfirmed")
 		self.assertEqual(frappe.db.get_value("POS Print Job", job, "agent"), self.agent)
 
@@ -579,7 +579,7 @@ class TestTheAgentSeam(PrintingTestBase):
 		)
 
 		self._as_agent()
-		claimed = [row["name"] for row in api.claim()]
+		claimed = [row["name"] for row in api.claim()["jobs"]]
 
 		self.assertNotIn(job, claimed)
 		self.assertEqual(frappe.db.get_value("POS Print Job", job, "status"), "failed")
@@ -597,7 +597,7 @@ class TestTheAgentSeam(PrintingTestBase):
 		)
 
 		self._as_agent()
-		api.claim()
+		api.claim()["jobs"]
 
 		self.assertTrue(frappe.db.exists("POS Print Job", job))
 		self.assertTrue(frappe.db.get_value("POS Print Job", job, "error"))
@@ -617,7 +617,7 @@ class TestTheAgentSeam(PrintingTestBase):
 		)
 
 		self._as_agent()
-		api.claim()
+		api.claim()["jobs"]
 
 		self.assertEqual(frappe.db.get_value("Kitchen Order Ticket", kot.name, "print_status"), "failed")
 		self.assertFalse(
@@ -647,7 +647,7 @@ class TestTheAgentSeam(PrintingTestBase):
 		self._aged_by(old, 130)
 
 		self._as_agent()
-		claimed = [row["name"] for row in api.claim()]
+		claimed = [row["name"] for row in api.claim()["jobs"]]
 
 		self.assertNotIn(kick, claimed)
 		self.assertNotIn(old, claimed)
@@ -661,7 +661,7 @@ class TestTheAgentSeam(PrintingTestBase):
 
 		self._as_agent()
 
-		self.assertIn(job, [row["name"] for row in api.claim()])
+		self.assertIn(job, [row["name"] for row in api.claim()["jobs"]])
 
 	def test_an_agent_cannot_report_on_another_agent_s_job(self):
 		kot = self._sent_kot()
@@ -731,7 +731,9 @@ class TestWhatTheAgentReports(PrintingTestBase):
 		kot = self._sent_kot()
 		job = service.print_kot(kot.name)
 
-		service.settle(job, printed=False, error="Connection refused", reason="unreachable")
+		service.settle(
+			job, printed=False, error="Connection refused", reason="unreachable", nothing_sent=True
+		)
 
 		retry = frappe.db.get_value(
 			"POS Print Job", {"retry_of": job}, ["name", "printer", "status", "payload"], as_dict=True
@@ -745,10 +747,10 @@ class TestWhatTheAgentReports(PrintingTestBase):
 		"""One hop. A chain that loops prints until the paper runs out."""
 		kot = self._sent_kot()
 		job = service.print_kot(kot.name)
-		service.settle(job, printed=False, error="first", reason="unreachable")
+		service.settle(job, printed=False, error="first", reason="unreachable", nothing_sent=True)
 
 		retry = frappe.db.get_value("POS Print Job", {"retry_of": job}, "name")
-		service.settle(retry, printed=False, error="second", reason="unreachable")
+		service.settle(retry, printed=False, error="second", reason="unreachable", nothing_sent=True)
 
 		self.assertFalse(frappe.db.exists("POS Print Job", {"retry_of": retry}))
 
@@ -769,17 +771,19 @@ class TestWhatTheAgentReports(PrintingTestBase):
 		kot = self._sent_kot()
 		job = service.print_kot(kot.name)
 
-		service.settle(job, printed=False, error="Connection refused", reason="unreachable")
+		service.settle(
+			job, printed=False, error="Connection refused", reason="unreachable", nothing_sent=True
+		)
 
 		self.assertEqual(frappe.db.get_value("Kitchen Order Ticket", kot.name, "print_status"), "pending")
 
 	def test_when_the_backup_fails_too_the_ticket_is_failed(self):
 		kot = self._sent_kot()
 		job = service.print_kot(kot.name)
-		service.settle(job, printed=False, error="first", reason="unreachable")
+		service.settle(job, printed=False, error="first", reason="unreachable", nothing_sent=True)
 		retry = frappe.db.get_value("POS Print Job", {"retry_of": job}, "name")
 
-		service.settle(retry, printed=False, error="second", reason="unreachable")
+		service.settle(retry, printed=False, error="second", reason="unreachable", nothing_sent=True)
 
 		self.assertEqual(frappe.db.get_value("Kitchen Order Ticket", kot.name, "print_status"), "failed")
 
@@ -808,7 +812,7 @@ class NothingPrintsTwiceByItself(PrintingTestBase):
 		kot = self._sent_kot()
 		job = service.print_kot(kot.name)
 		self._as(self.agent)
-		self.assertIn(job, [row["name"] for row in api.claim()])
+		self.assertIn(job, [row["name"] for row in api.claim()["jobs"]])
 		frappe.set_user("Administrator")
 		return kot, job
 
@@ -836,9 +840,9 @@ class NothingPrintsTwiceByItself(PrintingTestBase):
 		service.sweep_jobs()
 
 		self._as(self.other)
-		self.assertNotIn(job, [row["name"] for row in api.claim()])
+		self.assertNotIn(job, [row["name"] for row in api.claim()["jobs"]])
 		self._as(self.agent)
-		self.assertNotIn(job, [row["name"] for row in api.claim()])
+		self.assertNotIn(job, [row["name"] for row in api.claim()["jobs"]])
 
 		self.assertEqual(frappe.db.get_value("POS Print Job", job, "agent"), self.agent)
 		self.assertFalse(frappe.db.exists("POS Print Job", {"retry_of": job}))
@@ -848,7 +852,7 @@ class NothingPrintsTwiceByItself(PrintingTestBase):
 		self._aged(job, "claimed_at", 600)
 
 		self._as(self.other)
-		self.assertNotIn(job, [row["name"] for row in api.claim()])
+		self.assertNotIn(job, [row["name"] for row in api.claim()["jobs"]])
 		self.assertEqual(self._status(job), "claimed")
 
 	# ق٢ ------------------------------------------------------------------
@@ -889,7 +893,7 @@ class NothingPrintsTwiceByItself(PrintingTestBase):
 		self.assertFalse(alert["unconfirmed"], "nothing was sent, so it is known not to have printed")
 
 		self._as(self.agent)
-		self.assertIn(job, [row["name"] for row in api.claim()])
+		self.assertIn(job, [row["name"] for row in api.claim()["jobs"]])
 		api.report(job=job, printed=1)
 		self.assertEqual(self._ticket(kot), "printed")
 
@@ -915,7 +919,7 @@ class NothingPrintsTwiceByItself(PrintingTestBase):
 
 		self.assertEqual(self._status(first), "cancelled")
 		self._as(self.agent)
-		taken = [row["name"] for row in api.claim()]
+		taken = [row["name"] for row in api.claim()["jobs"]]
 		self.assertNotIn(first, taken, "the agent that comes back must not print the original")
 		self.assertIn(second, taken)
 
@@ -970,7 +974,7 @@ class NothingPrintsTwiceByItself(PrintingTestBase):
 		service.sweep_jobs()
 		second = self._reprinted(kot)
 		self._as(self.agent)
-		api.claim()
+		api.claim()["jobs"]
 		api.report(job=second, printed=1)
 
 		api.report(job=first, printed=0, error="Connection refused", reason="unreachable")
@@ -1007,27 +1011,25 @@ class NothingPrintsTwiceByItself(PrintingTestBase):
 		kot, job = self._taken()
 
 		self._as(self.agent)
-		api.report(job=job, printed=0, error="cannot reach", reason="unreachable")
-		api.report(job=job, printed=0, error="cannot reach", reason="unreachable")
+		api.report(job=job, printed=0, error="cannot reach", reason="unreachable", nothing_sent=1)
+		api.report(job=job, printed=0, error="cannot reach", reason="unreachable", nothing_sent=1)
 
 		self.assertEqual(self._status(job), "failed")
 		self.assertEqual(frappe.db.count("POS Print Job", {"retry_of": job}), 1)
 		self.assertEqual(self._ticket(kot), "pending")
 
-	def test_q6a_every_reason_that_sent_nothing_is_known(self):
-		for reason in ("unreachable", "not_found", "paper_out", "paused", "offline", "attention", "error"):
-			with self.subTest(reason=reason):
-				kot = self._sent_kot()
-				job = service.print_kot(kot.name)
-				service.settle(job, printed=False, error="x", reason=reason)
-				self.assertEqual(self._status(job), "failed")
+	def test_q6a_the_agent_saying_nothing_left_it_is_known(self):
+		kot = self._sent_kot()
+		job = service.print_kot(kot.name)
+		service.settle(job, printed=False, error="x", reason="paper_out", nothing_sent=True)
+		self.assertEqual(self._status(job), "failed")
 
 	# ق٦ب -----------------------------------------------------------------
 
 	def test_q6b_anything_else_is_unconfirmed_and_stays_off_the_backup(self):
-		"""`not_taken` was in the Windows queue; no reason is an older agent or a
-		socket that broke half way down a receipt."""
-		for reason in ("not_taken", None, "cosmic_rays"):
+		"""Not said is not known (`D-423`): a reason alone, even one that usually
+		sends nothing, is the agent's words for the screen, not its account of bytes."""
+		for reason in ("not_taken", None, "cosmic_rays", "unreachable"):
 			with self.subTest(reason=reason):
 				kot = self._sent_kot()
 				job = service.print_kot(kot.name)
@@ -1035,17 +1037,6 @@ class NothingPrintsTwiceByItself(PrintingTestBase):
 				self.assertEqual(self._status(job), "unconfirmed")
 				self.assertFalse(frappe.db.exists("POS Print Job", {"retry_of": job}))
 				self.assertEqual(self._ticket(kot), "failed")
-
-	def test_q6b_a_second_copy_failing_is_not_nothing_sent(self):
-		"""The first copy may be out when the second cannot reach the printer."""
-		kot = self._sent_kot()
-		job = service.print_kot(kot.name)
-		frappe.db.set_value("POS Print Job", job, "copies", 2)
-
-		service.settle(job, printed=False, error="cannot reach", reason="unreachable")
-
-		self.assertEqual(self._status(job), "unconfirmed")
-		self.assertFalse(frappe.db.exists("POS Print Job", {"retry_of": job}))
 
 	# The cashier's answer --------------------------------------------------
 
@@ -1081,24 +1072,27 @@ class AnAgentLearnsHowToTakePaperFromATill(PrintingTestBase):
 	def _as_agent(self):
 		frappe.set_user(frappe.db.get_value("POS Print Agent", self.agent, "user"))
 
+	def _settings(self):
+		return api.claim(settings=1)["settings"]
+
 	def test_it_gets_a_strong_key_the_same_every_time(self):
 		self._as_agent()
 
-		first = api.agent_settings()["token"]
+		first = self._settings()["token"]
 
 		self.assertGreaterEqual(len(first), 40, "thirty-two random bytes, not eight characters")
-		self.assertEqual(api.agent_settings()["token"], first)
+		self.assertEqual(self._settings()["token"], first)
 
 	def test_new_keys_for_the_agent_are_a_new_key_for_the_tills(self):
 		"""Pairing again revokes the old secret; a till's key goes with it."""
 		self._as_agent()
-		before = api.agent_settings()["token"]
+		before = self._settings()["token"]
 		frappe.set_user("Administrator")
 
 		pos_print_agent._issue_keys(frappe.get_doc("POS Print Agent", self.agent))
 
 		self._as_agent()
-		self.assertNotEqual(api.agent_settings()["token"], before)
+		self.assertNotEqual(self._settings()["token"], before)
 
 	def test_it_takes_paper_from_this_site_only(self):
 		from urllib.parse import urlsplit
@@ -1108,23 +1102,23 @@ class AnAgentLearnsHowToTakePaperFromATill(PrintingTestBase):
 		self._as_agent()
 		site = urlsplit(get_url())
 
-		self.assertIn(f"{site.scheme}://{site.netloc}", api.agent_settings()["origins"])
+		self.assertIn(f"{site.scheme}://{site.netloc}", self._settings()["origins"])
 
 	def test_it_hears_its_own_computer_unless_told(self):
 		self._as_agent()
-		self.assertFalse(api.agent_settings()["listen_on_network"])
+		self.assertFalse(self._settings()["listen_on_network"])
 
 		frappe.db.set_value("POS Print Agent", self.agent, "listen_on_network", 1)
 
-		self.assertTrue(api.agent_settings()["listen_on_network"])
+		self.assertTrue(self._settings()["listen_on_network"])
 
 	def test_nobody_else_is_told(self):
 		with self.assertRaises(frappe.PermissionError):
-			api.agent_settings()
+			self._settings()
 
 
 class TheAgentSaysWhetherAnythingLeftIt(PrintingTestBase):
-	"""`D-414` — from 1.2 the agent says it; the reason list is for older agents."""
+	"""`D-414` — the agent says it, and nothing else does (`D-423`)."""
 
 	def tearDown(self):
 		frappe.set_user("Administrator")
@@ -1134,7 +1128,7 @@ class TheAgentSaysWhetherAnythingLeftIt(PrintingTestBase):
 		kot = self._sent_kot()
 		job = service.print_kot(kot.name)
 		frappe.set_user(frappe.db.get_value("POS Print Agent", self.agent, "user"))
-		api.claim()
+		api.claim()["jobs"]
 		api.report(job=job, printed=0, error="x", **kwargs)
 		frappe.set_user("Administrator")
 		return job
@@ -1200,7 +1194,7 @@ class TheTillDrawsItsOwnPaper(PrintingTestBase):
 		frappe.local.request = None
 
 		frappe.set_user(frappe.db.get_value("POS Print Agent", self.agent, "user"))
-		self.assertNotIn(job, [row["name"] for row in api.claim()])
+		self.assertNotIn(job, [row["name"] for row in api.claim()["jobs"]])
 
 	def test_the_agent_s_report_settles_it_as_any_other(self):
 		self._from_the_till()
@@ -1417,7 +1411,9 @@ class TheServerRingsTheAgent(PrintingTestBase):
 		kot = self._sent_kot()
 		job = service.print_kot(kot.name, force=True)
 
-		rings = self._rings(lambda: service.settle(job, printed=False, reason="unreachable"))
+		rings = self._rings(
+			lambda: service.settle(job, printed=False, reason="unreachable", nothing_sent=True)
+		)
 
 		self.assertTrue(frappe.db.exists("POS Print Job", {"retry_of": job}))
 		self.assertEqual(len(rings), 1)
@@ -1445,23 +1441,25 @@ class TheServerRingsTheAgent(PrintingTestBase):
 		frappe.set_user(frappe.db.get_value("POS Print Agent", self.agent, "user"))
 		self.addCleanup(frappe.set_user, "Administrator")
 
-		answer = api.claim(version="1.3.2", settings=1)
+		answer = api.claim(version="1.4.0", settings=1)
 
 		self.assertEqual([row["name"] for row in answer["jobs"]], [job])
-		self.assertEqual(answer["settings"], api.agent_settings())
-		self.assertIsInstance(api.claim(version="1.2.0"), list, "an older agent gets the list, as always")
+		self.assertEqual(answer["settings"], api._settings_for(self.agent))
+		self.assertNotIn("settings", api.claim(), "not asked, not sent: the agent asks once a minute")
 
 	def test_the_agent_learns_where_to_listen(self):
 		frappe.set_user(frappe.db.get_value("POS Print Agent", self.agent, "user"))
 		self.addCleanup(frappe.set_user, "Administrator")
 
-		self.assertEqual(api.agent_settings()["socket"], {"site": frappe.local.site, "port": None})
+		self.assertEqual(
+			api.claim(settings=1)["settings"]["socket"], {"site": frappe.local.site, "port": None}
+		)
 
 		# Set and put back by hand: `patch.object` on `frappe.local` deletes the
 		# attribute on the way out, and Frappe reads it on every request after.
 		self.addCleanup(setattr, frappe.local, "dev_server", getattr(frappe.local, "dev_server", False))
 		frappe.local.dev_server = True
-		port = api.agent_settings()["socket"]["port"]
+		port = api.claim(settings=1)["settings"]["socket"]["port"]
 		self.assertEqual(port, frappe.conf.socketio_port, "a bench's notices are on their own port")
 
 
@@ -1988,7 +1986,7 @@ class TestTheCashDrawer(PrintingTestBase):
 		service.open_drawer(self.profile, reason="test")
 		frappe.set_user(frappe.db.get_value("POS Print Agent", self.agent, "user"))
 		try:
-			claimed = [row for row in api.claim() if row["job_type"] == "drawer"]
+			claimed = [row for row in api.claim()["jobs"] if row["job_type"] == "drawer"]
 		finally:
 			frappe.set_user("Administrator")
 

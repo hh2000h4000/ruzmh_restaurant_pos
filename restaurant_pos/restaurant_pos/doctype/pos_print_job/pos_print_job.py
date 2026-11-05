@@ -16,8 +16,8 @@ class POSPrintJob(Document):
 		Here, where every job passes — a sale, a delivery order, the desk, a
 		backup — so no path has to remember it. After the commit, or the agent
 		asks before the job is there to take. A till's own paper is not fetched
-		(`is_direct`), so it rings nothing. An agent before 1.3 hears nothing and
-		finds the job on its next poll, as always.
+		(`is_direct`), so it rings nothing. An agent whose bell is down finds the
+		job on its next poll, as always.
 		"""
 		if self.is_direct or self.status != "queued":
 			return

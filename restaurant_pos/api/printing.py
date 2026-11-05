@@ -42,12 +42,12 @@ CLAIM_BATCH = 5
 @frappe.whitelist()
 def claim(
 	version: str | None = None, host: str | None = None, settings: bool | int | str | None = None
-) -> list[dict] | dict:
+) -> dict:
 	"""Hand the calling agent its next jobs, and mark them as taken.
 
-	With ``settings``, its settings come in the same answer (`agent_settings`):
+	With ``settings``, its settings come in the same answer (`_settings_for`):
 	the minute's safety ask and the minute's settings are one request, not two
-	(`D-418`). An agent before 1.3.2 does not ask, and gets the list as always.
+	(`D-418`). There is no other way to ask for them (`D-423`).
 
 	The agent asks; the server never calls out. That is what lets a restaurant
 	run behind an ordinary router with no fixed address, no forwarded port and
@@ -94,7 +94,7 @@ def claim(
 
 	if frappe.parse_json(settings or 0):
 		return {"jobs": jobs, "settings": _settings_for(agent_name)}
-	return jobs
+	return {"jobs": jobs}
 
 
 @frappe.whitelist()
@@ -113,9 +113,8 @@ def report(
 	anything anywhere. **Only a failure that sent nothing** goes there
 	(`D-405`).
 
-	**``nothing_sent`` is said by the agent, from 1.2** (`D-414`): it is the one
-	that knows whether a byte left it. An older agent does not say, and
-	`service.settle` reads it off the reason as before.
+	**``nothing_sent`` is said by the agent** (`D-414`): it is the one that knows
+	whether a byte left it. Not said is not known: unconfirmed.
 	"""
 	agent_name = pos_print_agent.for_session()
 	if frappe.db.get_value("POS Print Job", job, "agent") != agent_name:
@@ -126,7 +125,7 @@ def report(
 		printed=bool(frappe.parse_json(printed)),
 		error=error,
 		reason=reason,
-		nothing_sent=None if nothing_sent is None else bool(frappe.parse_json(nothing_sent)),
+		nothing_sent=bool(frappe.parse_json(nothing_sent or 0)),
 	)
 
 	return {"ok": True}
@@ -149,8 +148,7 @@ def not_handed(job: str, error: str | None = None) -> dict:
 	return {"ok": True}
 
 
-@frappe.whitelist()
-def agent_settings() -> dict:
+def _settings_for(agent_name: str) -> dict:
 	"""What an agent needs to take paper straight from a till (`D-414`, `docs/15` §5.9).
 
 	- ``token`` — the key every till's request must carry.
@@ -163,13 +161,9 @@ def agent_settings() -> dict:
 	  site's namespace, and on a development bench the port, which is not the
 	  site's. In production the site's own address passes it on.
 
-	Asked by the agent when it starts and again every minute, so a change on the
-	form, or a key issued again, reaches it without anyone at the computer.
+	Sent with the claim when the agent starts and again every minute, so a change
+	on the form, or a key issued again, reaches it without anyone at the computer.
 	"""
-	return _settings_for(pos_print_agent.for_session())
-
-
-def _settings_for(agent_name: str) -> dict:
 	return {
 		"token": pos_print_agent.direct_token(agent_name),
 		"origins": _site_origins(),

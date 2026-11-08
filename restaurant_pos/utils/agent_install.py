@@ -155,10 +155,50 @@ def download(ticket: str) -> None:
 	if not payload or payload.get("user") != frappe.session.user:
 		frappe.throw(_("This download has expired. Ask for it again from the till."), frappe.PermissionError)
 
+	_respond_with(payload["file_url"], payload["filename"])
+
+
+def update_for(agent: str) -> dict | None:
+	"""What the agent's minute of settings says about the program (`D-426`): its fingerprint.
+
+	The agent compares it with its own and takes the program when they differ.
+	None for an agent kept on its version, or before a program is uploaded.
+	"""
+	if not frappe.db.get_value("POS Print Agent", agent, "auto_update"):
+		return None
+	sha = frappe.db.get_single_value("Restaurant POS Settings", "print_agent_sha256")
+	return {"sha256": sha} if sha else None
+
+
+def send_program() -> None:
+	"""The program itself, to an agent signed in with its own key."""
+	file_url = frappe.db.get_single_value("Restaurant POS Settings", "print_agent_file")
+	if not file_url:
+		frappe.throw(_("No print agent program has been uploaded."))
+	_respond_with(file_url, f"{FILE_PREFIX}.exe")
+
+
+def fingerprint(file_url: str | None) -> str | None:
+	"""The SHA-256 of the uploaded program, as the agent works out its own."""
+	if not file_url:
+		return None
+	import hashlib
+
+	digest = hashlib.sha256()
+	with open(_program_path(file_url), "rb") as program:
+		for chunk in iter(lambda: program.read(1 << 20), b""):
+			digest.update(chunk)
+	return digest.hexdigest()
+
+
+def _program_path(file_url: str) -> str:
+	return frappe.get_doc("File", {"file_url": file_url}).get_full_path()
+
+
+def _respond_with(file_url: str, filename: str) -> None:
 	# The bytes as stored: `File.get_content` hands back text for anything that
 	# decodes, and a program that happens to is still a program.
-	path = frappe.get_doc("File", {"file_url": payload["file_url"]}).get_full_path()
-	with open(path, "rb") as program:
+	with open(_program_path(file_url), "rb") as program:
 		frappe.local.response.filecontent = program.read()
-	frappe.local.response.filename = payload["filename"]
+	frappe.local.response.filename = filename
 	frappe.local.response.type = "download"

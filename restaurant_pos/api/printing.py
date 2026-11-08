@@ -22,7 +22,7 @@ from frappe import _
 from frappe.utils import now_datetime
 
 from restaurant_pos.restaurant_pos.doctype.pos_print_agent import pos_print_agent
-from restaurant_pos.utils import idempotency
+from restaurant_pos.utils import agent_install, idempotency
 from restaurant_pos.utils import printing as service
 from restaurant_pos.utils.audit import log_audit
 from restaurant_pos.utils.deadlock import retried
@@ -138,17 +138,20 @@ def install_agent(pos_profile: str, move: bool | int | str = 0) -> dict:
 	A till endpoint: the terminal's branch, and `can_set_up_devices`. The file
 	itself comes from `agent_file`, by the ticket in the answer.
 	"""
-	from restaurant_pos.utils import agent_install
-
 	origin = frappe.get_request_header("Origin") or (frappe.request.host_url if frappe.request else None)
 	return agent_install.prepare(pos_profile, origin, move=bool(frappe.parse_json(move or 0)))
 
 
 @frappe.whitelist(methods=["GET"])
+def agent_program() -> None:
+	"""The program in Restaurant POS Settings, for an agent taking an update (`D-426`)."""
+	pos_print_agent.for_session()
+	agent_install.send_program()
+
+
+@frappe.whitelist(methods=["GET"])
 def agent_file(ticket: str) -> None:
 	"""The agent's program, named with the till's address and its code, once per ticket."""
-	from restaurant_pos.utils import agent_install
-
 	agent_install.download(ticket)
 
 
@@ -188,6 +191,8 @@ def _settings_for(agent_name: str) -> dict:
 	return {
 		"token": pos_print_agent.direct_token(agent_name),
 		"origins": _site_origins(frappe.db.get_value("POS Print Agent", agent_name, "till_origin")),
+		# `D-426` — the program's fingerprint, when this agent takes updates.
+		"update": agent_install.update_for(agent_name),
 		"listen_on_network": bool(frappe.db.get_value("POS Print Agent", agent_name, "listen_on_network")),
 		"socket": {
 			"site": frappe.local.site,

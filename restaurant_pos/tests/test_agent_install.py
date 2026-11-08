@@ -119,6 +119,35 @@ class TheAgentFromTheTill(PrintingTestBase):
 		with self.assertRaises(frappe.AuthenticationError):
 			session_api.till_printing(self.profile, device_token="another machine")
 
+	def test_the_program_s_fingerprint_is_worked_out_on_save(self):
+		import hashlib
+
+		settings = frappe.get_single("Restaurant POS Settings")
+		settings.print_agent_file = frappe.db.get_single_value("Restaurant POS Settings", "print_agent_file")
+		settings.save(ignore_permissions=True)
+
+		self.assertEqual(settings.print_agent_sha256, hashlib.sha256(PROGRAM).hexdigest())
+
+	def test_an_agent_is_told_the_fingerprint_unless_it_is_kept_on_its_version(self):
+		"""`D-426` — riding on the minute's settings: no request of its own."""
+		frappe.db.set_single_value("Restaurant POS Settings", "print_agent_sha256", "abc")
+		frappe.set_user(frappe.db.get_value("POS Print Agent", self.agent, "user"))
+
+		frappe.db.set_value("POS Print Agent", self.agent, "auto_update", 1)
+		self.assertEqual(api.claim(settings=1)["settings"]["update"], {"sha256": "abc"})
+
+		frappe.db.set_value("POS Print Agent", self.agent, "auto_update", 0)
+		self.assertIsNone(api.claim(settings=1)["settings"]["update"])
+
+	def test_the_program_goes_to_an_agent_and_to_nobody_else(self):
+		frappe.set_user(frappe.db.get_value("POS Print Agent", self.agent, "user"))
+		api.agent_program()
+		self.assertEqual(frappe.local.response.filecontent, PROGRAM)
+
+		frappe.set_user(_make_cashier())
+		with self.assertRaises(frappe.PermissionError):
+			api.agent_program()
+
 	def test_a_cashier_may_not(self):
 		cashier = _make_cashier()
 		frappe.set_user(cashier)

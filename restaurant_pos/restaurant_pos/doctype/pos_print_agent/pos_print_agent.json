@@ -25,6 +25,7 @@
   "health_cb",
   "host_name",
   "till_origin",
+  "auto_update",
   "direct_section",
   "listen_on_network",
   "direct_token"
@@ -168,6 +169,13 @@
    "fieldtype": "Data",
    "label": "Installed From",
    "read_only": 1
+  },
+  {
+   "default": "1",
+   "description": "Take the program in Restaurant POS Settings when it changes, at a moment with no paper to print (D-426). Off to keep this computer on its version — to try a new one on another first.",
+   "fieldname": "auto_update",
+   "fieldtype": "Check",
+   "label": "Update Automatically"
   }
  ],
  "index_web_pages_for_search": 1,
@@ -182,7 +190,7 @@
    "link_fieldname": "agent"
   }
  ],
- "modified": "2026-11-08 15:00:00.000000",
+ "modified": "2026-11-08 16:00:00.000000",
  "modified_by": "Administrator",
  "module": "Restaurant POS",
  "name": "POS Print Agent",

@@ -21,7 +21,8 @@
   "low_stock_at",
   "rpos_stock_note",
   "printing_section",
-  "print_agent_file"
+  "print_agent_file",
+  "print_agent_sha256"
  ],
  "fields": [
   {
@@ -134,12 +135,19 @@
    "fieldname": "print_agent_file",
    "fieldtype": "Attach",
    "label": "Print agent program"
+  },
+  {
+   "description": "Worked out on save. Every agent with Update Automatically on, and another program, takes this one when it has no paper to print (D-426).",
+   "fieldname": "print_agent_sha256",
+   "fieldtype": "Data",
+   "label": "Program fingerprint (SHA-256)",
+   "read_only": 1
   }
  ],
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2026-11-07 12:00:00.000000",
+ "modified": "2026-11-08 16:00:00.000000",
  "modified_by": "Administrator",
  "module": "Restaurant POS",
  "name": "Restaurant POS Settings",

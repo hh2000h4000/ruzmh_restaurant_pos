@@ -63,6 +63,9 @@ def prepare(pos_profile: str, origin: str | None, move: bool = False) -> dict:
 	from restaurant_pos.restaurant_pos.doctype.pos_print_agent.pos_print_agent import new_code
 
 	code = new_code(frappe.get_doc("POS Print Agent", agent))
+	# `D-425` — the page that installed it, whatever address the agent itself
+	# reaches the server at: paper from this till is taken.
+	frappe.db.set_value("POS Print Agent", agent, "till_origin", page_origin(address), update_modified=False)
 	frappe.db.set_value("POS Profile", pos_profile, {"rpos_print_route": "direct", "rpos_print_agent": agent})
 	frappe.clear_document_cache("POS Profile", pos_profile)
 
@@ -124,9 +127,23 @@ def _address(origin: str | None) -> tuple[str, str, int]:
 	return parts.scheme, parts.hostname, parts.port or (443 if parts.scheme == "https" else 80)
 
 
-def file_name(address: tuple[str, str, int], code: str) -> str:
-	"""`RPOS-Print-Agent_https_pos.example.com_443_48217735.exe` — read back by the agent."""
+def page_origin(address: tuple[str, str, int]) -> str:
+	"""The till's page as a browser names it in `Origin`: no port when it is the scheme's own."""
 	scheme, host, port = address
+	return f"{scheme}://{host}" if port == (443 if scheme == "https" else 80) else f"{scheme}://{host}:{port}"
+
+
+def file_name(address: tuple[str, str, int], code: str) -> str:
+	"""`RPOS-Print-Agent_https_pos.example.com_443_48217735.exe` — read back by the agent.
+
+	**A `.localhost` name becomes `127.0.0.1`** (`D-425`). Chrome resolves every
+	such name to this computer, as RFC 6761 says; Windows does not, and the
+	agent reaching for `rpos.localhost` was told no such host. The agent still
+	takes the page's own paper: `till_origin` keeps the name the till uses.
+	"""
+	scheme, host, port = address
+	if host == "localhost" or host.endswith(".localhost"):
+		host = "127.0.0.1"
 	return f"{FILE_PREFIX}_{scheme}_{host}_{port}_{code}.exe"
 
 

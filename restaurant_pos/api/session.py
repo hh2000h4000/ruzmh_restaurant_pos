@@ -204,6 +204,22 @@ def load_pos_session(pos_profile: str, device_token: str | None = None) -> dict:
 	}
 
 
+@frappe.whitelist()
+def till_printing(pos_profile: str, device_token: str | None = None) -> dict:
+	"""This till's printing block again, for a till its agent refused for the key (`D-425`).
+
+	The agent's key changes when it is paired again — installed from the till
+	(`D-424`), moved, or given new keys in the desk — and a till that loaded
+	before holds the old one until it loads again. Asked here instead, by the
+	paper the agent refused, so the next one goes with the right key. The same
+	gate as the session itself: this machine, this branch.
+	"""
+	profile = _profile(pos_profile)
+	device.assert_this_device(profile, device_token)
+	validate_branch_access(profile.branch)
+	return _printing(pos_profile)
+
+
 def _printing(pos_profile: str) -> dict:
 	"""How this till prints (`D-415`, `docs/15` §5.3).
 

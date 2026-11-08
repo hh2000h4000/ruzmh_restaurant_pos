@@ -81,7 +81,7 @@ watch(
           class="min-h-tap flex-1 rounded-rpos border border-line"
           @click="emit('close')"
         >
-          {{ t("action.undo") }}
+          {{ t("action.cancel") }}
         </button>
         <button
           type="button"

@@ -1709,3 +1709,5 @@ Print agent,برنامج الطباعة,Restaurant POS Settings
 Print agent program,ملف برنامج الطباعة
 Can Set Up Devices,يجهّز الأجهزة
 print_agent_installed,تثبيت برنامج الطباعة
+Installed From,ثُبّت من,POS Print Agent
+Print agent of {0},برنامج طباعة {0}

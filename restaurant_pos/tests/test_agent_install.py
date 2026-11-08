@@ -14,6 +14,7 @@ from unittest.mock import patch
 import frappe
 
 from restaurant_pos.api import printing as api
+from restaurant_pos.api import session as session_api
 from restaurant_pos.restaurant_pos.doctype.pos_print_agent import pos_print_agent
 from restaurant_pos.tests.test_order import _make_cashier
 from restaurant_pos.tests.test_printing import PrintingTestBase, _agent
@@ -91,10 +92,32 @@ class TheAgentFromTheTill(PrintingTestBase):
 		answer = agent_install.prepare(self.profile, "http://127.0.0.1:8000")
 		self.assertTrue(answer["filename"].startswith("RPOS-Print-Agent_http_127.0.0.1_8000_"))
 
+	def test_a_localhost_name_reaches_windows_as_127_0_0_1_and_its_page_still_prints(self):
+		"""`D-425` — Chrome resolves `rpos.localhost`; Windows did not, and pairing failed."""
+		answer = agent_install.prepare(self.profile, "http://rpos.localhost:8000")
+
+		self.assertTrue(answer["filename"].startswith("RPOS-Print-Agent_http_127.0.0.1_8000_"))
+		frappe.set_user(frappe.db.get_value("POS Print Agent", answer["agent"], "user"))
+		self.assertIn("http://rpos.localhost:8000", api.claim(settings=1)["settings"]["origins"])
+
 	def test_without_the_program_uploaded_it_says_so(self):
 		frappe.db.set_single_value("Restaurant POS Settings", "print_agent_file", None)
 		with self.assertRaises(frappe.ValidationError):
 			agent_install.prepare(self.profile, ORIGIN)
+
+	def test_the_till_asks_for_its_agent_s_key_again_from_this_machine_only(self):
+		"""`D-425` — a till holding a key the agent dropped when it was paired again."""
+		from restaurant_pos.utils import device
+
+		agent = agent_install.prepare(self.profile, ORIGIN)["agent"]
+		pos_print_agent.pair(self._code(agent_install.prepare(self.profile, ORIGIN, move=True)["filename"]))
+		token = device.pair(device.issue_code(self.profile)["code"])["device_token"]
+
+		printing = session_api.till_printing(self.profile, device_token=token)
+		self.assertEqual(printing["token"], pos_print_agent.direct_token(agent, create=False))
+
+		with self.assertRaises(frappe.AuthenticationError):
+			session_api.till_printing(self.profile, device_token="another machine")
 
 	def test_a_cashier_may_not(self):
 		cashier = _make_cashier()

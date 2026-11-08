@@ -15,6 +15,8 @@ import { blockedByBrowser, checkReach, configure, handPapers, type Paper } from 
 
 vi.mock("@/api/client", () => ({
   command: vi.fn().mockResolvedValue({ ok: true }),
+  // The server's printing block, asked again after a refused key (`D-425`).
+  query: vi.fn().mockResolvedValue({ direct: false }),
   onPapers: vi.fn(),
   setTillName: vi.fn(),
 }));
@@ -140,6 +142,58 @@ describe("a direct till", () => {
 
     expect(order.indexOf("end RCPT-1")).toBeLessThan(order.indexOf("end KOT-1"));
     expect(order.indexOf("start KOT-2")).toBeGreaterThan(order.indexOf("end KOT-1"));
+  });
+});
+
+describe("an agent paired again since the till loaded (D-425)", () => {
+  const NEW_KEY = "n".repeat(43);
+
+  /** The agent takes only `accepted`, as one paired again takes only its new key. */
+  function agentTaking(accepted: string) {
+    return vi.fn((_url: string, init: { headers: Record<string, string>; body: string }) =>
+      Promise.resolve(init.headers["X-RPOS-Token"] === accepted ? answered() : answered(401)),
+    );
+  }
+
+  it("asks the server for the key once, sends the refused papers again, and keeps it", async () => {
+    vi.mocked(client.query).mockResolvedValue({ ...DIRECT, token: NEW_KEY });
+    const fetched = agentTaking(NEW_KEY);
+    vi.stubGlobal("fetch", fetched);
+
+    await handPapers([paper("KOT-1", "kitchen"), paper("RCPT-1", "cashier"), paper("DRW-1", "drawer")]);
+    await handPapers([paper("KOT-2", "kitchen")]);
+
+    expect(client.query).toHaveBeenCalledTimes(1);
+    expect(client.query).toHaveBeenCalledWith("session.till_printing", expect.objectContaining({ pos_profile: "كاشير 2" }));
+    const printed = fetched.mock.calls.filter(([, init]) => init.headers["X-RPOS-Token"] === NEW_KEY);
+    expect(printed.map(([, init]) => JSON.parse(init.body as string).job).sort()).toEqual(["DRW-1", "KOT-1", "KOT-2", "RCPT-1"]);
+    expect(client.command).not.toHaveBeenCalled();
+  });
+
+  it("sends a paper again once only: refused twice, it is said like any refusal", async () => {
+    vi.mocked(client.query).mockResolvedValue({ ...DIRECT, token: NEW_KEY });
+    const fetched = agentTaking("neither");
+    vi.stubGlobal("fetch", fetched);
+
+    await handPapers([paper("KOT-3")]);
+
+    expect(fetched).toHaveBeenCalledTimes(2);
+    expect(client.command).toHaveBeenCalledWith("printing.not_handed", { job: "KOT-3", error: "agent answered 401" });
+  });
+
+  it("sends nothing again when the server has no other key, or cannot be reached", async () => {
+    for (const answer of [Promise.resolve(DIRECT), Promise.reject(new Error("offline"))]) {
+      vi.clearAllMocks();
+      configure("كاشير 2", DIRECT);
+      vi.mocked(client.query).mockReturnValue(answer as never);
+      const fetched = agentTaking(NEW_KEY);
+      vi.stubGlobal("fetch", fetched);
+
+      await handPapers([paper("KOT-4")]);
+
+      expect(fetched).toHaveBeenCalledTimes(1);
+      expect(client.command).toHaveBeenCalledWith("printing.not_handed", { job: "KOT-4", error: "agent answered 401" });
+    }
   });
 });
 

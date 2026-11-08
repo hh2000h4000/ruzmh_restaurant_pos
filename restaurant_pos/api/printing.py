@@ -187,7 +187,7 @@ def _settings_for(agent_name: str) -> dict:
 	"""
 	return {
 		"token": pos_print_agent.direct_token(agent_name),
-		"origins": _site_origins(),
+		"origins": _site_origins(frappe.db.get_value("POS Print Agent", agent_name, "till_origin")),
 		"listen_on_network": bool(frappe.db.get_value("POS Print Agent", agent_name, "listen_on_network")),
 		"socket": {
 			"site": frappe.local.site,
@@ -196,13 +196,15 @@ def _settings_for(agent_name: str) -> dict:
 	}
 
 
-def _site_origins() -> list[str]:
+def _site_origins(till_origin: str | None = None) -> list[str]:
+	"""The pages the agent takes paper from: this site by the agent's address and its own
+	name — and the till page that installed it, by whatever name that page used (`D-425`)."""
 	from urllib.parse import urlsplit
 
 	from frappe.utils import get_url
 
 	origins = []
-	for url in (frappe.request.host_url if frappe.request else None, get_url()):
+	for url in (frappe.request.host_url if frappe.request else None, get_url(), till_origin):
 		if not url:
 			continue
 		parts = urlsplit(url)

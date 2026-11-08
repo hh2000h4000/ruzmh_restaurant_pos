@@ -14,7 +14,8 @@
  */
 import { ref } from "vue";
 
-import { command, onPapers, setTillName } from "@/api/client";
+import { command, onPapers, query, setTillName } from "@/api/client";
+import { pairedDevice } from "@/device";
 
 import { drawHtml, packRaster, toBase64, type Ink } from "./raster";
 
@@ -56,7 +57,7 @@ export const HAND_OVER_MS = 20_000;
 /** How long the opening check waits for the agent; the browser's own prompt may hold it. */
 export const REACH_MS = 10_000;
 
-let till: { agentUrl: string; token: string; ink: Ink } | null = null;
+let till: { name: string; agentUrl: string; token: string; ink: Ink } | null = null;
 
 /**
  * The browser refuses this page its print agent (`D-420`, `docs/15` §5.10).
@@ -77,6 +78,7 @@ export function configure(name: string | null, printing: TillPrinting | null | u
   const direct = Boolean(name && printing?.direct && printing.agent_url && printing.token);
   till = direct
     ? {
+        name: name!,
         agentUrl: printing!.agent_url!.replace(/\/$/, ""),
         token: printing!.token!,
         ink: { threshold: printing!.ink_threshold ?? 170, bandRows: printing!.band_rows ?? 128 },
@@ -158,7 +160,37 @@ export async function handPapers(papers: Paper[]): Promise<void> {
   );
 }
 
-async function handOver(paper: Paper): Promise<void> {
+/** The one key request in flight, shared by every paper the old key had refused. */
+let renewing: Promise<string | null> | null = null;
+
+/**
+ * The agent's current key, after it refused ``sent`` (`D-425`).
+ *
+ * The key changes when the agent is paired again, and this till loaded before.
+ * Asked once however many papers were refused together, and not at all when
+ * another paper has already brought the new one. Null when there is none to
+ * be had — the server unreachable, or the same key again.
+ */
+async function freshToken(sent: string): Promise<string | null> {
+  if (!till) return null;
+  if (till.token !== sent) return till.token;
+  renewing ??= query<TillPrinting>("session.till_printing", {
+    pos_profile: till.name,
+    device_token: pairedDevice()?.token ?? "",
+  })
+    .then((printing) => {
+      if (till && printing.direct && printing.token) till.token = printing.token;
+      return till?.token ?? null;
+    })
+    .catch(() => null)
+    .finally(() => {
+      renewing = null;
+    });
+  const token = await renewing;
+  return token && token !== sent ? token : null;
+}
+
+async function handOver(paper: Paper, renewed = false): Promise<void> {
   if (!till) return;
   const { agentUrl, token, ink } = till;
   try {
@@ -171,6 +203,13 @@ async function handOver(paper: Paper): Promise<void> {
       signal: AbortSignal.timeout(HAND_OVER_MS),
       ...addressSpace(url),
     } as RequestInit);
+    // `D-425` — the agent checks the key before anything else, so a refused
+    // key printed nothing: the one refusal sent again, once, with the key it
+    // holds now. A second refusal is said like any other.
+    if (answer.status === 401 && !renewed && (await freshToken(token))) {
+      await handOver(paper, true);
+      return;
+    }
     if (!answer.ok) {
       // Refused — wrong page, wrong key: nothing was printed, but the till
       // cannot know that the agent is not merely confused, so it asks.

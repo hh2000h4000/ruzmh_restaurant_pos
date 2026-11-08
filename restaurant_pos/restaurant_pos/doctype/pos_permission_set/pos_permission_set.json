@@ -38,7 +38,8 @@
   "can_sell_gift_card",
   "can_close_day_with_open_orders",
   "can_view_all_orders",
-  "can_access_reports"
+  "can_access_reports",
+  "can_set_up_devices"
  ],
  "fields": [
   {
@@ -211,12 +212,18 @@
    "fieldname": "can_access_reports",
    "fieldtype": "Check",
    "label": "Can Access Reports"
+  },
+  {
+   "description": "Install the print agent on a till's computer from the till's menu: makes the agent's keys and sets the terminal to print direct (D-424).",
+   "fieldname": "can_set_up_devices",
+   "fieldtype": "Check",
+   "label": "Can Set Up Devices"
   }
  ],
  "index_web_pages_for_search": 1,
  "istable": 0,
  "links": [],
- "modified": "2026-09-23 19:00:00.000000",
+ "modified": "2026-11-07 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Restaurant POS",
  "name": "POS Permission Set",

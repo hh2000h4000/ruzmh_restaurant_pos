@@ -132,6 +132,27 @@ def report(
 
 
 @frappe.whitelist(methods=["POST"])
+def install_agent(pos_profile: str, move: bool | int | str = 0) -> dict:
+	"""Set this till up to print direct, and hand it the agent already paired (`D-424`).
+
+	A till endpoint: the terminal's branch, and `can_set_up_devices`. The file
+	itself comes from `agent_file`, by the ticket in the answer.
+	"""
+	from restaurant_pos.utils import agent_install
+
+	origin = frappe.get_request_header("Origin") or (frappe.request.host_url if frappe.request else None)
+	return agent_install.prepare(pos_profile, origin, move=bool(frappe.parse_json(move or 0)))
+
+
+@frappe.whitelist(methods=["GET"])
+def agent_file(ticket: str) -> None:
+	"""The agent's program, named with the till's address and its code, once per ticket."""
+	from restaurant_pos.utils import agent_install
+
+	agent_install.download(ticket)
+
+
+@frappe.whitelist(methods=["POST"])
 def not_handed(job: str, error: str | None = None) -> dict:
 	"""The till drew its paper but its agent did not answer (`D-415`, `docs/15` §5.3).
 

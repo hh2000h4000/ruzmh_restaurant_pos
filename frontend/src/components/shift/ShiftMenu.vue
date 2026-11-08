@@ -157,6 +157,12 @@ const entries = computed<MenuEntry[]>(() => {
   // it because it shows only what the guest is already being told (`D-162`).
   rows.push({ key: "customerDisplay", label: "display.open", icon: "grid" });
 
+  // `D-424` — the print agent for this computer, paired and set up in one step.
+  // Windows only: a tablet or a phone has no agent of its own.
+  if (session.can("can_set_up_devices") && navigator.userAgent.includes("Windows")) {
+    rows.push({ key: "installAgent", label: "agent.install", icon: "receipt" });
+  }
+
   rows.push({
     key: "closeDay",
     label: "shift.closeDay",

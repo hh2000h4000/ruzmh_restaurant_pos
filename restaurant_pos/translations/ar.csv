@@ -1705,3 +1705,7 @@ Print Agent Address,عنوان برنامج الطباعة,POS Profile
 "Where this device reaches its agent. 127.0.0.1 is the agent on this same computer; a phone or a tablet uses the address of the computer that runs it, with Listen on the Network ticked on that agent.","وين يلقى هالجهاز برنامج الطباعة. 127.0.0.1 يعني البرنامج على نفس الكمبيوتر؛ والجوال أو التابلت يكتب عنوان الكمبيوتر اللي عليه البرنامج، مع تعليم «الاستماع على الشبكة» على ذاك البرنامج.",POS Profile
 Straight from the Till,مباشرة من الكاشير,POS Print Job
 "Drawn by the till and handed to its agent directly (D-415). Never fetched from the queue, so it cannot print twice.","رسمها الكاشير وسلّمها لبرنامج الطباعة مباشرة (D-415). ما تنسحب من الطابور، فما تنطبع مرتين.",POS Print Job
+Print agent,برنامج الطباعة,Restaurant POS Settings
+Print agent program,ملف برنامج الطباعة
+Can Set Up Devices,يجهّز الأجهزة
+print_agent_installed,تثبيت برنامج الطباعة

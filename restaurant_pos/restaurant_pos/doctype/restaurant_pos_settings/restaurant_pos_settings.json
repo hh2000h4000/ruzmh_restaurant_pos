@@ -19,7 +19,9 @@
   "over_short_account",
   "stock_section",
   "low_stock_at",
-  "rpos_stock_note"
+  "rpos_stock_note",
+  "printing_section",
+  "print_agent_file"
  ],
  "fields": [
   {
@@ -121,12 +123,23 @@
   {
    "fieldname": "rpos_stock_note",
    "fieldtype": "HTML"
+  },
+  {
+   "fieldname": "printing_section",
+   "fieldtype": "Section Break",
+   "label": "Print agent"
+  },
+  {
+   "description": "The Windows print agent (RPOS-Print-Agent.exe). A till's menu hands it to the computer it runs on, already paired (D-424). Upload it private.",
+   "fieldname": "print_agent_file",
+   "fieldtype": "Attach",
+   "label": "Print agent program"
   }
  ],
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2026-10-18 14:30:00.000000",
+ "modified": "2026-11-07 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Restaurant POS",
  "name": "Restaurant POS Settings",

@@ -28,6 +28,7 @@ import CloseDayDialog from "@/components/shift/CloseDayDialog.vue";
 import CloseTillDialog from "@/components/shift/CloseTillDialog.vue";
 import DrawerCashDialog from "@/components/shift/DrawerCashDialog.vue";
 import GiftCardSellDialog from "@/components/shift/GiftCardSellDialog.vue";
+import InstallAgentDialog from "@/components/shift/InstallAgentDialog.vue";
 import TillReportDialog from "@/components/shift/TillReportDialog.vue";
 import OpenTillDialog from "@/components/shift/OpenTillDialog.vue";
 import RosterDialog from "@/components/shift/RosterDialog.vue";
@@ -383,6 +384,7 @@ const viewingReport = ref(false);
 const movingCash = ref(false);
 const sellingGiftCard = ref(false);
 const closingDay = ref(false);
+const installingAgent = ref(false);
 
 function onMenu(key: string): void {
   menuOpen.value = false;
@@ -394,6 +396,7 @@ function onMenu(key: string): void {
   else if (key === "clock") void punchClock();
   else if (key === "roster") showingRoster.value = true;
   else if (key === "customerDisplay") openCustomerDisplay();
+  else if (key === "installAgent") installingAgent.value = true;
   else if (key === "viewReport") viewingReport.value = true;
   else if (key === "drawerCash") movingCash.value = true;
   else if (key === "sellGiftCard") sellingGiftCard.value = true;
@@ -1813,6 +1816,11 @@ async function send(): Promise<void> {
     >
       <NewOrderPane @open="startAnother" />
     </BaseDialog>
+
+    <InstallAgentDialog
+      :open="installingAgent"
+      @close="installingAgent = false"
+    />
 
     <BaseDialog
       :open="signingOut"

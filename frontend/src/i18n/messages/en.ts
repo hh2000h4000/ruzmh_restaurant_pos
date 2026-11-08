@@ -45,6 +45,15 @@ export const messages = {
   // `D-420` — the browser refuses this page its print agent
   "print.blockedByBrowser": "Printing is stopped: this browser does not allow the page to reach the print agent.",
   "print.blockedHow": "To allow it: the icon left of the address → Site settings → Local network → Allow. Guide: “Printing didn’t work?”",
+  "agent.install": "Install the print agent",
+  "agent.installTitle": "Install the print agent",
+  "agent.preparing": "Preparing the print agent for this till…",
+  "agent.moveBody": "This till's print agent is on the computer {computer}. Moving it here stops printing there — and a printer on a cable to that computer stops with it.",
+  "agent.moveHere": "Move it here",
+  "agent.stepRun": "Run the file that just downloaded.",
+  "agent.stepWarning": "If Windows warns about it: More info → Run anyway.",
+  "agent.stepClock": "A green icon by the clock: it is paired and prints from this till.",
+  "agent.understood": "Done",
   // Selling offline (09 §5)
   "offline.itemUnknown": "That item is not in this device's menu.",
   "offline.bill": "Offline — this bill is on the device until the connection returns.",

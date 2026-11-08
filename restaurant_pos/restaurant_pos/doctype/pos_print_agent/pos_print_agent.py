@@ -184,6 +184,15 @@ def issue_pairing_code(agent: str) -> dict:
 	doc = frappe.get_doc("POS Print Agent", agent)
 	doc.check_permission("write")
 
+	return {"code": pairing.pretty(new_code(doc)), "minutes": PAIRING_MINUTES, "url": get_url()}
+
+
+def new_code(doc) -> str:
+	"""Issue the agent a pairing code and return its digits — the one place codes are made.
+
+	The desk's button and the till's install (`D-424`) both come here; whoever
+	calls has already decided the caller may.
+	"""
 	if not doc.user:
 		frappe.throw(_("This agent has no user yet. Save it first."))
 
@@ -192,8 +201,7 @@ def issue_pairing_code(agent: str) -> dict:
 		{"pairing_code_hash": _digest(code), "pairing_expires_at": pairing.expires_at()},
 		update_modified=False,
 	)
-
-	return {"code": pairing.pretty(code), "minutes": PAIRING_MINUTES, "url": get_url()}
+	return code
 
 
 @frappe.whitelist(allow_guest=True)

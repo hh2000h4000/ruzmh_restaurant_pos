@@ -58,6 +58,7 @@ _CASHIER = {
 	"can_close_day_with_open_orders": 0,
 	"can_view_all_orders": 0,
 	"can_access_reports": 0,
+	"can_set_up_devices": 0,
 }
 
 _SENIOR_CASHIER = _CASHIER | {
@@ -84,6 +85,9 @@ _POS_MANAGER = _SENIOR_CASHIER | {
 	"can_close_day_with_open_orders": 1,
 	"can_view_all_orders": 1,
 	"can_access_reports": 1,
+	# `D-424` — installing the print agent from the till makes keys and changes
+	# how the terminal prints: a manager's act, as freeing a terminal is.
+	"can_set_up_devices": 1,
 }
 
 # 08 §2 places Restaurant Manager and Restaurant Admin above POS Manager but

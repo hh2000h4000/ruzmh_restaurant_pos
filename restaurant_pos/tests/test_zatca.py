@@ -172,6 +172,38 @@ class TestTheIntegrationOwnsTheQr(FrappeTestCase):
 		self.assertIsNone(zatca.integration_qr(self._invoice()))
 
 
+class TestAReprintCarriesTheSaleTime(FrappeTestCase):
+	"""`D-430` — the QR is drawn at every print, never stored, so its time must
+	be the invoice's: a copy printed a month later for an inspector that said
+	the day of the reprint would disagree with its own invoice."""
+
+	def test_the_same_invoice_prints_the_same_qr_whenever_it_is_printed(self):
+		company = frappe.db.get_value("POS Profile", PROFILE, "company")
+		frappe.db.set_value("Company", company, "tax_id", "300000000000003")
+		frappe.clear_document_cache("Company", company)
+		invoice = frappe._dict(
+			name="ACC-SINV-TEST-0003",
+			company=company,
+			posting_date="2026-09-06",
+			posting_time="13:00:00",
+			rounded_total=32.0,
+			grand_total=32.0,
+			total_taxes_and_charges=4.17,
+		)
+
+		with (
+			patch.object(zatca, "integration_qr", return_value=None),
+			patch.object(zatca, "qr_payload", wraps=zatca.qr_payload) as payload,
+		):
+			at_sale = zatca.invoice_qr(invoice)
+			with patch("frappe.utils.now_datetime", return_value=get_datetime("2027-01-20 09:00:00")):
+				a_month_on = zatca.invoice_qr(invoice)
+
+		self.assertEqual(at_sale, a_month_on)
+		for call in payload.call_args_list:
+			self.assertEqual(call.kwargs["timestamp"], get_datetime("2026-09-06 13:00:00"))
+
+
 class TestTheStampedQrIsReadOffTheDocument(FrappeTestCase):
 	"""`D-271` — the phase-two lookup failed on every print, logged without why.
 

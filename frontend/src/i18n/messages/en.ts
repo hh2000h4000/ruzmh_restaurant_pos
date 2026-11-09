@@ -45,6 +45,7 @@ export const messages = {
   // `D-420` — the browser refuses this page its print agent
   "print.blockedByBrowser": "Printing is stopped: this browser does not allow the page to reach the print agent.",
   "print.blockedHow": "To allow it: the icon left of the address → turn on “Apps on device”. Guide: “Printing didn’t work?”",
+  "print.agentOfAnotherTill": "Printing is stopped: the print agent on this computer belongs to another till. From the menu: Install the print agent.",
   "agent.install": "Install the print agent",
   "agent.installTitle": "Install the print agent",
   "agent.preparing": "Preparing the print agent for this till…",

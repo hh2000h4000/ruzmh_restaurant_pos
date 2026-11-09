@@ -5,7 +5,7 @@ import { useRouter } from "vue-router";
 import OrderTypeFieldsDialog from "@/components/order/OrderTypeFieldsDialog.vue";
 import { pairedDevice } from "@/device";
 import { t, tn } from "@/i18n";
-import { blockedByBrowser } from "@/printing/direct";
+import { agentOfAnotherTill, blockedByBrowser } from "@/printing/direct";
 import { useAuthStore } from "@/stores/auth";
 import { useConnectionStore } from "@/stores/connection";
 
@@ -102,6 +102,16 @@ onUnmounted(connection.stop);
       <span aria-hidden="true">●</span>
       <span>{{ t("print.blockedByBrowser") }}</span>
       <span class="font-normal">{{ t("print.blockedHow") }}</span>
+    </div>
+
+    <!-- `D-431` — this computer's print agent is another till's: the one step that mends it. -->
+    <div
+      v-else-if="agentOfAnotherTill"
+      role="alert"
+      class="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 bg-status-reserved px-4 py-2 text-sm font-medium text-white"
+    >
+      <span aria-hidden="true">●</span>
+      <span>{{ t("print.agentOfAnotherTill") }}</span>
     </div>
 
     <!--

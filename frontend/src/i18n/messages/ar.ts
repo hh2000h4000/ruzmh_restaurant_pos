@@ -37,6 +37,7 @@ const messages: Catalogue["messages"] = {
   "conn.staleConfig": "يعمل من نسخة هذا الجهاز، المحفوظة {when}.",
   "print.blockedByBrowser": "الطباعة متوقفة: المتصفح لا يسمح لهذه الصفحة بالوصول لبرنامج الطباعة.",
   "print.blockedHow": "للسماح: الأيقونة يسار العنوان ← شغّل «Apps on device». الدليل: «الطباعة ما اشتغلت؟»",
+  "print.agentOfAnotherTill": "الطباعة متوقفة: برنامج الطباعة على هذا الجهاز مربوط بكاشير ثاني. من القائمة: تثبيت برنامج الطباعة.",
   "agent.install": "تثبيت برنامج الطباعة",
   "agent.installTitle": "تثبيت برنامج الطباعة",
   "agent.preparing": "نجهّز برنامج الطباعة لهذا الكاشير…",

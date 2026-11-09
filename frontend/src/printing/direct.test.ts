@@ -11,7 +11,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import * as client from "@/api/client";
 
-import { blockedByBrowser, checkReach, configure, handPapers, type Paper } from "./direct";
+import { agentOfAnotherTill, blockedByBrowser, checkReach, configure, handPapers, type Paper } from "./direct";
 
 vi.mock("@/api/client", () => ({
   command: vi.fn().mockResolvedValue({ ok: true }),
@@ -179,10 +179,14 @@ describe("an agent paired again since the till loaded (D-425)", () => {
 
     expect(fetched).toHaveBeenCalledTimes(2);
     expect(client.command).toHaveBeenCalledWith("printing.not_handed", { job: "KOT-3", error: "agent answered 401" });
+    expect(agentOfAnotherTill.value, "the current key refused: another till's agent (D-431)").toBe(true);
   });
 
   it("sends nothing again when the server has no other key, or cannot be reached", async () => {
-    for (const answer of [Promise.resolve(DIRECT), Promise.reject(new Error("offline"))]) {
+    for (const [answer, anotherTill] of [
+      [Promise.resolve(DIRECT), true],
+      [Promise.reject(new Error("offline")), false],
+    ] as const) {
       vi.clearAllMocks();
       configure("كاشير 2", DIRECT);
       vi.mocked(client.query).mockReturnValue(answer as never);
@@ -193,7 +197,20 @@ describe("an agent paired again since the till loaded (D-425)", () => {
 
       expect(fetched).toHaveBeenCalledTimes(1);
       expect(client.command).toHaveBeenCalledWith("printing.not_handed", { job: "KOT-4", error: "agent answered 401" });
+      // The same key back is said; a server out of reach says nothing about whose agent it is.
+      expect(agentOfAnotherTill.value).toBe(anotherTill);
     }
+  });
+
+  it("stops saying it once a paper goes through, or the till loads again (D-431)", async () => {
+    agentOfAnotherTill.value = true;
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(answered()));
+    await handPapers([paper("KOT-5")]);
+    expect(agentOfAnotherTill.value).toBe(false);
+
+    agentOfAnotherTill.value = true;
+    configure("كاشير 2", DIRECT);
+    expect(agentOfAnotherTill.value).toBe(false);
   });
 });
 

@@ -71,6 +71,17 @@ export const blockedByBrowser = ref(false);
 let watching: PermissionStatus | null = null;
 
 /**
+ * The agent on this computer belongs to another till (`D-431`).
+ *
+ * It refused this till's key even after the till asked the server for the
+ * current one, so the key is not old — it is another agent's. One computer
+ * runs one agent: the one last installed on it, here for another terminal.
+ * Said once, on the screen, with the one step that mends it, until a paper
+ * goes through or the till loads again; the papers stay unconfirmed.
+ */
+export const agentOfAnotherTill = ref(false);
+
+/**
  * Set from the session: a direct till names itself on every request and takes
  * the paper that comes back; any other till does neither, and the server draws.
  */
@@ -86,6 +97,7 @@ export function configure(name: string | null, printing: TillPrinting | null | u
     : null;
   setTillName(direct ? name : null);
   onPapers(direct ? handPapers : null);
+  agentOfAnotherTill.value = false;
   if (!till) {
     blockedByBrowser.value = false;
     watching = null;
@@ -168,10 +180,11 @@ let renewing: Promise<string | null> | null = null;
  *
  * The key changes when the agent is paired again, and this till loaded before.
  * Asked once however many papers were refused together, and not at all when
- * another paper has already brought the new one. Null when there is none to
- * be had — the server unreachable, or the same key again.
+ * another paper has already brought the new one. ``"same"`` when the server
+ * answers with the key that was refused — the agent is another till's
+ * (`D-431`); null when it cannot be asked.
  */
-async function freshToken(sent: string): Promise<string | null> {
+async function freshToken(sent: string): Promise<string | "same" | null> {
   if (!till) return null;
   if (till.token !== sent) return till.token;
   renewing ??= query<TillPrinting>("session.till_printing", {
@@ -187,7 +200,8 @@ async function freshToken(sent: string): Promise<string | null> {
       renewing = null;
     });
   const token = await renewing;
-  return token && token !== sent ? token : null;
+  if (!token) return null;
+  return token === sent ? "same" : token;
 }
 
 async function handOver(paper: Paper, renewed = false): Promise<void> {
@@ -206,9 +220,16 @@ async function handOver(paper: Paper, renewed = false): Promise<void> {
     // `D-425` — the agent checks the key before anything else, so a refused
     // key printed nothing: the one refusal sent again, once, with the key it
     // holds now. A second refusal is said like any other.
-    if (answer.status === 401 && !renewed && (await freshToken(token))) {
-      await handOver(paper, true);
-      return;
+    if (answer.status === 401) {
+      const fresh = renewed ? "same" : await freshToken(token);
+      if (fresh && fresh !== "same") {
+        await handOver(paper, true);
+        return;
+      }
+      // `D-431` — the current key refused too: this computer's agent is another till's.
+      if (fresh === "same") agentOfAnotherTill.value = true;
+    } else if (answer.ok) {
+      agentOfAnotherTill.value = false;
     }
     if (!answer.ok) {
       // Refused — wrong page, wrong key: nothing was printed, but the till

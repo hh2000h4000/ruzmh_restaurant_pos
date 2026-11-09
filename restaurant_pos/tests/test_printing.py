@@ -1993,6 +1993,19 @@ class TestTheCashDrawer(PrintingTestBase):
 		self.assertTrue(claimed)
 		self.assertEqual(base64.b64decode(claimed[0]["payload"]), service.drawer_kick(2))
 
+	def test_a_drawer_that_did_not_open_is_never_sent_to_the_backup(self):
+		"""`D-428` — the backup's drawer is another counter's: opened there, with nobody at it."""
+		job = service.open_drawer(self.profile, reason="test")
+		self.assertTrue(
+			frappe.db.get_value("POS Printer", self.printer, "fallback_printer"), "a backup exists"
+		)
+
+		service.settle(job, printed=False, error="cannot reach", reason="unreachable", nothing_sent=True)
+
+		self.assertFalse(frappe.db.exists("POS Print Job", {"retry_of": job}))
+		self.assertIsNone(service.backup_printer(self.printer, "drawer"), "nor named to a direct till")
+		self.assertEqual(service.backup_printer(self.printer, "kot"), self.backup_printer)
+
 	def test_a_terminal_with_no_printer_does_not_raise(self):
 		"""It is called from taking money; it must never stop that."""
 		frappe.db.set_value("POS Profile", self.profile, "default_printer", None)

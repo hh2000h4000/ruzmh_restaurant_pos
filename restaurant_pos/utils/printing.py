@@ -1040,8 +1040,17 @@ def _cashier_printer(pos_profile: str | None) -> str | None:
 	return frappe.db.get_value("POS Profile", pos_profile, "default_printer") if pos_profile else None
 
 
-def backup_printer(printer: str) -> str | None:
-	"""Where a failure on ``printer`` may go (`BR-072`), or None."""
+def backup_printer(printer: str, job_type: str) -> str | None:
+	"""Where a failure on ``printer`` may go (`BR-072`), or None.
+
+	**Never a drawer kick** (`D-428`). The drawer is wired to its own printer; a
+	kick sent to the backup opens nothing, or opens another counter's drawer
+	with nobody at it. A drawer that did not open is opened with its key
+	(`D-412`) — the cashier is standing in front of it and sees that it did not.
+	Here, where the server's path and the till's both ask.
+	"""
+	if job_type == "drawer":
+		return None
 	fallback = frappe.db.get_value("POS Printer", printer, "fallback_printer")
 	if not fallback or not frappe.db.get_value("POS Printer", fallback, "is_active"):
 		return None
@@ -1076,7 +1085,7 @@ def fall_back(job_name: str) -> str | None:
 		# until somebody notices the paper is gone.
 		return None
 
-	fallback = backup_printer(job.printer)
+	fallback = backup_printer(job.printer, job.job_type)
 	if not fallback:
 		return None
 
@@ -1565,7 +1574,7 @@ def _hand_to_till(
 	# reaches goes with the paper, and the till sends it there itself (`D-417`);
 	# one it cannot reach is the server's, which holds the paper in Redis for
 	# its shelf life, not on the row (`D-416`).
-	backup = backup_printer(printer)
+	backup = backup_printer(printer, job_type)
 	if backup:
 		backup_doc = frappe.get_cached_doc("POS Printer", backup)
 		if _agent_reaches(job.agent, backup_doc):

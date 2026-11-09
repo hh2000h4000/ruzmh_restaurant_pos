@@ -44,7 +44,7 @@ export const messages = {
   "conn.staleConfig": "Working from this device's copy, saved {when}.",
   // `D-420` — the browser refuses this page its print agent
   "print.blockedByBrowser": "Printing is stopped: this browser does not allow the page to reach the print agent.",
-  "print.blockedHow": "To allow it: the icon left of the address → Site settings → Local network → Allow. Guide: “Printing didn’t work?”",
+  "print.blockedHow": "To allow it: the icon left of the address → turn on “Apps on device”. Guide: “Printing didn’t work?”",
   "agent.install": "Install the print agent",
   "agent.installTitle": "Install the print agent",
   "agent.preparing": "Preparing the print agent for this till…",

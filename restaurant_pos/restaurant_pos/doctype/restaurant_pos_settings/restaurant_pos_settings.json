@@ -22,6 +22,7 @@
   "rpos_stock_note",
   "printing_section",
   "print_agent_file",
+  "print_agent_version",
   "print_agent_sha256"
  ],
  "fields": [
@@ -142,12 +143,19 @@
    "fieldtype": "Data",
    "label": "Program fingerprint (SHA-256)",
    "read_only": 1
+  },
+  {
+   "description": "Read from inside the uploaded program on save, as Windows shows it under Properties → Details (D-427). Empty for a program built before it.",
+   "fieldname": "print_agent_version",
+   "fieldtype": "Data",
+   "label": "Program version",
+   "read_only": 1
   }
  ],
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2026-11-08 16:00:00.000000",
+ "modified": "2026-11-09 15:00:00.000000",
  "modified_by": "Administrator",
  "module": "Restaurant POS",
  "name": "Restaurant POS Settings",

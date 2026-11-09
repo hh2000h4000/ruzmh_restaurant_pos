@@ -41,9 +41,10 @@ class RestaurantPOSSettings(Document):
 
 		# `D-426` — what every agent compares its own program with, worked out
 		# once here rather than by sixty agents downloading to find out.
-		from restaurant_pos.utils.agent_install import fingerprint
+		# `D-427` — and which version it is, read from inside the file.
+		from restaurant_pos.utils.agent_install import program_facts
 
-		self.print_agent_sha256 = fingerprint(self.print_agent_file)
+		self.print_agent_sha256, self.print_agent_version = program_facts(self.print_agent_file)
 
 		# Empty on a site that had these settings before the field existed.
 		self.alerts_per_page = self.alerts_per_page or 20

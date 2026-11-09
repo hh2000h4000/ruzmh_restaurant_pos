@@ -127,6 +127,15 @@ class TheAgentFromTheTill(PrintingTestBase):
 		settings.save(ignore_permissions=True)
 
 		self.assertEqual(settings.print_agent_sha256, hashlib.sha256(PROGRAM).hexdigest())
+		self.assertIsNone(settings.print_agent_version, "a program built before D-427 says no version")
+
+	def test_the_version_is_read_from_inside_the_program_as_windows_shows_it(self):
+		"""`D-427` — what `print_agent/build.py` writes: the key, padding, the value, in UTF-16."""
+		resource = "FileVersion\0".encode("utf-16-le") + b"\0\0" + "1.6.1\0".encode("utf-16-le")
+		self.assertEqual(agent_install.program_version(b"MZ" + b"\x90" * 64 + resource + b"\0" * 8), "1.6.1")
+		self.assertIsNone(agent_install.program_version(PROGRAM))
+		garbled = "FileVersion\0".encode("utf-16-le") + "not a version\0".encode("utf-16-le")
+		self.assertIsNone(agent_install.program_version(garbled))
 
 	def test_an_agent_is_told_the_fingerprint_unless_it_is_kept_on_its_version(self):
 		"""`D-426` — riding on the minute's settings: no request of its own."""

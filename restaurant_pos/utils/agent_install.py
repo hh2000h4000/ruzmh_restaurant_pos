@@ -178,17 +178,41 @@ def send_program() -> None:
 	_respond_with(file_url, f"{FILE_PREFIX}.exe")
 
 
-def fingerprint(file_url: str | None) -> str | None:
-	"""The SHA-256 of the uploaded program, as the agent works out its own."""
+def program_facts(file_url: str | None) -> tuple[str | None, str | None]:
+	"""The uploaded program's SHA-256 — as the agent works out its own — and its version."""
 	if not file_url:
-		return None
+		return None, None
 	import hashlib
 
-	digest = hashlib.sha256()
 	with open(_program_path(file_url), "rb") as program:
-		for chunk in iter(lambda: program.read(1 << 20), b""):
-			digest.update(chunk)
-	return digest.hexdigest()
+		data = program.read()
+	return hashlib.sha256(data).hexdigest(), program_version(data)
+
+
+#: How Windows names the version inside a program's resources: UTF-16, then the value.
+_FILE_VERSION = "FileVersion\0".encode("utf-16-le")
+
+
+def program_version(data: bytes) -> str | None:
+	"""The version `print_agent/build.py` wrote into the program (`D-427`).
+
+	Read from inside the file, as Windows shows it under Properties → Details,
+	because the name it arrives under may have been changed on the way. None
+	for a program built before it, or anything else.
+	"""
+	import re
+
+	at = data.rfind(_FILE_VERSION)
+	if at < 0:
+		return None
+	start = at + len(_FILE_VERSION)
+	while data[start : start + 2] == b"\0\0":
+		start += 2
+	end = start
+	while end < len(data) and data[end : end + 2] != b"\0\0" and end - start < 64:
+		end += 2
+	value = data[start:end].decode("utf-16-le", errors="replace")
+	return value if re.fullmatch(r"\d+(\.\d+){1,3}", value) else None
 
 
 def _program_path(file_url: str) -> str:

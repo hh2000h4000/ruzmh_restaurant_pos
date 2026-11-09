@@ -69,7 +69,8 @@ def prepare(pos_profile: str, origin: str | None, move: bool = False) -> dict:
 	frappe.db.set_value("POS Profile", pos_profile, {"rpos_print_route": "direct", "rpos_print_agent": agent})
 	frappe.clear_document_cache("POS Profile", pos_profile)
 
-	filename = file_name(address, code)
+	version = frappe.db.get_single_value("Restaurant POS Settings", "print_agent_version")
+	filename = file_name(address, code, version)
 	ticket = frappe.generate_hash(length=32)
 	frappe.cache().set_value(
 		_TICKET_PREFIX + ticket,
@@ -133,8 +134,12 @@ def page_origin(address: tuple[str, str, int]) -> str:
 	return f"{scheme}://{host}" if port == (443 if scheme == "https" else 80) else f"{scheme}://{host}:{port}"
 
 
-def file_name(address: tuple[str, str, int], code: str) -> str:
-	"""`RPOS-Print-Agent_https_pos.example.com_443_48217735.exe` — read back by the agent.
+def file_name(address: tuple[str, str, int], code: str, version: str | None = None) -> str:
+	"""`RPOS-Print-Agent_https_pos.example.com_443_48217735_v1.6.2.exe` — read back by the agent.
+
+	**The version last** (`D-427`), where the manager sees it in the download
+	bar: an agent reads the address and the code from the start of its name and
+	nothing after, so 1.6.1, built before this, still pairs from it.
 
 	**A `.localhost` name becomes `127.0.0.1`** (`D-425`). Chrome resolves every
 	such name to this computer, as RFC 6761 says; Windows does not, and the
@@ -144,7 +149,8 @@ def file_name(address: tuple[str, str, int], code: str) -> str:
 	scheme, host, port = address
 	if host == "localhost" or host.endswith(".localhost"):
 		host = "127.0.0.1"
-	return f"{FILE_PREFIX}_{scheme}_{host}_{port}_{code}.exe"
+	tail = f"_v{version}" if version else ""
+	return f"{FILE_PREFIX}_{scheme}_{host}_{port}_{code}{tail}.exe"
 
 
 def download(ticket: str) -> None:

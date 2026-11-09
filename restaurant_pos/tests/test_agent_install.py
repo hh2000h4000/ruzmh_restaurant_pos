@@ -9,6 +9,7 @@ already printing is never taken from without being asked; another terminal's
 agent is never taken at all; and only a manager may do it.
 """
 
+import re
 from unittest.mock import patch
 
 import frappe
@@ -42,7 +43,7 @@ class TheAgentFromTheTill(PrintingTestBase):
 		self.addCleanup(frappe.set_user, "Administrator")
 
 	def _code(self, filename: str) -> str:
-		return filename.removesuffix(".exe").rsplit("_", 1)[1]
+		return re.search(r"_(\d{8})(_v[\d.]+)?\.exe$", filename).group(1)
 
 	def test_one_request_leaves_the_till_printing_direct_through_an_agent_that_pairs_from_its_name(self):
 		answer = agent_install.prepare(self.profile, ORIGIN)
@@ -87,6 +88,14 @@ class TheAgentFromTheTill(PrintingTestBase):
 
 		self.assertNotEqual(answer["agent"], self.agent)
 		self.assertFalse(frappe.db.get_value("POS Print Agent", self.agent, "pairing_code_hash"))
+
+	def test_the_downloaded_name_says_the_version_last_where_the_agent_reads_nothing(self):
+		"""`D-427` — seen in the download bar; 1.6.1 reads the start of the name only."""
+		frappe.db.set_single_value("Restaurant POS Settings", "print_agent_version", "1.6.2")
+
+		filename = agent_install.prepare(self.profile, ORIGIN)["filename"]
+
+		self.assertRegex(filename, r"^RPOS-Print-Agent_https_pos\.example\.com_443_\d{8}_v1\.6\.2\.exe$")
 
 	def test_a_bench_address_keeps_its_scheme_and_port(self):
 		answer = agent_install.prepare(self.profile, "http://127.0.0.1:8000")

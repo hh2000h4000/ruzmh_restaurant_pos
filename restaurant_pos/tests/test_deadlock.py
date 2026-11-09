@@ -10,7 +10,7 @@ from unittest.mock import patch
 import frappe
 from frappe.tests.utils import FrappeTestCase
 
-from restaurant_pos.utils.deadlock import retried
+from restaurant_pos.utils.deadlock import OrderBusy, retried
 
 API = pathlib.Path(__file__).resolve().parent.parent / "api"
 
@@ -56,6 +56,25 @@ class ALostDeadlockIsRunAgain(FrappeTestCase):
 		with patch.object(frappe.db, "rollback"), patch("time.sleep"):
 			with self.assertRaises(frappe.QueryDeadlockError):
 				write()
+
+	def test_a_lock_held_past_the_wait_is_said_in_words_and_kept_for_the_queue(self):
+		"""`D-429` — not "Lock wait timeout exceeded"; and a 5xx, so the offline queue
+		sends it again rather than dropping it as a refusal."""
+		calls = []
+
+		@retried
+		def write():
+			calls.append(1)
+			raise frappe.QueryTimeoutError("1205")
+
+		with patch.object(frappe.db, "rollback") as rolled_back:
+			with self.assertRaises(OrderBusy) as raised:
+				write()
+
+		self.assertEqual(len(calls), 1, "fifty seconds waited already: not waited again")
+		rolled_back.assert_called_once()
+		self.assertIn("Try again", str(raised.exception))
+		self.assertGreaterEqual(OrderBusy.http_status_code, 500)
 
 	def test_any_other_failure_is_not_retried(self):
 		calls = []

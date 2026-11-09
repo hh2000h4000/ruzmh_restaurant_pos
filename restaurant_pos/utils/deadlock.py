@@ -23,21 +23,48 @@ import random
 import time
 
 import frappe
+from frappe import _
+
+
+class OrderBusy(frappe.ValidationError):
+	"""Another till held the order past the database's lock wait (`D-429`).
+
+	**A 5xx, on purpose.** The offline queue keeps what the server did not
+	finish and drops a 4xx as final (`CLAUDE.md` §5.3); a write refused only
+	for being second must be sent again, not lost.
+	"""
+
+	http_status_code = 503
 
 
 def retried(fn):
 	@functools.wraps(fn)
 	def wrapper(*args, **kwargs):
 		try:
-			return fn(*args, **kwargs)
-		except frappe.QueryDeadlockError:
-			# The transaction is already gone; this clears what Frappe holds for it —
-			# the after-commit jobs, the cached values — so the second run starts clean.
+			return _once_more_on_deadlock(fn, *args, **kwargs)
+		except frappe.QueryTimeoutError:
+			# `D-429` — said in words: the cashier read "Lock wait timeout
+			# exceeded", and nothing told them pressing again is safe. It is: the
+			# whole transaction is gone, and the `queue_id` stops a second sale.
 			frappe.db.rollback()
 			frappe.local.message_log = []
-			frappe.local.rpos_permission_cache = {}
-			# A few milliseconds apart, so the two tills do not meet again on the same row.
-			time.sleep(random.uniform(0.02, 0.1))
-			return fn(*args, **kwargs)
+			frappe.throw(
+				_("Another till is working on this order at this moment. Try again."),
+				OrderBusy,
+			)
 
 	return wrapper
+
+
+def _once_more_on_deadlock(fn, *args, **kwargs):
+	try:
+		return fn(*args, **kwargs)
+	except frappe.QueryDeadlockError:
+		# The transaction is already gone; this clears what Frappe holds for it —
+		# the after-commit jobs, the cached values — so the second run starts clean.
+		frappe.db.rollback()
+		frappe.local.message_log = []
+		frappe.local.rpos_permission_cache = {}
+		# A few milliseconds apart, so the two tills do not meet again on the same row.
+		time.sleep(random.uniform(0.02, 0.1))
+		return fn(*args, **kwargs)
